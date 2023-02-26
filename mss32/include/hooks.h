@@ -296,6 +296,8 @@ bool __stdcall isUnitLevelNotMaxHooked(const game::IMidgardObjectMap* objectMap,
 bool __stdcall isUnitUpgradePendingHooked(const game::CMidgardID* unitId,
                                           const game::IMidgardObjectMap* objectMap);
 
+const game::CMidgardID* __stdcall getUnitImplIdForIsoUnitImageHooked(const game::CMidgardID* unitImplId);
+
 } // namespace hooks
 
 #endif // HOOKS_H

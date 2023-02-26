@@ -170,6 +170,7 @@
 #include "unitstovalidate.h"
 #include "unitutils.h"
 #include "untransformeffecthooks.h"
+#include "usleader.h"
 #include "usracialsoldier.h"
 #include "ussoldier.h"
 #include "usstackleader.h"
@@ -705,6 +706,12 @@ Hooks getHooks()
     hooks.emplace_back(HookInfo{fn.isUnitTierMax, isUnitTierMaxHooked});
     hooks.emplace_back(HookInfo{fn.isUnitLevelNotMax, isUnitLevelNotMaxHooked});
     hooks.emplace_back(HookInfo{fn.isUnitUpgradePending, isUnitUpgradePendingHooked});
+
+    // Allow upgraded leaders to use upgraded map model
+    hooks.emplace_back(
+        HookInfo{fn.getUnitImplIdForIsoUnitImage, getUnitImplIdForIsoUnitImageHooked});
+    // TODO: patch CreateCommandMsgAnimation (Akella 0x4f369b) - try to reuse CCmdStackAppearMsg
+    // logic for CCmdBattleEndMsg for both stacks
 
     return hooks;
 }
@@ -2445,6 +2452,47 @@ bool __stdcall isUnitUpgradePendingHooked(const game::CMidgardID* unitId,
     }
 
     return false;
+}
+
+const game::CMidgardID* __stdcall getUnitImplIdForIsoUnitImageHooked(
+    const game::CMidgardID* unitImplId)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+    const auto& idApi = CMidgardIDApi::get();
+    const auto& globalApi = GlobalDataApi::get();
+
+    auto globalData = *globalApi.getGlobalData();
+    if (idApi.getType(unitImplId) == IdType::UnitGenerated) {
+        CMidgardID globalUnitImplId;
+        auto unitGenerator = globalData->unitGenerator;
+        unitGenerator->vftable->getGlobalUnitImplId(unitGenerator, &globalUnitImplId, unitImplId);
+
+        return fn.getUnitImplIdForIsoUnitImage(&globalUnitImplId);
+    }
+
+    auto unitImpl = static_cast<const TUsUnitImpl*>(
+        globalApi.findById(globalData->units, unitImplId));
+
+    auto leader = fn.castUnitImplToLeader(unitImpl);
+    if (leader) {
+        auto prevUnitImplId = leader->vftable->getPrevUnitImplId(leader);
+        if (*prevUnitImplId != emptyId) {
+            // TODO: check if current impl has move anim - return it if so, go for prev otherwise
+            // return fn.getUnitImplIdForIsoUnitImage(prevUnitImplId);
+        }
+    } else {
+        auto racialSoldier = fn.castUnitImplToRacialSoldier(unitImpl);
+        if (racialSoldier) {
+            auto prevUnitImplId = racialSoldier->vftable->getPrevUnitImplId(racialSoldier);
+            if (*prevUnitImplId != emptyId) {
+                return fn.getUnitImplIdForIsoUnitImage(prevUnitImplId);
+            }
+        }
+    }
+
+    return &unitImpl->id;
 }
 
 } // namespace hooks
