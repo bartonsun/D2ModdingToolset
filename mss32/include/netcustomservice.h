@@ -79,7 +79,7 @@ struct CNetCustomService : public game::IMqNetService
 /** Returns net service if it is present and has type CNetCustomService. */
 CNetCustomService* getNetService();
 
-bool createCustomNetService(game::IMqNetService** service);
+game::IMqNetService* createCustomNetService();
 
 void addLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks);
 void removeLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks);

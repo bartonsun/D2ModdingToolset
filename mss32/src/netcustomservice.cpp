@@ -171,11 +171,9 @@ static game::IMqNetServiceVftable netCustomServiceVftable{
     (game::IMqNetServiceVftable::JoinSession)netCustomServiceJoinSession,
 };
 
-bool createCustomNetService(game::IMqNetService** service)
+game::IMqNetService* createCustomNetService()
 {
     using namespace game;
-
-    *service = nullptr;
 
     logDebug("lobby.log", "Get peer instance");
     auto lobbyPeer = NetworkPeer::PeerPtr(SLNet::RakPeerInterface::GetInstance());
@@ -188,7 +186,7 @@ bool createCustomNetService(game::IMqNetService** service)
 
     if (lobbyPeer->Startup(1, &socket, 1) != SLNet::RAKNET_STARTED) {
         logError("lobby.log", "Failed to start lobby client");
-        return false;
+        return nullptr;
     }
 
     const auto& serverIp = lobbySettings.server.ip;
@@ -200,7 +198,7 @@ bool createCustomNetService(game::IMqNetService** service)
     if (lobbyPeer->Connect(serverIp.c_str(), serverPort, nullptr, 0)
         != SLNet::CONNECTION_ATTEMPT_STARTED) {
         logError("lobby.log", "Failed to connect to lobby server");
-        return false;
+        return nullptr;
     }
 
     logDebug("lobby.log", "Allocate CNetCustomService");
@@ -213,8 +211,7 @@ bool createCustomNetService(game::IMqNetService** service)
     netService->vftable = &netCustomServiceVftable;
 
     logDebug("lobby.log", "CNetCustomService created");
-    *service = netService;
-    return true;
+    return netService;
 }
 
 void addLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks)

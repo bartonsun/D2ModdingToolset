@@ -243,15 +243,12 @@ void __fastcall menuProtocolContinueHandlerHooked(CMenuCustomProtocol* thisptr, 
 
     auto& midgardApi = CMidgardApi::get();
     auto midgard = midgardApi.instance();
-    // Delete old net service
-    midgardApi.setNetService(midgard, nullptr, true, false);
 
-    IMqNetService* service{nullptr};
-    if (!createCustomNetService(&service)) {
+    IMqNetService* service = createCustomNetService();
+    midgardApi.setNetService(midgard, service, true, false);
+    if (!service) {
         return;
     }
-
-    midgardApi.setNetService(midgard, service, true, false);
 
     auto menuWait = (CMenuFlashWait*)Memory::get().allocate(sizeof(CMenuFlashWait));
     CMenuFlashWaitApi::get().constructor(menuWait);
