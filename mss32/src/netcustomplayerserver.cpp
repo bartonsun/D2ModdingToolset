@@ -40,7 +40,7 @@ void PlayerServerCallbacks::onPacketReceived(DefaultMessageIDTypes type,
                                              SLNet::RakPeerInterface* peer,
                                              const SLNet::Packet* packet)
 {
-    auto netSystem{playerServer->player.netSystem};
+    auto netSystem{playerServer->player.getSystem()};
 
     switch (type) {
     case ID_REMOTE_DISCONNECTION_NOTIFICATION: {
@@ -145,7 +145,7 @@ void PlayerServerCallbacks::onPacketReceived(DefaultMessageIDTypes type,
                 CNetCustomPlayerServer::IdMessagePair{std::uint32_t{guidInt}, std::move(msg)});
         }
 
-        auto reception = playerServer->player.netReception;
+        auto reception = playerServer->player.getReception();
         if (reception) {
             reception->vftable->notify(reception);
         }
@@ -317,7 +317,7 @@ static bool __fastcall playerServerSetMaxPlayers(CNetCustomPlayerServer* thisptr
                                                  int maxPlayers)
 {
     playerLog(fmt::format("CNetCustomPlayerServer setMaxPlayers {:d}", maxPlayers));
-    return thisptr->player.session->setMaxPlayers(maxPlayers);
+    return thisptr->player.getSession()->setMaxPlayers(maxPlayers);
 }
 
 static bool __fastcall playerServerSetAllowJoin(CNetCustomPlayerServer* thisptr,
@@ -353,12 +353,13 @@ CNetCustomPlayerServer::CNetCustomPlayerServer(CNetCustomSession* session,
     , callbacks{this}
 {
     vftable = &playerServerVftable;
-    player.netPeer.addCallback(&callbacks);
+    player.getPeer().addCallback(&callbacks);
 }
 
 bool CNetCustomPlayerServer::notifyHostClientConnected()
 {
-    if (!player.netSystem) {
+    auto system = player.getSystem();
+    if (!system) {
         playerLog("PlayerServer: no netSystem in notifyHostClientConnected()");
         return false;
     }
@@ -371,7 +372,7 @@ bool CNetCustomPlayerServer::notifyHostClientConnected()
     const std::uint32_t hostClientNetId{SLNet::RakNetGUID::ToUint32(connectedIds[0])};
     playerLog(fmt::format("PlayerServer: onPlayerConnected 0x{:x}", hostClientNetId));
 
-    player.netSystem->vftable->onPlayerConnected(player.netSystem, (int)hostClientNetId);
+    system->vftable->onPlayerConnected(system, (int)hostClientNetId);
     return true;
 }
 

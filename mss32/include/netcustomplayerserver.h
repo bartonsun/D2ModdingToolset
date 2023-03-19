@@ -59,7 +59,7 @@ struct CNetCustomPlayerServer : public game::IMqNetPlayerServer
 
     auto getPeer()
     {
-        return player.getPeer();
+        return player.getPeer().peer.get();
     }
 
     bool notifyHostClientConnected();

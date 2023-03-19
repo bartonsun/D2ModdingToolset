@@ -63,7 +63,7 @@ struct CNetCustomPlayerClient : public game::IMqNetPlayerClient
 
     auto getPeer()
     {
-        return player.getPeer();
+        return player.getPeer().peer.get();
     }
 
     void setupPacketCallbacks();

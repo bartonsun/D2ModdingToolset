@@ -44,7 +44,7 @@ void PlayerClientCallbacks::onPacketReceived(DefaultMessageIDTypes type,
                                              SLNet::RakPeerInterface* peer,
                                              const SLNet::Packet* packet)
 {
-    auto netSystem{playerClient->player.netSystem};
+    auto netSystem{playerClient->player.getSystem()};
 
     switch (type) {
     case ID_REMOTE_DISCONNECTION_NOTIFICATION:
@@ -111,7 +111,7 @@ void PlayerClientCallbacks::onPacketReceived(DefaultMessageIDTypes type,
                 CNetCustomPlayerClient::IdMessagePair{std::uint32_t{guidInt}, std::move(msg)});
         }
 
-        auto reception = playerClient->player.netReception;
+        auto reception = playerClient->player.getReception();
         if (reception) {
             reception->vftable->notify(reception);
         }
@@ -183,7 +183,7 @@ bool __fastcall playerClientSendMessage(CNetCustomPlayerClient* thisptr,
 
     playerLog(
         fmt::format("CNetCustomPlayerClient {:s} sendMessage '{:s}' to {:x}, server guid 0x{:x}",
-                    thisptr->player.name, message->messageClassName, std::uint32_t(idTo),
+                    thisptr->player.getName(), message->messageClassName, std::uint32_t(idTo),
                     serverId));
 
     if (idTo != game::serverNetPlayerId) {
@@ -198,7 +198,7 @@ bool __fastcall playerClientSendMessage(CNetCustomPlayerClient* thisptr,
                    thisptr->serverAddress, false)
         == 0) {
         playerLog(fmt::format("CNetCustomPlayerClient {:s} Send returned bad input",
-                              thisptr->player.name));
+                              thisptr->player.getName()));
     }
 
     return true;
@@ -272,13 +272,13 @@ static bool __fastcall playerClientSetName(CNetCustomPlayerClient* thisptr,
                                            const char* name)
 {
     playerLog("CNetCustomPlayerClient setName");
-    thisptr->player.name = name;
+    thisptr->player.setName(name);
     return true;
 }
 
 static bool __fastcall playerClientIsHost(CNetCustomPlayerClient* thisptr, int /*%edx*/)
 {
-    bool isHost = thisptr->player.session->isHost();
+    bool isHost = thisptr->player.getSession()->isHost();
     playerLog(fmt::format("CNetCustomPlayerClient isHost {:d}", isHost));
     return isHost;
 }
@@ -316,7 +316,7 @@ CNetCustomPlayerClient::CNetCustomPlayerClient(CNetCustomSession* session,
 void CNetCustomPlayerClient::setupPacketCallbacks()
 {
     playerLog("Setup player client packet callbacks");
-    player.netPeer.addCallback(&callbacks);
+    player.getPeer().addCallback(&callbacks);
 }
 
 SLNet::SystemAddress lobbyAddressToServerPlayer(const SLNet::SystemAddress& lobbyAddress);

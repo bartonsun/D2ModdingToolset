@@ -102,7 +102,7 @@ public:
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             // Unsubscribe from callbacks
-            playerClient->player.netPeer.removeCallback(this);
+            playerClient->player.getPeer().removeCallback(this);
             customLobbyProcessJoinError(menuLobby,
                                         "Failed to connect player client to player server");
             return;
@@ -114,14 +114,14 @@ public:
 
         auto& player{playerClient->player};
         // Unsubscribe from callbacks
-        player.netPeer.removeCallback(this);
+        player.getPeer().removeCallback(this);
 
         logDebug("roomJoin.log", "Player client finally connected to player server. "
                                  "Continue with game protocol");
 
         // Fully connected!
         // Remember server playerNetId, and our netId
-        player.netId = SLNet::RakNetGUID::ToUint32(peer->GetMyGUID());
+        player.setId(SLNet::RakNetGUID::ToUint32(peer->GetMyGUID()));
 
         auto serverGuid = peer->GetGuidFromSystemAddress(packet->systemAddress);
         playerClient->serverAddress = packet->systemAddress;
@@ -176,7 +176,7 @@ public:
             auto& player{playerClient->player};
 
             // Unsubscribe from callbacks
-            player.netPeer.removeCallback(this);
+            player.getPeer().removeCallback(this);
 
             logDebug("roomJoin.log",
                      fmt::format("NAT punch succeeded! Player server address {:s}, netId 0x{:x}",
@@ -194,7 +194,7 @@ public:
             }
 
             logDebug("roomJoin.log", "Connection attempt after NAT punch, wait response");
-            player.netPeer.addCallback(&clientToServerConnectCallback);
+            player.getPeer().addCallback(&clientToServerConnectCallback);
             return;
         }
         }
@@ -204,7 +204,7 @@ public:
             auto playerClient{service->session->getHostPlayer()};
 
             // Unsubscribe from callbacks
-            playerClient->player.netPeer.removeCallback(this);
+            playerClient->player.getPeer().removeCallback(this);
             customLobbyProcessJoinError(menuLobby, error);
         }
     }
@@ -231,7 +231,7 @@ public:
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             // Unsubscribe from callbacks
-            playerClient->player.netPeer.removeCallback(this);
+            playerClient->player.getPeer().removeCallback(this);
             customLobbyProcessJoinError(menuLobby, "Failed to connect player client to NAT server");
             return;
         }
@@ -243,14 +243,14 @@ public:
         logDebug("roomJoin.log", fmt::format("OpenNAT to player server with id 0x{:x}",
                                              SLNet::RakNetGUID::ToUint32(playerServerGuid)));
         // Unsubscribe from callbacks
-        playerClient->player.netPeer.removeCallback(this);
+        playerClient->player.getPeer().removeCallback(this);
 
         // Start NAT punchthrough
         peer->AttachPlugin(&playerClient->natClient);
         playerClient->natClient.OpenNAT(playerServerGuid, packet->systemAddress);
 
         // Attach callback, wait response
-        playerClient->player.netPeer.addCallback(&natPunchCallbacks);
+        playerClient->player.getPeer().addCallback(&natPunchCallbacks);
     }
 };
 
@@ -337,7 +337,7 @@ void customLobbyProcessJoin(CMenuCustomLobby* menu,
         return;
     }
 
-    clientPlayer->player.netPeer.addCallback(&clientConnectCallbacks);
+    clientPlayer->player.getPeer().addCallback(&clientConnectCallbacks);
 }
 
 } // namespace hooks

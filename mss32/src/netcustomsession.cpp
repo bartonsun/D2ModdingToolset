@@ -172,9 +172,9 @@ void __fastcall CNetCustomSession::createClient(CNetCustomSession* thisptr,
     auto customClient = thisptr->getHostPlayer();
     // Finalize player setup here when we know all the settings
     auto& player = customClient->player;
-    player.name = clientName;
-    player.netSystem = netSystem;
-    player.netReception = reception;
+    player.setName(clientName);
+    player.setSystem(netSystem);
+    player.setReception(reception);
 
     *client = customClient;
 }
@@ -194,8 +194,8 @@ void __fastcall CNetCustomSession::createServer(CNetCustomSession* thisptr,
     }
 
     auto& serverPlayer = thisptr->m_server->player;
-    serverPlayer.netSystem = netSystem;
-    serverPlayer.netReception = reception;
+    serverPlayer.setSystem(netSystem);
+    serverPlayer.setReception(reception);
 
     *server = thisptr->m_server;
 }

@@ -77,7 +77,7 @@ public:
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             serverCreationError("Host player failed to connect to player server");
             // Unsubscribe from callbacks
-            hostPlayer->player.netPeer.removeCallback(this);
+            hostPlayer->player.getPeer().removeCallback(this);
             return;
         }
 
@@ -86,12 +86,12 @@ public:
         }
 
         // Unsubscribe from callbacks
-        hostPlayer->player.netPeer.removeCallback(this);
+        hostPlayer->player.getPeer().removeCallback(this);
         hideWaitMenu();
 
         // Setup host player netId and remember serverId
         auto& player = hostPlayer->player;
-        player.netId = SLNet::RakNetGUID::ToUint32(peer->GetMyGUID());
+        player.setId(SLNet::RakNetGUID::ToUint32(peer->GetMyGUID()));
 
         auto serverGuid = peer->GetGuidFromSystemAddress(packet->systemAddress);
         hostPlayer->serverId = SLNet::RakNetGUID::ToUint32(serverGuid);
@@ -100,7 +100,7 @@ public:
 
         logDebug("lobby.log",
                  fmt::format("Host player netId 0x{:x} connected to player server netId 0x{:x}",
-                             player.netId, hostPlayer->serverId));
+                             player.getId(), hostPlayer->serverId));
 
         if (menuBase) {
             const auto& fn = getOriginalFunctions();
@@ -133,7 +133,7 @@ static void createHostPlayer()
 
     logDebug("lobby.log", "Host player client waits for player server connection response");
 
-    hostPlayer->player.netPeer.addCallback(&hostClientConnectCallbacks);
+    hostPlayer->player.getPeer().addCallback(&hostClientConnectCallbacks);
 }
 
 /**
@@ -189,7 +189,7 @@ public:
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             // Unsubscribe from callbacks
-            playerServer->player.netPeer.removeCallback(this);
+            playerServer->player.getPeer().removeCallback(this);
             serverCreationError("Failed to connect player server to NAT server");
             return;
         }
@@ -199,7 +199,7 @@ public:
         }
 
         // Unsubscribe from callbacks
-        playerServer->player.netPeer.removeCallback(this);
+        playerServer->player.getPeer().removeCallback(this);
 
         addRoomsCallback(&roomServerCallback);
 
@@ -251,7 +251,7 @@ static void createSessionAndServer(const char* sessionName)
     }
 
     logDebug("lobby.log", "Player server waits for response from lobby server");
-    playerServer->player.netPeer.addCallback(&serverConnectCallbacks);
+    playerServer->player.getPeer().addCallback(&serverConnectCallbacks);
 }
 
 void startRoomAndServerCreation(game::CMenuBase* menu, bool loadScenario)
