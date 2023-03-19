@@ -81,7 +81,7 @@ void __fastcall menuLoadSkirmishMultiCreateHostPlayerHooked(game::CMenuLoad* thi
             return;
         }
 
-        auto playerServer{session->server};
+        auto playerServer{session->getServer()};
         if (!playerServer) {
             logDebug("lobby.log", "Player server is null");
             return;

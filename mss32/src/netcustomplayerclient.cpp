@@ -278,9 +278,9 @@ static bool __fastcall playerClientSetName(CNetCustomPlayerClient* thisptr,
 
 static bool __fastcall playerClientIsHost(CNetCustomPlayerClient* thisptr, int /*%edx*/)
 {
-    const auto host{thisptr->player.session->host};
-    playerLog(fmt::format("CNetCustomPlayerClient isHost {:d}", host));
-    return host;
+    bool isHost = thisptr->player.session->isHost();
+    playerLog(fmt::format("CNetCustomPlayerClient isHost {:d}", isHost));
+    return isHost;
 }
 
 static game::IMqNetPlayerClientVftable playerClientVftable{
@@ -368,7 +368,7 @@ game::IMqNetPlayerClient* createCustomPlayerClient(CNetCustomSession* session,
         return nullptr;
     }
 
-    auto service = session->service;
+    auto service = session->getService();
     auto serverAddress{lobbyAddressToServerPlayer(service->lobbyPeer.peer->GetMyBoundAddress())};
 
     auto serverIp{serverAddress.ToString(false)};
@@ -433,7 +433,7 @@ CNetCustomPlayerClient* createCustomHostPlayerClient(CNetCustomSession* session,
         return nullptr;
     }
 
-    auto service = session->service;
+    auto service = session->getService();
     // Create player server address from our local address
     // since host player client is on the same machine as player server
     auto serverAddress{lobbyAddressToServerPlayer(service->lobbyPeer.peer->GetMyBoundAddress())};

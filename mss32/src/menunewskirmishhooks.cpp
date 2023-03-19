@@ -97,7 +97,7 @@ bool __fastcall menuNewSkirmishMultiCreateServerHooked(game::CMenuNewSkirmishMul
         return false;
     }
 
-    auto playerServer{session->server};
+    auto playerServer{session->getServer()};
     if (!playerServer) {
         logDebug("lobby.log", "Player server is null");
         return false;

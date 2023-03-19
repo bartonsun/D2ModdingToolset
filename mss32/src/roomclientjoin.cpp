@@ -98,7 +98,7 @@ public:
                           const SLNet::Packet* packet) override
     {
         auto service = getNetService();
-        auto playerClient{service->session->players[0]};
+        auto playerClient{service->session->getHostPlayer()};
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             // Unsubscribe from callbacks
@@ -172,7 +172,7 @@ public:
 
         case ID_NAT_PUNCHTHROUGH_SUCCEEDED: {
             auto service = getNetService();
-            auto playerClient{service->session->players[0]};
+            auto playerClient{service->session->getHostPlayer()};
             auto& player{playerClient->player};
 
             // Unsubscribe from callbacks
@@ -201,7 +201,7 @@ public:
 
         if (error) {
             auto service = getNetService();
-            auto playerClient{service->session->players[0]};
+            auto playerClient{service->session->getHostPlayer()};
 
             // Unsubscribe from callbacks
             playerClient->player.netPeer.removeCallback(this);
@@ -227,7 +227,7 @@ public:
                           const SLNet::Packet* packet) override
     {
         auto service = getNetService();
-        auto playerClient{service->session->players[0]};
+        auto playerClient{service->session->getHostPlayer()};
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             // Unsubscribe from callbacks
@@ -286,7 +286,7 @@ void customLobbyProcessJoin(CMenuCustomLobby* menu,
         return;
     }
 
-    auto netSession = (CNetCustomSession*)createCustomNetSession(netService, roomName, false);
+    auto netSession = CNetCustomSession::create(netService, roomName, false);
 
     logDebug("roomJoin.log", fmt::format("Created netSession {:p}", (void*)netSession));
 
@@ -317,7 +317,7 @@ void customLobbyProcessJoin(CMenuCustomLobby* menu,
 
     // Create player client beforehand
     auto clientPlayer = createCustomPlayerClient(netSession, "");
-    netSession->players.push_back(clientPlayer);
+    netSession->addPlayer(clientPlayer);
 
     logDebug("roomJoin.log", "Connect to lobby server, wait response");
 

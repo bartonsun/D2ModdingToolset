@@ -34,7 +34,7 @@
 namespace hooks {
 
 struct CNetCustomService;
-struct CNetCustomSession;
+class CNetCustomSession;
 
 class LobbyPeerCallbacks : public NetworkPeerCallbacks
 {

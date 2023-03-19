@@ -72,7 +72,7 @@ public:
                           const SLNet::Packet* packet) override
     {
         auto service = getNetService();
-        auto hostPlayer = service->session->players.front();
+        auto hostPlayer = service->session->getHostPlayer();
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             serverCreationError("Host player failed to connect to player server");
@@ -129,7 +129,7 @@ static void createHostPlayer()
     // Connect player client to local player server, wait response.
     // Use dummy name, it will be set properly later in session::CreateClient method
     auto hostPlayer = createCustomHostPlayerClient(service->session, "Host player");
-    service->session->players.push_back(hostPlayer);
+    service->session->addPlayer(hostPlayer);
 
     logDebug("lobby.log", "Host player client waits for player server connection response");
 
@@ -185,7 +185,7 @@ public:
                           const SLNet::Packet* packet) override
     {
         auto service = getNetService();
-        auto playerServer{service->session->server};
+        auto playerServer{service->session->getServer()};
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             // Unsubscribe from callbacks
@@ -206,7 +206,7 @@ public:
         const char* password{roomPassword.empty() ? nullptr : roomPassword.c_str()};
 
         // Request room creation and wait for lobby server response
-        if (!tryCreateRoom(service->session->name.c_str(), peer->GetMyGUID().ToString(),
+        if (!tryCreateRoom(service->session->getName().c_str(), peer->GetMyGUID().ToString(),
                            password)) {
             serverCreationError("Failed to request room creation");
             return;
@@ -226,15 +226,14 @@ static void createSessionAndServer(const char* sessionName)
     logDebug("lobby.log", "Create session");
 
     auto service = getNetService();
-    service->session = (CNetCustomSession*)createCustomNetSession(service, sessionName, true);
+    service->session = CNetCustomSession::create(service, sessionName, true);
 
     logDebug("lobby.log", "Create player server");
 
     // NetSession and NetSystem will be set later by the game in CMidServerStart()
     auto playerServer = (CNetCustomPlayerServer*)createCustomPlayerServer(service->session, nullptr,
                                                                           nullptr);
-
-    service->session->server = playerServer;
+    service->session->setServer(playerServer);
 
     const auto& lobbySettings = userSettings().lobby;
     const auto& serverIp = lobbySettings.server.ip;

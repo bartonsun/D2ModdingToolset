@@ -20,13 +20,20 @@
 #ifndef NETCUSTOMSESSION_H
 #define NETCUSTOMSESSION_H
 
+#include "d2list.h"
 #include "mqnetsession.h"
 #include <string>
 #include <vector>
 
 namespace game {
+struct String;
+struct IMqNetSystem;
+struct IMqNetReception;
 struct IMqNetPlayer;
-}
+struct IMqNetPlayerEnum;
+struct IMqNetPlayerServer;
+struct IMqNetPlayerClient;
+} // namespace game
 
 namespace hooks {
 
@@ -34,29 +41,58 @@ struct CNetCustomService;
 struct CNetCustomPlayerClient;
 struct CNetCustomPlayerServer;
 
-struct CNetCustomSession : public game::IMqNetSession
+class CNetCustomSession : public game::IMqNetSession
 {
-    CNetCustomSession(CNetCustomService* service, const char* name, bool host)
-        : name{name}
-        , service{service}
-        , server{nullptr}
-        , maxPlayers{2}
-        , host{host}
-    { }
+public:
+    static CNetCustomSession* create(CNetCustomService* service, const char* name, bool isHost);
+    CNetCustomSession(CNetCustomService* service, const char* name, bool isHost);
+    ~CNetCustomSession() = default;
 
+    CNetCustomService* getService() const;
+    const std::string& getName() const;
+    bool isHost() const;
     bool setMaxPlayers(int maxPlayers);
 
-    std::string name;
-    std::vector<CNetCustomPlayerClient*> players;
-    CNetCustomPlayerServer* server;
-    CNetCustomService* service;
-    int maxPlayers;
-    bool host;
+    CNetCustomPlayerServer* getServer() const;
+    void setServer(CNetCustomPlayerServer* value);
+
+    CNetCustomPlayerClient* getHostPlayer() const;
+    void addPlayer(CNetCustomPlayerClient* value);
+
+protected:
+    // IMqNetSession
+    using GetName = game::String*(__fastcall*)(CNetCustomSession*, int, game::String*);
+    static void __fastcall destructor(CNetCustomSession* thisptr, int /*%edx*/, char flags);
+    static game::String* __fastcall getName(CNetCustomSession* thisptr,
+                                            int /*%edx*/,
+                                            game::String* sessionName);
+    static int __fastcall getClientCount(CNetCustomSession* thisptr, int /*%edx*/);
+    static int __fastcall getMaxClients(CNetCustomSession* thisptr, int /*%edx*/);
+    static void __fastcall getPlayers(CNetCustomSession* thisptr,
+                                      int /*%edx*/,
+                                      game::List<game::IMqNetPlayerEnum*>* players);
+    static void __fastcall createClient(CNetCustomSession* thisptr,
+                                        int /*%edx*/,
+                                        game::IMqNetPlayerClient** client,
+                                        game::IMqNetSystem* netSystem,
+                                        game::IMqNetReception* reception,
+                                        const char* clientName);
+    static void __fastcall createServer(CNetCustomSession* thisptr,
+                                        int /*%edx*/,
+                                        game::IMqNetPlayerServer** server,
+                                        game::IMqNetSystem* netSystem,
+                                        game::IMqNetReception* reception);
+
+private:
+    std::string m_name;
+    std::vector<CNetCustomPlayerClient*> m_players;
+    CNetCustomPlayerServer* m_server;
+    CNetCustomService* m_service;
+    int m_maxPlayers;
+    bool m_isHost;
 };
 
-game::IMqNetSession* createCustomNetSession(CNetCustomService* service,
-                                            const char* sessionName,
-                                            bool host);
+assert_offset(CNetCustomSession, vftable, 0);
 
 } // namespace hooks
 

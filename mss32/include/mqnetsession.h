@@ -47,8 +47,8 @@ struct IMqNetSessionVftable
     GetName getName;
 
     /** Returns current number of clients in a session. */
-    using GetClientsCount = int(__thiscall*)(IMqNetSession* thisptr);
-    GetClientsCount getClientsCount;
+    using GetClientCount = int(__thiscall*)(IMqNetSession* thisptr);
+    GetClientCount getClientCount;
 
     /** Returns the maximum allowed number of clients in a session. */
     using GetMaxClients = int(__thiscall*)(IMqNetSession* thisptr);
