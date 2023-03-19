@@ -173,13 +173,14 @@ bool __fastcall CNetCustomPlayer::sendMessage(CNetCustomPlayer* thisptr,
     return true;
 }
 
-int __fastcall CNetCustomPlayer::receiveMessage(CNetCustomPlayer* thisptr,
-                                                int /*%edx*/,
-                                                int* idFrom,
-                                                game::NetMessageHeader* buffer)
+game::ReceiveMessageResult __fastcall CNetCustomPlayer::receiveMessage(
+    CNetCustomPlayer* thisptr,
+    int /*%edx*/,
+    int* idFrom,
+    game::NetMessageHeader* buffer)
 {
     playerLog(fmt::format("CNetCustomPlayer {:s} receiveMessage", thisptr->m_name));
-    return 0;
+    return game::ReceiveMessageResult::NoMessages;
 }
 
 void __fastcall CNetCustomPlayer::setNetSystem(CNetCustomPlayer* thisptr,

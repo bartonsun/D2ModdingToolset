@@ -221,14 +221,15 @@ bool __fastcall CNetCustomPlayerClient::sendMessage(CNetCustomPlayerClient* this
     return true;
 }
 
-int __fastcall CNetCustomPlayerClient::receiveMessage(CNetCustomPlayerClient* thisptr,
-                                                      int /*%edx*/,
-                                                      int* idFrom,
-                                                      game::NetMessageHeader* buffer)
+game::ReceiveMessageResult __fastcall CNetCustomPlayerClient::receiveMessage(
+    CNetCustomPlayerClient* thisptr,
+    int /*%edx*/,
+    int* idFrom,
+    game::NetMessageHeader* buffer)
 {
     if (!idFrom || !buffer) {
         // This should never happen
-        return 3;
+        return game::ReceiveMessageResult::Failure;
     }
 
     playerLog("CNetCustomPlayerClient receiveMessage");
@@ -236,7 +237,7 @@ int __fastcall CNetCustomPlayerClient::receiveMessage(CNetCustomPlayerClient* th
     std::lock_guard<std::mutex> messageGuard(thisptr->m_messagesMutex);
 
     if (thisptr->m_messages.empty()) {
-        return 0;
+        return game::ReceiveMessageResult::NoMessages;
     }
 
     const auto& pair = thisptr->m_messages.front();
@@ -245,19 +246,19 @@ int __fastcall CNetCustomPlayerClient::receiveMessage(CNetCustomPlayerClient* th
         playerLog(
             fmt::format("CNetCustomPlayerClient received message from {:x}, its not a server!",
                         id));
-        return 0;
+        return game::ReceiveMessageResult::NoMessages;
     }
 
     auto message = reinterpret_cast<const game::NetMessageHeader*>(pair.second.get());
 
     if (message->messageType != game::netMessageNormalType) {
         playerLog("CNetCustomPlayerClient received message with invalid type");
-        return 3;
+        return game::ReceiveMessageResult::Failure;
     }
 
     if (message->length >= game::netMessageMaxLength) {
         playerLog("CNetCustomPlayerClient received message with invalid length");
-        return 3;
+        return game::ReceiveMessageResult::Failure;
     }
 
     playerLog(fmt::format("CNetCustomPlayerClient receiveMessage '{:s}' length {:d} from 0x{:x}",
@@ -267,7 +268,7 @@ int __fastcall CNetCustomPlayerClient::receiveMessage(CNetCustomPlayerClient* th
     std::memcpy(buffer, message, message->length);
 
     thisptr->m_messages.pop_front();
-    return 2;
+    return game::ReceiveMessageResult::Success;
 }
 
 bool __fastcall CNetCustomPlayerClient::setName(CNetCustomPlayerClient* thisptr,

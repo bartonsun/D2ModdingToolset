@@ -61,10 +61,10 @@ protected:
                                        int /*%edx*/,
                                        int idTo,
                                        const game::NetMessageHeader* message);
-    static int __fastcall receiveMessage(CNetCustomPlayerClient* thisptr,
-                                         int /*%edx*/,
-                                         int* idFrom,
-                                         game::NetMessageHeader* buffer);
+    static game::ReceiveMessageResult __fastcall receiveMessage(CNetCustomPlayerClient* thisptr,
+                                                                int /*%edx*/,
+                                                                int* idFrom,
+                                                                game::NetMessageHeader* buffer);
     static bool __fastcall setName(CNetCustomPlayerClient* thisptr, int /*%edx*/, const char* name);
     static bool __fastcall isHost(CNetCustomPlayerClient* thisptr, int /*%edx*/);
 

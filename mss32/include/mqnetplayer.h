@@ -30,6 +30,13 @@ struct IMqNetSystem;
 struct NetMessageHeader;
 struct IMqNetPlayerVftable;
 
+enum class ReceiveMessageResult
+{
+    NoMessages = 0,
+    Success = 2,
+    Failure = 3,
+};
+
 template <typename T = IMqNetPlayerVftable>
 struct IMqNetPlayerT
 {
@@ -84,9 +91,9 @@ struct IMqNetPlayerVftable
      * @param[inout] idFrom pointer to store network id of messages sender.
      * @param[inout] buffer buffer to receive messages. Must be at least 512Kb.
      */
-    using ReceiveMessage = int(__thiscall*)(IMqNetPlayer* thisptr,
-                                            int* idFrom,
-                                            NetMessageHeader* buffer);
+    using ReceiveMessage = ReceiveMessageResult(__thiscall*)(IMqNetPlayer* thisptr,
+                                                             int* idFrom,
+                                                             NetMessageHeader* buffer);
     ReceiveMessage receiveMessage;
 
     /** Sets netSystem proxy for this player. */

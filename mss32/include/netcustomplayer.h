@@ -75,10 +75,10 @@ protected:
                                        int /*%edx*/,
                                        int idTo,
                                        const game::NetMessageHeader* message);
-    static int __fastcall receiveMessage(CNetCustomPlayer* thisptr,
-                                         int /*%edx*/,
-                                         int* idFrom,
-                                         game::NetMessageHeader* buffer);
+    static game::ReceiveMessageResult __fastcall receiveMessage(CNetCustomPlayer* thisptr,
+                                                                int /*%edx*/,
+                                                                int* idFrom,
+                                                                game::NetMessageHeader* buffer);
     static void __fastcall setNetSystem(CNetCustomPlayer* thisptr,
                                         int /*%edx*/,
                                         game::IMqNetSystem* netSystem);
