@@ -20,7 +20,6 @@
 #include "menunewskirmishhooks.h"
 #include "dialoginterf.h"
 #include "editboxinterf.h"
-#include "lobbyclient.h"
 #include "log.h"
 #include "netcustomplayerserver.h"
 #include "netcustomservice.h"
@@ -91,7 +90,7 @@ bool __fastcall menuNewSkirmishMultiCreateServerHooked(game::CMenuNewSkirmishMul
         return result;
     }
 
-    auto session{service->session};
+    auto session{service->getSession()};
     if (!session) {
         logDebug("lobby.log", "Session is null");
         return false;

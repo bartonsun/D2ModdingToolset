@@ -20,7 +20,6 @@
 #include "roomservercreation.h"
 #include "dialoginterf.h"
 #include "editboxinterf.h"
-#include "lobbyclient.h"
 #include "log.h"
 #include "mempool.h"
 #include "menubase.h"
@@ -72,7 +71,7 @@ public:
                           const SLNet::Packet* packet) override
     {
         auto service = getNetService();
-        auto host = service->session->getHostPlayer();
+        auto host = service->getSession()->getHostPlayer();
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             serverCreationError("Host player failed to connect to player server");
@@ -127,8 +126,8 @@ static void createHostPlayer()
 
     // Connect player client to local player server, wait response.
     // Use dummy name, it will be set properly later in session::CreateClient method
-    auto host = CNetCustomPlayerClient::create(service->session);
-    service->session->addPlayer(host);
+    auto host = CNetCustomPlayerClient::create(service->getSession());
+    service->getSession()->addPlayer(host);
 
     logDebug("lobby.log", "Host player client waits for player server connection response");
 
@@ -151,7 +150,7 @@ public:
         logDebug("lobby.log", "Room creation response received");
 
         // Unsubscribe from callbacks
-        removeRoomsCallback(this);
+        getNetService()->removeRoomsCallback(this);
 
         if (callResult->resultCode != SLNet::REC_SUCCESS) {
             auto result{SLNet::RoomsErrorCodeDescription::ToEnglish(callResult->resultCode)};
@@ -184,7 +183,7 @@ public:
                           const SLNet::Packet* packet) override
     {
         auto service = getNetService();
-        auto server{service->session->getServer()};
+        auto server{service->getSession()->getServer()};
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             // Unsubscribe from callbacks
@@ -200,13 +199,13 @@ public:
         // Unsubscribe from callbacks
         server->getPeer().removeCallback(this);
 
-        addRoomsCallback(&roomServerCallback);
+        service->addRoomsCallback(&roomServerCallback);
 
         const char* password{roomPassword.empty() ? nullptr : roomPassword.c_str()};
 
         // Request room creation and wait for lobby server response
-        if (!tryCreateRoom(service->session->getName().c_str(), peer->GetMyGUID().ToString(),
-                           password)) {
+        if (!service->createRoom(service->getSession()->getName().c_str(),
+                                 peer->GetMyGUID().ToString(), password)) {
             serverCreationError("Failed to request room creation");
             return;
         }
@@ -225,13 +224,13 @@ static void createSessionAndServer(const char* sessionName)
     logDebug("lobby.log", "Create session");
 
     auto service = getNetService();
-    service->session = CNetCustomSession::create(service, sessionName, true);
+    service->setSession(CNetCustomSession::create(service, sessionName, true));
 
     logDebug("lobby.log", "Create player server");
 
     // NetSession and NetSystem will be set later by the game in CMidServerStart()
-    auto server = CNetCustomPlayerServer::create(service->session, nullptr, nullptr);
-    service->session->setServer(server);
+    auto server = CNetCustomPlayerServer::create(service->getSession(), nullptr, nullptr);
+    service->getSession()->setServer(server);
 
     const auto& lobbySettings = userSettings().lobby;
     const auto& serverIp = lobbySettings.server.ip;

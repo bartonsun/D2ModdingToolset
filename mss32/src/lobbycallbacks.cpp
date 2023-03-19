@@ -18,9 +18,9 @@
  */
 
 #include "lobbycallbacks.h"
-#include "lobbyclient.h"
 #include "log.h"
 #include "menucustomlobby.h"
+#include "netcustomservice.h"
 #include "roomclientjoin.h"
 #include <fmt/format.h>
 

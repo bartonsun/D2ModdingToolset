@@ -20,7 +20,6 @@
 #include "menuprotocolhooks.h"
 #include "dialoginterf.h"
 #include "listbox.h"
-#include "lobbyclient.h"
 #include "mempool.h"
 #include "menuflashwait.h"
 #include "menuphase.h"
@@ -96,7 +95,7 @@ static void stopWaitingConnection(CMenuCustomProtocol* menu)
         return;
     }
 
-    netService->lobbyPeer.removeCallback(&menu->callback);
+    netService->removePeerCallbacks(&menu->callback);
 }
 
 static void showConnectionError(CMenuCustomProtocol* menu, const char* errorMessage)
@@ -144,7 +143,7 @@ void LobbyServerConnectionCallback::onPacketReceived(DefaultMessageIDTypes type,
             return;
         }
 
-        if (!tryCheckFilesIntegrity(hash.c_str())) {
+        if (!getNetService()->checkFilesIntegrity(hash.c_str())) {
             auto message{getInterfaceText(textIds().lobby.requestHashCheckFailed.c_str())};
             if (message.empty()) {
                 message = "Could not request game integrity check";
@@ -244,7 +243,7 @@ void __fastcall menuProtocolContinueHandlerHooked(CMenuCustomProtocol* thisptr, 
     auto& midgardApi = CMidgardApi::get();
     auto midgard = midgardApi.instance();
 
-    IMqNetService* service = createCustomNetService();
+    IMqNetService* service = CNetCustomService::create();
     midgardApi.setNetService(midgard, service, true, false);
     if (!service) {
         return;
@@ -257,7 +256,7 @@ void __fastcall menuProtocolContinueHandlerHooked(CMenuCustomProtocol* thisptr, 
     showInterface(menuWait);
 
     auto netService{static_cast<CNetCustomService*>(service)};
-    netService->lobbyPeer.addCallback(&thisptr->callback);
+    netService->addPeerCallbacks(&thisptr->callback);
 
     // Stop attempting to connect after 10 seconds
     createTimerEvent(&thisptr->timeoutEvent, thisptr, menuProtocolTimeoutHandler, 10000);

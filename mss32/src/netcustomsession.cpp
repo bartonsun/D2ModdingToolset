@@ -19,7 +19,6 @@
 
 #include "netcustomsession.h"
 #include "d2string.h"
-#include "lobbyclient.h"
 #include "log.h"
 #include "mempool.h"
 #include "mqnetsystem.h"
@@ -110,7 +109,7 @@ bool CNetCustomSession::setMaxPlayers(int maxPlayers)
     }
 
     // -1 because room already have moderator.
-    const auto result{tryChangeRoomPublicSlots(maxPlayers - 1)};
+    const auto result{m_service->changeRoomPublicSlots(maxPlayers - 1)};
     if (result) {
         m_maxPlayers = maxPlayers;
     }

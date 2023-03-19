@@ -87,7 +87,7 @@ CNetCustomPlayerClient* CNetCustomPlayerClient::create(CNetCustomSession* sessio
         // Create player server address from our local address
         // since host player client is on the same machine as player server
         serverAddress = lobbyAddressToServerPlayer(
-            session->getService()->lobbyPeer.peer->GetMyBoundAddress());
+            session->getService()->getPeer().peer.get()->GetMyBoundAddress());
         if (!connectToServer(peer, serverAddress)) {
             return nullptr;
         }

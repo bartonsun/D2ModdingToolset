@@ -33,59 +33,141 @@
 
 namespace hooks {
 
-struct CNetCustomService;
-class CNetCustomSession;
+extern const char* serverGuidColumnName;
+extern const char* passwordColumnName;
 
-class LobbyPeerCallbacks : public NetworkPeerCallbacks
+enum ClientMessages
 {
-public:
-    LobbyPeerCallbacks(CNetCustomService* netService)
-        : netService{netService}
-    { }
-
-    virtual ~LobbyPeerCallbacks() = default;
-
-    void onPacketReceived(DefaultMessageIDTypes type,
-                          SLNet::RakPeerInterface* peer,
-                          const SLNet::Packet* packet) override;
-
-private:
-    CNetCustomService* netService;
+    ID_CHECK_FILES_INTEGRITY = ID_USER_PACKET_ENUM + 1,
+    ID_FILES_INTEGRITY_RESULT,
 };
 
-struct CNetCustomService : public game::IMqNetService
+class CNetCustomSession;
+
+class CNetCustomService : public game::IMqNetService
 {
+public:
+    static CNetCustomService* create();
+    static bool isCustom(const game::IMqNetService* service);
+
     CNetCustomService(NetworkPeer::PeerPtr&& peer);
     ~CNetCustomService() = default;
 
-    std::string loggedAccount;
-    SLNet::SystemAddress roomOwnerAddress;
+    CNetCustomSession* getSession() const;
+    void setSession(CNetCustomSession* value);
+    NetworkPeer& getPeer();
+    const std::string& getAccountName() const;
+    const SLNet::SystemAddress& getRoomOwnerAddress() const;
+    void setRoomOwnerAddress(const SLNet::SystemAddress& value);
+
+    /**
+     * Tries to register new account using credentials provided.
+     * @returns true if register request message was successfully send to the server.
+     */
+    bool createAccount(const char* accountName,
+                       const char* nickname,
+                       const char* password,
+                       const char* pwdRecoveryQuestion,
+                       const char* pwdRecoveryAnswer);
+
+    /**
+     * Tries to login user with provided credentials.
+     * @returns true if login request message was successfully send to the server.
+     */
+    bool loginAccount(const char* accountName, const char* password);
+
+    /** Logouts currently logged user. */
+    void logoutAccount();
+
+    void setCurrentLobbyPlayer(const char* accountName);
+
+    /** Tries to create and enter a new room. */
+    bool createRoom(const char* roomName, const char* serverGuid, const char* password = nullptr);
+
+    /** Requests a list of rooms for specified account. */
+    bool searchRooms(const char* accountName = nullptr);
+
+    /** Tries to join existing room by its name. */
+    bool joinRoom(const char* roomName);
+
+    /** Tries to change number of public slots in current room. */
+    bool changeRoomPublicSlots(unsigned int publicSlots);
+
+    /** Tries to request files integrity check from the server. */
+    bool checkFilesIntegrity(const char* hash);
+
+    void addPeerCallbacks(NetworkPeerCallbacks* callbacks);
+    void removePeerCallbacks(NetworkPeerCallbacks* callbacks);
+
+    void addLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks);
+    void removeLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks);
+
+    void addRoomsCallback(SLNet::RoomsCallback* callback);
+    void removeRoomsCallback(SLNet::RoomsCallback* callback);
+
+protected:
+    // IMqNetService
+    static game::IMqNetServiceVftable m_vftable;
+    static void __fastcall destructor(CNetCustomService* thisptr, int /*%edx*/, char flags);
+    static bool __fastcall hasSessions(CNetCustomService* thisptr, int /*%edx*/);
+    static void __fastcall getSessions(CNetCustomService* thisptr,
+                                       int /*%edx*/,
+                                       game::List<game::IMqNetSessEnum*>* sessions,
+                                       const GUID* appGuid,
+                                       const char* ipAddress,
+                                       bool allSessions,
+                                       bool requirePassword);
+    static void __fastcall createSession(CNetCustomService* thisptr,
+                                         int /*%edx*/,
+                                         game::IMqNetSession** netSession,
+                                         const GUID* /* appGuid */,
+                                         const char* sessionName,
+                                         const char* password);
+    static void __fastcall joinSession(CNetCustomService* thisptr,
+                                       int /*%edx*/,
+                                       game::IMqNetSession** netSession,
+                                       game::IMqNetSessEnum* netSessionEnum,
+                                       const char* password);
+
+private:
+    class Callbacks : public NetworkPeerCallbacks
+    {
+    public:
+        Callbacks(CNetCustomService* service)
+            : m_service{service}
+        { }
+        virtual ~Callbacks() = default;
+
+        void onPacketReceived(DefaultMessageIDTypes type,
+                              SLNet::RakPeerInterface* peer,
+                              const SLNet::Packet* packet) override;
+
+    private:
+        CNetCustomService* m_service;
+    };
+
+    std::string m_accountName;
+    SLNet::SystemAddress m_roomOwnerAddress;
 
     /** Interacts with lobby server. */
-    SLNet::Lobby2Client lobbyClient;
+    SLNet::Lobby2Client m_lobbyClient;
     /** Creates network messages. */
-    SLNet::Lobby2MessageFactory lobbyMsgFactory;
+    SLNet::Lobby2MessageFactory m_lobbyMsgFactory;
     /** Callbacks only for debug logging. */
-    LoggingCallbacks loggingCallbacks;
+    LoggingCallbacks m_loggingCallbacks;
     /** Interacts with lobby server rooms. */
-    SLNet::RoomsPlugin roomsClient;
-    RoomsLoggingCallback roomsLogCallback;
+    SLNet::RoomsPlugin m_roomsClient;
+    RoomsLoggingCallback m_roomsLogCallback;
     /** Connection with lobby server. */
-    NetworkPeer lobbyPeer;
-    LobbyPeerCallbacks callbacks;
-    CNetCustomSession* session;
+    NetworkPeer m_lobbyPeer;
+    Callbacks m_callbacks;
+    CNetCustomSession* m_session;
 };
+
+assert_offset(CNetCustomService, vftable, 0);
 
 /** Returns net service if it is present and has type CNetCustomService. */
 CNetCustomService* getNetService();
-
-game::IMqNetService* createCustomNetService();
-
-void addLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks);
-void removeLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks);
-
-void addRoomsCallback(SLNet::RoomsCallback* callback);
-void removeRoomsCallback(SLNet::RoomsCallback* callback);
 
 /** Returns true if current netService in CMidgard exists and has type CNetCustomService. */
 bool isNetServiceCustom();

@@ -44,7 +44,8 @@ static void registerClientPlayerAndJoin()
 
     // Create player using session
     logDebug("roomJoin.log", "Try create net client using midgard");
-    auto playerId = midgardApi.createNetClient(midgard, netService->loggedAccount.c_str(), false);
+    auto playerId = midgardApi.createNetClient(midgard, netService->getAccountName().c_str(),
+                                               false);
 
     logDebug("roomJoin.log", fmt::format("Check net client id 0x{:x}", playerId));
     if (playerId == 0) {
@@ -61,7 +62,7 @@ static void registerClientPlayerAndJoin()
     midgardApi.setClientsNetProxy(midgard, menuPhase);
 
     // Get max players from session
-    auto netSession{netService->session};
+    auto netSession{netService->getSession()};
     auto maxPlayers = netSession->vftable->getMaxClients(netSession);
 
     logDebug("roomJoin.log", fmt::format("Get max number of players in session: {:d}", maxPlayers));
@@ -98,7 +99,7 @@ public:
                           const SLNet::Packet* packet) override
     {
         auto service = getNetService();
-        auto host{service->session->getHostPlayer()};
+        auto host{service->getSession()->getHostPlayer()};
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             // Unsubscribe from callbacks
@@ -171,7 +172,7 @@ public:
 
         case ID_NAT_PUNCHTHROUGH_SUCCEEDED: {
             auto service = getNetService();
-            auto host{service->session->getHostPlayer()};
+            auto host{service->getSession()->getHostPlayer()};
 
             // Unsubscribe from callbacks
             host->getPeer().removeCallback(this);
@@ -199,7 +200,7 @@ public:
 
         if (error) {
             auto service = getNetService();
-            auto host{service->session->getHostPlayer()};
+            auto host{service->getSession()->getHostPlayer()};
 
             // Unsubscribe from callbacks
             host->getPeer().removeCallback(this);
@@ -225,7 +226,7 @@ public:
                           const SLNet::Packet* packet) override
     {
         auto service = getNetService();
-        auto host{service->session->getHostPlayer()};
+        auto host{service->getSession()->getHostPlayer()};
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             // Unsubscribe from callbacks
@@ -265,7 +266,7 @@ void customLobbyProcessJoin(CMenuCustomLobby* menu,
     game::UiEventApi::get().destructor(&menu->roomsListEvent);
 
     // Disconnect ui-related rooms callbacks
-    removeRoomsCallback(menu->roomsCallbacks.get());
+    getNetService()->removeRoomsCallback(menu->roomsCallbacks.get());
     menu->roomsCallbacks.reset(nullptr);
 
     using namespace game;
@@ -305,7 +306,7 @@ void customLobbyProcessJoin(CMenuCustomLobby* menu,
 
     logDebug("roomJoin.log", "Set netSession to midgard");
     midgard->data->netSession = netSession;
-    netService->session = netSession;
+    netService->setSession(netSession);
 
     logDebug("roomJoin.log", "Mark self as client");
     // Mark self as client

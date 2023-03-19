@@ -37,7 +37,7 @@ struct IMqNetPlayerClient;
 
 namespace hooks {
 
-struct CNetCustomService;
+class CNetCustomService;
 class CNetCustomPlayerClient;
 class CNetCustomPlayerServer;
 

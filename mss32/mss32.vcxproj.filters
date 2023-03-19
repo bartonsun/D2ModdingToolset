@@ -839,9 +839,6 @@
     <ClCompile Include="src\menuflashwait.cpp">
       <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="src\lobbyclient.cpp">
-      <Filter>features\lobby</Filter>
-    </ClCompile>
     <ClCompile Include="src\networkpeer.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
@@ -2448,9 +2445,6 @@
     </ClInclude>
     <ClInclude Include="include\menuflashwait.h">
       <Filter>game</Filter>
-    </ClInclude>
-    <ClInclude Include="include\lobbyclient.h">
-      <Filter>features\lobby</Filter>
     </ClInclude>
     <ClInclude Include="include\loginaccountinterf.h">
       <Filter>features\lobby</Filter>

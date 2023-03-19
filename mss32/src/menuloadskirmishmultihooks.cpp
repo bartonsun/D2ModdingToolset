@@ -75,7 +75,7 @@ void __fastcall menuLoadSkirmishMultiCreateHostPlayerHooked(game::CMenuLoad* thi
 {
     auto service = getNetService();
     if (service) {
-        auto session{service->session};
+        auto session{service->getSession()};
         if (!session) {
             logDebug("lobby.log", "Session is null");
             return;

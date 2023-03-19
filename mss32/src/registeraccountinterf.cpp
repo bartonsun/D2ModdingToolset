@@ -21,10 +21,10 @@
 #include "button.h"
 #include "dialoginterf.h"
 #include "editboxinterf.h"
-#include "lobbyclient.h"
 #include "log.h"
 #include "mempool.h"
 #include "menubase.h"
+#include "netcustomservice.h"
 #include "popupdialoginterf.h"
 #include "utils.h"
 #include <fmt/format.h>
@@ -86,7 +86,7 @@ static void __fastcall tryRegisterAccount(CRegisterAccountInterf* thisptr, int /
     const char* pwdQuestion = pwdQuestionEdit->data->editBoxData.inputString.string;
     const char* pwdAnswer = pwdAnswerEdit->data->editBoxData.inputString.string;
 
-    if (!tryCreateAccount(accountName, nickname, password, pwdQuestion, pwdAnswer)) {
+    if (!getNetService()->createAccount(accountName, nickname, password, pwdQuestion, pwdAnswer)) {
         showMessageBox("Wrong account data");
         return;
     }

@@ -327,7 +327,6 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\listbox.cpp" />
     <ClCompile Include="src\idlistutils.cpp" />
     <ClCompile Include="src\lobbycallbacks.cpp" />
-    <ClCompile Include="src\lobbyclient.cpp" />
     <ClCompile Include="src\log.cpp" />
     <ClCompile Include="src\loginaccountinterf.cpp" />
     <ClCompile Include="src\lordcat.cpp" />
@@ -847,7 +846,6 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\listbox.h" />
     <ClInclude Include="include\idlistutils.h" />
     <ClInclude Include="include\lobbycallbacks.h" />
-    <ClInclude Include="include\lobbyclient.h" />
     <ClInclude Include="include\log.h" />
     <ClInclude Include="include\loginaccountinterf.h" />
     <ClInclude Include="include\lordcat.h" />

@@ -21,10 +21,10 @@
 #include "button.h"
 #include "dialoginterf.h"
 #include "editboxinterf.h"
-#include "lobbyclient.h"
 #include "log.h"
 #include "mempool.h"
 #include "menubase.h"
+#include "netcustomservice.h"
 #include "popupdialoginterf.h"
 #include "utils.h"
 #include <fmt/format.h>
@@ -66,7 +66,7 @@ static void __fastcall loginAccount(CLoginAccountInterf* thisptr, int /*%edx*/)
     const char* accountName = accNameEdit->data->editBoxData.inputString.string;
     const char* password = pwdEdit->data->editBoxData.inputString.string;
 
-    if (!tryLoginAccount(accountName, password)) {
+    if (!getNetService()->loginAccount(accountName, password)) {
         showMessageBox("Wrong user input");
         return;
     }

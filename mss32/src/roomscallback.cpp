@@ -63,8 +63,8 @@ void RoomsLoggingCallback::CreateRoom_Callback(const SLNet::SystemAddress& sende
     if (service) {
         logDebug("roomsCallbacks.log", "I am the room moderator, set my own address as a host.");
         // Get our own system address, convert it to server-player address
-        service->roomOwnerAddress = lobbyAddressToServerPlayer(
-            service->lobbyPeer.peer->GetMyBoundAddress());
+        service->setRoomOwnerAddress(
+            lobbyAddressToServerPlayer(service->getPeer().peer->GetMyBoundAddress()));
         hostAddressSet = true;
     }
 }
@@ -106,7 +106,7 @@ void RoomsLoggingCallback::EnterRoom_Callback(const SLNet::SystemAddress& sender
             if (service) {
                 logDebug("roomsCallbacks.log", "Found room moderator, assume its a game host.");
                 // Get member system address, convert to server-player address
-                service->roomOwnerAddress = lobbyAddressToServerPlayer(member.systemAddress);
+                service->setRoomOwnerAddress(lobbyAddressToServerPlayer(member.systemAddress));
                 hostAddressSet = true;
             }
         }

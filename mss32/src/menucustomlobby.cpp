@@ -27,7 +27,6 @@
 #include "image2outline.h"
 #include "image2text.h"
 #include "listbox.h"
-#include "lobbyclient.h"
 #include "log.h"
 #include "loginaccountinterf.h"
 #include "mempool.h"
@@ -120,8 +119,9 @@ void __fastcall menuDestructor(CMenuCustomLobby* thisptr, int /*%edx*/, char fla
     logDebug("transitions.log", "Delete rooms list event");
     UiEventApi::get().destructor(&thisptr->roomsListEvent);
 
-    removeLobbyCallbacks(thisptr->uiCallbacks.get());
-    removeRoomsCallback(thisptr->roomsCallbacks.get());
+    auto service = getNetService();
+    service->removeLobbyCallbacks(thisptr->uiCallbacks.get());
+    service->removeRoomsCallback(thisptr->roomsCallbacks.get());
 
     thisptr->uiCallbacks.reset(nullptr);
     thisptr->roomsCallbacks.reset(nullptr);
@@ -149,13 +149,13 @@ static void __fastcall menuLoginAccountBtnHandler(CMenuCustomLobby*, int /*%edx*
 static void __fastcall menuLogoutAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/)
 {
     logDebug("lobby.log", "User logging out");
-    logoutAccount();
+    getNetService()->logoutAccount();
 }
 
 static void __fastcall menuRoomsListSearchHandler(CMenuCustomLobby*, int /*%edx*/)
 {
     logDebug("lobby.log", "Request fresh rooms list");
-    trySearchRooms();
+    getNetService()->searchRooms();
 }
 
 static void __fastcall menuCreateRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
@@ -195,7 +195,7 @@ static void menuTryJoinRoom(CMenuCustomLobby* menuLobby, const char* roomName)
 {
     using namespace game;
 
-    if (!tryJoinRoom(roomName)) {
+    if (!getNetService()->joinRoom(roomName)) {
         logDebug("transitions.log", "Failed to request room join");
     }
 
@@ -611,7 +611,7 @@ void menuCustomLobbyCtor(CMenuCustomLobby* menu, game::CMenuPhase* menuPhase)
     // Setup lobby callbacks
     {
         menu->uiCallbacks = std::make_unique<UiUpdateCallbacks>(menu);
-        addLobbyCallbacks(menu->uiCallbacks.get());
+        getNetService()->addLobbyCallbacks(menu->uiCallbacks.get());
     }
 
     // Setup ingame net message callbacks
@@ -660,8 +660,10 @@ void customLobbyProcessLogin(CMenuCustomLobby* menu, const char* accountName)
 {
     using namespace game;
 
+    auto service = getNetService();
+
     // Remember account that successfully logged in
-    setCurrentLobbyPlayer(accountName);
+    service->setCurrentLobbyPlayer(accountName);
     menuUpdateAccountText(menu, accountName);
 
     menu->loggedIn = true;
@@ -669,10 +671,10 @@ void customLobbyProcessLogin(CMenuCustomLobby* menu, const char* accountName)
 
     // Connect ui-related rooms callbacks
     menu->roomsCallbacks = std::make_unique<RoomsListCallbacks>(menu);
-    addRoomsCallback(menu->roomsCallbacks.get());
+    service->addRoomsCallback(menu->roomsCallbacks.get());
 
     // Request rooms list as soon as possible, no need to wait for event
-    trySearchRooms();
+    service->searchRooms();
 
     // Add timer event that will send rooms list requests every 5 seconds
     createTimerEvent(&menu->roomsListEvent, menu, menuRoomsListSearchHandler, 5000);
@@ -682,8 +684,10 @@ void customLobbyProcessLogout(CMenuCustomLobby* menu)
 {
     using namespace game;
 
+    auto service = getNetService();
+
     // Forget about logged account
-    setCurrentLobbyPlayer(nullptr);
+    service->setCurrentLobbyPlayer(nullptr);
     menuUpdateAccountText(menu);
 
     menu->loggedIn = false;
@@ -693,7 +697,7 @@ void customLobbyProcessLogout(CMenuCustomLobby* menu)
     game::UiEventApi::get().destructor(&menu->roomsListEvent);
 
     // Disconnect ui-related rooms callbacks
-    removeRoomsCallback(menu->roomsCallbacks.get());
+    service->removeRoomsCallback(menu->roomsCallbacks.get());
     menu->roomsCallbacks.reset(nullptr);
 
     auto& menuBase = CMenuBaseApi::get();
