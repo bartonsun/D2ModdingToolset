@@ -184,11 +184,11 @@ public:
                           const SLNet::Packet* packet) override
     {
         auto service = getNetService();
-        auto playerServer{service->session->getServer()};
+        auto server{service->session->getServer()};
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             // Unsubscribe from callbacks
-            playerServer->player.getPeer().removeCallback(this);
+            server->getPeer().removeCallback(this);
             serverCreationError("Failed to connect player server to NAT server");
             return;
         }
@@ -198,7 +198,7 @@ public:
         }
 
         // Unsubscribe from callbacks
-        playerServer->player.getPeer().removeCallback(this);
+        server->getPeer().removeCallback(this);
 
         addRoomsCallback(&roomServerCallback);
 
@@ -213,8 +213,8 @@ public:
 
         logDebug("lobby.log", "Waiting for room creation response");
 
-        peer->AttachPlugin(&playerServer->natClient);
-        playerServer->natClient.FindRouterPortStride(packet->systemAddress);
+        peer->AttachPlugin(&server->getNatClient());
+        server->getNatClient().FindRouterPortStride(packet->systemAddress);
     }
 };
 
@@ -230,15 +230,14 @@ static void createSessionAndServer(const char* sessionName)
     logDebug("lobby.log", "Create player server");
 
     // NetSession and NetSystem will be set later by the game in CMidServerStart()
-    auto playerServer = (CNetCustomPlayerServer*)createCustomPlayerServer(service->session, nullptr,
-                                                                          nullptr);
-    service->session->setServer(playerServer);
+    auto server = CNetCustomPlayerServer::create(service->session, nullptr, nullptr);
+    service->session->setServer(server);
 
     const auto& lobbySettings = userSettings().lobby;
     const auto& serverIp = lobbySettings.server.ip;
     const auto& serverPort = lobbySettings.server.port;
 
-    auto peer = playerServer->getPeer();
+    auto peer = server->getPeer().peer.get();
     // Connect player server to lobby server, wait response.
     // We need this connection for NAT punchthrough
     if (peer->Connect(serverIp.c_str(), serverPort, nullptr, 0)
@@ -250,7 +249,7 @@ static void createSessionAndServer(const char* sessionName)
     }
 
     logDebug("lobby.log", "Player server waits for response from lobby server");
-    playerServer->player.getPeer().addCallback(&serverConnectCallbacks);
+    server->getPeer().addCallback(&serverConnectCallbacks);
 }
 
 void startRoomAndServerCreation(game::CMenuBase* menu, bool loadScenario)

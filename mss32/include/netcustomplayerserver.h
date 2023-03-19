@@ -24,60 +24,77 @@
 #include "netcustomplayer.h"
 #include <NatPunchthroughClient.h>
 #include <list>
+#include <mutex>
 #include <utility>
 #include <vector>
 
 namespace hooks {
 
-struct CNetCustomPlayerServer;
-
-class PlayerServerCallbacks : public NetworkPeerCallbacks
+class CNetCustomPlayerServer : public CNetCustomPlayer
 {
 public:
-    PlayerServerCallbacks(CNetCustomPlayerServer* playerServer)
-        : playerServer{playerServer}
-    { }
-
-    virtual ~PlayerServerCallbacks() = default;
-
-    void onPacketReceived(DefaultMessageIDTypes type,
-                          SLNet::RakPeerInterface* peer,
-                          const SLNet::Packet* packet) override;
-
-private:
-    CNetCustomPlayerServer* playerServer;
-};
-
-struct CNetCustomPlayerServer : public game::IMqNetPlayerServer
-{
+    static CNetCustomPlayerServer* create(CNetCustomSession* session,
+                                          game::IMqNetSystem* system,
+                                          game::IMqNetReception* reception);
     CNetCustomPlayerServer(CNetCustomSession* session,
-                           game::IMqNetSystem* netSystem,
-                           game::IMqNetReception* netReception,
+                           game::IMqNetSystem* system,
+                           game::IMqNetReception* reception,
                            NetworkPeer::PeerPtr&& peer);
-
     ~CNetCustomPlayerServer() = default;
 
-    auto getPeer()
-    {
-        return player.getPeer().peer.get();
-    }
-
+    SLNet::NatPunchthroughClient& getNatClient();
     bool notifyHostClientConnected();
 
-    CNetCustomPlayer player;
-    PlayerServerCallbacks callbacks;
-    SLNet::NatPunchthroughClient natClient;
+protected:
+    // IMqNetPlayerClient
+    static void __fastcall destructor(CNetCustomPlayerServer* thisptr, int /*%edx*/, char flags);
+    static int __fastcall getMessageCount(CNetCustomPlayerServer* thisptr, int /*%edx*/);
+    static bool __fastcall sendMessage(CNetCustomPlayerServer* thisptr,
+                                       int /*%edx*/,
+                                       int idTo,
+                                       const game::NetMessageHeader* message);
+    static game::ReceiveMessageResult __fastcall receiveMessage(CNetCustomPlayerServer* thisptr,
+                                                                int /*%edx*/,
+                                                                int* idFrom,
+                                                                game::NetMessageHeader* buffer);
+    static bool __fastcall destroyPlayer(CNetCustomPlayerServer* thisptr,
+                                         int /*%edx*/,
+                                         int playerId);
+    static bool __fastcall setMaxPlayers(CNetCustomPlayerServer* thisptr,
+                                         int /*%edx*/,
+                                         int maxPlayers);
+    static bool __fastcall setAllowJoin(CNetCustomPlayerServer* thisptr,
+                                        int /*%edx*/,
+                                        bool allowJoin);
+
+private:
+    class Callbacks : public NetworkPeerCallbacks
+    {
+    public:
+        Callbacks(CNetCustomPlayerServer* player)
+            : m_player{player}
+        { }
+        virtual ~Callbacks() = default;
+
+        void onPacketReceived(DefaultMessageIDTypes type,
+                              SLNet::RakPeerInterface* peer,
+                              const SLNet::Packet* packet) override;
+
+    private:
+        CNetCustomPlayerServer* m_player;
+    };
 
     using NetMessagePtr = std::unique_ptr<unsigned char[]>;
     using IdMessagePair = std::pair<std::uint32_t, NetMessagePtr>;
 
-    std::list<IdMessagePair> messages;
-    std::vector<SLNet::RakNetGUID> connectedIds;
+    std::list<IdMessagePair> m_messages;
+    std::mutex m_messagesMutex;
+    Callbacks m_callbacks;
+    SLNet::NatPunchthroughClient m_natClient;
+    std::vector<SLNet::RakNetGUID> m_connectedIds;
 };
 
-game::IMqNetPlayerServer* createCustomPlayerServer(CNetCustomSession* session,
-                                                   game::IMqNetSystem* netSystem,
-                                                   game::IMqNetReception* netReception);
+assert_offset(CNetCustomPlayerServer, vftable, 0);
 
 } // namespace hooks
 

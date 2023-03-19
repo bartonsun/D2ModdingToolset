@@ -192,11 +192,11 @@ void __fastcall CNetCustomSession::createServer(CNetCustomSession* thisptr,
         return;
     }
 
-    auto& serverPlayer = thisptr->m_server->player;
-    serverPlayer.setSystem(netSystem);
-    serverPlayer.setReception(reception);
+    auto player = thisptr->m_server;
+    player->setSystem(netSystem);
+    player->setReception(reception);
 
-    *server = thisptr->m_server;
+    *server = (game::IMqNetPlayerServer*)player;
 }
 
 } // namespace hooks
