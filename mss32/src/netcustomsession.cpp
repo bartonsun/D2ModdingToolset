@@ -169,14 +169,13 @@ void __fastcall CNetCustomSession::createClient(CNetCustomSession* thisptr,
 {
     logDebug("lobby.log", fmt::format("CNetCustomSession createClient '{:s}' called", clientName));
 
-    auto customClient = thisptr->getHostPlayer();
     // Finalize player setup here when we know all the settings
-    auto& player = customClient->player;
-    player.setName(clientName);
-    player.setSystem(netSystem);
-    player.setReception(reception);
+    auto host = thisptr->getHostPlayer();
+    host->setName(clientName);
+    host->setSystem(netSystem);
+    host->setReception(reception);
 
-    *client = customClient;
+    *client = (game::IMqNetPlayerClient*)host;
 }
 
 void __fastcall CNetCustomSession::createServer(CNetCustomSession* thisptr,

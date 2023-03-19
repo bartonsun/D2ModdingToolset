@@ -38,7 +38,7 @@ struct IMqNetPlayerClient;
 namespace hooks {
 
 struct CNetCustomService;
-struct CNetCustomPlayerClient;
+class CNetCustomPlayerClient;
 struct CNetCustomPlayerServer;
 
 class CNetCustomSession : public game::IMqNetSession

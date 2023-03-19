@@ -24,69 +24,79 @@
 #include "netcustomplayer.h"
 #include <NatPunchthroughClient.h>
 #include <list>
+#include <mutex>
 #include <slikenet/types.h>
 #include <utility>
 
 namespace hooks {
 
-struct CNetCustomPlayerClient;
-
-class PlayerClientCallbacks : public NetworkPeerCallbacks
+class CNetCustomPlayerClient : public CNetCustomPlayer
 {
 public:
-    PlayerClientCallbacks(CNetCustomPlayerClient* playerClient)
-        : playerClient{playerClient}
-    { }
-
-    virtual ~PlayerClientCallbacks() = default;
-
-    void onPacketReceived(DefaultMessageIDTypes type,
-                          SLNet::RakPeerInterface* peer,
-                          const SLNet::Packet* packet) override;
-
-private:
-    CNetCustomPlayerClient* playerClient;
-};
-
-struct CNetCustomPlayerClient : public game::IMqNetPlayerClient
-{
+    static CNetCustomPlayerClient* create(CNetCustomSession* session);
     CNetCustomPlayerClient(CNetCustomSession* session,
-                           game::IMqNetSystem* netSystem,
-                           game::IMqNetReception* netReception,
+                           game::IMqNetSystem* system,
+                           game::IMqNetReception* reception,
                            const char* name,
                            NetworkPeer::PeerPtr&& peer,
-                           std::uint32_t netId,
+                           std::uint32_t id,
                            const SLNet::SystemAddress& serverAddress,
                            std::uint32_t serverId);
-
     ~CNetCustomPlayerClient() = default;
 
-    auto getPeer()
-    {
-        return player.getPeer().peer.get();
-    }
-
+    const SLNet::SystemAddress& getServerAddress() const;
+    void setServerAddress(const SLNet::SystemAddress& value);
+    std::uint32_t getServerId() const;
+    void setServerId(std::uint32_t value);
+    SLNet::NatPunchthroughClient& getNatClient();
     void setupPacketCallbacks();
+    using CNetCustomPlayer::setName;
+
+protected:
+    // IMqNetPlayerClient
+    using SetName = bool(__fastcall*)(CNetCustomPlayerClient* thisptr, int, const char* name);
+    static void __fastcall destructor(CNetCustomPlayerClient* thisptr, int /*%edx*/, char flags);
+    static int __fastcall getMessageCount(CNetCustomPlayerClient* thisptr, int /*%edx*/);
+    static bool __fastcall sendMessage(CNetCustomPlayerClient* thisptr,
+                                       int /*%edx*/,
+                                       int idTo,
+                                       const game::NetMessageHeader* message);
+    static int __fastcall receiveMessage(CNetCustomPlayerClient* thisptr,
+                                         int /*%edx*/,
+                                         int* idFrom,
+                                         game::NetMessageHeader* buffer);
+    static bool __fastcall setName(CNetCustomPlayerClient* thisptr, int /*%edx*/, const char* name);
+    static bool __fastcall isHost(CNetCustomPlayerClient* thisptr, int /*%edx*/);
+
+private:
+    class Callbacks : public NetworkPeerCallbacks
+    {
+    public:
+        Callbacks(CNetCustomPlayerClient* player)
+            : m_player{player}
+        { }
+        virtual ~Callbacks() = default;
+
+        void onPacketReceived(DefaultMessageIDTypes type,
+                              SLNet::RakPeerInterface* peer,
+                              const SLNet::Packet* packet) override;
+
+    private:
+        CNetCustomPlayerClient* m_player;
+    };
 
     using NetMessagePtr = std::unique_ptr<unsigned char[]>;
     using IdMessagePair = std::pair<std::uint32_t, NetMessagePtr>;
 
-    std::list<IdMessagePair> messages;
-    CNetCustomPlayer player;
-    PlayerClientCallbacks callbacks;
-    SLNet::NatPunchthroughClient natClient;
-    SLNet::SystemAddress serverAddress;
-    std::uint32_t serverId;
+    std::list<IdMessagePair> m_messages;
+    std::mutex m_messagesMutex;
+    Callbacks m_callbacks;
+    SLNet::NatPunchthroughClient m_natClient;
+    SLNet::SystemAddress m_serverAddress;
+    std::uint32_t m_serverId;
 };
 
-CNetCustomPlayerClient* createCustomPlayerClient(CNetCustomSession* session, const char* name);
-
-game::IMqNetPlayerClient* createCustomPlayerClient(CNetCustomSession* session,
-                                                   game::IMqNetSystem* netSystem,
-                                                   game::IMqNetReception* netReception,
-                                                   const char* name);
-
-CNetCustomPlayerClient* createCustomHostPlayerClient(CNetCustomSession* session, const char* name);
+assert_offset(CNetCustomPlayerClient, vftable, 0);
 
 } // namespace hooks
 

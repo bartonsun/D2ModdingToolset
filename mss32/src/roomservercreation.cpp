@@ -72,12 +72,12 @@ public:
                           const SLNet::Packet* packet) override
     {
         auto service = getNetService();
-        auto hostPlayer = service->session->getHostPlayer();
+        auto host = service->session->getHostPlayer();
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             serverCreationError("Host player failed to connect to player server");
             // Unsubscribe from callbacks
-            hostPlayer->player.getPeer().removeCallback(this);
+            host->getPeer().removeCallback(this);
             return;
         }
 
@@ -86,21 +86,20 @@ public:
         }
 
         // Unsubscribe from callbacks
-        hostPlayer->player.getPeer().removeCallback(this);
+        host->getPeer().removeCallback(this);
         hideWaitMenu();
 
         // Setup host player netId and remember serverId
-        auto& player = hostPlayer->player;
-        player.setId(SLNet::RakNetGUID::ToUint32(peer->GetMyGUID()));
+        host->setId(SLNet::RakNetGUID::ToUint32(peer->GetMyGUID()));
 
         auto serverGuid = peer->GetGuidFromSystemAddress(packet->systemAddress);
-        hostPlayer->serverId = SLNet::RakNetGUID::ToUint32(serverGuid);
+        host->setServerId(SLNet::RakNetGUID::ToUint32(serverGuid));
 
-        hostPlayer->setupPacketCallbacks();
+        host->setupPacketCallbacks();
 
         logDebug("lobby.log",
                  fmt::format("Host player netId 0x{:x} connected to player server netId 0x{:x}",
-                             player.getId(), hostPlayer->serverId));
+                             host->getId(), host->getServerId()));
 
         if (menuBase) {
             const auto& fn = getOriginalFunctions();
@@ -128,12 +127,12 @@ static void createHostPlayer()
 
     // Connect player client to local player server, wait response.
     // Use dummy name, it will be set properly later in session::CreateClient method
-    auto hostPlayer = createCustomHostPlayerClient(service->session, "Host player");
-    service->session->addPlayer(hostPlayer);
+    auto host = CNetCustomPlayerClient::create(service->session);
+    service->session->addPlayer(host);
 
     logDebug("lobby.log", "Host player client waits for player server connection response");
 
-    hostPlayer->player.getPeer().addCallback(&hostClientConnectCallbacks);
+    host->getPeer().addCallback(&hostClientConnectCallbacks);
 }
 
 /**

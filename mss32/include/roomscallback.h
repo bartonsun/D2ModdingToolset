@@ -49,6 +49,8 @@ public:
         SLNet::RoomMemberJoinedRoom_Notification* notification) override;
 };
 
+SLNet::SystemAddress lobbyAddressToServerPlayer(const SLNet::SystemAddress& lobbyAddress);
+
 } // namespace hooks
 
 #endif // ROOMSCALLBACK_H
