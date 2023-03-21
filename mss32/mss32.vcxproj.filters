@@ -1163,6 +1163,9 @@
     <ClCompile Include="src\intintmap.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\menucustomprotocol.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3024,6 +3027,9 @@
     </ClInclude>
     <ClInclude Include="include\itemextension.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menucustomprotocol.h">
+      <Filter>features\lobby</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

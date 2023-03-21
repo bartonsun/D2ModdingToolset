@@ -28,7 +28,7 @@ struct String;
 
 namespace hooks {
 
-struct CMenuCustomProtocol;
+class CMenuCustomProtocol;
 
 void __fastcall menuProtocolDisplayCallbackHooked(game::CMenuProtocol* thisptr,
                                                   int /*%edx*/,

@@ -63,6 +63,7 @@ class CNetCustomService : public game::IMqNetService
 {
 public:
     static constexpr std::uint16_t peerShutdownTimeout{100};
+    static constexpr std::uint16_t connectionWaitTimeout{10000};
 
     static CNetCustomService* create();
     static bool isCustom(const game::IMqNetService* service);
