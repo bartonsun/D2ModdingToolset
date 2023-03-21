@@ -80,10 +80,10 @@ protected:
     static int __fastcall method8(CNetCustomPlayer* thisptr, int /*%edx*/, int a2);
 
 private:
-    std::string m_name;
     CNetCustomSession* m_session;
     game::IMqNetSystem* m_system;
     game::IMqNetReception* m_reception;
+    std::string m_name;
     std::uint32_t m_id;
 };
 

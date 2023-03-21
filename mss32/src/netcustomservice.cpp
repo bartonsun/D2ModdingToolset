@@ -609,30 +609,16 @@ std::vector<NetPeerCallbacks*> CNetCustomService::getPeerCallbacks() const
     return m_peerCallbacks;
 }
 
-static game::IMqNetService* getNetServiceInterface()
-{
-    auto midgard = game::CMidgardApi::get().instance();
-    return midgard->data->netService;
-}
-
 CNetCustomService* getNetService()
 {
-    auto service = getNetServiceInterface();
-    if (!isNetServiceCustom(service)) {
+    auto midgard = game::CMidgardApi::get().instance();
+    auto service = midgard->data->netService;
+
+    if (!CNetCustomService::isCustom(service)) {
         return nullptr;
     }
 
     return static_cast<CNetCustomService*>(service);
-}
-
-bool isNetServiceCustom()
-{
-    return isNetServiceCustom(getNetServiceInterface());
-}
-
-bool isNetServiceCustom(const game::IMqNetService* service)
-{
-    return CNetCustomService::isCustom(service);
 }
 
 } // namespace hooks

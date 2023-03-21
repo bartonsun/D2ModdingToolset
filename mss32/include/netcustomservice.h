@@ -192,12 +192,6 @@ assert_offset(CNetCustomService, vftable, 0);
 /** Returns net service if it is present and has type CNetCustomService. */
 CNetCustomService* getNetService();
 
-/** Returns true if current netService in CMidgard exists and has type CNetCustomService. */
-bool isNetServiceCustom();
-
-/** Checks if specified net service is custom. */
-bool isNetServiceCustom(const game::IMqNetService* service);
-
 } // namespace hooks
 
 #endif // NETCUSTOMSERVICE_H
