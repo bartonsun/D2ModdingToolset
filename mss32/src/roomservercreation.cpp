@@ -60,7 +60,7 @@ static void serverCreationError(const std::string& message)
  * Handles host player client connection to player server.
  * Sets up host player net ids and executes original game logic from CMenuNewSkirmish BTN_LOAD.
  */
-class HostClientConnectCallbacks : public NetworkPeerCallbacks
+class HostClientConnectCallbacks : public NetPeerCallbacks
 {
 public:
     HostClientConnectCallbacks() = default;
@@ -76,7 +76,7 @@ public:
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             serverCreationError("Host player failed to connect to player server");
             // Unsubscribe from callbacks
-            host->getPeer().removeCallback(this);
+            service->removePeerCallbacks(this);
             return;
         }
 
@@ -85,7 +85,7 @@ public:
         }
 
         // Unsubscribe from callbacks
-        host->getPeer().removeCallback(this);
+        service->removePeerCallbacks(this);
         hideWaitMenu();
 
         // Setup host player netId and remember serverId
@@ -131,7 +131,7 @@ static void createHostPlayer()
 
     logDebug("lobby.log", "Host player client waits for player server connection response");
 
-    host->getPeer().addCallback(&hostClientConnectCallbacks);
+    service->addPeerCallbacks(&hostClientConnectCallbacks);
 }
 
 /**
@@ -172,7 +172,7 @@ static RoomsCreateServerCallback roomServerCallback;
  * Handles player server connection to lobby server.
  * Attaches NAT client and requests lobby server to create a room on successfull connection.
  */
-class ServerConnectCallbacks : public NetworkPeerCallbacks
+class ServerConnectCallbacks : public NetPeerCallbacks
 {
 public:
     ServerConnectCallbacks() = default;
@@ -187,7 +187,7 @@ public:
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             // Unsubscribe from callbacks
-            server->getPeer().removeCallback(this);
+            service->removePeerCallbacks(this);
             serverCreationError("Failed to connect player server to NAT server");
             return;
         }
@@ -197,7 +197,7 @@ public:
         }
 
         // Unsubscribe from callbacks
-        server->getPeer().removeCallback(this);
+        service->removePeerCallbacks(this);
 
         service->addRoomsCallback(&roomServerCallback);
 
@@ -211,9 +211,6 @@ public:
         }
 
         logDebug("lobby.log", "Waiting for room creation response");
-
-        peer->AttachPlugin(&server->getNatClient());
-        server->getNatClient().FindRouterPortStride(packet->systemAddress);
     }
 };
 
@@ -232,23 +229,8 @@ static void createSessionAndServer(const char* sessionName)
     auto server = CNetCustomPlayerServer::create(service->getSession(), nullptr, nullptr);
     service->getSession()->setServer(server);
 
-    const auto& lobbySettings = userSettings().lobby;
-    const auto& serverIp = lobbySettings.server.ip;
-    const auto& serverPort = lobbySettings.server.port;
-
-    auto peer = server->getPeer().peer.get();
-    // Connect player server to lobby server, wait response.
-    // We need this connection for NAT punchthrough
-    if (peer->Connect(serverIp.c_str(), serverPort, nullptr, 0)
-        != SLNet::CONNECTION_ATTEMPT_STARTED) {
-        const std::string msg{"Failed to connect server player to lobby server"};
-        logError("lobby.log", msg);
-        serverCreationError(msg);
-        return;
-    }
-
     logDebug("lobby.log", "Player server waits for response from lobby server");
-    server->getPeer().addCallback(&serverConnectCallbacks);
+    service->addPeerCallbacks(&serverConnectCallbacks);
 }
 
 void startRoomAndServerCreation(game::CMenuBase* menu, bool loadScenario)

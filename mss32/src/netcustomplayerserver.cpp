@@ -38,39 +38,17 @@ CNetCustomPlayerServer* CNetCustomPlayerServer::create(CNetCustomSession* sessio
                                                        game::IMqNetSystem* system,
                                                        game::IMqNetReception* reception)
 {
-    using namespace game;
-
-    playerLog("Creating player server peer");
-    SLNet::SocketDescriptor descriptor{CNetCustomPlayer::serverPort, nullptr};
-    auto peer{NetworkPeer::PeerPtr(SLNet::RakPeerInterface::GetInstance())};
-
-    constexpr std::uint16_t maxConnections{4};
-    peer->SetMaximumIncomingConnections(maxConnections);
-
-    const auto result{peer->Startup(maxConnections, &descriptor, 1)};
-    if (result != SLNet::StartupResult::RAKNET_STARTED) {
-        playerLog("Failed to start peer for CNetCustomPlayerServer");
-        return nullptr;
-    }
-
     playerLog("Creating CNetCustomPlayerServer");
-    auto server = (CNetCustomPlayerServer*)Memory::get().allocate(sizeof(CNetCustomPlayerServer));
-    new (server) CNetCustomPlayerServer(session, system, reception, std::move(peer));
-
-    playerLog("Player server created");
-
-    auto netId = SLNet::RakNetGUID::ToUint32(server->getPeer().peer.get()->GetMyGUID());
-    playerLog(fmt::format("CNetCustomPlayerServer has netId 0x{:x}, ", netId));
-
+    auto server = (CNetCustomPlayerServer*)game::Memory::get().allocate(
+        sizeof(CNetCustomPlayerServer));
+    new (server) CNetCustomPlayerServer(session, system, reception);
     return server;
 }
 
 CNetCustomPlayerServer::CNetCustomPlayerServer(CNetCustomSession* session,
                                                game::IMqNetSystem* system,
-                                               game::IMqNetReception* reception,
-                                               NetworkPeer::PeerPtr&& peer)
-    : CNetCustomPlayer{session,  system,          reception,
-                       "SERVER", std::move(peer), game::serverNetPlayerId}
+                                               game::IMqNetReception* reception)
+    : CNetCustomPlayer{session, system, reception, "SERVER", game::serverNetPlayerId}
     , m_callbacks{this}
 {
     static game::IMqNetPlayerServerVftable vftable = {
@@ -89,12 +67,7 @@ CNetCustomPlayerServer::CNetCustomPlayerServer(CNetCustomSession* session,
     };
 
     this->vftable = &vftable;
-    getPeer().addCallback(&m_callbacks);
-}
-
-SLNet::NatPunchthroughClient& CNetCustomPlayerServer::getNatClient()
-{
-    return m_natClient;
+    session->getService()->addPeerCallbacks(&m_callbacks);
 }
 
 bool CNetCustomPlayerServer::notifyHostClientConnected()
@@ -146,45 +119,24 @@ bool __fastcall CNetCustomPlayerServer::sendMessage(CNetCustomPlayerServer* this
                                                     int idTo,
                                                     const game::NetMessageHeader* message)
 {
-    auto peer{thisptr->getPeer().peer.get()};
-    if (!peer) {
-        playerLog("CNetCustomPlayerServer could not send message, peer is nullptr");
-        return false;
-    }
-
-    const auto& connectedIds{thisptr->m_connectedIds};
-    SLNet::BitStream stream((unsigned char*)message, message->length, false);
-
+    const auto& connectedIds = thisptr->m_connectedIds;
     if (idTo == game::broadcastNetPlayerId) {
         playerLog("CNetCustomPlayerServer sendMessage broadcast");
-
-        // Do not use broadcast Send() because player server is also connected to lobby server
-        // and we do not want to send him game messages
-        for (const auto& guid : connectedIds) {
-            peer->Send(&stream, PacketPriority::HIGH_PRIORITY, PacketReliability::RELIABLE_ORDERED,
-                       0, guid, false);
-        }
-
-        return true;
+        return thisptr->getService()->sendMessage(message, connectedIds);
     }
 
     auto it = std::find_if(connectedIds.begin(), connectedIds.end(), [idTo](const auto& guid) {
         return static_cast<int>(SLNet::RakNetGUID::ToUint32(guid)) == idTo;
     });
 
-    if (it != connectedIds.end()) {
-        const auto& guid = *it;
-        playerLog(fmt::format("CNetCustomPlayerServer sendMessage to 0x{:x}",
-                              std::uint32_t{SLNet::RakNetGUID::ToUint32(guid)}));
-
-        peer->Send(&stream, PacketPriority::HIGH_PRIORITY, PacketReliability::RELIABLE_ORDERED, 0,
-                   guid, false);
-        return true;
+    if (it == connectedIds.end()) {
+        playerLog(
+            fmt::format("CNetCustomPlayerServer could not send message. No client with id 0x{:x}",
+                        uint32_t(idTo)));
+        return false;
     }
 
-    playerLog(fmt::format("CNetCustomPlayerServer could not send message. No client with id 0x{:x}",
-                          uint32_t(idTo)));
-    return false;
+    return thisptr->getService()->sendMessage(message, *it);
 }
 
 game::ReceiveMessageResult __fastcall CNetCustomPlayerServer::receiveMessage(

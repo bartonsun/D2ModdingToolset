@@ -22,14 +22,20 @@
 
 #include "lobbycallbacks.h"
 #include "mqnetservice.h"
-#include "networkpeer.h"
 #include "roomscallback.h"
+#include "uievent.h"
 #include <Lobby2Client.h>
 #include <Lobby2Message.h>
+#include <MessageIdentifiers.h>
 #include <RakPeerInterface.h>
 #include <RoomsPlugin.h>
-#include <memory>
+#include <mutex>
 #include <string>
+#include <vector>
+
+namespace game {
+struct NetMessageHeader;
+} // namespace game
 
 namespace hooks {
 
@@ -44,21 +50,34 @@ enum ClientMessages
 
 class CNetCustomSession;
 
+class NetPeerCallbacks
+{
+public:
+    virtual ~NetPeerCallbacks() = default;
+    virtual void onPacketReceived(DefaultMessageIDTypes type,
+                                  SLNet::RakPeerInterface* peer,
+                                  const SLNet::Packet* packet) = 0;
+};
+
 class CNetCustomService : public game::IMqNetService
 {
 public:
+    static constexpr std::uint16_t peerShutdownTimeout{100};
+
     static CNetCustomService* create();
     static bool isCustom(const game::IMqNetService* service);
 
-    CNetCustomService(NetworkPeer::PeerPtr&& peer);
-    ~CNetCustomService() = default;
+    CNetCustomService(SLNet::RakPeerInterface* peer);
+    ~CNetCustomService();
 
     CNetCustomSession* getSession() const;
     void setSession(CNetCustomSession* value);
-    NetworkPeer& getPeer();
     const std::string& getAccountName() const;
     const SLNet::SystemAddress& getRoomOwnerAddress() const;
     void setRoomOwnerAddress(const SLNet::SystemAddress& value);
+    bool sendMessage(const game::NetMessageHeader* message, const SLNet::RakNetGUID& to) const;
+    bool sendMessage(const game::NetMessageHeader* message,
+                     const std::vector<SLNet::RakNetGUID>& to) const;
 
     /**
      * Tries to register new account using credentials provided.
@@ -96,8 +115,8 @@ public:
     /** Tries to request files integrity check from the server. */
     bool checkFilesIntegrity(const char* hash);
 
-    void addPeerCallbacks(NetworkPeerCallbacks* callbacks);
-    void removePeerCallbacks(NetworkPeerCallbacks* callbacks);
+    void addPeerCallbacks(NetPeerCallbacks* callbacks);
+    void removePeerCallbacks(NetPeerCallbacks* callbacks);
 
     void addLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks);
     void removeLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks);
@@ -130,25 +149,28 @@ protected:
                                        const char* password);
 
 private:
-    class Callbacks : public NetworkPeerCallbacks
+    class Callbacks : public NetPeerCallbacks
     {
     public:
         Callbacks(CNetCustomService* service)
-            : m_service{service}
+            : m_service(service)
         { }
-        virtual ~Callbacks() = default;
 
         void onPacketReceived(DefaultMessageIDTypes type,
                               SLNet::RakPeerInterface* peer,
-                              const SLNet::Packet* packet) override;
+                              const SLNet::Packet* packet);
 
     private:
         CNetCustomService* m_service;
     };
 
+    static void __fastcall peerProcessEventCallback(CNetCustomService* thisptr, int /*%edx*/);
+    std::vector<NetPeerCallbacks*> getPeerCallbacks() const;
+
+    Callbacks m_callbacks;
+    CNetCustomSession* m_session;
     std::string m_accountName;
     SLNet::SystemAddress m_roomOwnerAddress;
-
     /** Interacts with lobby server. */
     SLNet::Lobby2Client m_lobbyClient;
     /** Creates network messages. */
@@ -159,9 +181,10 @@ private:
     SLNet::RoomsPlugin m_roomsClient;
     RoomsLoggingCallback m_roomsLogCallback;
     /** Connection with lobby server. */
-    NetworkPeer m_lobbyPeer;
-    Callbacks m_callbacks;
-    CNetCustomSession* m_session;
+    SLNet::RakPeerInterface* m_peer;
+    game::UiEvent m_peerProcessEvent;
+    std::vector<NetPeerCallbacks*> m_peerCallbacks;
+    mutable std::mutex m_peerCallbacksMutex;
 };
 
 assert_offset(CNetCustomService, vftable, 0);

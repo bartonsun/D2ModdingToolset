@@ -29,74 +29,20 @@
 #include "netmsg.h"
 #include "settings.h"
 #include "utils.h"
-#include <BitStream.h>
-#include <MessageIdentifiers.h>
 #include <fmt/format.h>
+#include <slikenet/types.h>
 
 namespace hooks {
 
-NetworkPeer::PeerPtr createPeer(CNetCustomSession* session)
-{
-    using namespace game;
-
-    const std::uint16_t clientPort = CNetCustomPlayer::clientPort
-                                     + userSettings().lobby.client.port;
-    SLNet::SocketDescriptor descriptor{clientPort, nullptr};
-
-    // Non-host client players have two connections:
-    // with lobby server for NAT traversal and with player server
-    auto peer{NetworkPeer::PeerPtr(SLNet::RakPeerInterface::GetInstance())};
-    const auto result{peer->Startup(session->isHost() ? 1 : 2, &descriptor, 1)};
-    if (result != SLNet::StartupResult::RAKNET_STARTED) {
-        playerLog("Failed to start peer for CNetCustomPlayerClient");
-        return nullptr;
-    }
-
-    return peer;
-}
-
-bool connectToServer(NetworkPeer::PeerPtr& peer, const SLNet::SystemAddress& serverAddress)
-{
-    auto serverIp{serverAddress.ToString(false)};
-    playerLog(fmt::format("Host client tries to connect to server at '{:s}', port {:d}", serverIp,
-                          CNetCustomPlayer::serverPort));
-
-    const auto result{peer->Connect(serverIp, CNetCustomPlayer::serverPort, nullptr, 0)};
-    if (result != SLNet::ConnectionAttemptResult::CONNECTION_ATTEMPT_STARTED) {
-        playerLog(fmt::format("Failed to start CNetCustomPlayerClient connection. Error: {:d}",
-                              (int)result));
-        return false;
-    }
-
-    return true;
-}
-
 CNetCustomPlayerClient* CNetCustomPlayerClient::create(CNetCustomSession* session)
 {
-    using namespace game;
-
     playerLog("Creating CNetCustomPlayerClient");
 
-    auto peer = createPeer(session);
-    if (!peer) {
-        return nullptr;
-    }
-
-    auto serverAddress = SLNet::UNASSIGNED_SYSTEM_ADDRESS;
-    if (session->isHost()) {
-        // Create player server address from our local address
-        // since host player client is on the same machine as player server
-        serverAddress = lobbyAddressToServerPlayer(
-            session->getService()->getPeer().peer.get()->GetMyBoundAddress());
-        if (!connectToServer(peer, serverAddress)) {
-            return nullptr;
-        }
-    }
-
     // Empty fields will be initialized later
-    auto client = (CNetCustomPlayerClient*)Memory::get().allocate(sizeof(CNetCustomPlayerClient));
+    auto client = (CNetCustomPlayerClient*)game::Memory::get().allocate(
+        sizeof(CNetCustomPlayerClient));
     new (client)
-        CNetCustomPlayerClient(session, nullptr, nullptr, "", std::move(peer), 0, serverAddress, 0);
+        CNetCustomPlayerClient(session, nullptr, nullptr, "", 0, SLNet::UNASSIGNED_RAKNET_GUID, 0);
     return client;
 }
 
@@ -104,11 +50,10 @@ CNetCustomPlayerClient::CNetCustomPlayerClient(CNetCustomSession* session,
                                                game::IMqNetSystem* system,
                                                game::IMqNetReception* reception,
                                                const char* name,
-                                               NetworkPeer::PeerPtr&& peer,
                                                std::uint32_t id,
-                                               const SLNet::SystemAddress& serverAddress,
+                                               const SLNet::RakNetGUID& serverAddress,
                                                std::uint32_t serverId)
-    : CNetCustomPlayer{session, system, reception, name, std::move(peer), id}
+    : CNetCustomPlayer{session, system, reception, name, id}
     , m_callbacks(this)
     , m_serverAddress{serverAddress}
     , m_serverId{serverId}
@@ -133,15 +78,15 @@ CNetCustomPlayerClient::CNetCustomPlayerClient(CNetCustomSession* session,
 void CNetCustomPlayerClient::setupPacketCallbacks()
 {
     playerLog("Setup player client packet callbacks");
-    getPeer().addCallback(&m_callbacks);
+    getService()->addPeerCallbacks(&m_callbacks);
 }
 
-const SLNet::SystemAddress& CNetCustomPlayerClient::getServerAddress() const
+const SLNet::RakNetGUID& CNetCustomPlayerClient::getServerAddress() const
 {
     return m_serverAddress;
 }
 
-void CNetCustomPlayerClient::setServerAddress(const SLNet::SystemAddress& value)
+void CNetCustomPlayerClient::setServerAddress(const SLNet::RakNetGUID& value)
 {
     m_serverAddress = value;
 }
@@ -154,11 +99,6 @@ std::uint32_t CNetCustomPlayerClient::getServerId() const
 void CNetCustomPlayerClient::setServerId(std::uint32_t value)
 {
     m_serverId = value;
-}
-
-SLNet::NatPunchthroughClient& CNetCustomPlayerClient::getNatClient()
-{
-    return m_natClient;
 }
 
 void __fastcall CNetCustomPlayerClient::destructor(CNetCustomPlayerClient* thisptr,
@@ -190,35 +130,13 @@ bool __fastcall CNetCustomPlayerClient::sendMessage(CNetCustomPlayerClient* this
                                                     int idTo,
                                                     const game::NetMessageHeader* message)
 {
-    auto peer = thisptr->getPeer().peer.get();
-    if (!peer) {
-        playerLog("CNetCustomPlayerClient could not send message, peer is nullptr");
-        return false;
-    }
-
-    auto serverGuid = peer->GetGuidFromSystemAddress(thisptr->m_serverAddress);
-    auto serverId = SLNet::RakNetGUID::ToUint32(serverGuid);
-
-    playerLog(
-        fmt::format("CNetCustomPlayerClient {:s} sendMessage '{:s}' to {:x}, server guid 0x{:x}",
-                    thisptr->getName(), message->messageClassName, std::uint32_t(idTo), serverId));
-
     if (idTo != game::serverNetPlayerId) {
-        playerLog("CNetCustomPlayerClient should send messages only to server ???");
         // Only send messages to server
+        playerLog("CNetCustomPlayerClient should send messages only to server ???");
         return false;
     }
 
-    SLNet::BitStream stream((unsigned char*)message, message->length, false);
-
-    if (peer->Send(&stream, PacketPriority::HIGH_PRIORITY, PacketReliability::RELIABLE_ORDERED, 0,
-                   thisptr->m_serverAddress, false)
-        == 0) {
-        playerLog(
-            fmt::format("CNetCustomPlayerClient {:s} Send returned bad input", thisptr->getName()));
-    }
-
-    return true;
+    return thisptr->getService()->sendMessage(message, thisptr->m_serverAddress);
 }
 
 game::ReceiveMessageResult __fastcall CNetCustomPlayerClient::receiveMessage(

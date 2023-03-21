@@ -22,10 +22,9 @@
 
 #include "mqnetplayerserver.h"
 #include "netcustomplayer.h"
-#include <NatPunchthroughClient.h>
+#include "netcustomservice.h"
 #include <list>
 #include <mutex>
-#include <utility>
 #include <vector>
 
 namespace hooks {
@@ -38,11 +37,9 @@ public:
                                           game::IMqNetReception* reception);
     CNetCustomPlayerServer(CNetCustomSession* session,
                            game::IMqNetSystem* system,
-                           game::IMqNetReception* reception,
-                           NetworkPeer::PeerPtr&& peer);
+                           game::IMqNetReception* reception);
     ~CNetCustomPlayerServer() = default;
 
-    SLNet::NatPunchthroughClient& getNatClient();
     bool notifyHostClientConnected();
 
 protected:
@@ -68,7 +65,7 @@ protected:
                                         bool allowJoin);
 
 private:
-    class Callbacks : public NetworkPeerCallbacks
+    class Callbacks : public NetPeerCallbacks
     {
     public:
         Callbacks(CNetCustomPlayerServer* player)
@@ -87,10 +84,9 @@ private:
     using NetMessagePtr = std::unique_ptr<unsigned char[]>;
     using IdMessagePair = std::pair<std::uint32_t, NetMessagePtr>;
 
+    Callbacks m_callbacks;
     std::list<IdMessagePair> m_messages;
     std::mutex m_messagesMutex;
-    Callbacks m_callbacks;
-    SLNet::NatPunchthroughClient m_natClient;
     std::vector<SLNet::RakNetGUID> m_connectedIds;
 };
 

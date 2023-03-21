@@ -88,7 +88,7 @@ static void registerClientPlayerAndJoin()
  * Handles player client connection to player server.
  * Starts joining the game by player client using game-specific protocol.
  */
-class ClientToServerConnectCallbacks : public NetworkPeerCallbacks
+class ClientToServerConnectCallbacks : public NetPeerCallbacks
 {
 public:
     ClientToServerConnectCallbacks() = default;
@@ -103,7 +103,7 @@ public:
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             // Unsubscribe from callbacks
-            host->getPeer().removeCallback(this);
+            service->removePeerCallbacks(this);
             customLobbyProcessJoinError(menuLobby,
                                         "Failed to connect player client to player server");
             return;
@@ -114,7 +114,7 @@ public:
         }
 
         // Unsubscribe from callbacks
-        host->getPeer().removeCallback(this);
+        service->removePeerCallbacks(this);
 
         logDebug("roomJoin.log", "Player client finally connected to player server. "
                                  "Continue with game protocol");
@@ -124,7 +124,7 @@ public:
         host->setId(SLNet::RakNetGUID::ToUint32(peer->GetMyGUID()));
 
         auto serverGuid = peer->GetGuidFromSystemAddress(packet->systemAddress);
-        host->setServerAddress(packet->systemAddress);
+        host->setServerAddress(serverGuid);
         host->setServerId(SLNet::RakNetGUID::ToUint32(serverGuid));
 
         host->setupPacketCallbacks();
@@ -139,7 +139,7 @@ static ClientToServerConnectCallbacks clientToServerConnectCallback;
  * Handles NAT punchthrough responses.
  * Connects player client to player server on successfull NAT punch.
  */
-class NATPunchCallbacks : public NetworkPeerCallbacks
+class NATPunchCallbacks : public NetPeerCallbacks
 {
 public:
     NATPunchCallbacks() = default;
@@ -175,7 +175,7 @@ public:
             auto host{service->getSession()->getHostPlayer()};
 
             // Unsubscribe from callbacks
-            host->getPeer().removeCallback(this);
+            service->removePeerCallbacks(this);
 
             logDebug("roomJoin.log",
                      fmt::format("NAT punch succeeded! Player server address {:s}, netId 0x{:x}",
@@ -193,7 +193,7 @@ public:
             }
 
             logDebug("roomJoin.log", "Connection attempt after NAT punch, wait response");
-            host->getPeer().addCallback(&clientToServerConnectCallback);
+            service->addPeerCallbacks(&clientToServerConnectCallback);
             return;
         }
         }
@@ -203,7 +203,7 @@ public:
             auto host{service->getSession()->getHostPlayer()};
 
             // Unsubscribe from callbacks
-            host->getPeer().removeCallback(this);
+            service->removePeerCallbacks(this);
             customLobbyProcessJoinError(menuLobby, error);
         }
     }
@@ -215,7 +215,7 @@ static NATPunchCallbacks natPunchCallbacks;
  * Handles player client connection to lobby server.
  * Starts NAT punchthrough on successfull connection.
  */
-class ClientConnectCallbacks : public NetworkPeerCallbacks
+class ClientConnectCallbacks : public NetPeerCallbacks
 {
 public:
     ClientConnectCallbacks() = default;
@@ -230,7 +230,7 @@ public:
 
         if (type == ID_CONNECTION_ATTEMPT_FAILED) {
             // Unsubscribe from callbacks
-            host->getPeer().removeCallback(this);
+            service->removePeerCallbacks(this);
             customLobbyProcessJoinError(menuLobby, "Failed to connect player client to NAT server");
             return;
         }
@@ -242,14 +242,10 @@ public:
         logDebug("roomJoin.log", fmt::format("OpenNAT to player server with id 0x{:x}",
                                              SLNet::RakNetGUID::ToUint32(playerServerGuid)));
         // Unsubscribe from callbacks
-        host->getPeer().removeCallback(this);
-
-        // Start NAT punchthrough
-        peer->AttachPlugin(&host->getNatClient());
-        host->getNatClient().OpenNAT(playerServerGuid, packet->systemAddress);
+        service->removePeerCallbacks(this);
 
         // Attach callback, wait response
-        host->getPeer().addCallback(&natPunchCallbacks);
+        service->addPeerCallbacks(&natPunchCallbacks);
     }
 };
 
@@ -318,25 +314,7 @@ void customLobbyProcessJoin(CMenuCustomLobby* menu,
     auto clientPlayer = CNetCustomPlayerClient::create(netSession);
     netSession->addPlayer(clientPlayer);
 
-    logDebug("roomJoin.log", "Connect to lobby server, wait response");
-
-    // Connect to lobby server, wait response
-    const auto& lobbySettings = userSettings().lobby;
-    const auto& serverIp = lobbySettings.server.ip;
-    const auto& serverPort = lobbySettings.server.port;
-
-    auto peer = clientPlayer->getPeer().peer.get();
-    // Connect player server to lobby server, wait response.
-    // We need this connection for NAT punchthrough
-    if (peer->Connect(serverIp.c_str(), serverPort, nullptr, 0)
-        != SLNet::CONNECTION_ATTEMPT_STARTED) {
-        const std::string msg{"Failed to connect client player to lobby server"};
-        logError("roomJoin.log", msg);
-        customLobbyProcessJoinError(menu, msg.c_str());
-        return;
-    }
-
-    clientPlayer->getPeer().addCallback(&clientConnectCallbacks);
+    netService->addPeerCallbacks(&clientConnectCallbacks);
 }
 
 } // namespace hooks

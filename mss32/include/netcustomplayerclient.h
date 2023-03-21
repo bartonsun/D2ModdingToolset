@@ -22,10 +22,9 @@
 
 #include "mqnetplayerclient.h"
 #include "netcustomplayer.h"
-#include <NatPunchthroughClient.h>
+#include "netcustomservice.h"
 #include <list>
 #include <mutex>
-#include <slikenet/types.h>
 #include <utility>
 
 namespace hooks {
@@ -38,17 +37,15 @@ public:
                            game::IMqNetSystem* system,
                            game::IMqNetReception* reception,
                            const char* name,
-                           NetworkPeer::PeerPtr&& peer,
                            std::uint32_t id,
-                           const SLNet::SystemAddress& serverAddress,
+                           const SLNet::RakNetGUID& serverAddress,
                            std::uint32_t serverId);
     ~CNetCustomPlayerClient() = default;
 
-    const SLNet::SystemAddress& getServerAddress() const;
-    void setServerAddress(const SLNet::SystemAddress& value);
+    const SLNet::RakNetGUID& getServerAddress() const;
+    void setServerAddress(const SLNet::RakNetGUID& value);
     std::uint32_t getServerId() const;
     void setServerId(std::uint32_t value);
-    SLNet::NatPunchthroughClient& getNatClient();
     void setupPacketCallbacks();
     using CNetCustomPlayer::setName;
 
@@ -69,7 +66,7 @@ protected:
     static bool __fastcall isHost(CNetCustomPlayerClient* thisptr, int /*%edx*/);
 
 private:
-    class Callbacks : public NetworkPeerCallbacks
+    class Callbacks : public NetPeerCallbacks
     {
     public:
         Callbacks(CNetCustomPlayerClient* player)
@@ -88,11 +85,10 @@ private:
     using NetMessagePtr = std::unique_ptr<unsigned char[]>;
     using IdMessagePair = std::pair<std::uint32_t, NetMessagePtr>;
 
+    Callbacks m_callbacks;
     std::list<IdMessagePair> m_messages;
     std::mutex m_messagesMutex;
-    Callbacks m_callbacks;
-    SLNet::NatPunchthroughClient m_natClient;
-    SLNet::SystemAddress m_serverAddress;
+    SLNet::RakNetGUID m_serverAddress;
     std::uint32_t m_serverId;
 };
 

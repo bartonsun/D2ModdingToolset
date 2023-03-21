@@ -23,6 +23,7 @@
 #include "midgard.h"
 #include "mqnetservice.h"
 #include "netcustomsession.h"
+#include "netmsg.h"
 #include "settings.h"
 #include "utils.h"
 #include <MessageIdentifiers.h>
@@ -51,22 +52,17 @@ game::IMqNetServiceVftable CNetCustomService::m_vftable = {
     (game::IMqNetServiceVftable::JoinSession)joinSession,
 };
 
-CNetCustomService* CNetCustomService::create()
+bool connectToLobby(SLNet::RakPeerInterface* peer)
 {
-    using namespace game;
-
-    logDebug("lobby.log", "Get peer instance");
-    auto lobbyPeer = NetworkPeer::PeerPtr(SLNet::RakPeerInterface::GetInstance());
-
     const auto& lobbySettings = userSettings().lobby;
     const auto& clientPort = lobbySettings.client.port;
     SLNet::SocketDescriptor socket{clientPort, nullptr};
 
     logDebug("lobby.log", fmt::format("Start lobby peer on port {:d}", clientPort));
 
-    if (lobbyPeer->Startup(1, &socket, 1) != SLNet::RAKNET_STARTED) {
+    if (peer->Startup(1, &socket, 1) != SLNet::RAKNET_STARTED) {
         logError("lobby.log", "Failed to start lobby client");
-        return nullptr;
+        return false;
     }
 
     const auto& serverIp = lobbySettings.server.ip;
@@ -75,17 +71,31 @@ CNetCustomService* CNetCustomService::create()
     logDebug("lobby.log", fmt::format("Connecting to lobby server with ip '{:s}', port {:d}",
                                       serverIp, serverPort));
 
-    if (lobbyPeer->Connect(serverIp.c_str(), serverPort, nullptr, 0)
+    if (peer->Connect(serverIp.c_str(), serverPort, nullptr, 0)
         != SLNet::CONNECTION_ATTEMPT_STARTED) {
         logError("lobby.log", "Failed to connect to lobby server");
+        return false;
+    }
+
+    logDebug("lobby.log", fmt::format("Connected to lobby server, netId 0x{:x}",
+                                      SLNet::RakNetGUID::ToUint32(peer->GetMyGUID())));
+    return true;
+}
+
+CNetCustomService* CNetCustomService::create()
+{
+    using namespace game;
+
+    logDebug("lobby.log", "Get peer instance");
+    auto peer = SLNet::RakPeerInterface::GetInstance();
+    if (!connectToLobby(peer)) {
+        peer->Shutdown(peerShutdownTimeout);
+        SLNet::RakPeerInterface::DestroyInstance(peer);
         return nullptr;
     }
 
-    logDebug("lobby.log", "Allocate CNetCustomService");
     auto netService = (CNetCustomService*)game::Memory::get().allocate(sizeof(CNetCustomService));
-
-    logDebug("lobby.log", "Call placement new");
-    new (netService) CNetCustomService(std::move(lobbyPeer));
+    new (netService) CNetCustomService(peer);
 
     logDebug("lobby.log", "CNetCustomService created");
     return netService;
@@ -96,13 +106,15 @@ bool CNetCustomService::isCustom(const game::IMqNetService* service)
     return service && service->vftable == &m_vftable;
 }
 
-CNetCustomService::CNetCustomService(NetworkPeer::PeerPtr&& peer)
-    : m_lobbyPeer(std::move(peer))
-    , m_callbacks(this)
+CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
+    : m_peer(peer)
     , m_session{nullptr}
+    , m_callbacks(this)
 {
     vftable = &m_vftable;
-    m_lobbyPeer.addCallback(&m_callbacks);
+
+    createTimerEvent(&m_peerProcessEvent, this, peerProcessEventCallback, 100);
+    addPeerCallbacks(&m_callbacks);
 
     logDebug("lobby.log", "Set msg factory");
     m_lobbyClient.SetMessageFactory(&m_lobbyMsgFactory);
@@ -111,10 +123,18 @@ CNetCustomService::CNetCustomService(NetworkPeer::PeerPtr&& peer)
     m_lobbyClient.SetCallbackInterface(&m_loggingCallbacks);
 
     logDebug("lobby.log", "Attach lobby client as a plugin");
-    m_lobbyPeer.peer->AttachPlugin(&m_lobbyClient);
+    m_peer->AttachPlugin(&m_lobbyClient);
 
-    m_lobbyPeer.peer->AttachPlugin(&m_roomsClient);
+    m_peer->AttachPlugin(&m_roomsClient);
     m_roomsClient.SetRoomsCallback(&m_roomsLogCallback);
+}
+
+CNetCustomService::~CNetCustomService()
+{
+    game::UiEventApi::get().destructor(&m_peerProcessEvent);
+
+    m_peer->Shutdown(peerShutdownTimeout);
+    SLNet::RakPeerInterface::DestroyInstance(m_peer);
 }
 
 CNetCustomSession* CNetCustomService::getSession() const
@@ -125,11 +145,6 @@ CNetCustomSession* CNetCustomService::getSession() const
 void CNetCustomService::setSession(CNetCustomSession* value)
 {
     m_session = value;
-}
-
-NetworkPeer& CNetCustomService::getPeer()
-{
-    return m_lobbyPeer;
 }
 
 const std::string& CNetCustomService::getAccountName() const
@@ -145,6 +160,44 @@ const SLNet::SystemAddress& CNetCustomService::getRoomOwnerAddress() const
 void CNetCustomService::setRoomOwnerAddress(const SLNet::SystemAddress& value)
 {
     m_roomOwnerAddress = value;
+}
+
+bool CNetCustomService::sendMessage(const game::NetMessageHeader* message,
+                                    const SLNet::RakNetGUID& to) const
+{
+    logDebug("lobby.log", fmt::format("CNetCustomService: sendMessage '{:s}' to 0x{:x}",
+                                      message->messageClassName, to.ToUint32(to)));
+
+    // TODO: pack 'to' into the stream, always send to lobby server acting as retranslator
+    SLNet::BitStream stream((unsigned char*)message, message->length, false);
+    if (!m_peer->Send(&stream, PacketPriority::HIGH_PRIORITY, PacketReliability::RELIABLE_ORDERED,
+                      0, to, false)) {
+        logDebug("lobby.log", "CNetCustomService: sendMessage failed on bad input");
+        return false;
+    }
+
+    return true;
+}
+
+bool CNetCustomService::sendMessage(const game::NetMessageHeader* message,
+                                    const std::vector<SLNet::RakNetGUID>& to) const
+{
+    logDebug("lobby.log", fmt::format("CNetCustomService: sendMessage '{:s}' to {:d} recipient(s)",
+                                      message->messageClassName, to.size()));
+
+    // TODO: pack 'to' into the stream, always send to lobby server acting as retranslator
+    SLNet::BitStream stream((unsigned char*)message, message->length, false);
+    for (const auto& recipient : to) {
+        if (!m_peer->Send(&stream, PacketPriority::HIGH_PRIORITY,
+                          PacketReliability::RELIABLE_ORDERED, 0, recipient, false)) {
+            logDebug("lobby.log",
+                     fmt::format("CNetCustomService: sendMessage failed on bad input for 0x{:x}",
+                                 recipient.ToUint32(recipient)));
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool CNetCustomService::createAccount(const char* accountName,
@@ -399,21 +452,26 @@ bool CNetCustomService::checkFilesIntegrity(const char* hash)
     stream.Write(hash);
 
     const auto serverAddress{m_lobbyClient.GetServerAddress()};
-    const auto result{m_lobbyPeer.peer->Send(&stream, PacketPriority::HIGH_PRIORITY,
-                                             PacketReliability::RELIABLE_ORDERED, 0, serverAddress,
-                                             false)};
+    const auto result{m_peer->Send(&stream, PacketPriority::HIGH_PRIORITY,
+                                   PacketReliability::RELIABLE_ORDERED, 0, serverAddress, false)};
 
     return result != 0;
 }
 
-void CNetCustomService::addPeerCallbacks(NetworkPeerCallbacks* callbacks)
+void CNetCustomService::addPeerCallbacks(NetPeerCallbacks* callbacks)
 {
-    m_lobbyPeer.addCallback(callbacks);
+    std::lock_guard lock(m_peerCallbacksMutex);
+    if (std::find(m_peerCallbacks.begin(), m_peerCallbacks.end(), callbacks)
+        == m_peerCallbacks.end()) {
+        m_peerCallbacks.push_back(callbacks);
+    }
 }
 
-void CNetCustomService::removePeerCallbacks(NetworkPeerCallbacks* callbacks)
+void CNetCustomService::removePeerCallbacks(NetPeerCallbacks* callbacks)
 {
-    m_lobbyPeer.removeCallback(callbacks);
+    std::lock_guard lock(m_peerCallbacksMutex);
+    m_peerCallbacks.erase(std::remove(m_peerCallbacks.begin(), m_peerCallbacks.end(), callbacks),
+                          m_peerCallbacks.end());
 }
 
 void CNetCustomService::addLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks)
@@ -436,6 +494,42 @@ void CNetCustomService::removeRoomsCallback(SLNet::RoomsCallback* callback)
 {
     logDebug("lobby.log", fmt::format("Removing room callback {:p}", (void*)callback));
     m_roomsClient.RemoveRoomsCallback(callback);
+}
+
+void CNetCustomService::Callbacks::onPacketReceived(DefaultMessageIDTypes type,
+                                                    SLNet::RakPeerInterface* peer,
+                                                    const SLNet::Packet* packet)
+{
+    switch (type) {
+    case ID_DISCONNECTION_NOTIFICATION:
+        logDebug("lobby.log", "Disconnected");
+        break;
+    case ID_ALREADY_CONNECTED:
+        logDebug("lobby.log", "Already connected");
+        break;
+    case ID_CONNECTION_LOST:
+        logDebug("lobby.log", "Connection lost");
+        break;
+    case ID_CONNECTION_ATTEMPT_FAILED:
+        logDebug("lobby.log", "Connection attempt failed");
+        break;
+    case ID_NO_FREE_INCOMING_CONNECTIONS:
+        logDebug("lobby.log", "Server is full");
+        break;
+    case ID_CONNECTION_REQUEST_ACCEPTED: {
+        logDebug("lobby.log", "Connection request accepted, set server address");
+        // Make sure plugins know about the server
+        m_service->m_lobbyClient.SetServerAddress(packet->systemAddress);
+        m_service->m_roomsClient.SetServerAddress(packet->systemAddress);
+        break;
+    }
+    case ID_LOBBY2_SERVER_ERROR:
+        logDebug("lobby.log", "Lobby server error");
+        break;
+    default:
+        logDebug("lobby.log", fmt::format("Packet type {:d}", static_cast<int>(type)));
+        break;
+    }
 }
 
 void __fastcall CNetCustomService::destructor(CNetCustomService* thisptr, int /*%edx*/, char flags)
@@ -494,44 +588,25 @@ void __fastcall CNetCustomService::joinSession(CNetCustomService* thisptr,
     logDebug("lobby.log", "CNetCustomService joinSession called");
 }
 
-void CNetCustomService::Callbacks::onPacketReceived(DefaultMessageIDTypes type,
-                                                    SLNet::RakPeerInterface* peer,
-                                                    const SLNet::Packet* packet)
+void __fastcall CNetCustomService::peerProcessEventCallback(CNetCustomService* thisptr,
+                                                            int /*%edx*/)
 {
-    if (!m_service->m_lobbyPeer.peer) {
-        return;
-    }
+    auto peer{thisptr->m_peer};
+    auto callbacks = thisptr->getPeerCallbacks();
+    for (auto packet = peer->Receive(); packet != nullptr;
+         peer->DeallocatePacket(packet), packet = peer->Receive()) {
 
-    switch (type) {
-    case ID_DISCONNECTION_NOTIFICATION:
-        logDebug("lobby.log", "Disconnected");
-        break;
-    case ID_ALREADY_CONNECTED:
-        logDebug("lobby.log", "Already connected");
-        break;
-    case ID_CONNECTION_LOST:
-        logDebug("lobby.log", "Connection lost");
-        break;
-    case ID_CONNECTION_ATTEMPT_FAILED:
-        logDebug("lobby.log", "Connection attempt failed");
-        break;
-    case ID_NO_FREE_INCOMING_CONNECTIONS:
-        logDebug("lobby.log", "Server is full");
-        break;
-    case ID_CONNECTION_REQUEST_ACCEPTED: {
-        logDebug("lobby.log", "Connection request accepted, set server address");
-        // Make sure plugins know about the server
-        m_service->m_lobbyClient.SetServerAddress(packet->systemAddress);
-        m_service->m_roomsClient.SetServerAddress(packet->systemAddress);
-        break;
+        auto type = static_cast<DefaultMessageIDTypes>(packet->data[0]);
+        for (auto& callback : callbacks) {
+            callback->onPacketReceived(type, peer, packet);
+        }
     }
-    case ID_LOBBY2_SERVER_ERROR:
-        logDebug("lobby.log", "Lobby server error");
-        break;
-    default:
-        logDebug("lobby.log", fmt::format("Packet type {:d}", static_cast<int>(type)));
-        break;
-    }
+}
+
+std::vector<NetPeerCallbacks*> CNetCustomService::getPeerCallbacks() const
+{
+    std::lock_guard lock(m_peerCallbacksMutex);
+    return m_peerCallbacks;
 }
 
 static game::IMqNetService* getNetServiceInterface()

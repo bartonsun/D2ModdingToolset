@@ -26,7 +26,6 @@
 #include "menuphasehooks.h"
 #include "midgard.h"
 #include "netcustomservice.h"
-#include "networkpeer.h"
 #include "originalfunctions.h"
 #include "textids.h"
 #include "uievent.h"
@@ -36,7 +35,7 @@ namespace hooks {
 
 struct CMenuCustomProtocol;
 
-class LobbyServerConnectionCallback : public NetworkPeerCallbacks
+class LobbyServerConnectionCallback : public NetPeerCallbacks
 {
 public:
     LobbyServerConnectionCallback(CMenuCustomProtocol* menu)

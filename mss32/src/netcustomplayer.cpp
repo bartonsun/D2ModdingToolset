@@ -28,7 +28,6 @@
 #include "netmsg.h"
 #include <fmt/format.h>
 #include <mutex>
-#include <string>
 
 namespace hooks {
 
@@ -36,10 +35,8 @@ CNetCustomPlayer::CNetCustomPlayer(CNetCustomSession* session,
                                    game::IMqNetSystem* system,
                                    game::IMqNetReception* reception,
                                    const char* name,
-                                   NetworkPeer::PeerPtr&& peer,
                                    std::uint32_t id)
     : m_name{name}
-    , m_peer{std::move(peer)}
     , m_session{session}
     , m_system{system}
     , m_reception{reception}
@@ -71,6 +68,11 @@ CNetCustomPlayer::~CNetCustomPlayer()
         playerLog("CNetCustomPlayer delete netReception");
         m_reception->vftable->destructor(m_reception, 1);
     }
+}
+
+CNetCustomService* CNetCustomPlayer::getService() const
+{
+    return m_session->getService();
 }
 
 CNetCustomSession* CNetCustomPlayer::getSession() const
@@ -106,11 +108,6 @@ const std::string& CNetCustomPlayer::getName() const
 void CNetCustomPlayer::setName(const char* value)
 {
     m_name = value;
-}
-
-NetworkPeer& CNetCustomPlayer::getPeer()
-{
-    return m_peer;
 }
 
 std::uint32_t CNetCustomPlayer::getId() const

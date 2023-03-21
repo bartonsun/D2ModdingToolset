@@ -21,7 +21,6 @@
 #define NETCUSTOMPLAYER_H
 
 #include "mqnetplayer.h"
-#include "networkpeer.h"
 #include <cstdint>
 #include <string>
 
@@ -32,6 +31,7 @@ struct IMqNetReception;
 
 namespace hooks {
 
+class CNetCustomService;
 class CNetCustomSession;
 
 class CNetCustomPlayer : public game::IMqNetPlayer
@@ -45,10 +45,10 @@ public:
                      game::IMqNetSystem* system,
                      game::IMqNetReception* reception,
                      const char* name,
-                     NetworkPeer::PeerPtr&& peer,
                      std::uint32_t id);
     ~CNetCustomPlayer();
 
+    CNetCustomService* getService() const;
     CNetCustomSession* getSession() const;
     game::IMqNetSystem* getSystem() const;
     void setSystem(game::IMqNetSystem* value);
@@ -56,7 +56,6 @@ public:
     void setReception(game::IMqNetReception* value);
     const std::string& getName() const;
     void setName(const char* value);
-    NetworkPeer& getPeer();
     std::uint32_t getId() const;
     void setId(std::uint32_t value);
 
@@ -86,7 +85,6 @@ protected:
 
 private:
     std::string m_name;
-    NetworkPeer m_peer;
     CNetCustomSession* m_session;
     game::IMqNetSystem* m_system;
     game::IMqNetReception* m_reception;
