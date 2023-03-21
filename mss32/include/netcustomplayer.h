@@ -37,10 +37,6 @@ class CNetCustomSession;
 class CNetCustomPlayer : public game::IMqNetPlayer
 {
 public:
-    // Ports for SLNet peer, should be on the same IP as lobby client
-    static constexpr std::uint16_t serverPort{60000};
-    static constexpr std::uint16_t clientPort{60001};
-
     CNetCustomPlayer(CNetCustomSession* session,
                      game::IMqNetSystem* system,
                      game::IMqNetReception* reception,

@@ -27,18 +27,6 @@
 
 namespace hooks {
 
-std::atomic_bool hostAddressSet{false};
-
-SLNet::SystemAddress lobbyAddressToServerPlayer(const SLNet::SystemAddress& lobbyAddress)
-{
-    auto addressString{lobbyAddress.ToString(false)};
-    auto serverAddress{SLNet::SystemAddress(addressString, CNetCustomPlayer::serverPort)};
-
-    logDebug("lobby.log", fmt::format("lobbyAddress: '{:s}', serverAddress '{:s}'", addressString,
-                                      serverAddress.ToString()));
-    return serverAddress;
-}
-
 void RoomsLoggingCallback::CreateRoom_Callback(const SLNet::SystemAddress& senderAddress,
                                                SLNet::CreateRoom_Func* callResult)
 {
