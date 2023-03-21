@@ -60,12 +60,12 @@ CNetCustomPlayer::CNetCustomPlayer(CNetCustomSession* session,
 CNetCustomPlayer::~CNetCustomPlayer()
 {
     if (m_system) {
-        playerLog("CNetCustomPlayer delete netSystem");
+        logDebug("lobby.log", "CNetCustomPlayer delete netSystem");
         m_system->vftable->destructor(m_system, 1);
     }
 
     if (m_reception) {
-        playerLog("CNetCustomPlayer delete netReception");
+        logDebug("lobby.log", "CNetCustomPlayer delete netReception");
         m_reception->vftable->destructor(m_reception, 1);
     }
 }
@@ -122,12 +122,12 @@ void CNetCustomPlayer::setId(std::uint32_t value)
 
 void __fastcall CNetCustomPlayer::destructor(CNetCustomPlayer* thisptr, int /*%edx*/, char flags)
 {
-    playerLog("CNetCustomPlayer d-tor called");
+    logDebug("lobby.log", "CNetCustomPlayer d-tor called");
 
     thisptr->~CNetCustomPlayer();
 
     if (flags & 1) {
-        playerLog("CNetCustomPlayer free memory");
+        logDebug("lobby.log", "CNetCustomPlayer free memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
@@ -136,27 +136,28 @@ game::String* __fastcall CNetCustomPlayer::getName(CNetCustomPlayer* thisptr,
                                                    int /*%edx*/,
                                                    game::String* string)
 {
-    playerLog(fmt::format("CNetCustomPlayer {:s} getName", thisptr->m_name));
+    logDebug("lobby.log", fmt::format("CNetCustomPlayer {:s} getName", thisptr->m_name));
     game::StringApi::get().initFromString(string, thisptr->m_name.c_str());
     return string;
 }
 
 int __fastcall CNetCustomPlayer::getNetId(CNetCustomPlayer* thisptr, int /*%edx*/)
 {
-    playerLog(fmt::format("CNetCustomPlayer {:s} getNetId 0x{:x}", thisptr->m_name, thisptr->m_id));
+    logDebug("lobby.log",
+             fmt::format("CNetCustomPlayer {:s} getNetId 0x{:x}", thisptr->m_name, thisptr->m_id));
     return static_cast<int>(thisptr->m_id);
 }
 
 game::IMqNetSession* __fastcall CNetCustomPlayer::getSession(CNetCustomPlayer* thisptr,
                                                              int /*%edx*/)
 {
-    playerLog(fmt::format("CNetCustomPlayer {:s} getSession", thisptr->m_name));
+    logDebug("lobby.log", fmt::format("CNetCustomPlayer {:s} getSession", thisptr->m_name));
     return thisptr->m_session;
 }
 
 int __fastcall CNetCustomPlayer::getMessageCount(CNetCustomPlayer* thisptr, int /*%edx*/)
 {
-    playerLog(fmt::format("CNetCustomPlayer {:s} getMessageCount", thisptr->m_name));
+    logDebug("lobby.log", fmt::format("CNetCustomPlayer {:s} getMessageCount", thisptr->m_name));
     return 1;
 }
 
@@ -165,8 +166,8 @@ bool __fastcall CNetCustomPlayer::sendMessage(CNetCustomPlayer* thisptr,
                                               int idTo,
                                               const game::NetMessageHeader* message)
 {
-    playerLog(fmt::format("CNetCustomPlayer {:s} sendMessage '{:s}' to {:d}", thisptr->m_name,
-                          message->messageClassName, idTo));
+    logDebug("lobby.log", fmt::format("CNetCustomPlayer {:s} sendMessage '{:s}' to {:d}",
+                                      thisptr->m_name, message->messageClassName, idTo));
     return true;
 }
 
@@ -176,7 +177,7 @@ game::ReceiveMessageResult __fastcall CNetCustomPlayer::receiveMessage(
     int* idFrom,
     game::NetMessageHeader* buffer)
 {
-    playerLog(fmt::format("CNetCustomPlayer {:s} receiveMessage", thisptr->m_name));
+    logDebug("lobby.log", fmt::format("CNetCustomPlayer {:s} receiveMessage", thisptr->m_name));
     return game::ReceiveMessageResult::NoMessages;
 }
 
@@ -184,7 +185,7 @@ void __fastcall CNetCustomPlayer::setNetSystem(CNetCustomPlayer* thisptr,
                                                int /*%edx*/,
                                                game::IMqNetSystem* netSystem)
 {
-    playerLog(fmt::format("CNetCustomPlayer {:s} setNetSystem", thisptr->m_name));
+    logDebug("lobby.log", fmt::format("CNetCustomPlayer {:s} setNetSystem", thisptr->m_name));
     if (thisptr->m_system != netSystem) {
         if (thisptr->m_system) {
             thisptr->m_system->vftable->destructor(thisptr->m_system, 1);
@@ -195,16 +196,8 @@ void __fastcall CNetCustomPlayer::setNetSystem(CNetCustomPlayer* thisptr,
 
 int __fastcall CNetCustomPlayer::method8(CNetCustomPlayer* thisptr, int /*%edx*/, int a2)
 {
-    playerLog(fmt::format("CNetCustomPlayer {:s} method8", thisptr->m_name));
+    logDebug("lobby.log", fmt::format("CNetCustomPlayer {:s} method8", thisptr->m_name));
     return a2;
-}
-
-void playerLog(const std::string& message)
-{
-    static std::mutex logMutex;
-    std::lock_guard lock(logMutex);
-
-    logDebug("lobby.log", message);
 }
 
 } // namespace hooks

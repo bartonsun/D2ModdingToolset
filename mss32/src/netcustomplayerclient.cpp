@@ -36,7 +36,7 @@ namespace hooks {
 
 CNetCustomPlayerClient* CNetCustomPlayerClient::create(CNetCustomSession* session)
 {
-    playerLog("Creating CNetCustomPlayerClient");
+    logDebug("lobby.log", "Creating CNetCustomPlayerClient");
 
     // Empty fields will be initialized later
     auto client = (CNetCustomPlayerClient*)game::Memory::get().allocate(
@@ -77,7 +77,7 @@ CNetCustomPlayerClient::CNetCustomPlayerClient(CNetCustomSession* session,
 
 void CNetCustomPlayerClient::setupPacketCallbacks()
 {
-    playerLog("Setup player client packet callbacks");
+    logDebug("lobby.log", "Setup player client packet callbacks");
     getService()->addPeerCallbacks(&m_callbacks);
 }
 
@@ -105,12 +105,12 @@ void __fastcall CNetCustomPlayerClient::destructor(CNetCustomPlayerClient* thisp
                                                    int /*%edx*/,
                                                    char flags)
 {
-    playerLog("CNetCustomPlayerClient d-tor");
+    logDebug("lobby.log", "CNetCustomPlayerClient d-tor");
 
     thisptr->~CNetCustomPlayerClient();
 
     if (flags & 1) {
-        playerLog("CNetCustomPlayerClient d-tor frees memory");
+        logDebug("lobby.log", "CNetCustomPlayerClient d-tor frees memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
@@ -118,7 +118,7 @@ void __fastcall CNetCustomPlayerClient::destructor(CNetCustomPlayerClient* thisp
 int __fastcall CNetCustomPlayerClient::getMessageCount(CNetCustomPlayerClient* thisptr,
                                                        int /*%edx*/)
 {
-    playerLog("CNetCustomPlayerClient getMessageCount");
+    logDebug("lobby.log", "CNetCustomPlayerClient getMessageCount");
 
     std::lock_guard<std::mutex> messageGuard(thisptr->m_messagesMutex);
 
@@ -132,7 +132,7 @@ bool __fastcall CNetCustomPlayerClient::sendMessage(CNetCustomPlayerClient* this
 {
     if (idTo != game::serverNetPlayerId) {
         // Only send messages to server
-        playerLog("CNetCustomPlayerClient should send messages only to server ???");
+        logDebug("lobby.log", "CNetCustomPlayerClient should send messages only to server ???");
         return false;
     }
 
@@ -150,7 +150,7 @@ game::ReceiveMessageResult __fastcall CNetCustomPlayerClient::receiveMessage(
         return game::ReceiveMessageResult::Failure;
     }
 
-    playerLog("CNetCustomPlayerClient receiveMessage");
+    logDebug("lobby.log", "CNetCustomPlayerClient receiveMessage");
 
     std::lock_guard<std::mutex> messageGuard(thisptr->m_messagesMutex);
 
@@ -161,26 +161,27 @@ game::ReceiveMessageResult __fastcall CNetCustomPlayerClient::receiveMessage(
     const auto& pair = thisptr->m_messages.front();
     const auto& id{pair.first};
     if (id != thisptr->m_serverId) {
-        playerLog(
-            fmt::format("CNetCustomPlayerClient received message from {:x}, its not a server!",
-                        id));
+        logDebug("lobby.log",
+                 fmt::format("CNetCustomPlayerClient received message from {:x}, its not a server!",
+                             id));
         return game::ReceiveMessageResult::NoMessages;
     }
 
     auto message = reinterpret_cast<const game::NetMessageHeader*>(pair.second.get());
 
     if (message->messageType != game::netMessageNormalType) {
-        playerLog("CNetCustomPlayerClient received message with invalid type");
+        logDebug("lobby.log", "CNetCustomPlayerClient received message with invalid type");
         return game::ReceiveMessageResult::Failure;
     }
 
     if (message->length >= game::netMessageMaxLength) {
-        playerLog("CNetCustomPlayerClient received message with invalid length");
+        logDebug("lobby.log", "CNetCustomPlayerClient received message with invalid length");
         return game::ReceiveMessageResult::Failure;
     }
 
-    playerLog(fmt::format("CNetCustomPlayerClient receiveMessage '{:s}' length {:d} from 0x{:x}",
-                          message->messageClassName, message->length, pair.first));
+    logDebug("lobby.log",
+             fmt::format("CNetCustomPlayerClient receiveMessage '{:s}' length {:d} from 0x{:x}",
+                         message->messageClassName, message->length, pair.first));
 
     *idFrom = static_cast<int>(id);
     std::memcpy(buffer, message, message->length);
@@ -193,7 +194,7 @@ bool __fastcall CNetCustomPlayerClient::setName(CNetCustomPlayerClient* thisptr,
                                                 int /*%edx*/,
                                                 const char* name)
 {
-    playerLog("CNetCustomPlayerClient setName");
+    logDebug("lobby.log", "CNetCustomPlayerClient setName");
     thisptr->setName(name);
     return true;
 }
@@ -201,7 +202,7 @@ bool __fastcall CNetCustomPlayerClient::setName(CNetCustomPlayerClient* thisptr,
 bool __fastcall CNetCustomPlayerClient::isHost(CNetCustomPlayerClient* thisptr, int /*%edx*/)
 {
     bool isHost = thisptr->getSession()->isHost();
-    playerLog(fmt::format("CNetCustomPlayerClient isHost {:d}", isHost));
+    logDebug("lobby.log", fmt::format("CNetCustomPlayerClient isHost {:d}", isHost));
     return isHost;
 }
 

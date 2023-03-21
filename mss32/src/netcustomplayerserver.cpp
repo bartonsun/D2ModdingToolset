@@ -38,7 +38,7 @@ CNetCustomPlayerServer* CNetCustomPlayerServer::create(CNetCustomSession* sessio
                                                        game::IMqNetSystem* system,
                                                        game::IMqNetReception* reception)
 {
-    playerLog("Creating CNetCustomPlayerServer");
+    logDebug("lobby.log", "Creating CNetCustomPlayerServer");
     auto server = (CNetCustomPlayerServer*)game::Memory::get().allocate(
         sizeof(CNetCustomPlayerServer));
     new (server) CNetCustomPlayerServer(session, system, reception);
@@ -74,17 +74,17 @@ bool CNetCustomPlayerServer::notifyHostClientConnected()
 {
     auto system = getSystem();
     if (!system) {
-        playerLog("PlayerServer: no netSystem in notifyHostClientConnected()");
+        logDebug("lobby.log", "PlayerServer: no netSystem in notifyHostClientConnected()");
         return false;
     }
 
     if (m_connectedIds.empty()) {
-        playerLog("PlayerServer: host client is not connected");
+        logDebug("lobby.log", "PlayerServer: host client is not connected");
         return false;
     }
 
     const std::uint32_t hostClientNetId{SLNet::RakNetGUID::ToUint32(m_connectedIds[0])};
-    playerLog(fmt::format("PlayerServer: onPlayerConnected 0x{:x}", hostClientNetId));
+    logDebug("lobby.log", fmt::format("PlayerServer: onPlayerConnected 0x{:x}", hostClientNetId));
 
     system->vftable->onPlayerConnected(system, (int)hostClientNetId);
     return true;
@@ -94,12 +94,12 @@ void __fastcall CNetCustomPlayerServer::destructor(CNetCustomPlayerServer* thisp
                                                    int /*%edx*/,
                                                    char flags)
 {
-    playerLog("CNetCustomPlayerServer d-tor");
+    logDebug("lobby.log", "CNetCustomPlayerServer d-tor");
 
     thisptr->~CNetCustomPlayerServer();
 
     if (flags & 1) {
-        playerLog("CNetCustomPlayerServer d-tor frees memory");
+        logDebug("lobby.log", "CNetCustomPlayerServer d-tor frees memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
@@ -107,7 +107,7 @@ void __fastcall CNetCustomPlayerServer::destructor(CNetCustomPlayerServer* thisp
 int __fastcall CNetCustomPlayerServer::getMessageCount(CNetCustomPlayerServer* thisptr,
                                                        int /*%edx*/)
 {
-    playerLog("CNetCustomPlayerServer getMessageCount");
+    logDebug("lobby.log", "CNetCustomPlayerServer getMessageCount");
 
     std::lock_guard<std::mutex> messageGuard(thisptr->m_messagesMutex);
 
@@ -121,7 +121,7 @@ bool __fastcall CNetCustomPlayerServer::sendMessage(CNetCustomPlayerServer* this
 {
     const auto& connectedIds = thisptr->m_connectedIds;
     if (idTo == game::broadcastNetPlayerId) {
-        playerLog("CNetCustomPlayerServer sendMessage broadcast");
+        logDebug("lobby.log", "CNetCustomPlayerServer sendMessage broadcast");
         return thisptr->getService()->sendMessage(message, connectedIds);
     }
 
@@ -130,7 +130,8 @@ bool __fastcall CNetCustomPlayerServer::sendMessage(CNetCustomPlayerServer* this
     });
 
     if (it == connectedIds.end()) {
-        playerLog(
+        logDebug(
+            "lobby.log",
             fmt::format("CNetCustomPlayerServer could not send message. No client with id 0x{:x}",
                         uint32_t(idTo)));
         return false;
@@ -150,7 +151,7 @@ game::ReceiveMessageResult __fastcall CNetCustomPlayerServer::receiveMessage(
         return game::ReceiveMessageResult::Failure;
     }
 
-    playerLog("CNetCustomPlayerServer receiveMessage");
+    logDebug("lobby.log", "CNetCustomPlayerServer receiveMessage");
 
     std::lock_guard<std::mutex> messageGuard(thisptr->m_messagesMutex);
 
@@ -162,17 +163,18 @@ game::ReceiveMessageResult __fastcall CNetCustomPlayerServer::receiveMessage(
     auto message = reinterpret_cast<const game::NetMessageHeader*>(pair.second.get());
 
     if (message->messageType != game::netMessageNormalType) {
-        playerLog("CNetCustomPlayerServer received message with invalid type");
+        logDebug("lobby.log", "CNetCustomPlayerServer received message with invalid type");
         return game::ReceiveMessageResult::Failure;
     }
 
     if (message->length >= game::netMessageMaxLength) {
-        playerLog("CNetCustomPlayerServer received message with invalid length");
+        logDebug("lobby.log", "CNetCustomPlayerServer received message with invalid length");
         return game::ReceiveMessageResult::Failure;
     }
 
-    playerLog(fmt::format("CNetCustomPlayerServer receiveMessage '{:s}' length {:d} from 0x{:x}",
-                          message->messageClassName, message->length, pair.first));
+    logDebug("lobby.log",
+             fmt::format("CNetCustomPlayerServer receiveMessage '{:s}' length {:d} from 0x{:x}",
+                         message->messageClassName, message->length, pair.first));
 
     *idFrom = static_cast<int>(pair.first);
     std::memcpy(buffer, message, message->length);
@@ -185,7 +187,7 @@ bool __fastcall CNetCustomPlayerServer::destroyPlayer(CNetCustomPlayerServer* th
                                                       int /*%edx*/,
                                                       int playerId)
 {
-    playerLog("CNetCustomPlayerServer destroyPlayer");
+    logDebug("lobby.log", "CNetCustomPlayerServer destroyPlayer");
     return false;
 }
 
@@ -193,7 +195,7 @@ bool __fastcall CNetCustomPlayerServer::setMaxPlayers(CNetCustomPlayerServer* th
                                                       int /*%edx*/,
                                                       int maxPlayers)
 {
-    playerLog(fmt::format("CNetCustomPlayerServer setMaxPlayers {:d}", maxPlayers));
+    logDebug("lobby.log", fmt::format("CNetCustomPlayerServer setMaxPlayers {:d}", maxPlayers));
     return thisptr->getSession()->setMaxPlayers(maxPlayers);
 }
 
@@ -202,7 +204,7 @@ bool __fastcall CNetCustomPlayerServer::setAllowJoin(CNetCustomPlayerServer* thi
                                                      bool allowJoin)
 {
     // Ignore this since its only called during server creation and eventually being allowed
-    playerLog(fmt::format("CNetCustomPlayerServer setAllowJoin {:d}", (int)allowJoin));
+    logDebug("lobby.log", fmt::format("CNetCustomPlayerServer setAllowJoin {:d}", (int)allowJoin));
     return true;
 }
 

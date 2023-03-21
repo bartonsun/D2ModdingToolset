@@ -93,8 +93,6 @@ private:
 
 assert_offset(CNetCustomPlayer, vftable, 0);
 
-void playerLog(const std::string& message);
-
 } // namespace hooks
 
 #endif // NETCUSTOMPLAYER_H
