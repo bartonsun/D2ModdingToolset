@@ -23,8 +23,6 @@
 #include "mqnetplayerserver.h"
 #include "netcustomplayer.h"
 #include "netcustomservice.h"
-#include <list>
-#include <mutex>
 #include <vector>
 
 namespace hooks {
@@ -45,15 +43,10 @@ public:
 protected:
     // IMqNetPlayerClient
     static void __fastcall destructor(CNetCustomPlayerServer* thisptr, int /*%edx*/, char flags);
-    static int __fastcall getMessageCount(CNetCustomPlayerServer* thisptr, int /*%edx*/);
     static bool __fastcall sendMessage(CNetCustomPlayerServer* thisptr,
                                        int /*%edx*/,
                                        int idTo,
                                        const game::NetMessageHeader* message);
-    static game::ReceiveMessageResult __fastcall receiveMessage(CNetCustomPlayerServer* thisptr,
-                                                                int /*%edx*/,
-                                                                int* idFrom,
-                                                                game::NetMessageHeader* buffer);
     static bool __fastcall destroyPlayer(CNetCustomPlayerServer* thisptr,
                                          int /*%edx*/,
                                          int playerId);
@@ -81,12 +74,7 @@ private:
         CNetCustomPlayerServer* m_player;
     };
 
-    using NetMessagePtr = std::unique_ptr<unsigned char[]>;
-    using IdMessagePair = std::pair<std::uint32_t, NetMessagePtr>;
-
     Callbacks m_callbacks;
-    std::list<IdMessagePair> m_messages;
-    std::mutex m_messagesMutex;
     std::vector<SLNet::RakNetGUID> m_connectedIds;
 };
 

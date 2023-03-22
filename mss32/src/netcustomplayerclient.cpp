@@ -115,16 +115,6 @@ void __fastcall CNetCustomPlayerClient::destructor(CNetCustomPlayerClient* thisp
     }
 }
 
-int __fastcall CNetCustomPlayerClient::getMessageCount(CNetCustomPlayerClient* thisptr,
-                                                       int /*%edx*/)
-{
-    logDebug("lobby.log", "CNetCustomPlayerClient getMessageCount");
-
-    std::lock_guard<std::mutex> messageGuard(thisptr->m_messagesMutex);
-
-    return static_cast<int>(thisptr->m_messages.size());
-}
-
 bool __fastcall CNetCustomPlayerClient::sendMessage(CNetCustomPlayerClient* thisptr,
                                                     int /*%edx*/,
                                                     int idTo,
@@ -137,57 +127,6 @@ bool __fastcall CNetCustomPlayerClient::sendMessage(CNetCustomPlayerClient* this
     }
 
     return thisptr->getService()->sendMessage(message, thisptr->m_serverAddress);
-}
-
-game::ReceiveMessageResult __fastcall CNetCustomPlayerClient::receiveMessage(
-    CNetCustomPlayerClient* thisptr,
-    int /*%edx*/,
-    int* idFrom,
-    game::NetMessageHeader* buffer)
-{
-    if (!idFrom || !buffer) {
-        // This should never happen
-        return game::ReceiveMessageResult::Failure;
-    }
-
-    logDebug("lobby.log", "CNetCustomPlayerClient receiveMessage");
-
-    std::lock_guard<std::mutex> messageGuard(thisptr->m_messagesMutex);
-
-    if (thisptr->m_messages.empty()) {
-        return game::ReceiveMessageResult::NoMessages;
-    }
-
-    const auto& pair = thisptr->m_messages.front();
-    const auto& id{pair.first};
-    if (id != thisptr->m_serverId) {
-        logDebug("lobby.log",
-                 fmt::format("CNetCustomPlayerClient received message from {:x}, its not a server!",
-                             id));
-        return game::ReceiveMessageResult::NoMessages;
-    }
-
-    auto message = reinterpret_cast<const game::NetMessageHeader*>(pair.second.get());
-
-    if (message->messageType != game::netMessageNormalType) {
-        logDebug("lobby.log", "CNetCustomPlayerClient received message with invalid type");
-        return game::ReceiveMessageResult::Failure;
-    }
-
-    if (message->length >= game::netMessageMaxLength) {
-        logDebug("lobby.log", "CNetCustomPlayerClient received message with invalid length");
-        return game::ReceiveMessageResult::Failure;
-    }
-
-    logDebug("lobby.log",
-             fmt::format("CNetCustomPlayerClient receiveMessage '{:s}' length {:d} from 0x{:x}",
-                         message->messageClassName, message->length, pair.first));
-
-    *idFrom = static_cast<int>(id);
-    std::memcpy(buffer, message, message->length);
-
-    thisptr->m_messages.pop_front();
-    return game::ReceiveMessageResult::Success;
 }
 
 bool __fastcall CNetCustomPlayerClient::setName(CNetCustomPlayerClient* thisptr,
@@ -260,28 +199,17 @@ void CNetCustomPlayerClient::Callbacks::onPacketReceived(DefaultMessageIDTypes t
     }
     case 0xff: {
         // Game message received
-        auto message = reinterpret_cast<const game::NetMessageHeader*>(packet->data);
-
-        auto guid = peer->GetGuidFromSystemAddress(packet->systemAddress);
-        auto guidInt = SLNet::RakNetGUID::ToUint32(guid);
-
-        logDebug("playerClient.log",
-                 fmt::format("Game message '{:s}' from {:x}", message->messageClassName, guidInt));
-
-        auto msg = std::make_unique<unsigned char[]>(message->length);
-        std::memcpy(msg.get(), message, message->length);
-
-        {
-            std::lock_guard<std::mutex> messageGuard(m_player->m_messagesMutex);
-            m_player->m_messages.push_back(
-                CNetCustomPlayerClient::IdMessagePair{std::uint32_t{guidInt}, std::move(msg)});
+        auto sender = peer->GetGuidFromSystemAddress(packet->systemAddress);
+        auto senderId = sender.ToUint32(sender);
+        if (std::uint32_t{senderId} != m_player->m_serverId) {
+            logDebug(
+                "lobby.log",
+                fmt::format("CNetCustomPlayerClient received message from {:x}, its not a server!",
+                            senderId));
+            break;
         }
 
-        auto reception = m_player->getReception();
-        if (reception) {
-            reception->vftable->notify(reception);
-        }
-
+        m_player->addMessage(sender, packet);
         break;
     }
     default:

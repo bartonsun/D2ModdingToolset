@@ -23,9 +23,6 @@
 #include "mqnetplayerclient.h"
 #include "netcustomplayer.h"
 #include "netcustomservice.h"
-#include <list>
-#include <mutex>
-#include <utility>
 
 namespace hooks {
 
@@ -53,15 +50,10 @@ protected:
     // IMqNetPlayerClient
     using SetName = bool(__fastcall*)(CNetCustomPlayerClient* thisptr, int, const char* name);
     static void __fastcall destructor(CNetCustomPlayerClient* thisptr, int /*%edx*/, char flags);
-    static int __fastcall getMessageCount(CNetCustomPlayerClient* thisptr, int /*%edx*/);
     static bool __fastcall sendMessage(CNetCustomPlayerClient* thisptr,
                                        int /*%edx*/,
                                        int idTo,
                                        const game::NetMessageHeader* message);
-    static game::ReceiveMessageResult __fastcall receiveMessage(CNetCustomPlayerClient* thisptr,
-                                                                int /*%edx*/,
-                                                                int* idFrom,
-                                                                game::NetMessageHeader* buffer);
     static bool __fastcall setName(CNetCustomPlayerClient* thisptr, int /*%edx*/, const char* name);
     static bool __fastcall isHost(CNetCustomPlayerClient* thisptr, int /*%edx*/);
 
@@ -82,12 +74,7 @@ private:
         CNetCustomPlayerClient* m_player;
     };
 
-    using NetMessagePtr = std::unique_ptr<unsigned char[]>;
-    using IdMessagePair = std::pair<std::uint32_t, NetMessagePtr>;
-
     Callbacks m_callbacks;
-    std::list<IdMessagePair> m_messages;
-    std::mutex m_messagesMutex;
     SLNet::RakNetGUID m_serverAddress;
     std::uint32_t m_serverId;
 };

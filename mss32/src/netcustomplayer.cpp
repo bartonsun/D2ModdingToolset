@@ -28,6 +28,7 @@
 #include "netmsg.h"
 #include <fmt/format.h>
 #include <mutex>
+#include <slikenet/types.h>
 
 namespace hooks {
 
@@ -120,6 +121,25 @@ void CNetCustomPlayer::setId(std::uint32_t value)
     m_id = value;
 }
 
+void CNetCustomPlayer::addMessage(const SLNet::RakNetGUID& sender, const SLNet::Packet* packet)
+{
+    auto message = reinterpret_cast<const game::NetMessageHeader*>(packet->data);
+    auto senderId = sender.ToUint32(sender);
+    logDebug("lobby.log",
+             fmt::format("Game message '{:s}' from {:x}", message->messageClassName, senderId));
+
+    auto msg = std::make_unique<unsigned char[]>(message->length);
+    std::memcpy(msg.get(), message, message->length);
+    {
+        std::lock_guard<std::mutex> messageGuard(m_messagesMutex);
+        m_messages.push(IdMessagePair{std::uint32_t{senderId}, std::move(msg)});
+    }
+
+    if (m_reception) {
+        m_reception->vftable->notify(m_reception);
+    }
+}
+
 void __fastcall CNetCustomPlayer::destructor(CNetCustomPlayer* thisptr, int /*%edx*/, char flags)
 {
     logDebug("lobby.log", "CNetCustomPlayer d-tor called");
@@ -158,7 +178,10 @@ game::IMqNetSession* __fastcall CNetCustomPlayer::getSession(CNetCustomPlayer* t
 int __fastcall CNetCustomPlayer::getMessageCount(CNetCustomPlayer* thisptr, int /*%edx*/)
 {
     logDebug("lobby.log", fmt::format("CNetCustomPlayer {:s} getMessageCount", thisptr->m_name));
-    return 1;
+
+    std::lock_guard<std::mutex> messageGuard(thisptr->m_messagesMutex);
+
+    return static_cast<int>(thisptr->m_messages.size());
 }
 
 bool __fastcall CNetCustomPlayer::sendMessage(CNetCustomPlayer* thisptr,
@@ -177,8 +200,45 @@ game::ReceiveMessageResult __fastcall CNetCustomPlayer::receiveMessage(
     int* idFrom,
     game::NetMessageHeader* buffer)
 {
-    logDebug("lobby.log", fmt::format("CNetCustomPlayer {:s} receiveMessage", thisptr->m_name));
-    return game::ReceiveMessageResult::NoMessages;
+    if (!idFrom || !buffer) {
+        // This should never happen
+        return game::ReceiveMessageResult::Failure;
+    }
+
+    logDebug("lobby.log", fmt::format("CNetCustomPlayer '{:s}' receiveMessage", thisptr->m_name));
+
+    std::lock_guard<std::mutex> messageGuard(thisptr->m_messagesMutex);
+
+    if (thisptr->m_messages.empty()) {
+        return game::ReceiveMessageResult::NoMessages;
+    }
+
+    const auto& pair = thisptr->m_messages.front();
+    auto message = reinterpret_cast<const game::NetMessageHeader*>(pair.second.get());
+
+    if (message->messageType != game::netMessageNormalType) {
+        logDebug("lobby.log",
+                 fmt::format("CNetCustomPlayer '{:s}' received message with invalid type",
+                             thisptr->m_name));
+        return game::ReceiveMessageResult::Failure;
+    }
+
+    if (message->length >= game::netMessageMaxLength) {
+        logDebug("lobby.log",
+                 fmt::format("CNetCustomPlayer '{:s}' received message with invalid length",
+                             thisptr->m_name));
+        return game::ReceiveMessageResult::Failure;
+    }
+
+    logDebug("lobby.log",
+             fmt::format("CNetCustomPlayer '{:s}' receiveMessage '{:s}' length {:d} from 0x{:x}",
+                         thisptr->m_name, message->messageClassName, message->length, pair.first));
+
+    *idFrom = static_cast<int>(pair.first);
+    std::memcpy(buffer, message, message->length);
+
+    thisptr->m_messages.pop();
+    return game::ReceiveMessageResult::Success;
 }
 
 void __fastcall CNetCustomPlayer::setNetSystem(CNetCustomPlayer* thisptr,

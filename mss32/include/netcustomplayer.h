@@ -22,12 +22,19 @@
 
 #include "mqnetplayer.h"
 #include <cstdint>
+#include <mutex>
+#include <queue>
 #include <string>
 
 namespace game {
 struct IMqNetSystem;
 struct IMqNetReception;
 } // namespace game
+
+namespace SLNet {
+struct RakNetGUID;
+struct Packet;
+}; // namespace SLNet
 
 namespace hooks {
 
@@ -56,6 +63,8 @@ public:
     void setId(std::uint32_t value);
 
 protected:
+    void addMessage(const SLNet::RakNetGUID& sender, const SLNet::Packet* packet);
+
     // IMqNetPlayer
     using GetName = game::String*(__fastcall*)(CNetCustomPlayer*, int, game::String*);
     using GetSession = game::IMqNetSession*(__fastcall*)(CNetCustomPlayer*, int);
@@ -80,11 +89,16 @@ protected:
     static int __fastcall method8(CNetCustomPlayer* thisptr, int /*%edx*/, int a2);
 
 private:
+    using NetMessagePtr = std::unique_ptr<unsigned char[]>;
+    using IdMessagePair = std::pair<std::uint32_t, NetMessagePtr>;
+
     CNetCustomSession* m_session;
     game::IMqNetSystem* m_system;
     game::IMqNetReception* m_reception;
     std::string m_name;
     std::uint32_t m_id;
+    std::queue<IdMessagePair> m_messages;
+    std::mutex m_messagesMutex;
 };
 
 assert_offset(CNetCustomPlayer, vftable, 0);
