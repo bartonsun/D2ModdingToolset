@@ -29,9 +29,6 @@ namespace hooks {
 
 void __fastcall menuNewSkirmishLoadScenarioCallbackHooked(game::CMenuBase* thisptr, int /*%edx*/);
 
-bool __fastcall menuNewSkirmishMultiCreateServerHooked(game::CMenuNewSkirmishMulti* thisptr,
-                                                       int /*%edx*/);
-
 } // namespace hooks
 
 #endif // MENUNEWSKIRMISHHOOKS_H

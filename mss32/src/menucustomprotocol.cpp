@@ -109,6 +109,7 @@ void CMenuCustomProtocol::Callbacks::onPacketReceived(DefaultMessageIDTypes type
         m_menu->showConnectionError("Already connected.\nThis should never happen");
         return;
 
+    // TODO: move integrity request to custom service callbacks, only check results here
     case ID_CONNECTION_REQUEST_ACCEPTED: {
         std::string hash;
         if (!computeHash(globalsFolder(), hash)) {

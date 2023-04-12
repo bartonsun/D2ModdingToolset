@@ -120,7 +120,8 @@ struct Settings
 
         struct Client
         {
-            std::uint16_t port{1};
+            // 0 means auto-assign by OS
+            std::uint16_t port{0};
         } client;
     } lobby;
 

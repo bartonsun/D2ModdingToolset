@@ -71,30 +71,4 @@ void __fastcall menuLoadSkirmishMultiLoadScenarioHooked(game::CMenuLoad* thisptr
     startRoomAndServerCreation(thisptr, true);
 }
 
-void __fastcall menuLoadSkirmishMultiCreateHostPlayerHooked(game::CMenuLoad* thisptr, int /*%edx*/)
-{
-    auto service = getNetService();
-    if (service) {
-        auto session{service->getSession()};
-        if (!session) {
-            logDebug("lobby.log", "Session is null");
-            return;
-        }
-
-        auto playerServer{session->getServer()};
-        if (!playerServer) {
-            logDebug("lobby.log", "Player server is null");
-            return;
-        }
-
-        logDebug("lobby.log", "Notify player server about host client connection in CMenuLoad");
-        // Notify server about host player client connection.
-        // The other clients that connect later will be handled in a usual way using net peer
-        // callbacks
-        playerServer->notifyHostClientConnected();
-    }
-
-    getOriginalFunctions().menuLoadSkirmishMultiCreateHostPlayer(thisptr);
-}
-
 } // namespace hooks

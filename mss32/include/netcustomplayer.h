@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <mutex>
 #include <queue>
+#include <set>
 #include <string>
 
 namespace game {
@@ -51,23 +52,28 @@ public:
                      std::uint32_t id);
     ~CNetCustomPlayer();
 
+protected:
+    static uint32_t getClientId(const SLNet::RakNetGUID& guid);
+
     CNetCustomService* getService() const;
     CNetCustomSession* getSession() const;
     game::IMqNetSystem* getSystem() const;
-    void setSystem(game::IMqNetSystem* value);
     game::IMqNetReception* getReception() const;
-    void setReception(game::IMqNetReception* value);
-    const std::string& getName() const;
     void setName(const char* value);
-    std::uint32_t getId() const;
-    void setId(std::uint32_t value);
-
-protected:
-    void addMessage(const SLNet::RakNetGUID& sender, const SLNet::Packet* packet);
+    void addMessage(const game::NetMessageHeader* message, std::uint32_t idFrom);
+    bool sendMessage(const game::NetMessageHeader* message, const SLNet::RakNetGUID& to) const;
+    bool sendMessage(const game::NetMessageHeader* message, std::set<SLNet::RakNetGUID> to) const;
+    bool sendHostMessage(const game::NetMessageHeader* message) const;
 
     // IMqNetPlayer
-    using GetName = game::String*(__fastcall*)(CNetCustomPlayer*, int, game::String*);
-    using GetSession = game::IMqNetSession*(__fastcall*)(CNetCustomPlayer*, int);
+    using GetName = game::String*(__fastcall*)(CNetCustomPlayer* thisptr,
+                                               int /*%edx*/,
+                                               game::String* string);
+    using GetSession = game::IMqNetSession*(__fastcall*)(CNetCustomPlayer* thisptr, int /*%edx*/);
+    using SendNetMessage = bool(__fastcall*)(CNetCustomPlayer* thisptr,
+                                             int /*%edx*/,
+                                             int idTo,
+                                             const game::NetMessageHeader* message);
     static void __fastcall destructor(CNetCustomPlayer* thisptr, int /*%edx*/, char flags);
     static game::String* __fastcall getName(CNetCustomPlayer* thisptr,
                                             int /*%edx*/,
@@ -98,7 +104,7 @@ private:
     std::string m_name;
     std::uint32_t m_id;
     std::queue<IdMessagePair> m_messages;
-    std::mutex m_messagesMutex;
+    mutable std::mutex m_messagesMutex;
 };
 
 assert_offset(CNetCustomPlayer, vftable, 0);

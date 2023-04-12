@@ -28,8 +28,6 @@ namespace hooks {
 
 void __fastcall menuLoadSkirmishMultiLoadScenarioHooked(game::CMenuLoad* thisptr, int /*%edx*/);
 
-void __fastcall menuLoadSkirmishMultiCreateHostPlayerHooked(game::CMenuLoad* thisptr, int /*%edx*/);
-
 } // namespace hooks
 
 #endif // MENULOADSKIRMISHMULTIHOOKS_H

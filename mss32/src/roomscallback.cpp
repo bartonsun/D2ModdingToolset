@@ -46,16 +46,6 @@ void RoomsLoggingCallback::CreateRoom_Callback(const SLNet::SystemAddress& sende
     auto name{cell->c};
     logDebug("roomsCallbacks.log",
              fmt::format("Player {:s} created room {:s}", callResult->userName.C_String(), name));
-
-    // TODO
-    // auto service = getNetService();
-    // if (service) {
-    //    logDebug("roomsCallbacks.log", "I am the room moderator, set my own address as a host.");
-    //    // Get our own system address, convert it to server-player address
-    //    service->setRoomOwnerAddress(
-    //        lobbyAddressToServerPlayer(service->getPeer().peer->GetMyBoundAddress()));
-    //    hostAddressSet = true;
-    //}
 }
 
 void RoomsLoggingCallback::EnterRoom_Callback(const SLNet::SystemAddress& senderAddress,
@@ -83,23 +73,6 @@ void RoomsLoggingCallback::EnterRoom_Callback(const SLNet::SystemAddress& sender
 
     auto& members = room.roomMemberList;
     logDebug("roomsCallbacks.log", fmt::format("Room has {:d} members", members.Size()));
-
-    // TODO
-    // remember room creator address
-    // for (unsigned int i = 0; i < members.Size(); ++i) {
-    //    auto& member = members[i];
-    //    logDebug("roomsCallbacks.log",
-    //             fmt::format("Check member {:d}, mode {:d}", i, (int)member.roomMemberMode));
-    //    if (member.roomMemberMode == RoomMemberMode::RMM_MODERATOR) {
-    //        auto service = getNetService();
-    //        if (service) {
-    //            logDebug("roomsCallbacks.log", "Found room moderator, assume its a game host.");
-    //            // Get member system address, convert to server-player address
-    //            service->setRoomOwnerAddress(lobbyAddressToServerPlayer(member.systemAddress));
-    //            hostAddressSet = true;
-    //        }
-    //    }
-    //}
 }
 
 void RoomsLoggingCallback::LeaveRoom_Callback(const SLNet::SystemAddress& senderAddress,

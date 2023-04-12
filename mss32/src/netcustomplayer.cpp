@@ -24,6 +24,7 @@
 #include "mqnetplayer.h"
 #include "mqnetreception.h"
 #include "mqnetsystem.h"
+#include "netcustomservice.h"
 #include "netcustomsession.h"
 #include "netmsg.h"
 #include <fmt/format.h>
@@ -49,7 +50,7 @@ CNetCustomPlayer::CNetCustomPlayer(CNetCustomSession* session,
         (game::IMqNetPlayerVftable::GetNetId)getNetId,
         (game::IMqNetPlayerVftable::GetSession)(GetSession)getSession,
         (game::IMqNetPlayerVftable::GetMessageCount)getMessageCount,
-        (game::IMqNetPlayerVftable::SendNetMessage)sendMessage,
+        (game::IMqNetPlayerVftable::SendNetMessage)(SendNetMessage)sendMessage,
         (game::IMqNetPlayerVftable::ReceiveMessage)receiveMessage,
         (game::IMqNetPlayerVftable::SetNetSystem)setNetSystem,
         (game::IMqNetPlayerVftable::Method8)method8,
@@ -71,6 +72,11 @@ CNetCustomPlayer::~CNetCustomPlayer()
     }
 }
 
+uint32_t CNetCustomPlayer::getClientId(const SLNet::RakNetGUID& guid)
+{
+    return guid.ToUint32(guid);
+}
+
 CNetCustomService* CNetCustomPlayer::getService() const
 {
     return m_session->getService();
@@ -86,24 +92,9 @@ game::IMqNetSystem* CNetCustomPlayer::getSystem() const
     return m_system;
 }
 
-void CNetCustomPlayer::setSystem(game::IMqNetSystem* value)
-{
-    m_system = value;
-}
-
 game::IMqNetReception* CNetCustomPlayer::getReception() const
 {
     return m_reception;
-}
-
-void CNetCustomPlayer::setReception(game::IMqNetReception* value)
-{
-    m_reception = value;
-}
-
-const std::string& CNetCustomPlayer::getName() const
-{
-    return m_name;
 }
 
 void CNetCustomPlayer::setName(const char* value)
@@ -111,33 +102,81 @@ void CNetCustomPlayer::setName(const char* value)
     m_name = value;
 }
 
-std::uint32_t CNetCustomPlayer::getId() const
+void CNetCustomPlayer::addMessage(const game::NetMessageHeader* message, std::uint32_t idFrom)
 {
-    return m_id;
-}
-
-void CNetCustomPlayer::setId(std::uint32_t value)
-{
-    m_id = value;
-}
-
-void CNetCustomPlayer::addMessage(const SLNet::RakNetGUID& sender, const SLNet::Packet* packet)
-{
-    auto message = reinterpret_cast<const game::NetMessageHeader*>(packet->data);
-    auto senderId = sender.ToUint32(sender);
     logDebug("lobby.log",
-             fmt::format("Game message '{:s}' from {:x}", message->messageClassName, senderId));
+             fmt::format("Game message '{:s}' from {:x}", message->messageClassName, idFrom));
 
     auto msg = std::make_unique<unsigned char[]>(message->length);
     std::memcpy(msg.get(), message, message->length);
     {
-        std::lock_guard<std::mutex> messageGuard(m_messagesMutex);
-        m_messages.push(IdMessagePair{std::uint32_t{senderId}, std::move(msg)});
+        std::lock_guard<std::mutex> lock(m_messagesMutex);
+        m_messages.push(IdMessagePair{std::uint32_t{idFrom}, std::move(msg)});
     }
 
-    if (m_reception) {
-        m_reception->vftable->notify(m_reception);
+    m_reception->vftable->notify(m_reception);
+}
+
+bool CNetCustomPlayer::sendMessage(const game::NetMessageHeader* message,
+                                   const SLNet::RakNetGUID& to) const
+{
+    logDebug("lobby.log", fmt::format("CNetCustomService: sendMessage '{:s}' to 0x{:x}",
+                                      message->messageClassName, getClientId(to)));
+
+    auto service = getService();
+    if (to == service->getPeerGuid()) {
+        return sendHostMessage(message);
     }
+
+    SLNet::BitStream stream;
+    stream.Write(static_cast<SLNet::MessageID>(ID_GAME_MESSAGE));
+    stream.Write(static_cast<uint32_t>(1)); // Recipient count
+    stream.Write(to);
+    stream.Write((const char*)message, message->length);
+    return service->send(stream, service->getLobbyGuid());
+}
+
+bool CNetCustomPlayer::sendMessage(const game::NetMessageHeader* message,
+                                   std::set<SLNet::RakNetGUID> to) const
+{
+    logDebug("lobby.log", fmt::format("CNetCustomService: sendMessage '{:s}' to {:d} recipient(s)",
+                                      message->messageClassName, to.size()));
+
+    auto service = getService();
+    auto host = to.find(service->getPeerGuid());
+    if (host != to.end()) {
+        if (!sendHostMessage(message)) {
+            return false;
+        }
+        to.erase(host);
+    }
+
+    if (to.size() == 0) {
+        return true;
+    }
+
+    SLNet::BitStream stream;
+    stream.Write(static_cast<SLNet::MessageID>(ID_GAME_MESSAGE));
+    stream.Write(static_cast<uint32_t>(to.size()));
+    for (const auto& recipient : to) {
+        stream.Write(recipient);
+    }
+    stream.Write((const char*)message, message->length);
+    return service->send(stream, service->getLobbyGuid());
+}
+
+bool CNetCustomPlayer::sendHostMessage(const game::NetMessageHeader* message) const
+{
+    auto msg = const_cast<game::NetMessageHeader*>(message);
+    auto originalType = msg->messageType;
+    msg->messageType = m_id == game::serverNetPlayerId ? ID_GAME_MESSAGE_TO_HOST_CLIENT
+                                                       : ID_GAME_MESSAGE_TO_HOST_SERVER;
+
+    auto service = getService();
+    SLNet::BitStream stream((unsigned char*)message, message->length, false);
+    bool result = service->send(stream, service->getPeerGuid());
+    msg->messageType = originalType;
+    return result;
 }
 
 void __fastcall CNetCustomPlayer::destructor(CNetCustomPlayer* thisptr, int /*%edx*/, char flags)

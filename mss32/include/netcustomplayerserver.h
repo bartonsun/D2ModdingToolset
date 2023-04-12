@@ -23,7 +23,7 @@
 #include "mqnetplayerserver.h"
 #include "netcustomplayer.h"
 #include "netcustomservice.h"
-#include <vector>
+#include <set>
 
 namespace hooks {
 
@@ -36,12 +36,20 @@ public:
     CNetCustomPlayerServer(CNetCustomSession* session,
                            game::IMqNetSystem* system,
                            game::IMqNetReception* reception);
-    ~CNetCustomPlayerServer() = default;
+    ~CNetCustomPlayerServer();
 
-    bool notifyHostClientConnected();
+    std::set<SLNet::RakNetGUID> getClients() const;
+    void addClient(const SLNet::RakNetGUID& guid);
+    void removeClient(const SLNet::RakNetGUID& guid);
 
 protected:
+    using CNetCustomPlayer::sendMessage;
+
     // IMqNetPlayerClient
+    using SendNetMessage = bool(__fastcall*)(CNetCustomPlayerServer* thisptr,
+                                             int /*%edx*/,
+                                             int idTo,
+                                             const game::NetMessageHeader* message);
     static void __fastcall destructor(CNetCustomPlayerServer* thisptr, int /*%edx*/, char flags);
     static bool __fastcall sendMessage(CNetCustomPlayerServer* thisptr,
                                        int /*%edx*/,
@@ -58,13 +66,12 @@ protected:
                                         bool allowJoin);
 
 private:
-    class Callbacks : public NetPeerCallbacks
+    class PeerCallbacks : public NetPeerCallbacks
     {
     public:
-        Callbacks(CNetCustomPlayerServer* player)
+        PeerCallbacks(CNetCustomPlayerServer* player)
             : m_player{player}
         { }
-        virtual ~Callbacks() = default;
 
         void onPacketReceived(DefaultMessageIDTypes type,
                               SLNet::RakPeerInterface* peer,
@@ -74,8 +81,35 @@ private:
         CNetCustomPlayerServer* m_player;
     };
 
-    Callbacks m_callbacks;
-    std::vector<SLNet::RakNetGUID> m_connectedIds;
+    class RoomsCallback : public SLNet::RoomsCallback
+    {
+    public:
+        RoomsCallback(CNetCustomPlayerServer* player)
+            : m_player{player}
+        { }
+
+        void CreateRoom_Callback(const SLNet::SystemAddress& senderAddress,
+                                 SLNet::CreateRoom_Func* callResult) override;
+
+        void LeaveRoom_Callback(const SLNet::SystemAddress& senderAddress,
+                                SLNet::LeaveRoom_Func* callResult) override;
+
+        void RoomMemberLeftRoom_Callback(
+            const SLNet::SystemAddress& senderAddress,
+            SLNet::RoomMemberLeftRoom_Notification* notification) override;
+
+        void RoomMemberJoinedRoom_Callback(
+            const SLNet::SystemAddress& senderAddress,
+            SLNet::RoomMemberJoinedRoom_Notification* notification) override;
+
+    private:
+        CNetCustomPlayerServer* m_player;
+    };
+
+    PeerCallbacks m_peerCallbacks;
+    RoomsCallback m_roomsCallback;
+    std::set<SLNet::RakNetGUID> m_clients;
+    mutable std::mutex m_clientsMutex;
 };
 
 assert_offset(CNetCustomPlayerServer, vftable, 0);

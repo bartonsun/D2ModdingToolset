@@ -57,84 +57,6 @@ static void serverCreationError(const std::string& message)
 }
 
 /**
- * Handles host player client connection to player server.
- * Sets up host player net ids and executes original game logic from CMenuNewSkirmish BTN_LOAD.
- */
-class HostClientConnectCallbacks : public NetPeerCallbacks
-{
-public:
-    HostClientConnectCallbacks() = default;
-    ~HostClientConnectCallbacks() override = default;
-
-    void onPacketReceived(DefaultMessageIDTypes type,
-                          SLNet::RakPeerInterface* peer,
-                          const SLNet::Packet* packet) override
-    {
-        auto service = getNetService();
-        auto host = service->getSession()->getHostPlayer();
-
-        if (type == ID_CONNECTION_ATTEMPT_FAILED) {
-            serverCreationError("Host player failed to connect to player server");
-            // Unsubscribe from callbacks
-            service->removePeerCallbacks(this);
-            return;
-        }
-
-        if (type != ID_CONNECTION_REQUEST_ACCEPTED) {
-            return;
-        }
-
-        // Unsubscribe from callbacks
-        service->removePeerCallbacks(this);
-        hideWaitMenu();
-
-        // Setup host player netId and remember serverId
-        host->setId(SLNet::RakNetGUID::ToUint32(peer->GetMyGUID()));
-
-        auto serverGuid = peer->GetGuidFromSystemAddress(packet->systemAddress);
-        host->setServerId(SLNet::RakNetGUID::ToUint32(serverGuid));
-
-        host->setupPacketCallbacks();
-
-        logDebug("lobby.log",
-                 fmt::format("Host player netId 0x{:x} connected to player server netId 0x{:x}",
-                             host->getId(), host->getServerId()));
-
-        if (menuBase) {
-            const auto& fn = getOriginalFunctions();
-
-            if (loadingScenario) {
-                logDebug("lobby.log", "Proceed to next screen as CMenuLoadSkirmishMulti");
-                fn.menuLoadSkirmishMultiLoadScenario((game::CMenuLoad*)menuBase);
-            } else {
-                logDebug("lobby.log", "Proceed to next screen as CMenuNewSkirmishMulti");
-                fn.menuNewSkirmishLoadScenario(menuBase);
-            }
-        } else {
-            logDebug("lobby.log", "MenuBase is null somehow!");
-        }
-    }
-};
-
-static HostClientConnectCallbacks hostClientConnectCallbacks;
-
-static void createHostPlayer()
-{
-    auto service = getNetService();
-
-    logDebug("lobby.log", "Creating host player client");
-
-    // Connect player client to local player server, wait response.
-    // Use dummy name, it will be set properly later in session::CreateClient method
-    auto host = CNetCustomPlayerClient::create(service->getSession());
-    service->getSession()->addPlayer(host);
-
-    logDebug("lobby.log", "Host player client waits for player server connection response");
-
-    service->addPeerCallbacks(&hostClientConnectCallbacks);
-}
-
-/**
  * Handles response to room creation request.
  * Creates host player.
  */
@@ -161,76 +83,45 @@ public:
             return;
         }
 
-        logDebug("lobby.log", "Player server connected to lobby server, nat client attached");
-        createHostPlayer();
+        hideWaitMenu();
+        if (menuBase) {
+            const auto& fn = getOriginalFunctions();
+
+            if (loadingScenario) {
+                logDebug("lobby.log", "Proceed to next screen as CMenuLoadSkirmishMulti");
+                fn.menuLoadSkirmishMultiLoadScenario((game::CMenuLoad*)menuBase);
+            } else {
+                logDebug("lobby.log", "Proceed to next screen as CMenuNewSkirmishMulti");
+                fn.menuNewSkirmishLoadScenario(menuBase);
+            }
+        } else {
+            logDebug("lobby.log", "MenuBase is null somehow!");
+        }
     }
 };
 
 static RoomsCreateServerCallback roomServerCallback;
 
-/**
- * Handles player server connection to lobby server.
- * Attaches NAT client and requests lobby server to create a room on successfull connection.
- */
-class ServerConnectCallbacks : public NetPeerCallbacks
-{
-public:
-    ServerConnectCallbacks() = default;
-    ~ServerConnectCallbacks() override = default;
-
-    void onPacketReceived(DefaultMessageIDTypes type,
-                          SLNet::RakPeerInterface* peer,
-                          const SLNet::Packet* packet) override
-    {
-        auto service = getNetService();
-        auto server{service->getSession()->getServer()};
-
-        if (type == ID_CONNECTION_ATTEMPT_FAILED) {
-            // Unsubscribe from callbacks
-            service->removePeerCallbacks(this);
-            serverCreationError("Failed to connect player server to NAT server");
-            return;
-        }
-
-        if (type != ID_CONNECTION_REQUEST_ACCEPTED) {
-            return;
-        }
-
-        // Unsubscribe from callbacks
-        service->removePeerCallbacks(this);
-
-        service->addRoomsCallback(&roomServerCallback);
-
-        const char* password{roomPassword.empty() ? nullptr : roomPassword.c_str()};
-
-        // Request room creation and wait for lobby server response
-        if (!service->createRoom(service->getSession()->getName().c_str(),
-                                 peer->GetMyGUID().ToString(), password)) {
-            serverCreationError("Failed to request room creation");
-            return;
-        }
-
-        logDebug("lobby.log", "Waiting for room creation response");
-    }
-};
-
-static ServerConnectCallbacks serverConnectCallbacks;
-
-static void createSessionAndServer(const char* sessionName)
+static void createSession(const char* sessionName)
 {
     logDebug("lobby.log", "Create session");
 
     auto service = getNetService();
-    service->setSession(CNetCustomSession::create(service, sessionName, true));
+    service->setSession(CNetCustomSession::create(service, sessionName, service->getPeerGuid()));
 
     logDebug("lobby.log", "Create player server");
 
-    // NetSession and NetSystem will be set later by the game in CMidServerStart()
-    auto server = CNetCustomPlayerServer::create(service->getSession(), nullptr, nullptr);
-    service->getSession()->setServer(server);
+    service->addRoomsCallback(&roomServerCallback);
 
-    logDebug("lobby.log", "Player server waits for response from lobby server");
-    service->addPeerCallbacks(&serverConnectCallbacks);
+    const char* password{roomPassword.empty() ? nullptr : roomPassword.c_str()};
+
+    // Request room creation and wait for lobby server response
+    if (!service->createRoom(password)) {
+        serverCreationError("Failed to request room creation");
+        return;
+    }
+
+    logDebug("lobby.log", "Waiting for room creation response");
 }
 
 void startRoomAndServerCreation(game::CMenuBase* menu, bool loadScenario)
@@ -259,7 +150,7 @@ void startRoomAndServerCreation(game::CMenuBase* menu, bool loadScenario)
     }
 
     auto editGame = dialogApi.findEditBox(dialog, "EDIT_GAME");
-    createSessionAndServer(editGame->data->editBoxData.inputString.string);
+    createSession(editGame->data->editBoxData.inputString.string);
 }
 
 } // namespace hooks

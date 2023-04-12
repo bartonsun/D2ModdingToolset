@@ -48,8 +48,9 @@ CNetCustomPlayerServer* CNetCustomPlayerServer::create(CNetCustomSession* sessio
 CNetCustomPlayerServer::CNetCustomPlayerServer(CNetCustomSession* session,
                                                game::IMqNetSystem* system,
                                                game::IMqNetReception* reception)
-    : CNetCustomPlayer{session, system, reception, "SERVER", game::serverNetPlayerId}
-    , m_callbacks{this}
+    : CNetCustomPlayer(session, system, reception, "SERVER", game::serverNetPlayerId)
+    , m_peerCallbacks(this)
+    , m_roomsCallback(this)
 {
     static game::IMqNetPlayerServerVftable vftable = {
         (game::IMqNetPlayerServerVftable::Destructor)destructor,
@@ -57,7 +58,7 @@ CNetCustomPlayerServer::CNetCustomPlayerServer(CNetCustomSession* session,
         (game::IMqNetPlayerServerVftable::GetNetId)getNetId,
         (game::IMqNetPlayerServerVftable::GetSession)(GetSession)getSession,
         (game::IMqNetPlayerServerVftable::GetMessageCount)getMessageCount,
-        (game::IMqNetPlayerServerVftable::SendNetMessage)sendMessage,
+        (game::IMqNetPlayerServerVftable::SendNetMessage)(SendNetMessage)sendMessage,
         (game::IMqNetPlayerServerVftable::ReceiveMessage)receiveMessage,
         (game::IMqNetPlayerServerVftable::SetNetSystem)setNetSystem,
         (game::IMqNetPlayerServerVftable::Method8)method8,
@@ -67,27 +68,43 @@ CNetCustomPlayerServer::CNetCustomPlayerServer(CNetCustomSession* session,
     };
 
     this->vftable = &vftable;
-    session->getService()->addPeerCallbacks(&m_callbacks);
+    getService()->addPeerCallbacks(&m_peerCallbacks);
+    getService()->addRoomsCallback(&m_roomsCallback);
 }
 
-bool CNetCustomPlayerServer::notifyHostClientConnected()
+CNetCustomPlayerServer::~CNetCustomPlayerServer()
 {
+    logDebug("lobby.log", "Destroying CNetCustomPlayerServer");
+    getService()->removePeerCallbacks(&m_peerCallbacks);
+    getService()->removeRoomsCallback(&m_roomsCallback);
+}
+
+std::set<SLNet::RakNetGUID> CNetCustomPlayerServer::getClients() const
+{
+    std::lock_guard lock(m_clientsMutex);
+    return m_clients;
+}
+
+void CNetCustomPlayerServer::addClient(const SLNet::RakNetGUID& guid)
+{
+    {
+        std::lock_guard lock(m_clientsMutex);
+        m_clients.insert(guid);
+    }
+
     auto system = getSystem();
-    if (!system) {
-        logDebug("lobby.log", "PlayerServer: no netSystem in notifyHostClientConnected()");
-        return false;
+    system->vftable->onPlayerConnected(system, (int)getClientId(guid));
+}
+
+void CNetCustomPlayerServer::removeClient(const SLNet::RakNetGUID& guid)
+{
+    {
+        std::lock_guard lock(m_clientsMutex);
+        m_clients.erase(guid);
     }
 
-    if (m_connectedIds.empty()) {
-        logDebug("lobby.log", "PlayerServer: host client is not connected");
-        return false;
-    }
-
-    const std::uint32_t hostClientNetId{SLNet::RakNetGUID::ToUint32(m_connectedIds[0])};
-    logDebug("lobby.log", fmt::format("PlayerServer: onPlayerConnected 0x{:x}", hostClientNetId));
-
-    system->vftable->onPlayerConnected(system, (int)hostClientNetId);
-    return true;
+    auto system = getSystem();
+    system->vftable->onPlayerDisconnected(system, (int)getClientId(guid));
 }
 
 void __fastcall CNetCustomPlayerServer::destructor(CNetCustomPlayerServer* thisptr,
@@ -109,17 +126,16 @@ bool __fastcall CNetCustomPlayerServer::sendMessage(CNetCustomPlayerServer* this
                                                     int idTo,
                                                     const game::NetMessageHeader* message)
 {
-    const auto& connectedIds = thisptr->m_connectedIds;
+    auto clients = thisptr->getClients();
     if (idTo == game::broadcastNetPlayerId) {
         logDebug("lobby.log", "CNetCustomPlayerServer sendMessage broadcast");
-        return thisptr->getService()->sendMessage(message, connectedIds);
+        return thisptr->sendMessage(message, std::move(clients));
     }
 
-    auto it = std::find_if(connectedIds.begin(), connectedIds.end(), [idTo](const auto& guid) {
-        return static_cast<int>(SLNet::RakNetGUID::ToUint32(guid)) == idTo;
+    auto it = std::find_if(clients.begin(), clients.end(), [idTo](const auto& guid) {
+        return static_cast<int>(getClientId(guid)) == idTo;
     });
-
-    if (it == connectedIds.end()) {
+    if (it == clients.end()) {
         logDebug(
             "lobby.log",
             fmt::format("CNetCustomPlayerServer could not send message. No client with id 0x{:x}",
@@ -127,7 +143,7 @@ bool __fastcall CNetCustomPlayerServer::sendMessage(CNetCustomPlayerServer* this
         return false;
     }
 
-    return thisptr->getService()->sendMessage(message, *it);
+    return thisptr->sendMessage(message, *it);
 }
 
 bool __fastcall CNetCustomPlayerServer::destroyPlayer(CNetCustomPlayerServer* thisptr,
@@ -155,38 +171,19 @@ bool __fastcall CNetCustomPlayerServer::setAllowJoin(CNetCustomPlayerServer* thi
     return true;
 }
 
-void CNetCustomPlayerServer::Callbacks::onPacketReceived(DefaultMessageIDTypes type,
-                                                         SLNet::RakPeerInterface* peer,
-                                                         const SLNet::Packet* packet)
+void CNetCustomPlayerServer::PeerCallbacks::onPacketReceived(DefaultMessageIDTypes type,
+                                                             SLNet::RakPeerInterface* peer,
+                                                             const SLNet::Packet* packet)
 {
-    auto netSystem{m_player->getSystem()};
-
     switch (type) {
     case ID_REMOTE_DISCONNECTION_NOTIFICATION: {
         logDebug("lobby.log", "PlayerServer: Client disconnected");
-
-        if (netSystem) {
-            auto guid = peer->GetGuidFromSystemAddress(packet->systemAddress);
-            auto guidInt = SLNet::RakNetGUID::ToUint32(guid);
-
-            netSystem->vftable->onPlayerDisconnected(netSystem, (int)guidInt);
-        }
-
+        m_player->removeClient(packet->guid);
         break;
     }
     case ID_REMOTE_CONNECTION_LOST: {
         logDebug("lobby.log", "PlayerServer: Client lost connection");
-
-        auto guid = peer->GetGuidFromSystemAddress(packet->systemAddress);
-
-        auto& ids = m_player->m_connectedIds;
-        ids.erase(std::remove(ids.begin(), ids.end(), guid), ids.end());
-
-        if (netSystem) {
-            auto guidInt = SLNet::RakNetGUID::ToUint32(guid);
-            netSystem->vftable->onPlayerDisconnected(netSystem, (int)guidInt);
-        }
-
+        m_player->removeClient(packet->guid);
         break;
     }
     case ID_REMOTE_NEW_INCOMING_CONNECTION:
@@ -197,21 +194,9 @@ void CNetCustomPlayerServer::Callbacks::onPacketReceived(DefaultMessageIDTypes t
         logDebug("lobby.log", "PlayerServer: Connection request to the server was accepted");
         break;
     case ID_NEW_INCOMING_CONNECTION: {
-        auto guid = peer->GetGuidFromSystemAddress(packet->systemAddress);
-        auto guidInt = SLNet::RakNetGUID::ToUint32(guid);
-
-        logDebug("lobby.log", fmt::format("PlayerServer: Incoming connection, id 0x{:x}", guidInt));
-
-        m_player->m_connectedIds.push_back(guid);
-
-        if (netSystem) {
-            logDebug("lobby.log", "PlayerServer: Call netSystem onPlayerConnected");
-            netSystem->vftable->onPlayerConnected(netSystem, (int)guidInt);
-        } else {
-            logDebug("lobby.log",
-                     "PlayerServer: no netSystem is set, skip onPlayerConnected notification");
-        }
-
+        logDebug("lobby.log", fmt::format("PlayerServer: Incoming connection, id 0x{:x}",
+                                          getClientId(packet->guid)));
+        m_player->addClient(packet->guid);
         break;
     }
     case ID_NO_FREE_INCOMING_CONNECTIONS:
@@ -220,31 +205,26 @@ void CNetCustomPlayerServer::Callbacks::onPacketReceived(DefaultMessageIDTypes t
         break;
     case ID_DISCONNECTION_NOTIFICATION: {
         logDebug("lobby.log", "PlayerServer: Client has disconnected from server");
-
-        if (netSystem) {
-            auto guid = peer->GetGuidFromSystemAddress(packet->systemAddress);
-            auto guidInt = SLNet::RakNetGUID::ToUint32(guid);
-
-            netSystem->vftable->onPlayerDisconnected(netSystem, (int)guidInt);
-        }
-
+        m_player->removeClient(packet->guid);
         break;
     }
     case ID_CONNECTION_LOST: {
         logDebug("lobby.log", "PlayerServer: Client has lost connection");
-
-        if (netSystem) {
-            auto guid = peer->GetGuidFromSystemAddress(packet->systemAddress);
-            auto guidInt = SLNet::RakNetGUID::ToUint32(guid);
-
-            netSystem->vftable->onPlayerDisconnected(netSystem, (int)guidInt);
-        }
-
+        m_player->removeClient(packet->guid);
         break;
     }
-    case 0xff: {
-        // Game message received
-        m_player->addMessage(peer->GetGuidFromSystemAddress(packet->systemAddress), packet);
+    case ID_GAME_MESSAGE: {
+        SLNet::RakNetGUID sender(
+            *reinterpret_cast<uint64_t*>(packet->data + sizeof(SLNet::MessageID)));
+        auto message = reinterpret_cast<const game::NetMessageHeader*>(
+            packet->data + sizeof(SLNet::MessageID) + sizeof(uint64_t));
+        m_player->addMessage(message, getClientId(sender));
+        break;
+    }
+    case ID_GAME_MESSAGE_TO_HOST_SERVER: {
+        auto message = reinterpret_cast<game::NetMessageHeader*>(packet->data);
+        message->messageType = game::netMessageNormalType; // TODO: any better way to do this?
+        m_player->addMessage(message, getClientId(packet->guid));
         break;
     }
     default:
@@ -252,6 +232,36 @@ void CNetCustomPlayerServer::Callbacks::onPacketReceived(DefaultMessageIDTypes t
                  fmt::format("PlayerServer: Packet type {:d}", static_cast<int>(packet->data[0])));
         break;
     }
+}
+
+void CNetCustomPlayerServer::RoomsCallback::CreateRoom_Callback(
+    const SLNet::SystemAddress& senderAddress,
+    SLNet::CreateRoom_Func* callResult)
+{
+    // TODO: looks like the server player is create after the room so we are not getting this
+    // notification. Find out if this is ok and handle it.
+    m_player->addClient(m_player->getService()->getPeerGuid());
+}
+
+void CNetCustomPlayerServer::RoomsCallback::LeaveRoom_Callback(
+    const SLNet::SystemAddress& senderAddress,
+    SLNet::LeaveRoom_Func* callResult)
+{
+    // TODO: figure out if this is possible for server
+}
+
+void CNetCustomPlayerServer::RoomsCallback::RoomMemberLeftRoom_Callback(
+    const SLNet::SystemAddress& senderAddress,
+    SLNet::RoomMemberLeftRoom_Notification* notification)
+{
+    // TODO: determine left player (by his name?) and do removeClient
+}
+
+void CNetCustomPlayerServer::RoomsCallback::RoomMemberJoinedRoom_Callback(
+    const SLNet::SystemAddress& senderAddress,
+    SLNet::RoomMemberJoinedRoom_Notification* notification)
+{
+    m_player->addClient(notification->joinedRoomResult->joiningMemberGuid);
 }
 
 } // namespace hooks

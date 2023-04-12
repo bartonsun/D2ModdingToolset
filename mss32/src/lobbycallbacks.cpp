@@ -92,6 +92,9 @@ void RoomsListCallbacks::JoinByFilter_Callback(const SLNet::SystemAddress&,
             }
         }
 
+        // TODO: use guid of member with moderator role from room.roomMemberList, remove
+        // serverGuidColumn
+        // TODO: check if password can be transmitted using native RakNet instead of custom column
         SLNet::RakNetGUID serverGuid{};
         if (!serverGuid.FromString(guidString)) {
             customLobbyProcessJoinError(menuLobby, "Could not get player server GUID");

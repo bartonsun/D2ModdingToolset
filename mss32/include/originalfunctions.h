@@ -111,10 +111,8 @@ struct OriginalFunctions
     game::CMenuProtocolApi::Api::ButtonHandler menuProtocolContinueHandler;
 
     game::CMenuBaseApi::Api::ButtonCallback menuNewSkirmishLoadScenario;
-    game::CMenuNewSkirmishMultiApi::Api::CreateServer menuNewSkirmishMultiCreateServer;
 
     game::CMenuLoadApi::Api::ButtonCallback menuLoadSkirmishMultiLoadScenario;
-    game::CMenuLoadApi::Api::CreateHostPlayer menuLoadSkirmishMultiCreateHostPlayer;
 
     game::GameImagesApi::Api::GetCityPreviewLargeImageNames getCityPreviewLargeImageNames;
     game::GameImagesApi::Api::GetCityIconImageNames getCityIconImageNames;

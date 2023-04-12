@@ -29,26 +29,30 @@ namespace hooks {
 class CNetCustomPlayerClient : public CNetCustomPlayer
 {
 public:
-    static CNetCustomPlayerClient* create(CNetCustomSession* session);
+    static CNetCustomPlayerClient* create(CNetCustomSession* session,
+                                          game::IMqNetSystem* system,
+                                          game::IMqNetReception* reception,
+                                          const char* name,
+                                          const SLNet::RakNetGUID& serverGuid);
     CNetCustomPlayerClient(CNetCustomSession* session,
                            game::IMqNetSystem* system,
                            game::IMqNetReception* reception,
                            const char* name,
-                           std::uint32_t id,
-                           const SLNet::RakNetGUID& serverAddress,
-                           std::uint32_t serverId);
-    ~CNetCustomPlayerClient() = default;
-
-    const SLNet::RakNetGUID& getServerAddress() const;
-    void setServerAddress(const SLNet::RakNetGUID& value);
-    std::uint32_t getServerId() const;
-    void setServerId(std::uint32_t value);
-    void setupPacketCallbacks();
-    using CNetCustomPlayer::setName;
+                           const SLNet::RakNetGUID& serverGuid);
+    ~CNetCustomPlayerClient();
 
 protected:
+    using CNetCustomPlayer::sendMessage;
+    using CNetCustomPlayer::setName;
+
     // IMqNetPlayerClient
-    using SetName = bool(__fastcall*)(CNetCustomPlayerClient* thisptr, int, const char* name);
+    using SendNetMessage = bool(__fastcall*)(CNetCustomPlayerClient* thisptr,
+                                             int /*%edx*/,
+                                             int idTo,
+                                             const game::NetMessageHeader* message);
+    using SetName = bool(__fastcall*)(CNetCustomPlayerClient* thisptr,
+                                      int /*%edx*/,
+                                      const char* name);
     static void __fastcall destructor(CNetCustomPlayerClient* thisptr, int /*%edx*/, char flags);
     static bool __fastcall sendMessage(CNetCustomPlayerClient* thisptr,
                                        int /*%edx*/,
@@ -75,8 +79,7 @@ private:
     };
 
     Callbacks m_callbacks;
-    SLNet::RakNetGUID m_serverAddress;
-    std::uint32_t m_serverId;
+    SLNet::RakNetGUID m_serverGuid;
 };
 
 assert_offset(CNetCustomPlayerClient, vftable, 0);

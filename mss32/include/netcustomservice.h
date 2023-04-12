@@ -22,6 +22,7 @@
 
 #include "lobbycallbacks.h"
 #include "mqnetservice.h"
+#include "netmsg.h"
 #include "roomscallback.h"
 #include "uievent.h"
 #include <Lobby2Client.h>
@@ -42,10 +43,14 @@ namespace hooks {
 extern const char* serverGuidColumnName;
 extern const char* passwordColumnName;
 
+// Should not exceed the size of SLNet::MessageID
 enum ClientMessages
 {
     ID_CHECK_FILES_INTEGRITY = ID_USER_PACKET_ENUM + 1,
     ID_FILES_INTEGRITY_RESULT,
+    ID_GAME_MESSAGE_TO_HOST_SERVER,
+    ID_GAME_MESSAGE_TO_HOST_CLIENT,
+    ID_GAME_MESSAGE = game::netMessageNormalType & 0xff,
 };
 
 class CNetCustomSession;
@@ -62,8 +67,9 @@ public:
 class CNetCustomService : public game::IMqNetService
 {
 public:
-    static constexpr std::uint16_t peerShutdownTimeout{100};
-    static constexpr std::uint16_t connectionWaitTimeout{10000};
+    static constexpr std::uint32_t peerShutdownTimeout{100};
+    static constexpr std::uint32_t peerProcessInterval{100};
+    static constexpr std::uint32_t connectionWaitTimeout{10000};
 
     static CNetCustomService* create();
     static bool isCustom(const game::IMqNetService* service);
@@ -74,11 +80,9 @@ public:
     CNetCustomSession* getSession() const;
     void setSession(CNetCustomSession* value);
     const std::string& getAccountName() const;
-    const SLNet::SystemAddress& getRoomOwnerAddress() const;
-    void setRoomOwnerAddress(const SLNet::SystemAddress& value);
-    bool sendMessage(const game::NetMessageHeader* message, const SLNet::RakNetGUID& to) const;
-    bool sendMessage(const game::NetMessageHeader* message,
-                     const std::vector<SLNet::RakNetGUID>& to) const;
+    const SLNet::RakNetGUID getPeerGuid() const;
+    const SLNet::RakNetGUID getLobbyGuid() const;
+    bool send(const SLNet::BitStream& stream, const SLNet::RakNetGUID& to) const;
 
     /**
      * Tries to register new account using credentials provided.
@@ -102,7 +106,7 @@ public:
     void setCurrentLobbyPlayer(const char* accountName);
 
     /** Tries to create and enter a new room. */
-    bool createRoom(const char* roomName, const char* serverGuid, const char* password = nullptr);
+    bool createRoom(const char* password = nullptr);
 
     /** Requests a list of rooms for specified account. */
     bool searchRooms(const char* accountName = nullptr);

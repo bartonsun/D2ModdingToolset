@@ -22,7 +22,7 @@
 
 namespace SLNet {
 struct RakNetGUID;
-}
+} // namespace SLNet
 
 namespace hooks {
 

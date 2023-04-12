@@ -22,6 +22,7 @@
 
 #include "d2list.h"
 #include "mqnetsession.h"
+#include <slikenet/types.h>
 #include <string>
 #include <vector>
 
@@ -44,24 +45,25 @@ class CNetCustomPlayerServer;
 class CNetCustomSession : public game::IMqNetSession
 {
 public:
-    static CNetCustomSession* create(CNetCustomService* service, const char* name, bool isHost);
-    CNetCustomSession(CNetCustomService* service, const char* name, bool isHost);
+    static CNetCustomSession* create(CNetCustomService* service,
+                                     const char* name,
+                                     const SLNet::RakNetGUID& serverGuid);
+    CNetCustomSession(CNetCustomService* service,
+                      const char* name,
+                      const SLNet::RakNetGUID& serverGuid);
     ~CNetCustomSession() = default;
 
     CNetCustomService* getService() const;
     const std::string& getName() const;
     bool isHost() const;
     bool setMaxPlayers(int maxPlayers);
-
-    CNetCustomPlayerServer* getServer() const;
-    void setServer(CNetCustomPlayerServer* value);
-
-    CNetCustomPlayerClient* getHostPlayer() const;
-    void addPlayer(CNetCustomPlayerClient* value);
+    void addClient(CNetCustomPlayerClient* value);
 
 protected:
     // IMqNetSession
-    using GetName = game::String*(__fastcall*)(CNetCustomSession*, int, game::String*);
+    using GetName = game::String*(__fastcall*)(CNetCustomSession* thisptr,
+                                               int /*%edx*/,
+                                               game::String* sessionName);
     static void __fastcall destructor(CNetCustomSession* thisptr, int /*%edx*/, char flags);
     static game::String* __fastcall getName(CNetCustomSession* thisptr,
                                             int /*%edx*/,
@@ -84,12 +86,13 @@ protected:
                                         game::IMqNetReception* reception);
 
 private:
-    std::string m_name;
-    std::vector<CNetCustomPlayerClient*> m_players;
-    CNetCustomPlayerServer* m_server;
     CNetCustomService* m_service;
+    std::string m_name;
+    int m_clientCount;
     int m_maxPlayers;
     bool m_isHost;
+    CNetCustomPlayerServer* m_server;
+    SLNet::RakNetGUID m_serverGuid;
 };
 
 assert_offset(CNetCustomSession, vftable, 0);

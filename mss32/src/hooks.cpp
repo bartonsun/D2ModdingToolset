@@ -453,9 +453,7 @@ static Hooks getGameHooks()
         hooks.emplace_back(HookInfo{CMenuProtocolApi::get().continueHandler, menuProtocolContinueHandlerHooked, (void**)&orig.menuProtocolContinueHandler});
         hooks.emplace_back(HookInfo{CMenuProtocolApi::get().displayCallback, menuProtocolDisplayCallbackHooked, (void**)&orig.menuProtocolDisplayCallback});
         hooks.emplace_back(HookInfo{CMenuNewSkirmishApi::get().loadScenarioCallback, menuNewSkirmishLoadScenarioCallbackHooked, (void**)&orig.menuNewSkirmishLoadScenario});
-        hooks.emplace_back(HookInfo{CMenuNewSkirmishMultiApi::get().createServer, menuNewSkirmishMultiCreateServerHooked, (void**)&orig.menuNewSkirmishMultiCreateServer});
         hooks.emplace_back(HookInfo{CMenuLoadApi::get().buttonLoadCallback, menuLoadSkirmishMultiLoadScenarioHooked, (void**)&orig.menuLoadSkirmishMultiLoadScenario});
-        hooks.emplace_back(HookInfo{CMenuLoadApi::get().createHostPlayer, menuLoadSkirmishMultiCreateHostPlayerHooked, (void**)&orig.menuLoadSkirmishMultiCreateHostPlayer});
         // clang-format on
     }
 

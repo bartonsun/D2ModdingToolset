@@ -34,20 +34,27 @@ namespace hooks {
 
 CNetCustomSession* CNetCustomSession::create(CNetCustomService* service,
                                              const char* name,
-                                             bool isHost)
+                                             const SLNet::RakNetGUID& serverGuid)
 {
     auto session = (CNetCustomSession*)game::Memory::get().allocate(sizeof(CNetCustomSession));
-    new (session) CNetCustomSession(service, name, isHost);
+    new (session) CNetCustomSession(service, name, serverGuid);
     return session;
 }
 
-CNetCustomSession::CNetCustomSession(CNetCustomService* service, const char* name, bool isHost)
-    : m_name{name}
-    , m_service{service}
-    , m_server{nullptr}
+CNetCustomSession::CNetCustomSession(CNetCustomService* service,
+                                     const char* name,
+                                     const SLNet::RakNetGUID& serverGuid)
+    : m_service{service}
+    , m_name{name}
+    , m_clientCount{0}
     , m_maxPlayers{2}
-    , m_isHost{isHost}
+    , m_isHost{serverGuid == service->getPeerGuid()}
+    , m_server(nullptr)
+    , m_serverGuid(serverGuid)
 {
+    logDebug("lobby.log", fmt::format("Creating CNetCustomSession with server: {:x}, host: {:d}",
+                                      m_serverGuid.g, m_isHost));
+
     static game::IMqNetSessionVftable vftable = {
         (game::IMqNetSessionVftable::Destructor)destructor,
         (game::IMqNetSessionVftable::GetName)(GetName)getName,
@@ -76,30 +83,10 @@ bool CNetCustomSession::isHost() const
     return m_isHost;
 }
 
-CNetCustomPlayerServer* CNetCustomSession::getServer() const
-{
-    return m_server;
-}
-
-void CNetCustomSession::setServer(CNetCustomPlayerServer* value)
-{
-    m_server = value;
-}
-
-CNetCustomPlayerClient* CNetCustomSession::getHostPlayer() const
-{
-    if (m_players.empty()) {
-        logDebug("lobby.log", "Host player is null !!!");
-        return nullptr;
-    }
-
-    return m_players.front();
-}
-
-void CNetCustomSession::addPlayer(CNetCustomPlayerClient* value)
+void CNetCustomSession::addClient(CNetCustomPlayerClient* value)
 {
     logDebug("lobby.log", "CNetCustomSession addPlayer called");
-    m_players.push_back(value);
+    ++m_clientCount;
 }
 
 bool CNetCustomSession::setMaxPlayers(int maxPlayers)
@@ -108,7 +95,7 @@ bool CNetCustomSession::setMaxPlayers(int maxPlayers)
         return false;
     }
 
-    // -1 because room already have moderator.
+    // -1 because room already have moderator
     const auto result{m_service->changeRoomPublicSlots(maxPlayers - 1)};
     if (result) {
         m_maxPlayers = maxPlayers;
@@ -142,7 +129,7 @@ game::String* __fastcall CNetCustomSession::getName(CNetCustomSession* thisptr,
 int __fastcall CNetCustomSession::getClientCount(CNetCustomSession* thisptr, int /*%edx*/)
 {
     logDebug("lobby.log", "CNetCustomSession getClientCount called");
-    return (int)thisptr->m_players.size();
+    return thisptr->m_clientCount;
 }
 
 int __fastcall CNetCustomSession::getMaxClients(CNetCustomSession* thisptr, int /*%edx*/)
@@ -168,13 +155,15 @@ void __fastcall CNetCustomSession::createClient(CNetCustomSession* thisptr,
 {
     logDebug("lobby.log", fmt::format("CNetCustomSession createClient '{:s}' called", clientName));
 
-    // Finalize player setup here when we know all the settings
-    auto host = thisptr->getHostPlayer();
-    host->setName(clientName);
-    host->setSystem(netSystem);
-    host->setReception(reception);
+    *client = (game::IMqNetPlayerClient*)CNetCustomPlayerClient::create(thisptr, netSystem,
+                                                                        reception, clientName,
+                                                                        thisptr->m_serverGuid);
+    ++thisptr->m_clientCount;
 
-    *client = (game::IMqNetPlayerClient*)host;
+    // TODO: do it inside rooms callback of server player?
+    if (thisptr->m_server) {
+        thisptr->m_server->addClient(thisptr->getService()->getPeerGuid());
+    }
 }
 
 void __fastcall CNetCustomSession::createServer(CNetCustomSession* thisptr,
@@ -185,17 +174,8 @@ void __fastcall CNetCustomSession::createServer(CNetCustomSession* thisptr,
 {
     logDebug("lobby.log", "CNetCustomSession createServer called");
 
-    *server = nullptr;
-    if (!thisptr->m_server) {
-        logDebug("lobby.log", "Player server is null !!!");
-        return;
-    }
-
-    auto player = thisptr->m_server;
-    player->setSystem(netSystem);
-    player->setReception(reception);
-
-    *server = (game::IMqNetPlayerServer*)player;
+    thisptr->m_server = CNetCustomPlayerServer::create(thisptr, netSystem, reception);
+    *server = (game::IMqNetPlayerServer*)thisptr->m_server;
 }
 
 } // namespace hooks

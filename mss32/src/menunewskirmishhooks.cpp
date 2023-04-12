@@ -72,40 +72,4 @@ void __fastcall menuNewSkirmishLoadScenarioCallbackHooked(game::CMenuBase* thisp
     startRoomAndServerCreation(thisptr, false);
 }
 
-bool __fastcall menuNewSkirmishMultiCreateServerHooked(game::CMenuNewSkirmishMulti* thisptr,
-                                                       int /*%edx*/)
-{
-    logDebug("lobby.log", "CMenuNewSkirmishMulti::CreateServer");
-
-    const auto result{getOriginalFunctions().menuNewSkirmishMultiCreateServer(thisptr)};
-    if (!result) {
-        // Game failed to initialize session, server or host client
-        logDebug("lobby.log", "Failed to create server");
-        return false;
-    }
-
-    auto service{getNetService()};
-    if (!service) {
-        // Current net service is not custom lobby, use default game logic
-        return result;
-    }
-
-    auto session{service->getSession()};
-    if (!session) {
-        logDebug("lobby.log", "Session is null");
-        return false;
-    }
-
-    auto playerServer{session->getServer()};
-    if (!playerServer) {
-        logDebug("lobby.log", "Player server is null");
-        return false;
-    }
-
-    logDebug("lobby.log", "Notify player server about host client connection");
-    // Notify server about host player client connection.
-    // The other clients that connect later will be handled in a usual way using net peer callbacks
-    return playerServer->notifyHostClientConnected();
-}
-
 } // namespace hooks
