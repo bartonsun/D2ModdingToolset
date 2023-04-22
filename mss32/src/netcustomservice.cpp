@@ -573,6 +573,14 @@ void CNetCustomService::Callbacks::onPacketReceived(DefaultMessageIDTypes type,
     }
 }
 
+void CNetCustomService::LobbyLoggingCallbacks::ExecuteDefaultResult(SLNet::Lobby2Message* msg)
+{
+    SLNet::RakString str;
+    msg->DebugMsg(str);
+
+    logDebug("lobbyCallbacks.log", str.C_String());
+}
+
 CNetCustomService* getNetService()
 {
     auto midgard = game::CMidgardApi::get().instance();

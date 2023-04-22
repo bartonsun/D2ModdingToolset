@@ -30,15 +30,6 @@ namespace hooks {
 
 struct CMenuCustomLobby;
 
-class LoggingCallbacks : public SLNet::Lobby2Callbacks
-{
-public:
-    LoggingCallbacks() = default;
-    ~LoggingCallbacks() override = default;
-
-    void ExecuteDefaultResult(SLNet::Lobby2Message* msg) override;
-};
-
 class UiUpdateCallbacks : public SLNet::Lobby2Callbacks
 {
 public:

@@ -26,14 +26,6 @@
 
 namespace hooks {
 
-void LoggingCallbacks::ExecuteDefaultResult(SLNet::Lobby2Message* msg)
-{
-    SLNet::RakString str;
-    msg->DebugMsg(str);
-
-    logDebug("lobbyCallbacks.log", str.C_String());
-}
-
 void UiUpdateCallbacks::MessageResult(SLNet::Client_Login* message)
 {
     switch (message->resultCode) {

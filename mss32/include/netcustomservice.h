@@ -169,6 +169,15 @@ private:
         CNetCustomService* m_service;
     };
 
+    class LobbyLoggingCallbacks : public SLNet::Lobby2Callbacks
+    {
+    public:
+        LobbyLoggingCallbacks() = default;
+        ~LobbyLoggingCallbacks() override = default;
+
+        void ExecuteDefaultResult(SLNet::Lobby2Message* msg) override;
+    };
+
     static void __fastcall peerProcessEventCallback(CNetCustomService* thisptr, int /*%edx*/);
     std::vector<NetPeerCallbacks*> getPeerCallbacks() const;
 
@@ -181,7 +190,7 @@ private:
     /** Creates network messages. */
     SLNet::Lobby2MessageFactory m_lobbyMsgFactory;
     /** Callbacks only for debug logging. */
-    LoggingCallbacks m_loggingCallbacks;
+    LobbyLoggingCallbacks m_loggingCallbacks;
     /** Interacts with lobby server rooms. */
     SLNet::RoomsPlugin m_roomsClient;
     RoomsLoggingCallback m_roomsLogCallback;
