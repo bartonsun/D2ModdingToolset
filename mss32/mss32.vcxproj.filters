@@ -806,16 +806,13 @@
     <ClCompile Include="src\loginaccountinterf.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
-    <ClCompile Include="src\lobbycallbacks.cpp">
-      <Filter>features\lobby</Filter>
-    </ClCompile>
     <ClCompile Include="src\netcustomplayerclient.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
     <ClCompile Include="src\netcustomplayerserver.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
-    <ClCompile Include="src\roomscallback.cpp">
+    <ClCompile Include="src\roomsloggingcallback.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
     <ClCompile Include="src\menuphasehooks.cpp">
@@ -847,9 +844,6 @@
     </ClCompile>
     <ClCompile Include="src\menunewskirmishmulti.cpp">
       <Filter>game</Filter>
-    </ClCompile>
-    <ClCompile Include="src\roomclientjoin.cpp">
-      <Filter>features\lobby</Filter>
     </ClCompile>
     <ClCompile Include="src\menuload.cpp">
       <Filter>game</Filter>
@@ -2407,9 +2401,6 @@
     <ClInclude Include="include\registeraccountinterf.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
-    <ClInclude Include="include\lobbycallbacks.h">
-      <Filter>features\lobby</Filter>
-    </ClInclude>
     <ClInclude Include="include\netcustomplayerclient.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
@@ -2419,7 +2410,7 @@
     <ClInclude Include="include\netcustomplayerserver.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
-    <ClInclude Include="include\roomscallback.h">
+    <ClInclude Include="include\roomsloggingcallback.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
     <ClInclude Include="include\menuphasehooks.h">
@@ -2457,9 +2448,6 @@
     </ClInclude>
     <ClInclude Include="include\menunewskirmishmulti.h">
       <Filter>game</Filter>
-    </ClInclude>
-    <ClInclude Include="include\roomclientjoin.h">
-      <Filter>features\lobby</Filter>
     </ClInclude>
     <ClInclude Include="include\menuload.h">
       <Filter>game</Filter>

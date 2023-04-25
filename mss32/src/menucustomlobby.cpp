@@ -51,22 +51,109 @@
 
 namespace hooks {
 
-static void menuDeleteWaitMenu(CMenuCustomLobby* menu)
+CMenuCustomLobby* CMenuCustomLobby::create(game::CMenuPhase* menuPhase)
 {
-    if (menu->waitMenu) {
-        hideInterface(menu->waitMenu);
-        menu->waitMenu->vftable->destructor(menu->waitMenu, 1);
-        menu->waitMenu = nullptr;
+    logDebug("lobby.log", "Creating CMenuCustomLobby");
+
+    auto menu = (CMenuCustomLobby*)game::Memory::get().allocate(sizeof(CMenuCustomLobby));
+    return new (menu) CMenuCustomLobby(menuPhase);
+}
+
+CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
+    : uiCallbacks(this)
+    , roomsCallbacks(this)
+{
+    using namespace game;
+
+    const auto& menuBaseApi = CMenuBaseApi::get();
+
+    logDebug("transitions.log", "Call CMenuBase c-tor for CMenuCustomLobby");
+    menuBaseApi.constructor(this, menuPhase);
+
+    static game::RttiInfo<game::CInterfaceVftable> rttiInfo = {};
+    if (rttiInfo.locator == nullptr) {
+        // Reuse object locator for our custom this.
+        // We only need it for dynamic_cast<CAnimInterf>() to work properly without exceptions
+        // when the game exits main loop and checks for current CInterface.
+        // See DestroyAnimInterface() in IDA.
+        replaceRttiInfo(rttiInfo, this->vftable);
+        rttiInfo.vftable.destructor = (game::CInterfaceVftable::Destructor)&destructor;
+    }
+    this->vftable = &rttiInfo.vftable;
+
+    logDebug("transitions.log", "Call createMenu for CMenuCustomLobby");
+    menuBaseApi.createMenu(this, dialogName);
+
+    loggedIn = false;
+
+    initializeButtonsHandlers();
+
+    getNetService()->addLobbyCallbacks(&uiCallbacks);
+
+    // Setup ingame net message callbacks
+    {
+        logDebug("netCallbacks.log", "Allocate entry data");
+
+        auto& netApi = NetMsgApi::get();
+        netApi.allocateEntryData(this->menuBaseData->menuPhase, &this->netMsgEntryData);
+
+        auto& entryApi = CNetMsgMapEntryApi::get();
+
+        logDebug("netCallbacks.log", "Allocate CMenusAnsInfoMsg entry");
+
+        auto infoCallback = (CNetMsgMapEntryApi::Api::MenusAnsInfoCallback)ansInfoMsgHandler;
+        auto entry = entryApi.allocateMenusAnsInfoEntry(this, infoCallback);
+
+        logDebug("netCallbacks.log", "Add CMenusAnsInfoMsg entry");
+        netApi.addEntry(this->netMsgEntryData, entry);
+
+        logDebug("netCallbacks.log", "Allocate CGameVersionMsg entry");
+
+        auto versionCallback = (CNetMsgMapEntryApi::Api::GameVersionCallback)gameVersionMsgHandler;
+        entry = entryApi.allocateGameVersionEntry(this, versionCallback);
+
+        logDebug("netCallbacks.log", "Add CGameVersionMsg entry");
+        netApi.addEntry(this->netMsgEntryData, entry);
     }
 }
 
-static void menuUpdateAccountText(CMenuCustomLobby* menu, const char* accountName = nullptr)
+CMenuCustomLobby ::~CMenuCustomLobby()
+{
+    using namespace game;
+
+    deleteWaitMenu();
+
+    if (netMsgEntryData) {
+        logDebug("transitions.log", "Delete custom lobby menu netMsgEntryData");
+        NetMsgApi::get().freeEntryData(netMsgEntryData);
+    }
+
+    logDebug("transitions.log", "Delete rooms list event");
+    UiEventApi::get().destructor(&roomsListEvent);
+
+    auto service = getNetService();
+    service->removeLobbyCallbacks(&uiCallbacks);
+    service->removeRoomsCallback(&roomsCallbacks);
+
+    CMenuBaseApi::get().destructor(this);
+}
+
+void CMenuCustomLobby::deleteWaitMenu()
+{
+    if (waitMenu) {
+        hideInterface(waitMenu);
+        waitMenu->vftable->destructor(waitMenu, 1);
+        waitMenu = nullptr;
+    }
+}
+
+void CMenuCustomLobby::updateAccountText(const char* accountName)
 {
     using namespace game;
 
     auto& menuBase = CMenuBaseApi::get();
     auto& dialogApi = CDialogInterfApi::get();
-    auto dialog = menuBase.getDialogInterface(menu);
+    auto dialog = menuBase.getDialogInterface(this);
     auto textBox = dialogApi.findTextBox(dialog, "TXT_NICKNAME");
 
     if (accountName) {
@@ -78,14 +165,13 @@ static void menuUpdateAccountText(CMenuCustomLobby* menu, const char* accountNam
     CTextBoxInterfApi::get().setString(textBox, "");
 }
 
-static void menuUpdateButtons(CMenuCustomLobby* menu)
+void CMenuCustomLobby::updateButtons()
 {
     using namespace game;
 
-    const auto loggedIn{menu->loggedIn};
-    auto& menuBase = CMenuBaseApi::get();
-    auto& dialogApi = CDialogInterfApi::get();
-    auto dialog = menuBase.getDialogInterface(menu);
+    const auto& menuBase = CMenuBaseApi::get();
+    const auto& dialogApi = CDialogInterfApi::get();
+    auto dialog = menuBase.getDialogInterface(this);
 
     // Disable login button if player has already logged in.
     auto loginButton = dialogApi.findButton(dialog, "BTN_LOGIN");
@@ -105,60 +191,39 @@ static void menuUpdateButtons(CMenuCustomLobby* menu)
     joinButton->vftable->setEnabled(joinButton, loggedIn);
 }
 
-void __fastcall menuDestructor(CMenuCustomLobby* thisptr, int /*%edx*/, char flags)
+void __fastcall CMenuCustomLobby::destructor(CMenuCustomLobby* thisptr, int /*%edx*/, char flags)
 {
-    using namespace game;
-
-    menuDeleteWaitMenu(thisptr);
-
-    if (thisptr->netMsgEntryData) {
-        logDebug("transitions.log", "Delete custom lobby menu netMsgEntryData");
-        NetMsgApi::get().freeEntryData(thisptr->netMsgEntryData);
-    }
-
-    logDebug("transitions.log", "Delete rooms list event");
-    UiEventApi::get().destructor(&thisptr->roomsListEvent);
-
-    auto service = getNetService();
-    service->removeLobbyCallbacks(thisptr->uiCallbacks.get());
-    service->removeRoomsCallback(thisptr->roomsCallbacks.get());
-
-    thisptr->uiCallbacks.reset(nullptr);
-    thisptr->roomsCallbacks.reset(nullptr);
-
-    thisptr->rooms.~vector();
-
-    CMenuBaseApi::get().destructor(thisptr);
+    thisptr->~CMenuCustomLobby();
 
     if (flags & 1) {
         logDebug("transitions.log", "Free custom menu memory");
-        Memory::get().freeNonZero(thisptr);
+        game::Memory::get().freeNonZero(thisptr);
     }
 }
 
-static void __fastcall menuRegisterAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/)
+void __fastcall CMenuCustomLobby::registerAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/)
 {
     showRegisterAccountDialog();
 }
 
-static void __fastcall menuLoginAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/)
+void __fastcall CMenuCustomLobby::loginAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/)
 {
     showLoginAccountDialog();
 }
 
-static void __fastcall menuLogoutAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/)
+void __fastcall CMenuCustomLobby::logoutAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/)
 {
     logDebug("lobby.log", "User logging out");
     getNetService()->logoutAccount();
 }
 
-static void __fastcall menuRoomsListSearchHandler(CMenuCustomLobby*, int /*%edx*/)
+void __fastcall CMenuCustomLobby::roomsListSearchHandler(CMenuCustomLobby*, int /*%edx*/)
 {
     logDebug("lobby.log", "Request fresh rooms list");
     getNetService()->searchRooms();
 }
 
-static void __fastcall menuCreateRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
+void __fastcall CMenuCustomLobby::createRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
 {
     auto menuPhase = thisptr->menuBaseData->menuPhase;
     // Pretend we are in CMenuMulti, transition to CMenuMultyHost
@@ -169,7 +234,7 @@ static void __fastcall menuCreateRoomBtnHandler(CMenuCustomLobby* thisptr, int /
     game::CMenuPhaseApi::get().setTransition(menuPhase, 0);
 }
 
-static void __fastcall menuLoadBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
+void __fastcall CMenuCustomLobby::loadBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
 {
     // Pretend we are in CMenuMulti, transition to CMenuLoadSkirmishMulti
     auto menuPhase = thisptr->menuBaseData->menuPhase;
@@ -181,17 +246,17 @@ static void __fastcall menuLoadBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*
     game::CMenuPhaseApi::get().setTransition(menuPhase, 2);
 }
 
-static int menuGetCurrentRoomIndex(CMenuCustomLobby* menuLobby)
+int CMenuCustomLobby::getCurrentRoomIndex()
 {
     using namespace game;
 
-    auto dialog = CMenuBaseApi::get().getDialogInterface(menuLobby);
+    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
     auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
 
     return CListBoxInterfApi::get().selectedIndex(listBox);
 }
 
-static void menuTryJoinRoom(CMenuCustomLobby* menuLobby, const char* roomName)
+void CMenuCustomLobby::tryJoinRoom(const char* roomName)
 {
     using namespace game;
 
@@ -203,7 +268,7 @@ static void menuTryJoinRoom(CMenuCustomLobby* menuLobby, const char* roomName)
     // requesting version and info.
     auto& menuBase = CMenuBaseApi::get();
     auto& dialogApi = CDialogInterfApi::get();
-    auto dialog = menuBase.getDialogInterface(menuLobby);
+    auto dialog = menuBase.getDialogInterface(this);
 
     // For now, disable join button
     auto buttonJoin = dialogApi.findButton(dialog, "BTN_JOIN");
@@ -211,44 +276,57 @@ static void menuTryJoinRoom(CMenuCustomLobby* menuLobby, const char* roomName)
         buttonJoin->vftable->setEnabled(buttonJoin, false);
     }
 
-    menuDeleteWaitMenu(menuLobby);
+    deleteWaitMenu();
 
     auto flashWait = (CMenuFlashWait*)Memory::get().allocate(sizeof(CMenuFlashWait));
     CMenuFlashWaitApi::get().constructor(flashWait);
 
     showInterface(flashWait);
-    menuLobby->waitMenu = flashWait;
+    waitMenu = flashWait;
 }
 
-static void menuOnRoomPasswordCorrect(CMenuCustomLobby* menuLobby)
+void CMenuCustomLobby::onRoomPasswordCorrect(CMenuCustomLobby* menu)
 {
     logDebug("transitions.log", "Room password correct, trying to join a room");
 
     // Get current room name, try to join
     using namespace game;
 
-    auto index = menuGetCurrentRoomIndex(menuLobby);
-    if (index < 0 || index >= (int)menuLobby->rooms.size()) {
+    auto index = menu->getCurrentRoomIndex();
+    if (index < 0 || index >= (int)menu->rooms.size()) {
         return;
     }
 
-    const auto& room = menuLobby->rooms[index];
-    menuTryJoinRoom(menuLobby, room.name.c_str());
+    const auto& room = menu->rooms[index];
+    menu->tryJoinRoom(room.name.c_str());
 }
 
-static void menuOnRoomPasswordCancel(CMenuCustomLobby* menuLobby)
+void CMenuCustomLobby::onRoomPasswordCancel(CMenuCustomLobby* menu)
 {
     // Create rooms list event once again
-    createTimerEvent(&menuLobby->roomsListEvent, menuLobby, menuRoomsListSearchHandler, 5000);
+    createTimerEvent(&menu->roomsListEvent, menu, roomsListSearchHandler, 5000);
 }
 
-static void __fastcall menuJoinRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
+bool CMenuCustomLobby::onRoomPasswordEnter(CMenuCustomLobby* menu, const char* password)
+{
+    using namespace game;
+
+    auto index = menu->getCurrentRoomIndex();
+    if (index < 0 || index >= (int)menu->rooms.size()) {
+        return false;
+    }
+
+    const auto& room = menu->rooms[index];
+    return room.password == password;
+}
+
+void __fastcall CMenuCustomLobby::joinRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
 {
     using namespace game;
 
     logDebug("transitions.log", "Join room button pressed");
 
-    auto index = menuGetCurrentRoomIndex(thisptr);
+    auto index = thisptr->getCurrentRoomIndex();
     if (index < 0 || index >= (int)thisptr->rooms.size()) {
         return;
     }
@@ -266,19 +344,20 @@ static void __fastcall menuJoinRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%
     if (!room.password.empty()) {
         // Remove rooms list callback so we don't mess with the list
         UiEventApi::get().destructor(&thisptr->roomsListEvent);
-        showRoomPasswordDialog(thisptr, menuOnRoomPasswordCorrect, menuOnRoomPasswordCancel);
+        showRoomPasswordDialog(thisptr, onRoomPasswordCorrect, onRoomPasswordCancel,
+                               onRoomPasswordEnter);
         return;
     }
 
-    menuTryJoinRoom(thisptr, room.name.c_str());
+    thisptr->tryJoinRoom(room.name.c_str());
 }
 
-static void __fastcall menuListBoxDisplayHandler(CMenuCustomLobby* thisptr,
-                                                 int /*%edx*/,
-                                                 game::ImagePointList* contents,
-                                                 const game::CMqRect* lineArea,
-                                                 int index,
-                                                 bool selected)
+void __fastcall CMenuCustomLobby::listBoxDisplayHandler(CMenuCustomLobby* thisptr,
+                                                        int /*%edx*/,
+                                                        game::ImagePointList* contents,
+                                                        const game::CMqRect* lineArea,
+                                                        int index,
+                                                        bool selected)
 {
     if (thisptr->rooms.empty()) {
         return;
@@ -395,32 +474,15 @@ static void __fastcall menuListBoxDisplayHandler(CMenuCustomLobby* thisptr,
     }
 }
 
-static void copyString(char** dest, const char* src)
-{
-    auto& memory = game::Memory::get();
-
-    if (*dest) {
-        memory.freeNonZero(*dest);
-        *dest = nullptr;
-    }
-
-    if (src && *src) {
-        const auto length = std::strlen(src);
-        *dest = (char*)memory.allocate(length + 1);
-        std::strncpy(*dest, src, length);
-        (*dest)[length] = 0;
-    }
-}
-
-static bool __fastcall menuAnsInfoMsgHandler(CMenuCustomLobby* menu,
-                                             int /*%edx*/,
-                                             const game::CMenusAnsInfoMsg* message,
-                                             std::uint32_t idFrom)
+bool __fastcall CMenuCustomLobby::ansInfoMsgHandler(CMenuCustomLobby* menu,
+                                                    int /*%edx*/,
+                                                    const game::CMenusAnsInfoMsg* message,
+                                                    std::uint32_t idFrom)
 {
     logDebug("netCallbacks.log", fmt::format("CMenusAnsInfoMsg received from 0x{:x}", idFrom));
 
     if (message->raceIds.length == 0) {
-        customLobbyProcessJoinError(menu, "No available races");
+        menu->processJoinError("No available races");
         return true;
     }
 
@@ -448,8 +510,8 @@ static bool __fastcall menuAnsInfoMsgHandler(CMenuCustomLobby* menu,
     menuPhase->data->unknown8 = false;
     menuPhase->data->suggestedLevel = message->suggestedLevel;
 
-    copyString(&menuPhase->data->scenarioName, message->scenarioName);
-    copyString(&menuPhase->data->scenarioDescription, message->scenarioDescription);
+    allocateString(&menuPhase->data->scenarioName, message->scenarioName);
+    allocateString(&menuPhase->data->scenarioDescription, message->scenarioDescription);
 
     logDebug("netCallbacks.log", "Switch to CMenuLobbyJoin (I hope)");
     // Here we can set next menu transition, there is no need to hide wait message,
@@ -465,15 +527,15 @@ static bool __fastcall menuAnsInfoMsgHandler(CMenuCustomLobby* menu,
     return true;
 }
 
-static bool __fastcall menuGameVersionMsgHandler(CMenuCustomLobby* menu,
-                                                 int /*%edx*/,
-                                                 const game::CGameVersionMsg* message,
-                                                 std::uint32_t idFrom)
+bool __fastcall CMenuCustomLobby::gameVersionMsgHandler(CMenuCustomLobby* menu,
+                                                        int /*%edx*/,
+                                                        const game::CGameVersionMsg* message,
+                                                        std::uint32_t idFrom)
 {
     // Check server version
     if (message->gameVersion != 40) {
         // "You are trying to join a game with a newer or an older version of the game."
-        customLobbyProcessJoinError(menu, getInterfaceText("X006ta0008").c_str());
+        menu->processJoinError(getInterfaceText("X006ta0008").c_str());
         return true;
     }
 
@@ -493,170 +555,90 @@ static bool __fastcall menuGameVersionMsgHandler(CMenuCustomLobby* menu,
     return true;
 }
 
-static game::RttiInfo<game::CInterfaceVftable> menuLobbyRttiInfo;
-
-void menuCustomLobbyCtor(CMenuCustomLobby* menu, game::CMenuPhase* menuPhase)
+void CMenuCustomLobby::initializeButtonsHandlers()
 {
     using namespace game;
 
-    const char dialogName[] = "DLG_CUSTOM_LOBBY";
-
-    auto& menuBase = CMenuBaseApi::get();
-
-    logDebug("transitions.log", "Call CMenuBase c-tor for CMenuCustomLobby");
-    menuBase.constructor(menu, menuPhase);
-
-    auto vftable = &menuLobbyRttiInfo.vftable;
-
-    static bool firstTime{true};
-    if (firstTime) {
-        firstTime = false;
-
-        // Reuse object locator for our custom menu.
-        // We only need it for dynamic_cast<CAnimInterf>() to work properly without exceptions
-        // when the game exits main loop and checks for current CInterface.
-        // See DestroyAnimInterface() in IDA.
-        replaceRttiInfo(menuLobbyRttiInfo, menu->vftable);
-
-        vftable->destructor = (game::CInterfaceVftable::Destructor)&menuDestructor;
-    }
-
-    menu->vftable = vftable;
-
-    logDebug("transitions.log", "Call createMenu for CMenuCustomLobby");
-    menuBase.createMenu(menu, dialogName);
-
-    std::vector<RoomInfo>().swap(menu->rooms);
-    menu->loggedIn = false;
-
+    const auto& menuBaseApi = CMenuBaseApi::get();
+    const auto& dialogApi = CDialogInterfApi::get();
+    const auto& buttonApi = CButtonInterfApi::get();
+    const auto& listBoxApi = CListBoxInterfApi::get();
     const auto freeFunctor = SmartPointerApi::get().createOrFreeNoDtor;
 
-    // Setup button handlers
-    {
-        auto dialog = menuBase.getDialogInterface(menu);
+    auto dialog = menuBaseApi.getDialogInterface(this);
 
-        SmartPointer functor;
-        menuBase.createButtonFunctor(&functor, 0, menu, &menuBase.buttonBackCallback);
+    SmartPointer functor;
+    auto callback = menuBaseApi.buttonBackCallback;
+    menuBaseApi.createButtonFunctor(&functor, 0, this, &callback);
+    buttonApi.assignFunctor(dialog, "BTN_BACK", dialogName, &functor, 0);
+    freeFunctor(&functor, nullptr);
 
-        const auto& button = CButtonInterfApi::get();
-        button.assignFunctor(dialog, "BTN_BACK", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
+    callback = (CMenuBaseApi::Api::ButtonCallback)registerAccountBtnHandler;
+    menuBaseApi.createButtonFunctor(&functor, 0, this, &callback);
+    buttonApi.assignFunctor(dialog, "BTN_REGISTER", dialogName, &functor, 0);
+    freeFunctor(&functor, nullptr);
 
-        auto callback = (CMenuBaseApi::Api::ButtonCallback)menuRegisterAccountBtnHandler;
+    callback = (CMenuBaseApi::Api::ButtonCallback)loginAccountBtnHandler;
+    menuBaseApi.createButtonFunctor(&functor, 0, this, &callback);
+    buttonApi.assignFunctor(dialog, "BTN_LOGIN", dialogName, &functor, 0);
+    freeFunctor(&functor, nullptr);
 
-        menuBase.createButtonFunctor(&functor, 0, menu, &callback);
-        button.assignFunctor(dialog, "BTN_REGISTER", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
+    callback = (CMenuBaseApi::Api::ButtonCallback)logoutAccountBtnHandler;
+    menuBaseApi.createButtonFunctor(&functor, 0, this, &callback);
+    buttonApi.assignFunctor(dialog, "BTN_LOGOUT", dialogName, &functor, 0);
+    freeFunctor(&functor, nullptr);
 
-        callback = (CMenuBaseApi::Api::ButtonCallback)menuLoginAccountBtnHandler;
-        menuBase.createButtonFunctor(&functor, 0, menu, &callback);
-        button.assignFunctor(dialog, "BTN_LOGIN", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
+    callback = (CMenuBaseApi::Api::ButtonCallback)createRoomBtnHandler;
+    menuBaseApi.createButtonFunctor(&functor, 0, this, &callback);
+    buttonApi.assignFunctor(dialog, "BTN_CREATE", dialogName, &functor, 0);
+    freeFunctor(&functor, nullptr);
 
-        callback = (CMenuBaseApi::Api::ButtonCallback)menuLogoutAccountBtnHandler;
-        menuBase.createButtonFunctor(&functor, 0, menu, &callback);
-        button.assignFunctor(dialog, "BTN_LOGOUT", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
+    callback = (CMenuBaseApi::Api::ButtonCallback)loadBtnHandler;
+    menuBaseApi.createButtonFunctor(&functor, 0, this, &callback);
+    buttonApi.assignFunctor(dialog, "BTN_LOAD", dialogName, &functor, 0);
+    freeFunctor(&functor, nullptr);
 
-        auto& dialogApi = CDialogInterfApi::get();
-        auto logoutButton = dialogApi.findButton(dialog, "BTN_LOGOUT");
-        if (logoutButton) {
-            logoutButton->vftable->setEnabled(logoutButton, false);
-        }
+    callback = (CMenuBaseApi::Api::ButtonCallback)joinRoomBtnHandler;
+    menuBaseApi.createButtonFunctor(&functor, 0, this, &callback);
+    buttonApi.assignFunctor(dialog, "BTN_JOIN", dialogName, &functor, 0);
+    freeFunctor(&functor, nullptr);
 
-        callback = (CMenuBaseApi::Api::ButtonCallback)menuCreateRoomBtnHandler;
-        menuBase.createButtonFunctor(&functor, 0, menu, &callback);
-        button.assignFunctor(dialog, "BTN_CREATE", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-
-        callback = (CMenuBaseApi::Api::ButtonCallback)menuLoadBtnHandler;
-        menuBase.createButtonFunctor(&functor, 0, menu, &callback);
-        button.assignFunctor(dialog, "BTN_LOAD", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-
-        callback = (CMenuBaseApi::Api::ButtonCallback)menuJoinRoomBtnHandler;
-        menuBase.createButtonFunctor(&functor, 0, menu, &callback);
-        button.assignFunctor(dialog, "BTN_JOIN", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-
-        auto buttonCreate = dialogApi.findButton(dialog, "BTN_CREATE");
-        if (buttonCreate) {
-            buttonCreate->vftable->setEnabled(buttonCreate, false);
-        }
-
-        auto buttonLoad = dialogApi.findButton(dialog, "BTN_LOAD");
-        if (buttonLoad) {
-            buttonLoad->vftable->setEnabled(buttonLoad, false);
-        }
-
-        auto buttonJoin = dialogApi.findButton(dialog, "BTN_JOIN");
-        if (buttonJoin) {
-            buttonJoin->vftable->setEnabled(buttonJoin, false);
-        }
-
-        auto displayCallback = (CMenuBaseApi::Api::ListBoxDisplayCallback)menuListBoxDisplayHandler;
-        menuBase.createListBoxDisplayFunctor(&functor, 0, menu, &displayCallback);
-
-        auto listBox = dialogApi.findListBox(dialog, "LBOX_ROOMS");
-        if (listBox) {
-            CListBoxInterfApi::get().assignDisplaySurfaceFunctor(dialog, "LBOX_ROOMS", dialogName,
-                                                                 &functor);
-
-            CListBoxInterfApi::get().setElementsTotal(listBox, 0);
-        }
-
-        freeFunctor(&functor, nullptr);
+    auto buttonLogout = dialogApi.findButton(dialog, "BTN_LOGOUT");
+    if (buttonLogout) {
+        buttonLogout->vftable->setEnabled(buttonLogout, false);
     }
 
-    // Setup lobby callbacks
-    {
-        menu->uiCallbacks = std::make_unique<UiUpdateCallbacks>(menu);
-        getNetService()->addLobbyCallbacks(menu->uiCallbacks.get());
+    auto buttonCreate = dialogApi.findButton(dialog, "BTN_CREATE");
+    if (buttonCreate) {
+        buttonCreate->vftable->setEnabled(buttonCreate, false);
     }
 
-    // Setup ingame net message callbacks
-    {
-        logDebug("netCallbacks.log", "Allocate entry data");
+    auto buttonLoad = dialogApi.findButton(dialog, "BTN_LOAD");
+    if (buttonLoad) {
+        buttonLoad->vftable->setEnabled(buttonLoad, false);
+    }
 
-        auto& netApi = NetMsgApi::get();
-        netApi.allocateEntryData(menu->menuBaseData->menuPhase, &menu->netMsgEntryData);
+    auto buttonJoin = dialogApi.findButton(dialog, "BTN_JOIN");
+    if (buttonJoin) {
+        buttonJoin->vftable->setEnabled(buttonJoin, false);
+    }
 
-        auto& entryApi = CNetMsgMapEntryApi::get();
-
-        logDebug("netCallbacks.log", "Allocate CMenusAnsInfoMsg entry");
-
-        auto infoCallback = (CNetMsgMapEntryApi::Api::MenusAnsInfoCallback)menuAnsInfoMsgHandler;
-        auto entry = entryApi.allocateMenusAnsInfoEntry(menu, infoCallback);
-
-        logDebug("netCallbacks.log", "Add CMenusAnsInfoMsg entry");
-        netApi.addEntry(menu->netMsgEntryData, entry);
-
-        logDebug("netCallbacks.log", "Allocate CGameVersionMsg entry");
-
-        auto versionCallback = (CNetMsgMapEntryApi::Api::GameVersionCallback)
-            menuGameVersionMsgHandler;
-        entry = entryApi.allocateGameVersionEntry(menu, versionCallback);
-
-        logDebug("netCallbacks.log", "Add CGameVersionMsg entry");
-        netApi.addEntry(menu->netMsgEntryData, entry);
+    auto listBoxRooms = dialogApi.findListBox(dialog, "LBOX_ROOMS");
+    if (listBoxRooms) {
+        auto callback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxDisplayHandler;
+        menuBaseApi.createListBoxDisplayFunctor(&functor, 0, this, &callback);
+        listBoxApi.assignDisplaySurfaceFunctor(dialog, "LBOX_ROOMS", dialogName, &functor);
+        listBoxApi.setElementsTotal(listBoxRooms, 0);
+        freeFunctor(&functor, nullptr);
     }
 }
 
-game::CMenuBase* __stdcall createCustomLobbyMenu(game::CMenuPhase* menuPhase)
-{
-    auto menu = (CMenuCustomLobby*)game::Memory::get().allocate(sizeof(CMenuCustomLobby));
-    std::memset(menu, 0, sizeof(CMenuCustomLobby));
-
-    menuCustomLobbyCtor(menu, menuPhase);
-    return menu;
-}
-
-void customLobbyShowError(const char* message)
+void CMenuCustomLobby::showError(const char* message)
 {
     showMessageBox(fmt::format("\\fLarge;\\hC;Error\\fSmall;\n\n{:s}", message));
 }
 
-void customLobbyProcessLogin(CMenuCustomLobby* menu, const char* accountName)
+void CMenuCustomLobby::processLogin(const char* accountName)
 {
     using namespace game;
 
@@ -664,23 +646,22 @@ void customLobbyProcessLogin(CMenuCustomLobby* menu, const char* accountName)
 
     // Remember account that successfully logged in
     service->setCurrentLobbyPlayer(accountName);
-    menuUpdateAccountText(menu, accountName);
+    updateAccountText(accountName);
 
-    menu->loggedIn = true;
-    menuUpdateButtons(menu);
+    loggedIn = true;
+    updateButtons();
 
     // Connect ui-related rooms callbacks
-    menu->roomsCallbacks = std::make_unique<RoomsListCallbacks>(menu);
-    service->addRoomsCallback(menu->roomsCallbacks.get());
+    service->addRoomsCallback(&roomsCallbacks);
 
     // Request rooms list as soon as possible, no need to wait for event
     service->searchRooms();
 
     // Add timer event that will send rooms list requests every 5 seconds
-    createTimerEvent(&menu->roomsListEvent, menu, menuRoomsListSearchHandler, 5000);
+    createTimerEvent(&roomsListEvent, this, roomsListSearchHandler, roomListUpdateInterval);
 }
 
-void customLobbyProcessLogout(CMenuCustomLobby* menu)
+void CMenuCustomLobby::processLogout()
 {
     using namespace game;
 
@@ -688,58 +669,163 @@ void customLobbyProcessLogout(CMenuCustomLobby* menu)
 
     // Forget about logged account
     service->setCurrentLobbyPlayer(nullptr);
-    menuUpdateAccountText(menu);
+    updateAccountText(nullptr);
 
-    menu->loggedIn = false;
-    menuUpdateButtons(menu);
+    loggedIn = false;
+    updateButtons();
 
     // Remove timer event
-    game::UiEventApi::get().destructor(&menu->roomsListEvent);
+    game::UiEventApi::get().destructor(&roomsListEvent);
 
     // Disconnect ui-related rooms callbacks
-    service->removeRoomsCallback(menu->roomsCallbacks.get());
-    menu->roomsCallbacks.reset(nullptr);
+    service->removeRoomsCallback(&roomsCallbacks);
 
     auto& menuBase = CMenuBaseApi::get();
     auto& dialogApi = CDialogInterfApi::get();
-    auto dialog = menuBase.getDialogInterface(menu);
+    auto dialog = menuBase.getDialogInterface(this);
     auto listBox = dialogApi.findListBox(dialog, "LBOX_ROOMS");
     auto& listBoxApi = CListBoxInterfApi::get();
 
     // Clean up any rooms information to be safe
     listBoxApi.setElementsTotal(listBox, 0);
-    menu->rooms.clear();
+    rooms.clear();
 }
 
-void customLobbySetRoomsInfo(CMenuCustomLobby* menu, std::vector<RoomInfo>&& rooms)
+void CMenuCustomLobby::registerClientPlayerAndJoin()
+{
+    using namespace game;
+
+    auto& midgardApi = CMidgardApi::get();
+    auto midgard = midgardApi.instance();
+    auto netService = getNetService();
+
+    // Create player using session
+    logDebug("roomJoin.log", "Try create net client using midgard");
+    auto playerId = midgardApi.createNetClient(midgard, netService->getAccountName().c_str(),
+                                               false);
+
+    logDebug("roomJoin.log", fmt::format("Check net client id 0x{:x}", playerId));
+    if (playerId == 0) {
+        // Network id of zero is invalid
+        logDebug("roomJoin.log", "Net client has zero id");
+        processJoinError("Created net client has net id 0");
+        return;
+    }
+
+    logDebug("roomJoin.log", "Set menu phase as a net client proxy");
+
+    auto menuPhase = menuBaseData->menuPhase;
+    // Set menu phase as net proxy
+    midgardApi.setClientsNetProxy(midgard, menuPhase);
+
+    // Get max players from session
+    auto netSession{netService->getSession()};
+    auto maxPlayers = netSession->vftable->getMaxClients(netSession);
+
+    logDebug("roomJoin.log", fmt::format("Get max number of players in session: {:d}", maxPlayers));
+
+    menuPhase->data->maxPlayers = maxPlayers;
+
+    CMenusReqVersionMsg requestVersion;
+    requestVersion.vftable = NetMessagesApi::getMenusReqVersionVftable();
+
+    logDebug("roomJoin.log", "Send version request message to server");
+    // Send CMenusReqVersionMsg to server
+    // If failed, hide wait message and show error, enable join
+    if (!midgardApi.sendNetMsgToServer(midgard, &requestVersion)) {
+        processJoinError("Could not request game version from server");
+        return;
+    }
+
+    // Response will be handled by CMenuCustomLobby menuGameVersionMsgHandler
+    logDebug("roomJoin.log", "Request sent, wait for callback");
+}
+
+void CMenuCustomLobby::processJoin(const char* roomName, const SLNet::RakNetGUID& serverGuid)
+{
+    using namespace game;
+
+    logDebug("roomJoin.log", "Unsubscribe from rooms list updates while joining the room");
+
+    // Unsubscribe from rooms list notification while we joining the room
+    // Remove timer event
+    game::UiEventApi::get().destructor(&roomsListEvent);
+
+    // Disconnect ui-related rooms callbacks
+    getNetService()->removeRoomsCallback(&roomsCallbacks);
+
+    // Create session ourselves
+    logDebug("roomJoin.log", fmt::format("Process join to {:s}", roomName));
+
+    auto netService = getNetService();
+    logDebug("roomJoin.log", fmt::format("Get netService {:p}", (void*)netService));
+
+    if (!netService) {
+        processJoinError("Net service is null");
+        return;
+    }
+
+    auto netSession = CNetCustomSession::create(netService, roomName, serverGuid);
+
+    logDebug("roomJoin.log", fmt::format("Created netSession {:p}", (void*)netSession));
+
+    // If failed, hide wait message and show error, enable join
+    if (!netSession) {
+        processJoinError("Could not create net session");
+        return;
+    }
+
+    // Set net session to midgard
+    auto& midgardApi = CMidgardApi::get();
+
+    auto midgard = midgardApi.instance();
+    auto currentSession{midgard->data->netSession};
+    if (currentSession) {
+        currentSession->vftable->destructor(currentSession, 1);
+    }
+
+    logDebug("roomJoin.log", "Set netSession to midgard");
+    midgard->data->netSession = netSession;
+    netService->setSession(netSession);
+
+    logDebug("roomJoin.log", "Mark self as client");
+    // Mark self as client
+    midgard->data->host = false;
+
+    logDebug("roomJoin.log", "Create player client beforehand");
+
+    registerClientPlayerAndJoin();
+}
+
+void CMenuCustomLobby::setRoomsInfo(std::vector<RoomInfo>&& rooms)
 {
     using namespace game;
 
     auto& menuBase = CMenuBaseApi::get();
     auto& dialogApi = CDialogInterfApi::get();
-    auto dialog = menuBase.getDialogInterface(menu);
+    auto dialog = menuBase.getDialogInterface(this);
     auto listBox = dialogApi.findListBox(dialog, "LBOX_ROOMS");
     auto& listBoxApi = CListBoxInterfApi::get();
 
-    if (!menu->loggedIn) {
+    if (!loggedIn) {
         listBoxApi.setElementsTotal(listBox, 0);
-        menu->rooms.clear();
+        rooms.clear();
         return;
     }
 
     listBoxApi.setElementsTotal(listBox, (int)rooms.size());
-    menu->rooms = std::move(rooms);
+    rooms = std::move(rooms);
 }
 
-void customLobbyProcessJoinError(CMenuCustomLobby* menu, const char* message)
+void CMenuCustomLobby::processJoinError(const char* message)
 {
     using namespace game;
 
-    menuDeleteWaitMenu(menu);
+    deleteWaitMenu();
 
     auto& menuBase = CMenuBaseApi::get();
     auto& dialogApi = CDialogInterfApi::get();
-    auto dialog = menuBase.getDialogInterface(menu);
+    auto dialog = menuBase.getDialogInterface(this);
 
     // TODO: check player entered a room in lobby server,
     // if so, leave it and enable join button in rooms callback
@@ -748,20 +834,138 @@ void customLobbyProcessJoinError(CMenuCustomLobby* menu, const char* message)
         buttonJoin->vftable->setEnabled(buttonJoin, true);
     }
 
-    customLobbyShowError(message);
+    showError(message);
 }
 
-bool customLobbyCheckRoomPassword(CMenuCustomLobby* menu, const char* password)
+void CMenuCustomLobby::LobbyCallbacks::MessageResult(SLNet::Client_Login* message)
 {
-    using namespace game;
+    switch (message->resultCode) {
+    case SLNet::L2RC_SUCCESS:
+        menuLobby->processLogin(message->userName.C_String());
+        break;
 
-    auto index = menuGetCurrentRoomIndex(menu);
-    if (index < 0 || index >= (int)menu->rooms.size()) {
-        return false;
+    case SLNet::L2RC_Client_Login_HANDLE_NOT_IN_USE_OR_BAD_SECRET_KEY:
+        menuLobby->showError("Wrong account name or password");
+        break;
+
+    case SLNet::L2RC_Client_Login_BANNED:
+        menuLobby->showError("Banned from server");
+        break;
+
+    default: {
+        SLNet::RakString str;
+        message->DebugMsg(str);
+        menuLobby->showError(str.C_String());
+        break;
+    }
+    }
+}
+
+void CMenuCustomLobby::LobbyCallbacks::MessageResult(SLNet::Client_Logoff* message)
+{
+    if (message->resultCode == SLNet::L2RC_SUCCESS) {
+        menuLobby->processLogout();
+        return;
     }
 
-    const auto& room = menu->rooms[index];
-    return room.password == password;
+    SLNet::RakString str;
+    message->DebugMsg(str);
+    menuLobby->showError(str.C_String());
+}
+
+void CMenuCustomLobby::RoomListCallbacks::JoinByFilter_Callback(
+    const SLNet::SystemAddress&,
+    SLNet::JoinByFilter_Func* callResult)
+{
+    if (callResult->resultCode == SLNet::REC_SUCCESS) {
+        auto& room = callResult->joinedRoomResult.roomDescriptor;
+        auto roomName = room.GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c;
+
+        logDebug("roomsCallbacks.log",
+                 fmt::format("{:s} joined room",
+                             callResult->joinedRoomResult.joiningMemberName.C_String()));
+
+        const char* guidString{nullptr};
+
+        auto& table = room.roomProperties;
+        auto index = table.ColumnIndex(serverGuidColumnName);
+        if (index != std::numeric_limits<unsigned int>::max()) {
+            auto row = table.GetRowByIndex(0, nullptr);
+            if (row) {
+                guidString = row->cells[index]->c;
+            }
+        }
+
+        // TODO: use guid of member with moderator role from room.roomMemberList, remove
+        // serverGuidColumn
+        // TODO: check if password can be transmitted using native RakNet instead of custom column
+        SLNet::RakNetGUID serverGuid{};
+        if (!serverGuid.FromString(guidString)) {
+            menuLobby->processJoinError("Could not get player server GUID");
+            return;
+        }
+
+        menuLobby->processJoin(roomName, serverGuid);
+        return;
+    }
+
+    auto error = SLNet::RoomsErrorCodeDescription::ToEnglish(callResult->resultCode);
+    menuLobby->processJoinError(error);
+}
+
+void CMenuCustomLobby::RoomListCallbacks::SearchByFilter_Callback(
+    const SLNet::SystemAddress&,
+    SLNet::SearchByFilter_Func* callResult)
+{
+    if (callResult->resultCode != SLNet::REC_SUCCESS) {
+        menuLobby->showError(SLNet::RoomsErrorCodeDescription::ToEnglish(callResult->resultCode));
+        return;
+    }
+
+    auto& rooms = callResult->roomsOutput;
+    const auto total{rooms.Size()};
+
+    std::vector<RoomInfo> roomsInfo;
+    roomsInfo.reserve(total);
+
+    for (std::uint32_t i = 0; i < total; ++i) {
+        auto room = rooms[i];
+
+        auto name = room->GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c;
+        const char* hostName{nullptr};
+
+        auto& members = room->roomMemberList;
+        for (std::uint32_t j = 0; members.Size(); ++j) {
+            auto& member = members[j];
+
+            if (member.roomMemberMode == RMM_MODERATOR) {
+                hostName = member.name.C_String();
+                break;
+            }
+        }
+
+        auto totalSlots = (int)room->GetProperty(DefaultRoomColumns::TC_TOTAL_PUBLIC_SLOTS)->i;
+        auto usedSlots = (int)room->GetProperty(DefaultRoomColumns::TC_USED_PUBLIC_SLOTS)->i;
+
+        const char* password{nullptr};
+
+        auto& table = room->roomProperties;
+        auto index = table.ColumnIndex(passwordColumnName);
+        if (index != std::numeric_limits<unsigned int>::max()) {
+            auto row = table.GetRowByIndex(0, nullptr);
+            if (row) {
+                password = row->cells[index]->c;
+            }
+        }
+
+        // Add 1 to used and total slots because they are not counting room moderator
+        roomsInfo.push_back(RoomInfo{std::string(name),
+                                     std::string{hostName ? hostName : "Unknown"},
+                                     password ? std::string{password} : std::string{},
+                                     totalSlots + 1, usedSlots + 1});
+    }
+
+    menuLobby->setRoomsInfo(std::move(roomsInfo));
 }
 
 } // namespace hooks

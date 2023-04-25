@@ -22,13 +22,15 @@
 
 namespace hooks {
 
-struct CMenuCustomLobby;
+class CMenuCustomLobby;
 
 using RoomPasswordHandler = void (*)(CMenuCustomLobby* menu);
+using RoomPasswordValidationHandler = bool (*)(CMenuCustomLobby* menu, const char* password);
 
 void showRoomPasswordDialog(CMenuCustomLobby* menuLobby,
                             RoomPasswordHandler onSuccess,
-                            RoomPasswordHandler onCancel);
+                            RoomPasswordHandler onCancel,
+                            RoomPasswordValidationHandler onEnter);
 
 } // namespace hooks
 

@@ -121,7 +121,7 @@ CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
     m_peer->AttachPlugin(&m_lobbyClient);
 
     m_peer->AttachPlugin(&m_roomsClient);
-    m_roomsClient.SetRoomsCallback(&m_roomsLogCallback);
+    m_roomsClient.SetRoomsCallback(&m_roomsLoggingCallback);
 }
 
 CNetCustomService::~CNetCustomService()

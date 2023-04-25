@@ -29,7 +29,6 @@
 #include "netcustomservice.h"
 #include "netcustomsession.h"
 #include "originalfunctions.h"
-#include "roomscallback.h"
 #include "settings.h"
 #include "utils.h"
 #include <fmt/format.h>

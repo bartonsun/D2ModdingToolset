@@ -117,6 +117,8 @@ static inline void replaceRttiInfo(game::RttiInfo<T>& dst, const T* src, bool co
     }
 }
 
+void allocateString(char** dest, const char* src);
+
 } // namespace hooks
 
 #endif // UTILS_H

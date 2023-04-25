@@ -396,4 +396,21 @@ void forEachScenarioObject(game::IMidgardObjectMap* objectMap,
     free((SmartPointer*)&end, nullptr);
 }
 
+void allocateString(char** dest, const char* src)
+{
+    auto& memory = game::Memory::get();
+
+    if (*dest) {
+        memory.freeNonZero(*dest);
+        *dest = nullptr;
+    }
+
+    if (src && *src) {
+        const auto length = std::strlen(src);
+        *dest = (char*)memory.allocate(length + 1);
+        std::strncpy(*dest, src, length);
+        (*dest)[length] = 0;
+    }
+}
+
 } // namespace hooks

@@ -20,10 +20,9 @@
 #ifndef NETCUSTOMSERVICE_H
 #define NETCUSTOMSERVICE_H
 
-#include "lobbycallbacks.h"
 #include "mqnetservice.h"
 #include "netmsg.h"
-#include "roomscallback.h"
+#include "roomsloggingcallback.h"
 #include "uievent.h"
 #include <Lobby2Client.h>
 #include <Lobby2Message.h>
@@ -193,7 +192,7 @@ private:
     LobbyLoggingCallbacks m_loggingCallbacks;
     /** Interacts with lobby server rooms. */
     SLNet::RoomsPlugin m_roomsClient;
-    RoomsLoggingCallback m_roomsLogCallback;
+    RoomsLoggingCallback m_roomsLoggingCallback;
     /** Connection with lobby server. */
     SLNet::RakPeerInterface* m_peer;
     game::UiEvent m_peerProcessEvent;

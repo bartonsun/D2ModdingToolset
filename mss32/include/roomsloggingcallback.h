@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ROOMSCALLBACK_H
-#define ROOMSCALLBACK_H
+#ifndef ROOMSLOGGINGCALLBACK_H
+#define ROOMSLOGGINGCALLBACK_H
 
 #ifdef __INTEGRATE_LOBBY2_WITH_ROOMS_PLUGIN
 #include <RoomsPlugin.h>
@@ -51,4 +51,4 @@ public:
 
 } // namespace hooks
 
-#endif // ROOMSCALLBACK_H
+#endif // ROOMSLOGGINGCALLBACK_H

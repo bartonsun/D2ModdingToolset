@@ -24,7 +24,6 @@
 #include "log.h"
 #include "mempool.h"
 #include "menubase.h"
-#include "menucustomlobby.h"
 #include "popupdialoginterf.h"
 #include "textids.h"
 #include "utils.h"
@@ -35,6 +34,7 @@ struct CRoomPasswordInterf : public game::CPopupDialogInterf
 {
     RoomPasswordHandler onSuccess;
     RoomPasswordHandler onCancel;
+    RoomPasswordValidationHandler onEnter;
     CMenuCustomLobby* menuLobby;
 };
 
@@ -70,7 +70,7 @@ static void __fastcall onOkPressed(CRoomPasswordInterf* thisptr, int /*%edx*/)
     const char* password = pwdString.string ? pwdString.string : "";
     auto menuLobby = thisptr->menuLobby;
 
-    if (customLobbyCheckRoomPassword(menuLobby, password)) {
+    if (thisptr->onEnter(menuLobby, password)) {
         auto onSuccess = thisptr->onSuccess;
         // Close menu and _then_ run success logic
         closeRoomPasswordInterf(thisptr);
@@ -93,7 +93,8 @@ static void __fastcall onCancelPressed(CRoomPasswordInterf* thisptr, int /*%edx*
 
 static CRoomPasswordInterf* createRoomPasswordInterf(CMenuCustomLobby* menuLobby,
                                                      RoomPasswordHandler onSuccess,
-                                                     RoomPasswordHandler onCancel)
+                                                     RoomPasswordHandler onCancel,
+                                                     RoomPasswordValidationHandler onEnter)
 {
     using namespace game;
 
@@ -103,6 +104,7 @@ static CRoomPasswordInterf* createRoomPasswordInterf(CMenuCustomLobby* menuLobby
     CPopupDialogInterfApi::get().constructor(interf, dialogName, nullptr);
     interf->onSuccess = onSuccess;
     interf->onCancel = onCancel;
+    interf->onEnter = onEnter;
     interf->menuLobby = menuLobby;
 
     const auto createFunctor = CMenuBaseApi::get().createButtonFunctor;
@@ -128,9 +130,10 @@ static CRoomPasswordInterf* createRoomPasswordInterf(CMenuCustomLobby* menuLobby
 
 void showRoomPasswordDialog(CMenuCustomLobby* menuLobby,
                             RoomPasswordHandler onSuccess,
-                            RoomPasswordHandler onCancel)
+                            RoomPasswordHandler onCancel,
+                            RoomPasswordValidationHandler onEnter)
 {
-    showInterface(createRoomPasswordInterf(menuLobby, onSuccess, onCancel));
+    showInterface(createRoomPasswordInterf(menuLobby, onSuccess, onCancel, onEnter));
 }
 
 } // namespace hooks

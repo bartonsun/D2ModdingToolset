@@ -26,6 +26,11 @@
 
 namespace hooks {
 
+game::CMenuBase* __stdcall createCustomLobbyCallback(game::CMenuPhase* menuPhase)
+{
+    return CMenuCustomLobby::create(menuPhase);
+}
+
 void __fastcall menuPhaseSetTransitionHooked(game::CMenuPhase* thisptr,
                                              int /*%edx*/,
                                              int transition)
@@ -103,7 +108,7 @@ void __fastcall menuPhaseSetTransitionHooked(game::CMenuPhase* thisptr,
         case 35: {
             // Create custom lobby menu window during fullscreen animation
             auto data = thisptr->data;
-            CMenuPhaseApi::Api::CreateMenuCallback tmp = createCustomLobbyMenu;
+            CMenuPhaseApi::Api::CreateMenuCallback tmp = createCustomLobbyCallback;
             CMenuPhaseApi::Api::CreateMenuCallback* callback = &tmp;
             logDebug("transitions.log", "Try to transition to 36");
             menuPhase.doTransition(thisptr, &data->transitionNumber, &data->interfManager,
