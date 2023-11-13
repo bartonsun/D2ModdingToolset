@@ -56,8 +56,8 @@ struct IMidMsgSenderVftable
      * CMidServerLogic checks for player info, message queue
      * and command message type before sending.
      */
-    using SendMessage = int(__thiscall*)(IMidMsgSender* thisptr, CCommandMsg* commandMsg, char a3);
-    SendMessage sendMessage;
+    using SendMsg = bool(__thiscall*)(IMidMsgSender* thisptr, CCommandMsg* commandMsg, char a3);
+    SendMsg sendMessage;
 
     /** Starts battle between two unit groups. */
     using StartBattle = int(__thiscall*)(IMidMsgSender* thisptr,
