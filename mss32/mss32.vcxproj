@@ -227,6 +227,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\buildingtype.cpp" />
     <ClCompile Include="src\chatinterf.cpp" />
     <ClCompile Include="src\citystackinterfhooks.cpp" />
+    <ClCompile Include="src\commandmsglistener.cpp" />
     <ClCompile Include="src\commandmsglistenerfunctions.cpp" />
     <ClCompile Include="src\custombuildingcategories.cpp" />
     <ClCompile Include="src\diplomacyhooks.cpp" />
@@ -669,6 +670,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\buildingtype.h" />
     <ClInclude Include="include\chatinterf.h" />
     <ClInclude Include="include\citystackinterfhooks.h" />
+    <ClInclude Include="include\commandmsglistener.h" />
     <ClInclude Include="include\commandmsglistenerfunctions.h" />
     <ClInclude Include="include\custombuildingcategories.h" />
     <ClInclude Include="include\d2unorderedmap.h" />
