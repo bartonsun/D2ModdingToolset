@@ -26,6 +26,7 @@ namespace game {
 struct IMidMsgSender;
 struct CMidServerLogic;
 struct CMidgardID;
+struct CCommandMsg;
 } // namespace game
 
 namespace hooks {
@@ -36,6 +37,11 @@ bool __fastcall midServerLogicSendRefreshInfoHooked(const game::CMidServerLogic*
                                                     int /*%edx*/,
                                                     const game::Set<game::CMidgardID>* objectsList,
                                                     std::uint32_t playerNetId);
+
+bool __fastcall midServerLogicSendMessageHooked(game::IMidMsgSender* thisptr,
+                                                int /*%edx*/,
+                                                game::CCommandMsg* commandMsg,
+                                                char a3);
 
 } // namespace hooks
 

@@ -133,6 +133,7 @@ struct OriginalFunctions
     game::CEncLayoutRuinApi::Api::Update encLayoutRuinUpdate;
 
     game::IMidMsgSenderVftable::SendObjectsChanges midServerLogicSendObjectsChanges;
+    game::IMidMsgSenderVftable::SendMsg midServerLogicSendMessage;
 
     game::CMenuNewSkirmishSingleApi::Api::Constructor menuNewSkirmishSingleCtor;
     game::CMenuNewSkirmishHotseatApi::Api::Constructor menuNewSkirmishHotseatCtor;

@@ -512,6 +512,10 @@ static Hooks getGameHooks()
                                     (void**)&orig.midServerLogicSendObjectsChanges});
     }
 
+    hooks.emplace_back(HookInfo{CMidServerLogicApi::vftable().midMsgSender->sendMessage,
+                                midServerLogicSendMessageHooked,
+                                (void**)&orig.midServerLogicSendMessage});
+
     return hooks;
 }
 

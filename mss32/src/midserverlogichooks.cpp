@@ -18,6 +18,11 @@
  */
 
 #include "midserverlogichooks.h"
+#include "cmdbattlechooseactionmsg.h"
+#include "cmdbattleendmsg.h"
+#include "cmdbattleresultmsg.h"
+#include "cmdbattlestartmsg.h"
+#include "commandmsglistener.h"
 #include "idset.h"
 #include "log.h"
 #include "logutils.h"
@@ -144,6 +149,42 @@ bool __fastcall midServerLogicSendRefreshInfoHooked(const game::CMidServerLogic*
     }
 
     return true;
+}
+
+bool __fastcall midServerLogicSendMessageHooked(game::IMidMsgSender* thisptr,
+                                                int /*%edx*/,
+                                                game::CCommandMsg* commandMsg,
+                                                char a3)
+{
+    using namespace game;
+
+    const auto serverLogic = castMidMsgSenderToMidServerLogic(thisptr);
+    auto scenarioMap = CMidServerLogicApi::get().getObjectMap(serverLogic);
+
+    switch (commandMsg->vftable->getId(commandMsg)) {
+    case CommandMsgId::BattleStart: {
+        auto msg = (CCmdBattleStartMsg*)commandMsg;
+        getCommandMsgListener().onBattleStart(scenarioMap, &msg->battleMsgData);
+        break;
+    }
+    case CommandMsgId::BattleChooseAction: {
+        auto msg = (CCmdBattleChooseActionMsg*)commandMsg;
+        getCommandMsgListener().onBattleChooseAction(scenarioMap, &msg->battleMsgData);
+        break;
+    }
+    case CommandMsgId::BattleResult: {
+        auto msg = (CCmdBattleResultMsg*)commandMsg;
+        getCommandMsgListener().onBattleResult(scenarioMap, &msg->battleMsgData);
+        break;
+    }
+    case CommandMsgId::BattleEnd: {
+        auto msg = (CCmdBattleEndMsg*)commandMsg;
+        getCommandMsgListener().onBattleEnd(scenarioMap, &msg->battleMsgData);
+        break;
+    }
+    }
+
+    return getOriginalFunctions().midServerLogicSendMessage(thisptr, commandMsg, a3);
 }
 
 } // namespace hooks
