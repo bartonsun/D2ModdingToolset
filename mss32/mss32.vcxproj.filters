@@ -1244,6 +1244,12 @@
     <ClCompile Include="src\scenarioobjectstreams.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\customunitencyclopedia.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="src\customunitencyclopediafunctions.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
     <ClCompile Include="src\menucustomnewskirmishmulti.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
@@ -3300,6 +3306,12 @@
     </ClInclude>
     <ClInclude Include="include\menuloadskirmishmulti.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\customunitencyclopedia.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="include\customunitencyclopediafunctions.h">
+      <Filter>features</Filter>
     </ClInclude>
     <ClInclude Include="include\menuloadhooks.h">
       <Filter>hooks</Filter>
