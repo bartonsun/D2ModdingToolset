@@ -95,6 +95,9 @@ struct Settings
         bool displayBonusXp;
         bool displayInfiniteAttackIndicator;
         bool displayCriticalHitTextInAttackName;
+        bool updateOnShiftKeyPress;
+        bool updateOnCtrlKeyPress;
+        bool updateOnAltKeyPress;
     } unitEncyclopedia;
 
     struct Modifiers
