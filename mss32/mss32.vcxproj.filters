@@ -1292,6 +1292,9 @@
     <ClCompile Include="src\menumainhooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\bindings\globalview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3357,6 +3360,9 @@
     </ClInclude>
     <ClInclude Include="include\menumainhooks.h">
       <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\globalview.h">
+      <Filter>bindings</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
