@@ -73,6 +73,7 @@ void UnitImplView::bind(sol::state& lua)
     impl["attack1"] = sol::property(&UnitImplView::getAttack);
     impl["attack2"] = sol::property(&UnitImplView::getAttack2);
     impl["altAttack"] = sol::property(&UnitImplView::getAltAttack);
+    impl["altAttack2"] = sol::property(&UnitImplView::getAltAttack2);
     impl["base"] = sol::property(&UnitImplView::getBaseUnit);
     impl["getImmuneToAttackClass"] = &UnitImplView::getImmuneToAttackClass;
     impl["getImmuneToAttackSource"] = &UnitImplView::getImmuneToAttackSource;
@@ -441,6 +442,16 @@ std::optional<AttackView> UnitImplView::getAttack2() const
 std::optional<AttackView> UnitImplView::getAltAttack() const
 {
     auto altAttack = hooks::getAltAttack(impl, true);
+    if (!altAttack) {
+        return std::nullopt;
+    }
+
+    return AttackView{altAttack};
+}
+
+std::optional<AttackView> UnitImplView::getAltAttack2() const
+{
+    auto altAttack = hooks::getAltAttack(impl, false);
     if (!altAttack) {
         return std::nullopt;
     }
