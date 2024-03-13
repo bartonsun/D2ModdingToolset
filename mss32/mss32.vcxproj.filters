@@ -1304,6 +1304,9 @@
     <ClCompile Include="src\bindings\crystalview.cpp">
       <Filter>bindings</Filter>
     </ClCompile>
+    <ClCompile Include="src\bindings\siteview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3396,6 +3399,9 @@
     </ClInclude>
     <ClInclude Include="include\midsitetrainer.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\siteview.h">
+      <Filter>bindings</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
