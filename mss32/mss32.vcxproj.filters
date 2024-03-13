@@ -1307,6 +1307,9 @@
     <ClCompile Include="src\bindings\siteview.cpp">
       <Filter>bindings</Filter>
     </ClCompile>
+    <ClCompile Include="src\bindings\merchantview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3401,6 +3404,9 @@
       <Filter>game</Filter>
     </ClInclude>
     <ClInclude Include="include\bindings\siteview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\merchantview.h">
       <Filter>bindings</Filter>
     </ClInclude>
   </ItemGroup>
