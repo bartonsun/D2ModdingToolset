@@ -52,6 +52,7 @@
 #include "siteview.h"
 #include "stackview.h"
 #include "tileview.h"
+#include "trainerview.h"
 #include "unitimplview.h"
 #include "unitslotview.h"
 #include "unitview.h"
@@ -392,6 +393,7 @@ static void bindApi(sol::state& lua)
     bindings::MerchantView::bind(lua);
     bindings::MercenaryUnitView::bind(lua);
     bindings::MercsView::bind(lua);
+    bindings::TrainerView::bind(lua);
     bindings::GlobalVariablesView::bind(lua);
     bindings::GlobalView::bind(lua);
     bindings::GameView::bind(lua);
