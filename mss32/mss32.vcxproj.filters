@@ -1319,6 +1319,9 @@
     <ClCompile Include="src\scenpropinterf.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\scenpropinterfhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
     <ClCompile Include="src\aiattitudescat.cpp">
       <Filter>game</Filter>
     </ClCompile>
@@ -3432,6 +3435,9 @@
     </ClInclude>
     <ClInclude Include="include\scenpropinterf.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenpropinterfhooks.h">
+      <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\aiattitudescat.h">
       <Filter>game</Filter>

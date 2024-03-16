@@ -54,6 +54,7 @@
 #include "mqnetplayer.h"
 #include "netmsg.h"
 #include "pickupdropinterf.h"
+#include "scenpropinterf.h"
 #include "sitemerchantinterf.h"
 #include "testcondition.h"
 
@@ -147,6 +148,8 @@ struct OriginalFunctions
     game::CMenuLoadApi::Api::CreateServer menuLoadCreateServer;
 
     game::AutoDialogApi::Api::LoadAndParseScriptFile autoDialogLoadAndParseScriptFile;
+
+    game::editor::CScenPropInterfApi::Api::Constructor scenPropInterfCtor;
 };
 
 OriginalFunctions& getOriginalFunctions();
