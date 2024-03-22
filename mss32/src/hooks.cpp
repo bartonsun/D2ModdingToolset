@@ -392,6 +392,8 @@ static Hooks getGameHooks()
         {CMenuLoadApi::get().createServer, menuLoadCreateServerHooked, (void**)&orig.menuLoadCreateServer},
         {AutoDialogApi::get().loadAndParseScriptFile, autoDialogLoadAndParseScriptFileHooked, (void**)&orig.autoDialogLoadAndParseScriptFile},
         {MidAutoDlgImagesApi::vftable()->loadImage, midAutoDlgImagesLoadImageHooked},
+        // Support custom scripts for AI battle actions
+        {battle.aiChooseBattleAction, aiChooseBattleActionHooked, (void**)&orig.aiChooseBattleAction},
     };
     // clang-format on
 
