@@ -30,7 +30,7 @@
 
 namespace hooks {
 
-static void logAction(const std::string& logFile, const std::string& message)
+static void logAction(std::string_view logFile, std::string_view message)
 {
     using namespace std::chrono;
 
@@ -46,7 +46,7 @@ static void logAction(const std::string& logFile, const std::string& message)
     file << msg.str();
 }
 
-void logDebug(const std::string& logFile, const std::string& message)
+void logDebug(std::string_view logFile, std::string_view message)
 {
 #ifdef _DEBUG
     std::stringstream msg;
@@ -59,7 +59,7 @@ void logDebug(const std::string& logFile, const std::string& message)
     }
 }
 
-void logError(const std::string& logFile, const std::string& message)
+void logError(std::string_view logFile, std::string_view message)
 {
     logAction(logFile, message);
 }
