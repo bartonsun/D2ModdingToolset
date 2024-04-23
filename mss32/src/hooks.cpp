@@ -176,6 +176,7 @@
 #include "testleadertozone.h"
 #include "testleadertozonehooks.h"
 #include "testownitemhooks.h"
+#include "teststackexistshooks.h"
 #include "transformotherhooks.h"
 #include "transformselfhooks.h"
 #include "umattack.h"
@@ -426,7 +427,7 @@ static Hooks getGameHooks()
         {eventConditions.testTransformLand, testTransformLandHooked, (void**)&orig.testTransformLand},
         {eventConditions.testVisitSite, testVisitSiteHooked, (void**)&orig.testVisitSite},
         {eventConditions.testItemToLocation, testItemToLocationHooked, (void**)&orig.testItemToLocation},
-        {eventConditions.testStackExists, testStackExistsHooked, (void**)&orig.testStackExists},
+        {eventConditions.testStackExists, testStackExistsHooked},
         {eventConditions.testVarInRange, testVarInRangeHooked, (void**)&orig.testVarInRange},
     };
     // clang-format on
