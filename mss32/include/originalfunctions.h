@@ -58,6 +58,7 @@
 #include "scenpropinterf.h"
 #include "sitemerchantinterf.h"
 #include "testcondition.h"
+#include "visitors.h"
 
 namespace hooks {
 
@@ -176,6 +177,9 @@ struct OriginalFunctions
     game::ITestConditionVftable::Test testItemToLocation;
     game::ITestConditionVftable::Test testStackExists;
     game::ITestConditionVftable::Test testVarInRange;
+
+    game::RemoveStack removeStack;
+    game::VisitorApi::Api::SetStackSrcTemplate setStackSrcTemplate;
 };
 
 OriginalFunctions& getOriginalFunctions();
