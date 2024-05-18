@@ -132,12 +132,12 @@ private:
     void processLogin(const char* accountName);
     void processLogout();
     void processJoin(const char* roomName, const SLNet::RakNetGUID& serverGuid);
-    void setRoomsInfo(std::vector<RoomInfo>&& rooms);
+    void setRoomsInfo(std::vector<RoomInfo>&& value);
     void processJoinError(const char* message);
     void registerClientPlayerAndJoin();
 
     game::UiEvent roomsListEvent;
-    std::vector<RoomInfo> rooms; // cached data
+    std::vector<RoomInfo> rooms;
     LobbyCallbacks uiCallbacks;
     RoomListCallbacks roomsCallbacks;
     game::NetMsgEntryData** netMsgEntryData;

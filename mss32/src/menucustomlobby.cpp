@@ -797,7 +797,7 @@ void CMenuCustomLobby::processJoin(const char* roomName, const SLNet::RakNetGUID
     registerClientPlayerAndJoin();
 }
 
-void CMenuCustomLobby::setRoomsInfo(std::vector<RoomInfo>&& rooms)
+void CMenuCustomLobby::setRoomsInfo(std::vector<RoomInfo>&& value)
 {
     using namespace game;
 
@@ -808,13 +808,13 @@ void CMenuCustomLobby::setRoomsInfo(std::vector<RoomInfo>&& rooms)
     auto& listBoxApi = CListBoxInterfApi::get();
 
     if (!loggedIn) {
-        listBoxApi.setElementsTotal(listBox, 0);
         rooms.clear();
+        listBoxApi.setElementsTotal(listBox, 0);
         return;
     }
 
+    rooms = std::move(value);
     listBoxApi.setElementsTotal(listBox, (int)rooms.size());
-    rooms = std::move(rooms);
 }
 
 void CMenuCustomLobby::processJoinError(const char* message)
