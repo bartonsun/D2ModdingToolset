@@ -23,7 +23,7 @@
 #include "mqnetplayerserver.h"
 #include "netcustomplayer.h"
 #include "netcustomservice.h"
-#include <set>
+#include <map>
 
 namespace hooks {
 
@@ -38,9 +38,9 @@ public:
                            game::IMqNetReception* reception);
     ~CNetCustomPlayerServer();
 
-    std::set<SLNet::RakNetGUID> getClients() const;
-    void addClient(const SLNet::RakNetGUID& guid);
-    void removeClient(const SLNet::RakNetGUID& guid);
+    bool addClient(const SLNet::RakNetGUID& guid, const SLNet::RakString& name);
+    bool removeClient(const SLNet::RakNetGUID& guid);
+    bool removeClient(const SLNet::RakString& name);
 
 protected:
     using CNetCustomPlayer::sendMessage;
@@ -108,7 +108,7 @@ private:
 
     PeerCallbacks m_peerCallbacks;
     RoomsCallback m_roomsCallback;
-    std::set<SLNet::RakNetGUID> m_clients;
+    std::map<SLNet::RakNetGUID, SLNet::RakString> m_clients;
     mutable std::mutex m_clientsMutex;
 };
 

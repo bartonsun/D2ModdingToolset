@@ -162,7 +162,8 @@ void __fastcall CNetCustomSession::createClient(CNetCustomSession* thisptr,
 
     // TODO: do it inside rooms callback of server player?
     if (thisptr->m_server) {
-        thisptr->m_server->addClient(thisptr->getService()->getPeerGuid());
+        auto service = thisptr->getService();
+        thisptr->m_server->addClient(service->getPeerGuid(), service->getAccountName().c_str());
     }
 }
 

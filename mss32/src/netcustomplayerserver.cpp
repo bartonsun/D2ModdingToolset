@@ -79,32 +79,72 @@ CNetCustomPlayerServer::~CNetCustomPlayerServer()
     getService()->removeRoomsCallback(&m_roomsCallback);
 }
 
-std::set<SLNet::RakNetGUID> CNetCustomPlayerServer::getClients() const
-{
-    std::lock_guard lock(m_clientsMutex);
-    return m_clients;
-}
-
-void CNetCustomPlayerServer::addClient(const SLNet::RakNetGUID& guid)
+bool CNetCustomPlayerServer::addClient(const SLNet::RakNetGUID& guid, const SLNet::RakString& name)
 {
     {
         std::lock_guard lock(m_clientsMutex);
-        m_clients.insert(guid);
+        auto result = m_clients.insert({guid, name});
+        if (!result.second) {
+            logDebug(
+                "lobby.log",
+                fmt::format(
+                    "CNetCustomPlayerServer::addClient failed because the guid already exists, guid = {:d}, name = {:s}",
+                    guid.ToUint32(guid), name.C_String()));
+            return false;
+        }
     }
 
     auto system = getSystem();
     system->vftable->onPlayerConnected(system, (int)getClientId(guid));
+    return true;
 }
 
-void CNetCustomPlayerServer::removeClient(const SLNet::RakNetGUID& guid)
+bool CNetCustomPlayerServer::removeClient(const SLNet::RakNetGUID& guid)
 {
     {
         std::lock_guard lock(m_clientsMutex);
-        m_clients.erase(guid);
+        size_t result = m_clients.erase(guid);
+        if (!result) {
+            logDebug(
+                "lobby.log",
+                fmt::format(
+                    "CNetCustomPlayerServer::removeClient failed because the guid does not exist, guid = {:d}",
+                    guid.ToUint32(guid)));
+            return false;
+        }
     }
 
     auto system = getSystem();
     system->vftable->onPlayerDisconnected(system, (int)getClientId(guid));
+    return true;
+}
+
+bool CNetCustomPlayerServer::removeClient(const SLNet::RakString& name)
+{
+    SLNet::RakNetGUID guid = SLNet::UNASSIGNED_RAKNET_GUID;
+    {
+        std::lock_guard lock(m_clientsMutex);
+        for (auto it = m_clients.begin(); it != m_clients.end(); ++it) {
+            if (it->second == name) {
+                guid = it->first;
+                m_clients.erase(guid);
+                break;
+            }
+        }
+    }
+
+    if (guid == SLNet::UNASSIGNED_RAKNET_GUID) {
+        logDebug(
+            "lobby.log",
+            fmt::format(
+                "CNetCustomPlayerServer::removeClient failed because the name does not exist, name = {:s}",
+                name.C_String()));
+        return false;
+    }
+
+    auto system = getSystem();
+    system->vftable->onPlayerDisconnected(system, (int)getClientId(guid));
+    return true;
 }
 
 void __fastcall CNetCustomPlayerServer::destructor(CNetCustomPlayerServer* thisptr,
@@ -126,7 +166,14 @@ bool __fastcall CNetCustomPlayerServer::sendMessage(CNetCustomPlayerServer* this
                                                     int idTo,
                                                     const game::NetMessageHeader* message)
 {
-    auto clients = thisptr->getClients();
+    std::set<SLNet::RakNetGUID> clients;
+    {
+        std::lock_guard lock(thisptr->m_clientsMutex);
+        for (const auto& client : thisptr->m_clients) {
+            clients.insert(client.first);
+        }
+    }
+
     if (idTo == game::broadcastNetPlayerId) {
         logDebug("lobby.log", "CNetCustomPlayerServer sendMessage broadcast");
         return thisptr->sendMessage(message, std::move(clients));
@@ -196,7 +243,8 @@ void CNetCustomPlayerServer::PeerCallbacks::onPacketReceived(DefaultMessageIDTyp
     case ID_NEW_INCOMING_CONNECTION: {
         logDebug("lobby.log", fmt::format("PlayerServer: Incoming connection, id 0x{:x}",
                                           getClientId(packet->guid)));
-        m_player->addClient(packet->guid);
+        // TODO: check and remove, no direct connection is expected
+        // m_player->addClient(packet->guid);
         break;
     }
     case ID_NO_FREE_INCOMING_CONNECTIONS:
@@ -240,7 +288,7 @@ void CNetCustomPlayerServer::RoomsCallback::CreateRoom_Callback(
 {
     // TODO: looks like the server player is create after the room so we are not getting this
     // notification. Find out if this is ok and handle it.
-    m_player->addClient(m_player->getService()->getPeerGuid());
+    // m_player->addClient(m_player->getService()->getPeerGuid());
 }
 
 void CNetCustomPlayerServer::RoomsCallback::LeaveRoom_Callback(
@@ -251,17 +299,22 @@ void CNetCustomPlayerServer::RoomsCallback::LeaveRoom_Callback(
 }
 
 void CNetCustomPlayerServer::RoomsCallback::RoomMemberLeftRoom_Callback(
-    const SLNet::SystemAddress& senderAddress,
+    const SLNet::SystemAddress& /*senderAddress is the lobby*/,
     SLNet::RoomMemberLeftRoom_Notification* notification)
 {
-    // TODO: determine left player (by his name?) and do removeClient
+    logDebug("lobby.log", fmt::format("CNetCustomPlayerServer RoomMemberLeftRoom {:s}",
+                                      notification->roomMember.C_String()));
+    m_player->removeClient(notification->roomMember);
 }
 
 void CNetCustomPlayerServer::RoomsCallback::RoomMemberJoinedRoom_Callback(
-    const SLNet::SystemAddress& senderAddress,
+    const SLNet::SystemAddress& /*senderAddress is the lobby*/,
     SLNet::RoomMemberJoinedRoom_Notification* notification)
 {
-    m_player->addClient(notification->joinedRoomResult->joiningMemberGuid);
+    const auto result = notification->joinedRoomResult;
+    logDebug("lobby.log", fmt::format("CNetCustomPlayerServer RoomMemberJoinedRoom {:s}",
+                                      result->joiningMemberName.C_String()));
+    m_player->addClient(result->joiningMemberGuid, result->joiningMemberName);
 }
 
 } // namespace hooks
