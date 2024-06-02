@@ -765,7 +765,11 @@ void CMenuCustomLobby::processJoin(const char* roomName, const SLNet::RakNetGUID
         return;
     }
 
-    auto netSession = CNetCustomSession::create(netService, roomName, serverGuid);
+    // TODO: netService->joinSession
+    // TODO: fill in the password and use it to enter
+    // TODO: move joining process inside joinSession method
+    auto netSession = (CNetCustomSession*)game::Memory::get().allocate(sizeof(CNetCustomSession));
+    new (netSession) CNetCustomSession(netService, roomName, "", serverGuid);
 
     logDebug("roomJoin.log", fmt::format("Created netSession {:p}", (void*)netSession));
 

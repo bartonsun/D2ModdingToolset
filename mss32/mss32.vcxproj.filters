@@ -836,20 +836,11 @@
     <ClCompile Include="src\menuflashwait.cpp">
       <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="src\menunewskirmishhooks.cpp">
-      <Filter>hooks</Filter>
-    </ClCompile>
-    <ClCompile Include="src\roomservercreation.cpp">
-      <Filter>features\lobby</Filter>
-    </ClCompile>
     <ClCompile Include="src\menunewskirmishmulti.cpp">
       <Filter>game</Filter>
     </ClCompile>
     <ClCompile Include="src\menuload.cpp">
       <Filter>game</Filter>
-    </ClCompile>
-    <ClCompile Include="src\menuloadskirmishmultihooks.cpp">
-      <Filter>hooks</Filter>
     </ClCompile>
     <ClCompile Include="src\roompasswordinterf.cpp">
       <Filter>features\lobby</Filter>
@@ -2440,20 +2431,11 @@
     <ClInclude Include="include\loginaccountinterf.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
-    <ClInclude Include="include\menunewskirmishhooks.h">
-      <Filter>hooks</Filter>
-    </ClInclude>
-    <ClInclude Include="include\roomservercreation.h">
-      <Filter>features\lobby</Filter>
-    </ClInclude>
     <ClInclude Include="include\menunewskirmishmulti.h">
       <Filter>game</Filter>
     </ClInclude>
     <ClInclude Include="include\menuload.h">
       <Filter>game</Filter>
-    </ClInclude>
-    <ClInclude Include="include\menuloadskirmishmultihooks.h">
-      <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\roompasswordinterf.h">
       <Filter>features\lobby</Filter>

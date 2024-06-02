@@ -105,7 +105,7 @@ public:
     void setCurrentLobbyPlayer(const char* accountName);
 
     /** Tries to create and enter a new room. */
-    bool createRoom(const char* password = nullptr);
+    bool createRoom(const char* name, const char* password = nullptr);
 
     /** Requests a list of rooms for specified account. */
     bool searchRooms(const char* accountName = nullptr);

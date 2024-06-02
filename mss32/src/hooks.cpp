@@ -103,8 +103,6 @@
 #include "managestkinterfhooks.h"
 #include "mapgen.h"
 #include "mempool.h"
-#include "menuloadskirmishmultihooks.h"
-#include "menunewskirmishhooks.h"
 #include "menunewskirmishsingle.h"
 #include "menuphasehooks.h"
 #include "menuprotocolhooks.h"
@@ -452,8 +450,6 @@ static Hooks getGameHooks()
         hooks.emplace_back(HookInfo{CMenuProtocolApi::get().createMenu, menuProtocolCreateMenuHooked});
         hooks.emplace_back(HookInfo{CMenuProtocolApi::get().continueHandler, menuProtocolContinueHandlerHooked, (void**)&orig.menuProtocolContinueHandler});
         hooks.emplace_back(HookInfo{CMenuProtocolApi::get().displayCallback, menuProtocolDisplayCallbackHooked, (void**)&orig.menuProtocolDisplayCallback});
-        hooks.emplace_back(HookInfo{CMenuNewSkirmishApi::get().loadScenarioCallback, menuNewSkirmishLoadScenarioCallbackHooked, (void**)&orig.menuNewSkirmishLoadScenario});
-        hooks.emplace_back(HookInfo{CMenuLoadApi::get().buttonLoadCallback, menuLoadSkirmishMultiLoadScenarioHooked, (void**)&orig.menuLoadSkirmishMultiLoadScenario});
         // clang-format on
     }
 

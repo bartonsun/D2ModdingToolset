@@ -110,10 +110,6 @@ struct OriginalFunctions
     game::CMenuProtocolApi::Api::DisplayCallback menuProtocolDisplayCallback;
     game::CMenuProtocolApi::Api::ButtonHandler menuProtocolContinueHandler;
 
-    game::CMenuBaseApi::Api::ButtonCallback menuNewSkirmishLoadScenario;
-
-    game::CMenuLoadApi::Api::ButtonCallback menuLoadSkirmishMultiLoadScenario;
-
     game::GameImagesApi::Api::GetCityPreviewLargeImageNames getCityPreviewLargeImageNames;
     game::GameImagesApi::Api::GetCityIconImageNames getCityIconImageNames;
 

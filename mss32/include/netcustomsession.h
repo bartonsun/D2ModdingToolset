@@ -22,6 +22,7 @@
 
 #include "d2list.h"
 #include "mqnetsession.h"
+#include <RoomsPlugin.h>
 #include <slikenet/types.h>
 #include <string>
 #include <vector>
@@ -45,13 +46,11 @@ class CNetCustomPlayerServer;
 class CNetCustomSession : public game::IMqNetSession
 {
 public:
-    static CNetCustomSession* create(CNetCustomService* service,
-                                     const char* name,
-                                     const SLNet::RakNetGUID& serverGuid);
     CNetCustomSession(CNetCustomService* service,
                       const char* name,
+                      const char* password,
                       const SLNet::RakNetGUID& serverGuid);
-    ~CNetCustomSession() = default;
+    ~CNetCustomSession();
 
     CNetCustomService* getService() const;
     const std::string& getName() const;
@@ -86,8 +85,24 @@ protected:
                                         game::IMqNetReception* reception);
 
 private:
+    class RoomsCallback : public SLNet::RoomsCallback
+    {
+    public:
+        RoomsCallback(CNetCustomSession* session)
+            : m_session{session}
+        { }
+
+        void CreateRoom_Callback(const SLNet::SystemAddress& senderAddress,
+                                 SLNet::CreateRoom_Func* callResult) override;
+
+    private:
+        CNetCustomSession* m_session;
+    };
+
+    RoomsCallback m_roomsCallback;
     CNetCustomService* m_service;
     std::string m_name;
+    std::string m_password;
     int m_clientCount;
     int m_maxPlayers;
     bool m_isHost;

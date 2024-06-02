@@ -287,10 +287,9 @@ void CNetCustomService::setCurrentLobbyPlayer(const char* accountName)
     }
 }
 
-bool CNetCustomService::createRoom(const char* password)
+bool CNetCustomService::createRoom(const char* name, const char* password)
 {
-    auto roomName = m_session->getName();
-    if (!roomName.length()) {
+    if (!strlen(name)) {
         logDebug("lobby.log", "Could not create a room: no room name provided");
         return false;
     }
@@ -301,7 +300,7 @@ bool CNetCustomService::createRoom(const char* password)
     room.resultCode = SLNet::REC_SUCCESS;
 
     auto& params = room.networkedRoomCreationParameters;
-    params.roomName = roomName.c_str();
+    params.roomName = name;
     params.slots.publicSlots = 1;
     params.slots.reservedSlots = 0;
     params.slots.spectatorSlots = 0;
@@ -499,10 +498,10 @@ void __fastcall CNetCustomService::createSession(CNetCustomService* thisptr,
 {
     logDebug("lobby.log",
              fmt::format("CNetCustomService createSession called. Name '{:s}'", sessionName));
-
-    // TODO: create session here
-    // We already created a session, just return it
-    *netSession = thisptr->m_session;
+    auto session = (CNetCustomSession*)game::Memory::get().allocate(sizeof(CNetCustomSession));
+    new (session) CNetCustomSession(thisptr, sessionName, password, thisptr->getPeerGuid());
+    thisptr->m_session = session;
+    *netSession = session;
 }
 
 void __fastcall CNetCustomService::joinSession(CNetCustomService* thisptr,

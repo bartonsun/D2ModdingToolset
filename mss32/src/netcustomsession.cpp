@@ -25,6 +25,7 @@
 #include "netcustomplayerclient.h"
 #include "netcustomplayerserver.h"
 #include "netcustomservice.h"
+#include "utils.h"
 #include <atomic>
 #include <chrono>
 #include <fmt/format.h>
@@ -32,25 +33,19 @@
 
 namespace hooks {
 
-CNetCustomSession* CNetCustomSession::create(CNetCustomService* service,
-                                             const char* name,
-                                             const SLNet::RakNetGUID& serverGuid)
-{
-    auto session = (CNetCustomSession*)game::Memory::get().allocate(sizeof(CNetCustomSession));
-    new (session) CNetCustomSession(service, name, serverGuid);
-    return session;
-}
-
 CNetCustomSession::CNetCustomSession(CNetCustomService* service,
                                      const char* name,
+                                     const char* password,
                                      const SLNet::RakNetGUID& serverGuid)
     : m_service{service}
     , m_name{name}
+    , m_password{password}
     , m_clientCount{0}
     , m_maxPlayers{2}
     , m_isHost{serverGuid == service->getPeerGuid()}
     , m_server(nullptr)
     , m_serverGuid(serverGuid)
+    , m_roomsCallback(this)
 {
     logDebug("lobby.log", fmt::format("Creating CNetCustomSession with server: {:x}, host: {:d}",
                                       m_serverGuid.g, m_isHost));
@@ -66,6 +61,23 @@ CNetCustomSession::CNetCustomSession(CNetCustomService* service,
     };
 
     this->vftable = &vftable;
+    service->addRoomsCallback(&m_roomsCallback);
+
+    // Creating/joining a room after session creation inside the session itself because the process is asynchronous
+    if (m_isHost) {
+        if (!service->createRoom(name, password)) {
+            logDebug("lobby.log", "Failed to request room creation");
+            showMessageBox("Failed to request room creation");
+            // TODO: return to lobby menu
+        }
+    } else {
+        // TODO: move join room logic here
+    }
+}
+
+CNetCustomSession ::~CNetCustomSession()
+{
+    getService()->removeRoomsCallback(&m_roomsCallback);
 }
 
 CNetCustomService* CNetCustomSession::getService() const
@@ -177,6 +189,23 @@ void __fastcall CNetCustomSession::createServer(CNetCustomSession* thisptr,
 
     thisptr->m_server = CNetCustomPlayerServer::create(thisptr, netSystem, reception);
     *server = (game::IMqNetPlayerServer*)thisptr->m_server;
+}
+
+void CNetCustomSession::RoomsCallback::CreateRoom_Callback(
+    const SLNet::SystemAddress& senderAddress,
+    SLNet::CreateRoom_Func* callResult)
+{
+    if (callResult->resultCode != SLNet::REC_SUCCESS) {
+        auto result{SLNet::RoomsErrorCodeDescription::ToEnglish(callResult->resultCode)};
+        const auto msg{fmt::format("Could not create a room.\nReason: {:s}", result)};
+
+        logDebug("lobby.log", msg);
+        showMessageBox(msg);
+        // TODO: return to lobby menu
+        return;
+    }
+
+    // TODO: save roomId for futher callback filtering
 }
 
 } // namespace hooks
