@@ -62,17 +62,6 @@ CNetCustomSession::CNetCustomSession(CNetCustomService* service,
 
     this->vftable = &vftable;
     service->addRoomsCallback(&m_roomsCallback);
-
-    // Creating/joining a room after session creation inside the session itself because the process is asynchronous
-    if (m_isHost) {
-        if (!service->createRoom(name, password)) {
-            logDebug("lobby.log", "Failed to request room creation");
-            showMessageBox("Failed to request room creation");
-            // TODO: return to lobby menu
-        }
-    } else {
-        // TODO: move join room logic here
-    }
 }
 
 CNetCustomSession ::~CNetCustomSession()

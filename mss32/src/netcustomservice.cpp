@@ -500,6 +500,13 @@ void __fastcall CNetCustomService::createSession(CNetCustomService* thisptr,
              fmt::format("CNetCustomService createSession called. Name '{:s}'", sessionName));
     auto session = (CNetCustomSession*)game::Memory::get().allocate(sizeof(CNetCustomSession));
     new (session) CNetCustomSession(thisptr, sessionName, password, thisptr->getPeerGuid());
+    // Creating a room after the session because the session needs to add its Rooms callback to get
+    // CreateRoom notification
+    if (!thisptr->createRoom(sessionName, password)) {
+        logDebug("lobby.log", "Failed to request room creation");
+        session->vftable->destructor(session, 1);
+        session = nullptr;
+    }
     thisptr->m_session = session;
     *netSession = session;
 }
@@ -510,9 +517,8 @@ void __fastcall CNetCustomService::joinSession(CNetCustomService* thisptr,
                                                game::IMqNetSessEnum* netSessionEnum,
                                                const char* password)
 {
-    // This method is used by vanilla interface.
-    // Since we are using our custom one, we can join session directly and ignore this method.
     logDebug("lobby.log", "CNetCustomService joinSession called");
+    // TODO: move join room logic here
 }
 
 void __fastcall CNetCustomService::peerProcessEventCallback(CNetCustomService* thisptr,
