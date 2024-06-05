@@ -188,6 +188,9 @@ struct Api
 
     using BackToMainOrCloseGame = void(__thiscall*)(CMenuPhase* thisptr, bool showIntroTransition);
     BackToMainOrCloseGame backToMainOrCloseGame;
+
+    using OpenOrCloseScenarioFile = bool(__thiscall*)(CMenuPhase* thisptr, const char* filePath);
+    OpenOrCloseScenarioFile openOrCloseScenarioFile;
 };
 
 Api& get();
