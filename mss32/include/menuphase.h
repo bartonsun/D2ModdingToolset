@@ -185,6 +185,9 @@ struct Api
     SwitchToMenu switchToLobbyHostJoin;
     // 16
     SwitchToMenu switchToWait;
+
+    using BackToMainOrCloseGame = void(__thiscall*)(CMenuPhase* thisptr, bool showIntroTransition);
+    BackToMainOrCloseGame backToMainOrCloseGame;
 };
 
 Api& get();
