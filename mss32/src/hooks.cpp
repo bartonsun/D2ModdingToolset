@@ -446,6 +446,7 @@ static Hooks getGameHooks()
         // clang-format off
         // Support new menu windows
         hooks.emplace_back(HookInfo{CMenuPhaseApi::get().setTransition, menuPhaseSetTransitionHooked});
+        hooks.emplace_back(HookInfo{CMenuPhaseApi::get().backToMainOrCloseGame, menuPhaseBackToMainOrCloseGameHooked, (void**)&orig.menuPhaseBackToMainOrCloseGame});
         // Support custom lobby server
         hooks.emplace_back(HookInfo{CMenuProtocolApi::get().createMenu, menuProtocolCreateMenuHooked});
         hooks.emplace_back(HookInfo{CMenuProtocolApi::get().continueHandler, menuProtocolContinueHandlerHooked, (void**)&orig.menuProtocolContinueHandler});

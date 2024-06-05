@@ -40,6 +40,8 @@ class CMenuCustomLobby : public game::CMenuBase
 {
 public:
     static constexpr char dialogName[] = "DLG_CUSTOM_LOBBY";
+    static constexpr char transitionFromProtoName[] = "TRANS_PROTO2CUSTOMLOBBY";
+    static constexpr char transitionFromBlackName[] = "TRANS_BLACK2CUSTOMLOBBY";
     static constexpr std::uint32_t roomListUpdateInterval{5000};
 
     static CMenuCustomLobby* create(game::CMenuPhase* menuPhase);
@@ -72,6 +74,7 @@ protected:
                                                  int /*%edx*/,
                                                  const game::CGameVersionMsg* message,
                                                  std::uint32_t idFrom);
+    static void __fastcall backBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
 
     static void onRoomPasswordCorrect(CMenuCustomLobby* menu);
     static void onRoomPasswordCancel(CMenuCustomLobby* menu);

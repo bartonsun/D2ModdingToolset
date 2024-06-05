@@ -22,6 +22,8 @@
 #include "menucustomlobby.h"
 #include "menuphase.h"
 #include "midgard.h"
+#include "netcustomservice.h"
+#include "originalfunctions.h"
 #include <fmt/format.h>
 
 namespace hooks {
@@ -99,7 +101,7 @@ void __fastcall menuPhaseSetTransitionHooked(game::CMenuPhase* thisptr,
                 logDebug("transitions.log", "Try to transition to 35 while playing animation");
                 menuPhase.showFullScreenAnimation(thisptr, &data->transitionNumber,
                                                   &data->interfManager, &data->currentMenu, 35,
-                                                  "TRANS_PROTO2MULTI");
+                                                  CMenuCustomLobby::transitionFromProtoName);
             } else {
                 menuPhase.transitionFromProto(thisptr, next);
             }
@@ -232,6 +234,33 @@ void __fastcall menuPhaseSetTransitionHooked(game::CMenuPhase* thisptr,
 
         break;
     }
+}
+
+void __fastcall menuPhaseBackToMainOrCloseGameHooked(game::CMenuPhase* thisptr,
+                                                     int /*%edx*/,
+                                                     bool showIntroTransition)
+{
+    using namespace game;
+
+    if (!getNetService()) {
+        getOriginalFunctions().menuPhaseBackToMainOrCloseGame(thisptr, showIntroTransition);
+        return;
+    }
+
+    const auto& midgardApi = CMidgardApi::get();
+    const auto& menuPhaseApi = CMenuPhaseApi::get();
+
+    menuPhaseApi.openOrCloseScenarioFile(thisptr, nullptr);
+
+    // Clear network state while preserving net service - because it holds connection with the lobby
+    // server. GameSpy does the same.
+    auto data = thisptr->data;
+    midgardApi.clearNetworkState(data->midgard);
+
+    // Back to lobby screen
+    menuPhaseApi.showFullScreenAnimation(thisptr, &data->transitionNumber, &data->interfManager,
+                                         &data->currentMenu, 35,
+                                         CMenuCustomLobby::transitionFromBlackName);
 }
 
 } // namespace hooks

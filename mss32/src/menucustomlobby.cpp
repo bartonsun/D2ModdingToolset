@@ -39,6 +39,7 @@
 #include "netmessages.h"
 #include "netmsgcallbacks.h"
 #include "netmsgmapentry.h"
+#include "originalfunctions.h"
 #include "racelist.h"
 #include "registeraccountinterf.h"
 #include "roompasswordinterf.h"
@@ -557,6 +558,16 @@ bool __fastcall CMenuCustomLobby::gameVersionMsgHandler(CMenuCustomLobby* menu,
     return true;
 }
 
+void __fastcall CMenuCustomLobby::backBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
+{
+    // TODO: confirmation dialog
+
+    using namespace game;
+
+    auto menuPhase = thisptr->menuBaseData->menuPhase;
+    getOriginalFunctions().menuPhaseBackToMainOrCloseGame(menuPhase, true);
+}
+
 void CMenuCustomLobby::initializeButtonsHandlers()
 {
     using namespace game;
@@ -570,7 +581,7 @@ void CMenuCustomLobby::initializeButtonsHandlers()
     auto dialog = menuBaseApi.getDialogInterface(this);
 
     SmartPointer functor;
-    auto callback = menuBaseApi.buttonBackCallback;
+    auto callback = (CMenuBaseApi::Api::ButtonCallback)backBtnHandler;
     menuBaseApi.createButtonFunctor(&functor, 0, this, &callback);
     buttonApi.assignFunctor(dialog, "BTN_BACK", dialogName, &functor, 0);
     freeFunctor(&functor, nullptr);

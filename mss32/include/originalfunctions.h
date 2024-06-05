@@ -106,6 +106,8 @@ struct OriginalFunctions
 
     game::IEffectResultApi::Api::Create createEffectResult;
 
+    game::CMenuPhaseApi::Api::BackToMainOrCloseGame menuPhaseBackToMainOrCloseGame;
+
     game::CMenuProtocolApi::Api::DisplayCallback menuProtocolDisplayCallback;
     game::CMenuProtocolApi::Api::ButtonHandler menuProtocolContinueHandler;
 
