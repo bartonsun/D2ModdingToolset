@@ -94,7 +94,8 @@ struct CMidgardData
     char unknown16[52];
     CMqFps* fps;
     bool showFullSystemInfo;
-    char padding2[3];
+    bool unknown249; // Set to false when clearing network state
+    char padding2[2];
 };
 
 assert_size(CMidgardData, 252);
@@ -103,6 +104,7 @@ assert_offset(CMidgardData, host, 50);
 assert_offset(CMidgardData, settings, 60);
 assert_offset(CMidgardData, closeEvent, 156);
 assert_offset(CMidgardData, fps, 244);
+assert_offset(CMidgardData, unknown249, 249);
 
 struct CMidgard
     : public IMqNetTraffic
