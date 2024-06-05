@@ -153,6 +153,20 @@ struct Api
      */
     using SendNetMsgToServer = bool(__thiscall*)(CMidgard* thisptr, const CNetMsg* message);
     SendNetMsgToServer sendNetMsgToServer;
+
+    /**
+     * Destroys CMidServer and CMidClient, clears client players list and drops all net messages
+     * from game window's queue.
+     */
+    using ClearNetworkState = void(__thiscall*)(CMidgard* thisptr);
+    ClearNetworkState clearNetworkState;
+
+    /**
+     * Identical to ClearNetworkState plus destroys net service, sets multiplayerGame and host to
+     * false.
+     */
+    using ClearNetworkStateAndService = void(__thiscall*)(CMidgard* thisptr);
+    ClearNetworkStateAndService clearNetworkStateAndService;
 };
 
 Api& get();
