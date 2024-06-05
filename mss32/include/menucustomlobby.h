@@ -21,6 +21,7 @@
 #define MENUCUSTOMLOBBY_H
 
 #include "menubase.h"
+#include "midmsgboxbuttonhandler.h"
 #include "uievent.h"
 #include <Lobby2Message.h>
 #include <RoomsPlugin.h>
@@ -115,6 +116,25 @@ private:
     private:
         CMenuCustomLobby* menuLobby;
     };
+
+    struct CConfirmBackMsgBoxButtonHandler : public game::CMidMsgBoxButtonHandler
+    {
+    public:
+        CConfirmBackMsgBoxButtonHandler(CMenuCustomLobby* menuLobby);
+
+    protected:
+        static void __fastcall destructor(CConfirmBackMsgBoxButtonHandler* thisptr,
+                                          int /*%edx*/,
+                                          char flags);
+        static void __fastcall handler(CConfirmBackMsgBoxButtonHandler* thisptr,
+                                       int /*%edx*/,
+                                       game::CMidgardMsgBox* msgBox,
+                                       bool okPressed);
+
+    private:
+        CMenuCustomLobby* menuLobby;
+    };
+    assert_offset(CConfirmBackMsgBoxButtonHandler, vftable, 0);
 
     struct RoomInfo
     {

@@ -109,6 +109,7 @@ struct TextIds
         std::string requestHashCheckFailed;
         std::string wrongHash;
         std::string wrongRoomPassword;
+        std::string confirmBack;
     } lobby;
 };
 

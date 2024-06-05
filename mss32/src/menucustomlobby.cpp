@@ -26,6 +26,7 @@
 #include "image2fill.h"
 #include "image2outline.h"
 #include "image2text.h"
+#include "interfmanager.h"
 #include "listbox.h"
 #include "log.h"
 #include "loginaccountinterf.h"
@@ -33,6 +34,7 @@
 #include "menuflashwait.h"
 #include "menuphase.h"
 #include "midgard.h"
+#include "midgardmsgbox.h"
 #include "netcustomplayerclient.h"
 #include "netcustomservice.h"
 #include "netcustomsession.h"
@@ -44,6 +46,7 @@
 #include "registeraccountinterf.h"
 #include "roompasswordinterf.h"
 #include "textboxinterf.h"
+#include "textids.h"
 #include "uimanager.h"
 #include "utils.h"
 #include <chrono>
@@ -560,12 +563,18 @@ bool __fastcall CMenuCustomLobby::gameVersionMsgHandler(CMenuCustomLobby* menu,
 
 void __fastcall CMenuCustomLobby::backBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
 {
-    // TODO: confirmation dialog
-
     using namespace game;
 
-    auto menuPhase = thisptr->menuBaseData->menuPhase;
-    getOriginalFunctions().menuPhaseBackToMainOrCloseGame(menuPhase, true);
+    auto message = getInterfaceText(textIds().lobby.confirmBack.c_str());
+    if (message.empty()) {
+        message = "Do you really want to exit the lobby?";
+    }
+
+    auto handler = (CConfirmBackMsgBoxButtonHandler*)Memory::get().allocate(
+        sizeof(CConfirmBackMsgBoxButtonHandler));
+    new (handler) CConfirmBackMsgBoxButtonHandler(thisptr);
+
+    hooks::showMessageBox(message, handler, true);
 }
 
 void CMenuCustomLobby::initializeButtonsHandlers()
@@ -983,6 +992,45 @@ void CMenuCustomLobby::RoomListCallbacks::SearchByFilter_Callback(
     }
 
     menuLobby->setRoomsInfo(std::move(roomsInfo));
+}
+
+CMenuCustomLobby::CConfirmBackMsgBoxButtonHandler::CConfirmBackMsgBoxButtonHandler(
+    CMenuCustomLobby* menuLobby)
+    : menuLobby{menuLobby}
+{
+    static game::CMidMsgBoxButtonHandlerVftable vftable = {
+        (game::CMidMsgBoxButtonHandlerVftable::Destructor)destructor,
+        (game::CMidMsgBoxButtonHandlerVftable::Handler)handler,
+    };
+
+    this->vftable = &vftable;
+}
+
+void __fastcall CMenuCustomLobby::CConfirmBackMsgBoxButtonHandler::destructor(
+    CConfirmBackMsgBoxButtonHandler* thisptr,
+    int /*%edx*/,
+    char flags)
+{ }
+
+void __fastcall CMenuCustomLobby::CConfirmBackMsgBoxButtonHandler::handler(
+    CConfirmBackMsgBoxButtonHandler* thisptr,
+    int /*%edx*/,
+    game::CMidgardMsgBox* msgBox,
+    bool okPressed)
+{
+    using namespace game;
+
+    auto interfManager = thisptr->menuLobby->interfaceData->interfManager.data;
+    interfManager->CInterfManagerImpl::CInterfManager::vftable->hideInterface(interfManager,
+                                                                              msgBox);
+    if (msgBox) {
+        msgBox->vftable->destructor(msgBox, 1);
+    }
+
+    if (okPressed) {
+        auto menuPhase = thisptr->menuLobby->menuBaseData->menuPhase;
+        getOriginalFunctions().menuPhaseBackToMainOrCloseGame(menuPhase, true);
+    }
 }
 
 } // namespace hooks

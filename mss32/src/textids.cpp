@@ -109,6 +109,7 @@ void readLobbyTextIds(const sol::table& table, TextIds::Lobby& value)
     value.requestHashCheckFailed = lobby.get_or("requestHashCheckFailed", std::string());
     value.wrongHash = lobby.get_or("wrongHash", std::string());
     value.wrongRoomPassword = lobby.get_or("wrongRoomPassword", std::string());
+    value.confirmBack = lobby.get_or("confirmBack", std::string());
 }
 
 void readInterfTextIds(const sol::table& table, TextIds::Interf& value)
