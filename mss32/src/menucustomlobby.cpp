@@ -132,8 +132,10 @@ CMenuCustomLobby ::~CMenuCustomLobby()
     UiEventApi::get().destructor(&roomsListEvent);
 
     auto service = getNetService();
-    service->removeLobbyCallbacks(&uiCallbacks);
-    service->removeRoomsCallback(&roomsCallbacks);
+    if (service) {
+        service->removeLobbyCallbacks(&uiCallbacks);
+        service->removeRoomsCallback(&roomsCallbacks);
+    }
 
     CMenuBaseApi::get().destructor(this);
 }
