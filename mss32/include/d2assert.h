@@ -34,4 +34,8 @@
     static_assert(offsetof(type, field) == (offset),                                               \
                   #type "::" #field " offset must be " #offset " bytes")
 
+#define assert_enum_value(enum_, member, value)                                                    \
+    static_assert(static_cast<int>(enum_::member) == value,                                        \
+                  "Invalid value " #value " of " #enum_ "::" #member)
+
 #endif // D2ASSERT_H
