@@ -61,7 +61,7 @@ std::array<Api, 3> functions = {{
         (Api::SwitchToMenu)0x4ec4e0,
         (Api::SwitchToMenu)0x4ebbf4,
         (Api::BackToMainOrCloseGame)0x4eacf1,
-        (Api::OpenOrCloseScenarioFile)0x4ebab0,
+        (Api::OpenScenarioFile)0x4ebab0,
     },
     // Russobit
     Api{
@@ -99,7 +99,7 @@ std::array<Api, 3> functions = {{
         (Api::SwitchToMenu)0x4ec4e0,
         (Api::SwitchToMenu)0x4ebbf4,
         (Api::BackToMainOrCloseGame)0x4eacf1,
-        (Api::OpenOrCloseScenarioFile)0x4ebab0,
+        (Api::OpenScenarioFile)0x4ebab0,
     },
     // Gog
     Api{
@@ -137,7 +137,7 @@ std::array<Api, 3> functions = {{
         (Api::SwitchToMenu)0x4eb9a0,
         (Api::SwitchToMenu)0x4eb0b4,
         (Api::BackToMainOrCloseGame)0x4ea1a3,
-        (Api::OpenOrCloseScenarioFile)0x4eaf69,
+        (Api::OpenScenarioFile)0x4eaf69,
     },
 }};
 // clang-format on

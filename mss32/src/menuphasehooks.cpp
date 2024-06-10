@@ -250,7 +250,8 @@ void __fastcall menuPhaseBackToMainOrCloseGameHooked(game::CMenuPhase* thisptr,
     const auto& midgardApi = CMidgardApi::get();
     const auto& menuPhaseApi = CMenuPhaseApi::get();
 
-    menuPhaseApi.openOrCloseScenarioFile(thisptr, nullptr);
+    // Close the current scenario file
+    menuPhaseApi.openScenarioFile(thisptr, nullptr);
 
     // Clear network state while preserving net service - because it holds connection with the lobby
     // server. GameSpy does the same.
