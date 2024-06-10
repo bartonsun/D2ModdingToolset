@@ -54,7 +54,7 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             midgardApi.setClientsNetProxy(midgard, thisptr);
 
             data->currentPhase = MenuPhase::Session2LobbyJoin;
-            if (static_cast<int>(data->currentPhase) > 36) {
+            if (static_cast<int>(data->currentPhase) > static_cast<int>(MenuPhase::Last)) {
                 // TODO: wtf is this check
                 return;
             }
@@ -65,7 +65,7 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             data->currentPhase = transition == MenuTransition::Unknown2NewSkirmish
                                      ? MenuPhase::Unknown2NewSkirmish
                                      : MenuPhase::Unknown2LobbyHost;
-            if (static_cast<int>(data->currentPhase) > 36) {
+            if (static_cast<int>(data->currentPhase) > static_cast<int>(MenuPhase::Last)) {
                 // TODO: wtf is this check
                 return;
             }
@@ -95,7 +95,6 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
         case MenuPhase::Protocol: {
             logDebug("transitions.log", "Current is Protocol");
             if (transition == MenuTransition::Protocol2CustomLobby) {
-                // Show new fullscreen animation
                 logDebug("transitions.log", "Show Protocol2CustomLobby");
                 auto data = thisptr->data;
                 menuPhase.showFullScreenAnimation(thisptr, &data->currentPhase,
@@ -107,9 +106,9 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             }
             break;
         }
-        case MenuPhase::Protocol2CustomLobby: {
+        case MenuPhase::Protocol2CustomLobby:
+        case MenuPhase::Back2CustomLobby: {
             logDebug("transitions.log", "Show CustomLobby");
-            // Create custom lobby menu window during fullscreen animation
             CMenuPhaseApi::Api::CreateMenuCallback tmp = createCustomLobbyCallback;
             CMenuPhaseApi::Api::CreateMenuCallback* callback = &tmp;
             menuPhase.showMenu(thisptr, &data->currentPhase, &data->interfManager,
@@ -261,7 +260,7 @@ void __fastcall menuPhaseBackToMainOrCloseGameHooked(game::CMenuPhase* thisptr,
     // TODO: fix incorrect transition to lobby when back from proto when NetCustomService is present
     // (check current transition number)
     menuPhaseApi.showFullScreenAnimation(thisptr, &data->currentPhase, &data->interfManager,
-                                         &data->currentMenu, MenuPhase::Protocol2CustomLobby,
+                                         &data->currentMenu, MenuPhase::Back2CustomLobby,
                                          CMenuCustomLobby::transitionFromBlackName);
 }
 

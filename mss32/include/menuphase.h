@@ -163,6 +163,10 @@ enum class MenuPhase : int
     NewSkirmishHotseat2HotseatLobby = 14,
 
     CustomLobby = 36,
+
+    Back2CustomLobby = 37,
+
+    Last = Back2CustomLobby,
 };
 
 assert_enum_value(MenuPhase, Main, 0);
@@ -216,6 +220,7 @@ assert_enum_value(MenuPhase, Single2LoadSkirmish, 33);
 assert_enum_value(MenuPhase, Single2LoadCampaign, 34);
 assert_enum_value(MenuPhase, Protocol2CustomLobby, 35);
 assert_enum_value(MenuPhase, CustomLobby, 36);
+assert_enum_value(MenuPhase, Back2CustomLobby, 37);
 
 struct CMenuPhaseData
 {
