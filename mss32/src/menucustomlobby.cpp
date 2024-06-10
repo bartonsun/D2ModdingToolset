@@ -231,25 +231,27 @@ void __fastcall CMenuCustomLobby::roomsListSearchHandler(CMenuCustomLobby*, int 
 
 void __fastcall CMenuCustomLobby::createRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
 {
+    using namespace game;
+
     auto menuPhase = thisptr->menuBaseData->menuPhase;
-    // Pretend we are in CMenuMulti, transition to CMenuMultyHost
-    menuPhase->data->transitionNumber = 4;
+    menuPhase->data->currentPhase = MenuPhase::Multi;
 
     logDebug("transitions.log",
              "Create room, pretend we are in CMenuMulti, transition to CMenuNewSkirmishMulti");
-    game::CMenuPhaseApi::get().setTransition(menuPhase, 0);
+    game::CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Multi2NewSkirmish);
 }
 
 void __fastcall CMenuCustomLobby::loadBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
 {
-    // Pretend we are in CMenuMulti, transition to CMenuLoadSkirmishMulti
+    using namespace game;
+
     auto menuPhase = thisptr->menuBaseData->menuPhase;
-    menuPhase->data->transitionNumber = 4;
+    menuPhase->data->currentPhase = MenuPhase::Multi;
     menuPhase->data->loadScenario = true;
 
     logDebug("transitions.log",
              "Create room, pretend we are in CMenuMulti, transition to CMenuLoadSkirmishMulti");
-    game::CMenuPhaseApi::get().setTransition(menuPhase, 2);
+    game::CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Multi2LoadSkirmish);
 }
 
 int CMenuCustomLobby::getCurrentRoomIndex()
@@ -523,12 +525,12 @@ bool __fastcall CMenuCustomLobby::ansInfoMsgHandler(CMenuCustomLobby* menu,
     // Here we can set next menu transition, there is no need to hide wait message,
     // it will be hidden from the destructor
     // Pretend we are in transition 15, after CMenuSession, transition to CMenuLobbyJoin
-    menuPhase->data->transitionNumber = 15;
+    menuPhase->data->currentPhase = MenuPhase::Session2LobbyJoin;
     menuPhase->data->host = false;
 
     logDebug("transitions.log",
              "Joining room, pretend we are in phase 15, transition to CMenuLobbyJoin");
-    game::CMenuPhaseApi::get().setTransition(menuPhase, 0);
+    game::CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Session2LobbyJoin);
 
     return true;
 }

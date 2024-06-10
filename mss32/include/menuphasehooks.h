@@ -22,14 +22,14 @@
 
 namespace game {
 struct CMenuPhase;
-
-}
+enum class MenuTransition : int;
+} // namespace game
 
 namespace hooks {
 
-void __fastcall menuPhaseSetTransitionHooked(game::CMenuPhase* thisptr,
-                                             int /*%edx*/,
-                                             int transition);
+void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
+                                           int /*%edx*/,
+                                           game::MenuTransition transition);
 
 void __fastcall menuPhaseBackToMainOrCloseGameHooked(game::CMenuPhase* thisptr,
                                                      int /*%edx*/,

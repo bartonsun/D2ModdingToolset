@@ -27,8 +27,8 @@ namespace game::CMenuPhaseApi {
 std::array<Api, 3> functions = {{
     // Akella
     Api{
-        (Api::SetTransition)0x4eb20c,
-        (Api::DoTransition)0x4eae89,
+        (Api::SwitchPhase)0x4eb20c,
+        (Api::ShowMenu)0x4eae89,
         (Api::ShowFullScreenAnimation)0x4ead7e,
         (Api::SwitchToMenu)0x4eae4d,
         (Api::ShowTransition)0x4ebcd3,
@@ -65,8 +65,8 @@ std::array<Api, 3> functions = {{
     },
     // Russobit
     Api{
-        (Api::SetTransition)0x4eb20c,
-        (Api::DoTransition)0x4eae89,
+        (Api::SwitchPhase)0x4eb20c,
+        (Api::ShowMenu)0x4eae89,
         (Api::ShowFullScreenAnimation)0x4ead7e,
         (Api::SwitchToMenu)0x4eae4d,
         (Api::ShowTransition)0x4ebcd3,
@@ -103,8 +103,8 @@ std::array<Api, 3> functions = {{
     },
     // Gog
     Api{
-        (Api::SetTransition)0x4ea6be,
-        (Api::DoTransition)0x4ea33b,
+        (Api::SwitchPhase)0x4ea6be,
+        (Api::ShowMenu)0x4ea33b,
         (Api::ShowFullScreenAnimation)0x4ea230,
         (Api::SwitchToMenu)0x4ea2ff,
         (Api::ShowTransition)0x4eb193,

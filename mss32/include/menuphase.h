@@ -222,7 +222,7 @@ struct CMenuPhaseData
     CMidgard* midgard;
     CInterface* currentMenu;
     SmartPtr<CInterfManagerImpl> interfManager;
-    int transitionNumber;
+    MenuPhase currentPhase;
     ScenarioDataArrayWrapped* scenarios;
     SmartPtr<IMqImage2> transitionAnimation;
     int maxPlayers;
@@ -264,42 +264,53 @@ namespace CMenuPhaseApi {
 
 struct Api
 {
-    /** Sets menu transition index, implements menu screen transitions logic. */
-    using SetTransition = void(__thiscall*)(CMenuPhase* thisptr, int transition);
-    SetTransition setTransition;
+    /** Switches menu phase, implements menu screen transitions logic. */
+    using SwitchPhase = void(__thiscall*)(CMenuPhase* thisptr, MenuTransition transition);
+    SwitchPhase switchPhase;
 
     using CreateMenuCallback = CMenuBase*(__stdcall*)(CMenuPhase* menuPhase);
 
     /**
-     * Performs transition between two menu screens.
-     * @param[inout] transition pointer to store transition index.
+     * Replaces the currentMenu with a new menu created with the specified callback.
+     * Optionally creates the specified animation (without actually playing it).
+     * @param[in] menuPhase object to be passed to createMenuCallback.
+     * @param[inout] currentPhase currently displayed phase, replaced with newPhase.
      * @param[in] interfManager manager to hide and show menu screens.
-     * @param[in] nextMenu used to store next menu pointer after transition to it.
-     * @param[in] animation transition animation.
-     * @param nextTransition index of next menu screen.
-     * @param[in] animationName animation name to show during transition, optional.
-     * @param[in] callback callbacks that creates new menu object.
+     * @param[inout] currentMenu currently displayed menu, replaced with the new menu.
+     * @param[out] animation receives created animation, if animationName is provided.
+     * @param[in] newPhase phase to be set as current.
+     * @param[in] animationName name of animation to create, optional.
+     * @param[in] createMenuCallback function that creates the new menu.
      */
-    using DoTransition = void(__stdcall*)(CMenuPhase* menuPhase,
-                                          int* transition,
-                                          SmartPtr<CInterfManagerImpl>* interfManager,
-                                          CInterface** nextMenu,
-                                          SmartPtr<IMqImage2>* animation,
-                                          int nextTransition,
-                                          const char* animationName,
-                                          CreateMenuCallback** callback);
-    DoTransition doTransition;
+    using ShowMenu = void(__stdcall*)(CMenuPhase* menuPhase,
+                                      MenuPhase* currentPhase,
+                                      SmartPtr<CInterfManagerImpl>* interfManager,
+                                      CInterface** currentMenu,
+                                      SmartPtr<IMqImage2>* animation,
+                                      MenuPhase newPhase,
+                                      const char* animationName,
+                                      CreateMenuCallback** createMenuCallback);
+    ShowMenu showMenu;
 
+    /**
+     * Replaces the currentMenu with CMenuFullScreenAnim that plays the specified animation.
+     * @param[in] menuPhase object to be passed to CMenuFullScreenAnim constructor.
+     * @param[inout] currentPhase currently displayed phase, replaced with newPhase.
+     * @param[in] interfManager manager to hide and show menu screens.
+     * @param[inout] currentMenu currently displayed menu, replaced with CMenuFullScreenAnim.
+     * @param[in] newPhase phase to be set as current.
+     * @param[in] animationName name of animation to show.
+     */
     using ShowFullScreenAnimation = void(__stdcall*)(CMenuPhase* menuPhase,
-                                                     int* transition,
+                                                     MenuPhase* currentPhase,
                                                      SmartPtr<CInterfManagerImpl>* interfManager,
                                                      CInterface** currentMenu,
-                                                     int nextTransition,
+                                                     MenuPhase newPhase,
                                                      const char* animationName);
     ShowFullScreenAnimation showFullScreenAnimation;
 
     using SwitchToMenu = void(__thiscall*)(CMenuPhase* thisptr);
-    using ShowTransition = void(__thiscall*)(CMenuPhase* thisptr, int nextTransition);
+    using ShowTransition = void(__thiscall*)(CMenuPhase* thisptr, MenuTransition transition);
 
     // 21
     SwitchToMenu switchToMain;
@@ -324,7 +335,7 @@ struct Api
     // 27
     SwitchToMenu switchToNewSkirmish;
     // 6
-    SwitchToMenu switchTo15Or28;
+    SwitchToMenu transitionFromNewSkirmish;
     // 28
     SwitchToMenu switchToRaceSkirmish;
     // 7 reuses 5

@@ -33,201 +33,200 @@ game::CMenuBase* __stdcall createCustomLobbyCallback(game::CMenuPhase* menuPhase
     return CMenuCustomLobby::create(menuPhase);
 }
 
-void __fastcall menuPhaseSetTransitionHooked(game::CMenuPhase* thisptr,
-                                             int /*%edx*/,
-                                             int transition)
+void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
+                                           int /*%edx*/,
+                                           game::MenuTransition transition)
 {
     using namespace game;
-
-    auto transitionPtr = &thisptr->data->transitionNumber;
-    int current = *transitionPtr;
-    int next = transition;
-
-    logDebug("transitions.log",
-             fmt::format("Current state {:d}, transition to {:d}", current, next));
 
     auto& midgardApi = CMidgardApi::get();
     auto& menuPhase = CMenuPhaseApi::get();
 
+    auto data = thisptr->data;
     while (true) {
-        switch (current) {
+        switch (data->currentPhase) {
         default:
+            logDebug("transitions.log", "Current is unknown - doing nothing");
             break;
-        case 12: {
-            logDebug("transitions.log", "current is 12");
+        case MenuPhase::Session: {
+            logDebug("transitions.log", "Current is Session");
             auto midgard = midgardApi.instance();
             midgardApi.setClientsNetProxy(midgard, thisptr);
-            *transitionPtr = 15;
-            goto label_5;
-        }
-        case 13: {
-            logDebug("transitions.log", "current is 13");
-            *transitionPtr = next != 0 ? 15 : 27;
-        label_5:
-            next = 0;
-            transitionPtr = &thisptr->data->transitionNumber;
-            current = *transitionPtr;
-            if (*transitionPtr > 36) {
+
+            data->currentPhase = MenuPhase::Session2LobbyJoin;
+            if (static_cast<int>(data->currentPhase) > 36) {
+                // TODO: wtf is this check
                 return;
             }
-
             continue;
         }
-        case 20:
-            logDebug("transitions.log", "current is 20");
-            thisptr->data->transitionNumber = 21;
-            [[fallthrough]];
-        case 21:
-            logDebug("transitions.log", "current is 21");
+        case MenuPhase::Unknown: {
+            logDebug("transitions.log", "Current is Unknown");
+            data->currentPhase = transition == MenuTransition::Unknown2NewSkirmish
+                                     ? MenuPhase::Unknown2NewSkirmish
+                                     : MenuPhase::Unknown2LobbyHost;
+            if (static_cast<int>(data->currentPhase) > 36) {
+                // TODO: wtf is this check
+                return;
+            }
+            continue;
+        }
+        case MenuPhase::Credits2Main:
+            logDebug("transitions.log", "Current is Credits2Main");
+            data->currentPhase = MenuPhase::Back2Main;
             menuPhase.switchToMain(thisptr);
             break;
-        case 0:
-            logDebug("transitions.log", "current is 0");
-            menuPhase.transitionFromMain(thisptr, next);
+        case MenuPhase::Back2Main:
+            logDebug("transitions.log", "Current is Back2Main");
+            menuPhase.switchToMain(thisptr);
             break;
-        case 22:
-            logDebug("transitions.log", "current is 22");
+        case MenuPhase::Main:
+            logDebug("transitions.log", "Current is Main");
+            menuPhase.transitionFromMain(thisptr, transition);
+            break;
+        case MenuPhase::Main2Single:
+            logDebug("transitions.log", "Current is Main2Single");
             menuPhase.switchToSingle(thisptr);
             break;
-        case 1:
-            logDebug("transitions.log", "current is 1");
-            menuPhase.transitionFromSingle(thisptr, next);
+        case MenuPhase::Single:
+            logDebug("transitions.log", "Current is Single");
+            menuPhase.transitionFromSingle(thisptr, transition);
             break;
-        case 2: {
-            logDebug("transitions.log", "current is 2");
-            if (next == 2) {
+        case MenuPhase::Protocol: {
+            logDebug("transitions.log", "Current is Protocol");
+            if (transition == MenuTransition::Protocol2CustomLobby) {
                 // Show new fullscreen animation
+                logDebug("transitions.log", "Show Protocol2CustomLobby");
                 auto data = thisptr->data;
-                logDebug("transitions.log", "Try to transition to 35 while playing animation");
-                menuPhase.showFullScreenAnimation(thisptr, &data->transitionNumber,
-                                                  &data->interfManager, &data->currentMenu, 35,
+                menuPhase.showFullScreenAnimation(thisptr, &data->currentPhase,
+                                                  &data->interfManager, &data->currentMenu,
+                                                  MenuPhase::Protocol2CustomLobby,
                                                   CMenuCustomLobby::transitionFromProtoName);
             } else {
-                menuPhase.transitionFromProto(thisptr, next);
+                menuPhase.transitionFromProto(thisptr, transition);
             }
             break;
         }
-        case 35: {
+        case MenuPhase::Protocol2CustomLobby: {
+            logDebug("transitions.log", "Show CustomLobby");
             // Create custom lobby menu window during fullscreen animation
-            auto data = thisptr->data;
             CMenuPhaseApi::Api::CreateMenuCallback tmp = createCustomLobbyCallback;
             CMenuPhaseApi::Api::CreateMenuCallback* callback = &tmp;
-            logDebug("transitions.log", "Try to transition to 36");
-            menuPhase.doTransition(thisptr, &data->transitionNumber, &data->interfManager,
-                                   &data->currentMenu, &data->transitionAnimation, 36, nullptr,
-                                   &callback);
-        }
-        case 36: {
-            // CMenuCustomLobby state
-            logDebug("transitions.log", "current is 36");
+            menuPhase.showMenu(thisptr, &data->currentPhase, &data->interfManager,
+                               &data->currentMenu, &data->transitionAnimation,
+                               MenuPhase::CustomLobby, nullptr, &callback);
             break;
         }
-        case 3:
-            logDebug("transitions.log", "current is 3");
-            menuPhase.transitionFromHotseat(thisptr, next);
+        case MenuPhase::CustomLobby: {
+            logDebug("transitions.log", "Current is CustomLobby");
             break;
-        case 26:
-            logDebug("transitions.log", "current is 26");
+        }
+        case MenuPhase::Hotseat:
+            logDebug("transitions.log", "Current is Hotseat");
+            menuPhase.transitionFromHotseat(thisptr, transition);
+            break;
+        case MenuPhase::Single2RaceCampaign:
+            logDebug("transitions.log", "Current is Single2RaceCampaign");
             menuPhase.switchToRaceCampaign(thisptr);
             break;
-        case 5:
-            logDebug("transitions.log", "current is 5");
-            menuPhase.transitionGodToLord(thisptr, next);
+        case MenuPhase::RaceCampaign:
+            logDebug("transitions.log", "Current is RaceCampaign");
+            menuPhase.transitionGodToLord(thisptr, transition);
             break;
-        case 29:
-            logDebug("transitions.log", "current is 29");
+        case MenuPhase::Single2CustomCampaign:
+            logDebug("transitions.log", "Current is Single2CustomCampaign");
             menuPhase.switchToCustomCampaign(thisptr);
             break;
-        case 8:
-            logDebug("transitions.log", "current is 8");
-            menuPhase.transitionNewQuestToGod(thisptr, next);
+        case MenuPhase::CustomCampaign:
+            logDebug("transitions.log", "Current is CustomCampaign");
+            menuPhase.transitionNewQuestToGod(thisptr, transition);
             break;
-        case 27:
-            logDebug("transitions.log", "current is 27");
+        case MenuPhase::Single2NewSkirmish:
+            logDebug("transitions.log", "Current is Single2NewSkirmish");
             menuPhase.switchToNewSkirmish(thisptr);
             break;
-        case 6:
-            logDebug("transitions.log", "current is 6");
-            menuPhase.switchTo15Or28(thisptr);
+        case MenuPhase::NewSkirmishSingle:
+            logDebug("transitions.log", "Current is NewSkirmishSingle");
+            menuPhase.transitionFromNewSkirmish(thisptr);
             break;
-        case 28:
-            logDebug("transitions.log", "current is 28");
+        case MenuPhase::NewSkirmish2RaceSkirmish:
+            logDebug("transitions.log", "Current is NewSkirmish2RaceSkirmish");
             menuPhase.switchToRaceSkirmish(thisptr);
             break;
-        case 7:
-            logDebug("transitions.log", "current is 7");
-            menuPhase.transitionGodToLord(thisptr, next);
+        case MenuPhase::RaceSkirmish:
+            logDebug("transitions.log", "Current is RaceSkirmish");
+            menuPhase.transitionGodToLord(thisptr, transition);
             break;
-        case 31:
-            logDebug("transitions.log", "current is 31");
+        case MenuPhase::RaceSkirmish2Lord:
+            logDebug("transitions.log", "Current is RaceSkirmish2Lord");
             menuPhase.switchToLord(thisptr);
             break;
-        case 33:
-            logDebug("transitions.log", "current is 33");
+        case MenuPhase::Single2LoadSkirmish:
+            logDebug("transitions.log", "Current is Single2LoadSkirmish");
             menuPhase.switchToLoadSkirmish(thisptr);
             break;
-        case 34:
-            logDebug("transitions.log", "current is 34");
+        case MenuPhase::Single2LoadCampaign:
+            logDebug("transitions.log", "Current is Single2LoadCampaign");
             menuPhase.switchToLoadCampaign(thisptr);
             break;
-        case 32:
-            logDebug("transitions.log", "current is 32");
+        case MenuPhase::Single2LoadCustomCampaign:
+            logDebug("transitions.log", "Current is Single2LoadCustomCampaign");
             menuPhase.switchToLoadCustomCampaign(thisptr);
             break;
-        case 17:
-            logDebug("transitions.log", "current is 17");
+        case MenuPhase::Main2Intro:
+            logDebug("transitions.log", "Current is Main2Intro");
             menuPhase.switchIntroToMain(thisptr);
             break;
-        case 18:
-            logDebug("transitions.log", "current is 18");
-            menuPhase.transitionToCredits(thisptr, next);
+        case MenuPhase::Main2Credits:
+            logDebug("transitions.log", "Current is Main2Credits");
+            menuPhase.transitionToCredits(thisptr, transition);
             break;
-        case 19:
-            logDebug("transitions.log", "current is 19");
+        case MenuPhase::Credits:
+            logDebug("transitions.log", "Current is Credits");
             menuPhase.switchIntroToMain(thisptr);
             break;
-        case 23:
-            logDebug("transitions.log", "current is 23");
+        case MenuPhase::Main2Proto:
+            logDebug("transitions.log", "Current is Main2Proto");
             menuPhase.switchToProtocol(thisptr);
             break;
-        case 25:
-            logDebug("transitions.log", "current is 25");
+        case MenuPhase::Protocol2Multi:
+            logDebug("transitions.log", "Current is Protocol2Multi");
             menuPhase.switchToMulti(thisptr);
             break;
-        case 4:
-            logDebug("transitions.log", "current is 4");
-            menuPhase.transitionFromMulti(thisptr, next);
+        case MenuPhase::Multi:
+            logDebug("transitions.log", "Current is Multi");
+            menuPhase.transitionFromMulti(thisptr, transition);
             break;
-        case 24:
-            logDebug("transitions.log", "current is 24");
+        case MenuPhase::Protocol2Hotseat:
+            logDebug("transitions.log", "Current is Protocol2Hotseat");
             menuPhase.switchToHotseat(thisptr);
             break;
-        case 9:
-            logDebug("transitions.log", "current is 9");
+        case MenuPhase::Hotseat2NewSkirmishHotseat:
+            logDebug("transitions.log", "Current is Hotseat2NewSkirmishHotseat");
             menuPhase.switchToNewSkirmishHotseat(thisptr);
             break;
-        case 10:
-            logDebug("transitions.log", "current is 10");
+        case MenuPhase::Hotseat2LoadSkirmishHotseat:
+            logDebug("transitions.log", "Current is Hotseat2LoadSkirmishHotseat");
             menuPhase.switchToLoadSkirmishHotseat(thisptr);
             break;
-        case 30:
-            logDebug("transitions.log", "current is 30");
+        case MenuPhase::NewSkirmishHotseat:
+            logDebug("transitions.log", "Current is NewSkirmishHotseat");
             menuPhase.transitionFromNewSkirmishHotseat(thisptr);
             break;
-        case 14:
-            logDebug("transitions.log", "current is 14");
+        case MenuPhase::NewSkirmishHotseat2HotseatLobby:
+            logDebug("transitions.log", "Current is NewSkirmishHotseat2HotseatLobby");
             menuPhase.switchToHotseatLobby(thisptr);
             break;
-        case 11:
-            logDebug("transitions.log", "current is 11");
+        case MenuPhase::Multi2Session:
+            logDebug("transitions.log", "Current is Multi2Session");
             menuPhase.switchToSession(thisptr);
             break;
-        case 15:
-            logDebug("transitions.log", "current is 15");
+        case MenuPhase::NewSkirmish2LobbyHost:
+            logDebug("transitions.log", "Current is NewSkirmish2LobbyHost");
             menuPhase.switchToLobbyHostJoin(thisptr);
             break;
-        case 16:
-            logDebug("transitions.log", "current is 16");
+        case MenuPhase::WaitInterf:
+            logDebug("transitions.log", "Current is WaitInterf");
             menuPhase.switchToWait(thisptr);
             break;
         }
@@ -259,8 +258,10 @@ void __fastcall menuPhaseBackToMainOrCloseGameHooked(game::CMenuPhase* thisptr,
     midgardApi.clearNetworkState(data->midgard);
 
     // Back to lobby screen
-    menuPhaseApi.showFullScreenAnimation(thisptr, &data->transitionNumber, &data->interfManager,
-                                         &data->currentMenu, 35,
+    // TODO: fix incorrect transition to lobby when back from proto when NetCustomService is present
+    // (check current transition number)
+    menuPhaseApi.showFullScreenAnimation(thisptr, &data->currentPhase, &data->interfManager,
+                                         &data->currentMenu, MenuPhase::Protocol2CustomLobby,
                                          CMenuCustomLobby::transitionFromBlackName);
 }
 
