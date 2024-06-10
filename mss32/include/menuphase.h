@@ -39,6 +39,184 @@ struct ScenarioDataArrayWrapped;
 struct IMqImage2;
 struct CMenuBase;
 
+/**
+ * Used by CMenuPhase::SwitchPhase as phase transition command.
+ * Entity names generally correspond to CMenu<Name>.
+ */
+enum class MenuTransition : int
+{
+    Main2Single = 0,
+    Main2Protocol = 1,
+    Main2Intro = 2,
+    Main2Credits = 3,
+    Single2RaceCampaign = 0,
+    Single2LoadCampaign = 1,
+    Single2NewSkirmish = 2,
+    Single2LoadSkirmish = 3,
+    Single2CustomCampaign = 4,
+    Single2LoadCustomCampaign = 5,
+    Protocol2Hotseat = 0,
+    Protocol2Multi = 1,
+    Protocol2CustomLobby = 2,
+    Hotseat2NewSkirmishHotseat = 0,
+    Hotseat2LoadSkirmishHotseat = 1,
+    Multi2NewSkirmish = 0,
+    Multi2Session = 1,
+    Multi2LoadSkirmish = 2,
+    RaceCampaign2LordHu = 0,
+    RaceCampaign2LordHe = 1,
+    RaceCampaign2LordDw = 2,
+    RaceCampaign2LordEl = 3,
+    RaceCampaign2LordUn = 4,
+    RaceSkirmish2LordHu = RaceCampaign2LordHu,
+    RaceSkirmish2LordHe = RaceCampaign2LordHe,
+    RaceSkirmish2LordDw = RaceCampaign2LordDw,
+    RaceSkirmish2LordEl = RaceCampaign2LordEl,
+    RaceSkirmish2LordUn = RaceCampaign2LordUn,
+    Session2LobbyJoin = 0,
+    Unknown2NewSkirmish = 0,
+    Unknown2LobbyHost = 1,
+    Unknown2LobbyJoin = 1,
+};
+
+/**
+ * Used by CMenuPhase to indicate displayed menu phases.
+ * Entity names generally correspond to CMenu<Name>.
+ */
+enum class MenuPhase : int
+{
+    Main = 0,
+    Main2Intro = 17,
+    Main2Credits = 18,
+    Main2Single = 22,
+    Main2Proto = 23,
+
+    Single = 1,
+    Single2RaceCampaign = 26,
+    Single2LoadCampaign = 34,
+    Single2NewSkirmish = 27,
+    Single2LoadSkirmish = 33,
+    Single2CustomCampaign = 29,
+    Single2LoadCustomCampaign = 32,
+
+    Protocol = 2,
+    Protocol2Hotseat = 24,
+    Protocol2Multi = 25,
+    Protocol2CustomLobby = 35,
+
+    Hotseat = 3,
+    Hotseat2NewSkirmishHotseat = 9,
+    Hotseat2LoadSkirmishHotseat = 10,
+
+    Multi = 4,
+    Multi2NewSkirmish = Single2NewSkirmish,
+    Multi2Session = 11,
+    Multi2LoadSkirmish = Single2LoadSkirmish,
+
+    RaceCampaign = 5,
+    RaceCampaign2Lord = 31,
+
+    // Common phase for different menus depending on values from CMidgardData and CMenuPhaseData
+    NewSkirmishSingle = 6,
+    NewSkirmishMulti = NewSkirmishSingle,
+    NewSkirmishMultiLobby = NewSkirmishSingle,
+    NewSkirmishGameSpy = NewSkirmishSingle,
+    NewSkirmish2RaceSkirmish = 28,
+    NewSkirmish2LobbyHost = 15,
+
+    RaceSkirmish = 7,
+    RaceSkirmish2Lord = RaceCampaign2Lord,
+
+    CustomCampaign = 8,
+    CustomCampaign2RaceSkirmish = NewSkirmish2RaceSkirmish,
+
+    Session = 12,
+    Session2LobbyJoin = NewSkirmish2LobbyHost,
+
+    // TODO: determine unknown phase
+    Unknown = 13,
+    Unknown2NewSkirmish = Single2NewSkirmish,
+    Unknown2LobbyHost = 15,
+    Unknown2LobbyJoin = Unknown2LobbyHost,
+
+    // Common phase for different menus depending on CMenuPhaseData::useGameSpy/loadScenario
+    LoadSkirmishMulti = 15,
+    LoadSkirmishGameSpy = LoadSkirmishMulti,
+
+    // Common phase for different menus depending on previous phase and CMenuPhaseData
+    Lord = 16,
+    LoadCampaign = Lord,
+    LoadCustomCampaign = Lord,
+    LoadSkirmishSingle = Lord,
+    LoadSkirmishHotseat = Lord,
+    HotseatLobby = Lord,
+    LobbyHost = Lord,
+    LobbyJoin = Lord,
+    WaitInterf = Lord,
+
+    Credits = 19,
+    Credits2Main = 20,
+
+    Back2Main = 21,
+
+    NewSkirmishHotseat = 30,
+    NewSkirmishHotseat2HotseatLobby = 14,
+
+    CustomLobby = 36,
+};
+
+assert_enum_value(MenuPhase, Main, 0);
+assert_enum_value(MenuPhase, Single, 1);
+assert_enum_value(MenuPhase, Protocol, 2);
+assert_enum_value(MenuPhase, Hotseat, 3);
+assert_enum_value(MenuPhase, Multi, 4);
+assert_enum_value(MenuPhase, RaceCampaign, 5);
+assert_enum_value(MenuPhase, NewSkirmishSingle, 6);
+assert_enum_value(MenuPhase, NewSkirmishMulti, 6);
+assert_enum_value(MenuPhase, NewSkirmishMultiLobby, 6);
+assert_enum_value(MenuPhase, NewSkirmishGameSpy, 6);
+assert_enum_value(MenuPhase, RaceSkirmish, 7);
+assert_enum_value(MenuPhase, CustomCampaign, 8);
+assert_enum_value(MenuPhase, Hotseat2NewSkirmishHotseat, 9);
+assert_enum_value(MenuPhase, Hotseat2LoadSkirmishHotseat, 10);
+assert_enum_value(MenuPhase, Multi2Session, 11);
+assert_enum_value(MenuPhase, Session, 12);
+assert_enum_value(MenuPhase, Unknown, 13);
+assert_enum_value(MenuPhase, NewSkirmishHotseat2HotseatLobby, 14);
+assert_enum_value(MenuPhase, NewSkirmish2LobbyHost, 15);
+assert_enum_value(MenuPhase, Session2LobbyJoin, 15);
+assert_enum_value(MenuPhase, LoadSkirmishMulti, 15);
+assert_enum_value(MenuPhase, LoadSkirmishGameSpy, 15);
+assert_enum_value(MenuPhase, Lord, 16);
+assert_enum_value(MenuPhase, LoadCampaign, 16);
+assert_enum_value(MenuPhase, LoadCustomCampaign, 16);
+assert_enum_value(MenuPhase, LoadSkirmishSingle, 16);
+assert_enum_value(MenuPhase, LoadSkirmishHotseat, 16);
+assert_enum_value(MenuPhase, HotseatLobby, 16);
+assert_enum_value(MenuPhase, LobbyHost, 16);
+assert_enum_value(MenuPhase, LobbyJoin, 16);
+assert_enum_value(MenuPhase, WaitInterf, 16);
+assert_enum_value(MenuPhase, Main2Intro, 17);
+assert_enum_value(MenuPhase, Main2Credits, 18);
+assert_enum_value(MenuPhase, Credits, 19);
+assert_enum_value(MenuPhase, Credits2Main, 20);
+assert_enum_value(MenuPhase, Back2Main, 21);
+assert_enum_value(MenuPhase, Main2Single, 22);
+assert_enum_value(MenuPhase, Main2Proto, 23);
+assert_enum_value(MenuPhase, Protocol2Hotseat, 24);
+assert_enum_value(MenuPhase, Protocol2Multi, 25);
+assert_enum_value(MenuPhase, Single2RaceCampaign, 26);
+assert_enum_value(MenuPhase, Single2NewSkirmish, 27);
+assert_enum_value(MenuPhase, CustomCampaign2RaceSkirmish, 28);
+assert_enum_value(MenuPhase, Single2CustomCampaign, 29);
+assert_enum_value(MenuPhase, NewSkirmishHotseat, 30);
+assert_enum_value(MenuPhase, RaceCampaign2Lord, 31);
+assert_enum_value(MenuPhase, Single2LoadCustomCampaign, 32);
+assert_enum_value(MenuPhase, Single2LoadSkirmish, 33);
+assert_enum_value(MenuPhase, Single2LoadCampaign, 34);
+assert_enum_value(MenuPhase, Protocol2CustomLobby, 35);
+assert_enum_value(MenuPhase, CustomLobby, 36);
+
 struct CMenuPhaseData
 {
     CMidgard* midgard;
