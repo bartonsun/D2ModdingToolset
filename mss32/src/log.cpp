@@ -20,6 +20,7 @@
 #include "log.h"
 #include "settings.h"
 #include "utils.h"
+#include <Windows.h>
 #include <chrono>
 #include <ctime>
 #include <fstream>
@@ -47,6 +48,12 @@ static void logAction(const std::string& logFile, const std::string& message)
 
 void logDebug(const std::string& logFile, const std::string& message)
 {
+#ifdef _DEBUG
+    std::stringstream msg;
+    msg << "[" << logFile << "]\t" << std::this_thread::get_id() << "\t" << message << "\n";
+    OutputDebugString(msg.str().c_str());
+#endif
+
     if (userSettings().debugMode) {
         logAction(logFile, message);
     }
