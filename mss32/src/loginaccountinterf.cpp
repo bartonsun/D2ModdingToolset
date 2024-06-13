@@ -72,6 +72,7 @@ static void __fastcall loginAccount(CLoginAccountInterf* thisptr, int /*%edx*/)
     }
 
     closeLoginAccountInterf(thisptr);
+    // TODO: show wait message from parent menu
 }
 
 static void __fastcall cancelLoginAccount(CLoginAccountInterf* thisptr, int /*%edx*/)

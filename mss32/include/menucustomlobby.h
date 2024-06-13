@@ -82,22 +82,6 @@ protected:
     static bool onRoomPasswordEnter(CMenuCustomLobby* menu, const char* password);
 
 private:
-    class LobbyCallbacks : public SLNet::Lobby2Callbacks
-    {
-    public:
-        LobbyCallbacks(CMenuCustomLobby* menuLobby)
-            : menuLobby{menuLobby}
-        { }
-
-        ~LobbyCallbacks() override = default;
-
-        void MessageResult(SLNet::Client_Login* message) override;
-        void MessageResult(SLNet::Client_Logoff* message) override;
-
-    private:
-        CMenuCustomLobby* menuLobby;
-    };
-
     class RoomListCallbacks : public SLNet::RoomsCallback
     {
     public:
@@ -149,11 +133,8 @@ private:
     void tryJoinRoom(const char* roomName);
     void deleteWaitMenu();
     void updateAccountText(const char* accountName);
-    void updateButtons();
     void initializeButtonsHandlers();
     void showError(const char* message);
-    void processLogin(const char* accountName);
-    void processLogout();
     void processJoin(const char* roomName, const SLNet::RakNetGUID& serverGuid);
     void setRoomsInfo(std::vector<RoomInfo>&& value);
     void processJoinError(const char* message);
@@ -161,11 +142,9 @@ private:
 
     game::UiEvent roomsListEvent;
     std::vector<RoomInfo> rooms;
-    LobbyCallbacks uiCallbacks;
     RoomListCallbacks roomsCallbacks;
     game::NetMsgEntryData** netMsgEntryData;
     game::CMenuFlashWait* waitMenu;
-    bool loggedIn;
 };
 
 assert_offset(CMenuCustomLobby, vftable, 0);

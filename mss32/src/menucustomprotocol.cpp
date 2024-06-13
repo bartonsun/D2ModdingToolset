@@ -20,22 +20,32 @@
 #include "menucustomprotocol.h"
 #include "dialoginterf.h"
 #include "listbox.h"
+#include "log.h"
+#include "loginaccountinterf.h"
 #include "mempool.h"
 #include "menuflashwait.h"
 #include "menuphase.h"
+#include "midgard.h"
 #include "textids.h"
 #include "utils.h"
 
 namespace hooks {
 
 CMenuCustomProtocol::CMenuCustomProtocol(game::CMenuPhase* menuPhase)
-    : m_timeoutEvent{}
-    , m_menuWait{nullptr}
+    : m_menuWait{nullptr}
     , m_callbacks{this}
+    , m_lobbyCallbacks{this}
 {
     using namespace game;
 
     CMenuProtocolApi::get().constructor(this, menuPhase);
+
+    static game::RttiInfo<game::CMenuBaseVftable> rttiInfo = {};
+    if (rttiInfo.locator == nullptr) {
+        replaceRttiInfo(rttiInfo, this->vftable);
+        rttiInfo.vftable.destructor = (game::CInterfaceVftable::Destructor)&destructor;
+    }
+    this->vftable = &rttiInfo.vftable;
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
     auto listBox = CDialogInterfApi::get().findListBox(dialog, "TLBOX_PROTOCOL");
@@ -45,38 +55,68 @@ CMenuCustomProtocol::CMenuCustomProtocol(game::CMenuPhase* menuPhase)
     }
 }
 
-void CMenuCustomProtocol::waitConnectionAsync()
+CMenuCustomProtocol ::~CMenuCustomProtocol()
 {
     using namespace game;
+
+    stopWaitingConnection();
+
+    auto service = getNetService();
+    if (service) {
+        service->removeLobbyCallbacks(&m_lobbyCallbacks);
+        service->removePeerCallbacks(&m_callbacks);
+    }
+
+    CMenuProtocolApi::get().destructor(this);
+}
+
+void __fastcall CMenuCustomProtocol::destructor(CMenuCustomProtocol* thisptr,
+                                                int /*%edx*/,
+                                                char flags)
+{
+    thisptr->~CMenuCustomProtocol();
+
+    if (flags & 1) {
+        logDebug("transitions.log", "Free CMenuCustomProtocol memory");
+        game::Memory::get().freeNonZero(thisptr);
+    }
+}
+
+void CMenuCustomProtocol::createCustomServiceStartWaitingConnection()
+{
+    using namespace game;
+
+    const auto& midgardApi = CMidgardApi::get();
+
+    stopWaitingConnection();
+
+    auto midgard = midgardApi.instance();
+    auto service = CNetCustomService::create();
+    midgardApi.setNetService(midgard, service, true, false);
+    if (!service) {
+        // TODO: show error dialog
+        return;
+    }
+    service->addPeerCallbacks(&m_callbacks);
+    service->addLobbyCallbacks(&m_lobbyCallbacks);
 
     m_menuWait = (CMenuFlashWait*)Memory::get().allocate(sizeof(CMenuFlashWait));
     CMenuFlashWaitApi::get().constructor(m_menuWait);
     showInterface(m_menuWait);
-
-    createTimerEvent(&m_timeoutEvent, this, timeoutHandler,
-                     CNetCustomService::connectionWaitTimeout);
-
-    getNetService()->addPeerCallbacks(&m_callbacks);
 }
 
 void CMenuCustomProtocol::stopWaitingConnection()
 {
     using namespace game;
 
-    if (!m_menuWait) {
-        return;
+    if (m_menuWait) {
+        hideInterface(m_menuWait);
+        m_menuWait->vftable->destructor(m_menuWait, 1);
+        m_menuWait = nullptr;
     }
-
-    getNetService()->removePeerCallbacks(&m_callbacks);
-
-    UiEventApi::get().destructor(&m_timeoutEvent);
-
-    hideInterface(m_menuWait);
-    m_menuWait->vftable->destructor(m_menuWait, 1);
-    m_menuWait = nullptr;
 }
 
-void CMenuCustomProtocol::showConnectionError(const char* errorMessage)
+void CMenuCustomProtocol::stopWaitingConnection(const char* errorMessage)
 {
     stopWaitingConnection();
     showMessageBox(errorMessage);
@@ -93,8 +133,8 @@ void CMenuCustomProtocol::Callbacks::onPacketReceived(DefaultMessageIDTypes type
             message = "Connection attempt failed";
         }
 
-        m_menu->showConnectionError(message.c_str());
-        return;
+        m_menu->stopWaitingConnection(message.c_str());
+        break;
     }
     case ID_NO_FREE_INCOMING_CONNECTIONS: {
         auto message{getInterfaceText(textIds().lobby.serverIsFull.c_str())};
@@ -102,12 +142,12 @@ void CMenuCustomProtocol::Callbacks::onPacketReceived(DefaultMessageIDTypes type
             message = "Lobby server is full";
         }
 
-        m_menu->showConnectionError(message.c_str());
-        return;
+        m_menu->stopWaitingConnection(message.c_str());
+        break;
     }
     case ID_ALREADY_CONNECTED:
-        m_menu->showConnectionError("Already connected.\nThis should never happen");
-        return;
+        m_menu->stopWaitingConnection("Already connected.\nThis should never happen");
+        break;
 
     // TODO: move integrity request to custom service callbacks, only check results here
     case ID_CONNECTION_REQUEST_ACCEPTED: {
@@ -118,8 +158,8 @@ void CMenuCustomProtocol::Callbacks::onPacketReceived(DefaultMessageIDTypes type
                 message = "Could not compute hash";
             }
 
-            m_menu->showConnectionError(message.c_str());
-            return;
+            m_menu->stopWaitingConnection(message.c_str());
+            break;
         }
 
         if (!getNetService()->checkFilesIntegrity(hash.c_str())) {
@@ -128,8 +168,8 @@ void CMenuCustomProtocol::Callbacks::onPacketReceived(DefaultMessageIDTypes type
                 message = "Could not request game integrity check";
             }
 
-            m_menu->showConnectionError(message.c_str());
-            return;
+            m_menu->stopWaitingConnection(message.c_str());
+            break;
         }
 
         return;
@@ -149,28 +189,48 @@ void CMenuCustomProtocol::Callbacks::onPacketReceived(DefaultMessageIDTypes type
                 message = "Game integrity check failed";
             }
 
-            m_menu->showConnectionError(message.c_str());
-            return;
+            m_menu->stopWaitingConnection(message.c_str());
+            break;
         }
 
-        // Switch to custom lobby window
-        game::CMenuPhaseApi::get().setTransition(m_menu->menuBaseData->menuPhase, 2);
-        return;
+        // TODO: refactor, control wait message
+        showLoginAccountDialog();
+        break;
     }
-
-    default:
-        return;
     }
 }
 
-void __fastcall CMenuCustomProtocol::timeoutHandler(CMenuCustomProtocol* menu, int /*%edx*/)
+void CMenuCustomProtocol::LobbyCallbacks::MessageResult(SLNet::Client_Login* message)
 {
-    auto message{getInterfaceText(textIds().lobby.serverNotResponding.c_str())};
-    if (message.empty()) {
-        message = "Failed to connect.\nLobby server not responding";
+    using namespace game;
+
+    // TODO: hide wait message
+
+    switch (message->resultCode) {
+    case SLNet::L2RC_SUCCESS: {
+        CMenuPhase* menuPhase = m_menu->menuBaseData->menuPhase;
+        CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Protocol2CustomLobby);
+        break;
     }
 
-    menu->showConnectionError(message.c_str());
+    case SLNet::L2RC_Client_Login_HANDLE_NOT_IN_USE_OR_BAD_SECRET_KEY:
+        // TODO: textIds, add error caption to the message (see CMenuCustomLobby::showError)
+        showMessageBox("Wrong account name or password");
+        break;
+
+    case SLNet::L2RC_Client_Login_BANNED:
+        // TODO: textIds, add error caption to the message (see CMenuCustomLobby::showError)
+        showMessageBox("Banned from server");
+        break;
+
+    default: {
+        // TODO: textIds, add error caption to the message (see CMenuCustomLobby::showError)
+        SLNet::RakString str;
+        message->DebugMsg(str);
+        showMessageBox(str.C_String());
+        break;
+    }
+    }
 }
 
 } // namespace hooks

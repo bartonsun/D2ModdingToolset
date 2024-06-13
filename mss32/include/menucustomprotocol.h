@@ -33,13 +33,13 @@ class CMenuCustomProtocol : public game::CMenuProtocol
 {
 public:
     CMenuCustomProtocol(game::CMenuPhase* menuPhase);
-    // Currently not necessary to be called thus no vftable override
-    ~CMenuCustomProtocol() = default;
+    ~CMenuCustomProtocol();
 
-    void waitConnectionAsync();
+    void createCustomServiceStartWaitingConnection();
 
 protected:
-    static void __fastcall timeoutHandler(CMenuCustomProtocol* menu, int /*%edx*/);
+    // CInterface
+    static void __fastcall destructor(CMenuCustomProtocol* thisptr, int /*%edx*/, char flags);
 
 private:
     class Callbacks : public NetPeerCallbacks
@@ -59,12 +59,27 @@ private:
         CMenuCustomProtocol* m_menu;
     };
 
-    void stopWaitingConnection();
-    void showConnectionError(const char* errorMessage);
+    class LobbyCallbacks : public SLNet::Lobby2Callbacks
+    {
+    public:
+        LobbyCallbacks(CMenuCustomProtocol* menu)
+            : m_menu{menu}
+        { }
 
-    game::UiEvent m_timeoutEvent;
+        ~LobbyCallbacks() override = default;
+
+        void MessageResult(SLNet::Client_Login* message) override;
+
+    private:
+        CMenuCustomProtocol* m_menu;
+    };
+
+    void stopWaitingConnection();
+    void stopWaitingConnection(const char* errorMessage);
+
     game::CMenuFlashWait* m_menuWait;
     Callbacks m_callbacks;
+    LobbyCallbacks m_lobbyCallbacks;
 };
 
 assert_offset(CMenuCustomProtocol, vftable, 0);

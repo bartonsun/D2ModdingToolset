@@ -24,7 +24,6 @@
 #include "menucustomprotocol.h"
 #include "menuphase.h"
 #include "menuphasehooks.h"
-#include "midgard.h"
 #include "netcustomservice.h"
 #include "originalfunctions.h"
 #include "textids.h"
@@ -68,26 +67,15 @@ void __fastcall menuProtocolContinueHandlerHooked(CMenuCustomProtocol* thisptr, 
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(thisptr);
     auto listBox = CDialogInterfApi::get().findListBox(dialog, "TLBOX_PROTOCOL");
-    if (!listBox) {
-        return;
+    if (listBox) {
+        auto data = listBox->listBoxData;
+        if (data->selectedElement == data->elementsTotal - 1) {
+            thisptr->createCustomServiceStartWaitingConnection();
+            return;
+        }
     }
 
-    auto data = listBox->listBoxData;
-    if (data->selectedElement != data->elementsTotal - 1) {
-        getOriginalFunctions().menuProtocolContinueHandler(thisptr);
-        return;
-    }
-
-    auto& midgardApi = CMidgardApi::get();
-    auto midgard = midgardApi.instance();
-
-    auto service = CNetCustomService::create();
-    midgardApi.setNetService(midgard, service, true, false);
-    if (!service) {
-        return;
-    }
-
-    thisptr->waitConnectionAsync();
+    getOriginalFunctions().menuProtocolContinueHandler(thisptr);
 }
 
 game::CMenuProtocol* __stdcall menuProtocolCreateMenuHooked(game::CMenuPhase* menuPhase)

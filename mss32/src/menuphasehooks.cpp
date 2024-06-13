@@ -240,7 +240,9 @@ void __fastcall menuPhaseBackToMainOrCloseGameHooked(game::CMenuPhase* thisptr,
 {
     using namespace game;
 
-    if (!getNetService()) {
+    // Back to main if a lobby user is not logged in
+    auto service = getNetService();
+    if (!service || !service->loggedIn()) {
         getOriginalFunctions().menuPhaseBackToMainOrCloseGame(thisptr, showIntroTransition);
         return;
     }
@@ -257,8 +259,6 @@ void __fastcall menuPhaseBackToMainOrCloseGameHooked(game::CMenuPhase* thisptr,
     midgardApi.clearNetworkState(data->midgard);
 
     // Back to lobby screen
-    // TODO: fix incorrect transition to lobby when back from proto when NetCustomService is present
-    // (check current transition number)
     menuPhaseApi.showFullScreenAnimation(thisptr, &data->currentPhase, &data->interfManager,
                                          &data->currentMenu, MenuPhase::Back2CustomLobby,
                                          CMenuCustomLobby::transitionFromBlackName);

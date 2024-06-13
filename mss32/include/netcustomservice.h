@@ -68,7 +68,6 @@ class CNetCustomService : public game::IMqNetService
 public:
     static constexpr std::uint32_t peerShutdownTimeout{100};
     static constexpr std::uint32_t peerProcessInterval{100};
-    static constexpr std::uint32_t connectionWaitTimeout{10000};
 
     static CNetCustomService* create();
     static bool isCustom(const game::IMqNetService* service);
@@ -78,7 +77,9 @@ public:
 
     CNetCustomSession* getSession() const;
     void setSession(CNetCustomSession* value);
+    // TODO: rename accountName to userName to correspond to RakNet naming
     const std::string& getAccountName() const;
+    bool loggedIn() const;
     const SLNet::RakNetGUID getPeerGuid() const;
     const SLNet::RakNetGUID getLobbyGuid() const;
     bool send(const SLNet::BitStream& stream, const SLNet::RakNetGUID& to) const;
@@ -102,8 +103,6 @@ public:
     /** Logouts currently logged user. */
     void logoutAccount();
 
-    void setCurrentLobbyPlayer(const char* accountName);
-
     /** Tries to create and enter a new room. */
     bool createRoom(const char* name, const char* password = nullptr);
 
@@ -119,12 +118,24 @@ public:
     /** Tries to request files integrity check from the server. */
     bool checkFilesIntegrity(const char* hash);
 
+    /**
+     * The service is always first to receive peer notifications.
+     * So other listeners will be dealing with already updated service state.
+     */
     void addPeerCallbacks(NetPeerCallbacks* callbacks);
     void removePeerCallbacks(NetPeerCallbacks* callbacks);
 
+    /**
+     * The service is always first to receive lobby notifications.
+     * So other listeners will be dealing with already updated service state.
+     */
     void addLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks);
     void removeLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks);
 
+    /**
+     * The service is always first to receive room notifications.
+     * So other listeners will be dealing with already updated service state.
+     */
     void addRoomsCallback(SLNet::RoomsCallback* callback);
     void removeRoomsCallback(SLNet::RoomsCallback* callback);
 
@@ -168,13 +179,21 @@ private:
         CNetCustomService* m_service;
     };
 
-    class LobbyLoggingCallbacks : public SLNet::Lobby2Callbacks
+    class LobbyCallbacks : public SLNet::Lobby2Callbacks
     {
     public:
-        LobbyLoggingCallbacks() = default;
-        ~LobbyLoggingCallbacks() override = default;
+        LobbyCallbacks(CNetCustomService* service)
+            : m_service(service)
+        { }
 
+        ~LobbyCallbacks() override = default;
+
+        void MessageResult(SLNet::Client_Login* message) override;
+        void MessageResult(SLNet::Client_Logoff* message) override;
         void ExecuteDefaultResult(SLNet::Lobby2Message* msg) override;
+
+    private:
+        CNetCustomService* m_service;
     };
 
     static void __fastcall peerProcessEventCallback(CNetCustomService* thisptr, int /*%edx*/);
@@ -188,8 +207,7 @@ private:
     SLNet::Lobby2Client m_lobbyClient;
     /** Creates network messages. */
     SLNet::Lobby2MessageFactory m_lobbyMsgFactory;
-    /** Callbacks only for debug logging. */
-    LobbyLoggingCallbacks m_loggingCallbacks;
+    LobbyCallbacks m_lobbyCallbacks;
     /** Interacts with lobby server rooms. */
     SLNet::RoomsPlugin m_roomsClient;
     RoomsLoggingCallback m_roomsLoggingCallback;

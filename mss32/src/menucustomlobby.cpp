@@ -64,8 +64,9 @@ CMenuCustomLobby* CMenuCustomLobby::create(game::CMenuPhase* menuPhase)
 }
 
 CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
-    : uiCallbacks(this)
-    , roomsCallbacks(this)
+    : roomsCallbacks(this)
+    , waitMenu(nullptr)
+    , netMsgEntryData(nullptr)
 {
     using namespace game;
 
@@ -88,11 +89,19 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     logDebug("transitions.log", "Call createMenu for CMenuCustomLobby");
     menuBaseApi.createMenu(this, dialogName);
 
-    loggedIn = false;
-
     initializeButtonsHandlers();
 
-    getNetService()->addLobbyCallbacks(&uiCallbacks);
+    auto service = getNetService();
+    updateAccountText(service->getAccountName().c_str());
+
+    // Connect ui-related rooms callbacks
+    service->addRoomsCallback(&roomsCallbacks);
+
+    // Request rooms list as soon as possible, no need to wait for event
+    service->searchRooms();
+
+    // Add timer event that will send rooms list requests every 5 seconds
+    createTimerEvent(&roomsListEvent, this, roomsListSearchHandler, roomListUpdateInterval);
 
     // Setup ingame net message callbacks
     {
@@ -137,7 +146,6 @@ CMenuCustomLobby ::~CMenuCustomLobby()
 
     auto service = getNetService();
     if (service) {
-        service->removeLobbyCallbacks(&uiCallbacks);
         service->removeRoomsCallback(&roomsCallbacks);
     }
 
@@ -171,38 +179,12 @@ void CMenuCustomLobby::updateAccountText(const char* accountName)
     CTextBoxInterfApi::get().setString(textBox, "");
 }
 
-void CMenuCustomLobby::updateButtons()
-{
-    using namespace game;
-
-    const auto& menuBase = CMenuBaseApi::get();
-    const auto& dialogApi = CDialogInterfApi::get();
-    auto dialog = menuBase.getDialogInterface(this);
-
-    // Disable login button if player has already logged in.
-    auto loginButton = dialogApi.findButton(dialog, "BTN_LOGIN");
-    loginButton->vftable->setEnabled(loginButton, !loggedIn);
-
-    // Disable logout and create, load, join buttons if player is not logged in.
-    auto logoutButton = dialogApi.findButton(dialog, "BTN_LOGOUT");
-    logoutButton->vftable->setEnabled(logoutButton, loggedIn);
-
-    auto createButton = dialogApi.findButton(dialog, "BTN_CREATE");
-    createButton->vftable->setEnabled(createButton, loggedIn);
-
-    auto loadButton = dialogApi.findButton(dialog, "BTN_LOAD");
-    loadButton->vftable->setEnabled(loadButton, loggedIn);
-
-    auto joinButton = dialogApi.findButton(dialog, "BTN_JOIN");
-    joinButton->vftable->setEnabled(joinButton, loggedIn);
-}
-
 void __fastcall CMenuCustomLobby::destructor(CMenuCustomLobby* thisptr, int /*%edx*/, char flags)
 {
     thisptr->~CMenuCustomLobby();
 
     if (flags & 1) {
-        logDebug("transitions.log", "Free custom menu memory");
+        logDebug("transitions.log", "Free CMenuCustomLobby memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
@@ -279,6 +261,7 @@ void CMenuCustomLobby::tryJoinRoom(const char* roomName)
     auto dialog = menuBase.getDialogInterface(this);
 
     // For now, disable join button
+    // TODO: why? the button should be inaccessible already due to wait dialog
     auto buttonJoin = dialogApi.findButton(dialog, "BTN_JOIN");
     if (buttonJoin) {
         buttonJoin->vftable->setEnabled(buttonJoin, false);
@@ -627,24 +610,22 @@ void CMenuCustomLobby::initializeButtonsHandlers()
     buttonApi.assignFunctor(dialog, "BTN_JOIN", dialogName, &functor, 0);
     freeFunctor(&functor, nullptr);
 
+    // TODO: completely remove the button
+    auto buttonRegister = dialogApi.findButton(dialog, "BTN_REGISTER");
+    if (buttonRegister) {
+        buttonRegister->vftable->setEnabled(buttonRegister, false);
+    }
+
+    // TODO: completely remove the button
+    auto buttonLogin = dialogApi.findButton(dialog, "BTN_LOGIN");
+    if (buttonLogin) {
+        buttonLogin->vftable->setEnabled(buttonLogin, false);
+    }
+
+    // TODO: completely remove the button
     auto buttonLogout = dialogApi.findButton(dialog, "BTN_LOGOUT");
     if (buttonLogout) {
         buttonLogout->vftable->setEnabled(buttonLogout, false);
-    }
-
-    auto buttonCreate = dialogApi.findButton(dialog, "BTN_CREATE");
-    if (buttonCreate) {
-        buttonCreate->vftable->setEnabled(buttonCreate, false);
-    }
-
-    auto buttonLoad = dialogApi.findButton(dialog, "BTN_LOAD");
-    if (buttonLoad) {
-        buttonLoad->vftable->setEnabled(buttonLoad, false);
-    }
-
-    auto buttonJoin = dialogApi.findButton(dialog, "BTN_JOIN");
-    if (buttonJoin) {
-        buttonJoin->vftable->setEnabled(buttonJoin, false);
     }
 
     auto listBoxRooms = dialogApi.findListBox(dialog, "LBOX_ROOMS");
@@ -660,59 +641,6 @@ void CMenuCustomLobby::initializeButtonsHandlers()
 void CMenuCustomLobby::showError(const char* message)
 {
     showMessageBox(fmt::format("\\fLarge;\\hC;Error\\fSmall;\n\n{:s}", message));
-}
-
-void CMenuCustomLobby::processLogin(const char* accountName)
-{
-    using namespace game;
-
-    auto service = getNetService();
-
-    // Remember account that successfully logged in
-    service->setCurrentLobbyPlayer(accountName);
-    updateAccountText(accountName);
-
-    loggedIn = true;
-    updateButtons();
-
-    // Connect ui-related rooms callbacks
-    service->addRoomsCallback(&roomsCallbacks);
-
-    // Request rooms list as soon as possible, no need to wait for event
-    service->searchRooms();
-
-    // Add timer event that will send rooms list requests every 5 seconds
-    createTimerEvent(&roomsListEvent, this, roomsListSearchHandler, roomListUpdateInterval);
-}
-
-void CMenuCustomLobby::processLogout()
-{
-    using namespace game;
-
-    auto service = getNetService();
-
-    // Forget about logged account
-    service->setCurrentLobbyPlayer(nullptr);
-    updateAccountText(nullptr);
-
-    loggedIn = false;
-    updateButtons();
-
-    // Remove timer event
-    game::UiEventApi::get().destructor(&roomsListEvent);
-
-    // Disconnect ui-related rooms callbacks
-    service->removeRoomsCallback(&roomsCallbacks);
-
-    auto& menuBase = CMenuBaseApi::get();
-    auto& dialogApi = CDialogInterfApi::get();
-    auto dialog = menuBase.getDialogInterface(this);
-    auto listBox = dialogApi.findListBox(dialog, "LBOX_ROOMS");
-    auto& listBoxApi = CListBoxInterfApi::get();
-
-    // Clean up any rooms information to be safe
-    listBoxApi.setElementsTotal(listBox, 0);
-    rooms.clear();
 }
 
 void CMenuCustomLobby::registerClientPlayerAndJoin()
@@ -835,12 +763,6 @@ void CMenuCustomLobby::setRoomsInfo(std::vector<RoomInfo>&& value)
     auto listBox = dialogApi.findListBox(dialog, "LBOX_ROOMS");
     auto& listBoxApi = CListBoxInterfApi::get();
 
-    if (!loggedIn) {
-        rooms.clear();
-        listBoxApi.setElementsTotal(listBox, 0);
-        return;
-    }
-
     rooms = std::move(value);
     listBoxApi.setElementsTotal(listBox, (int)rooms.size());
 }
@@ -857,48 +779,13 @@ void CMenuCustomLobby::processJoinError(const char* message)
 
     // TODO: check player entered a room in lobby server,
     // if so, leave it and enable join button in rooms callback
+    // TODO: should be covered by wait dialog, do not disable-enable it
     auto buttonJoin = dialogApi.findButton(dialog, "BTN_JOIN");
     if (buttonJoin) {
         buttonJoin->vftable->setEnabled(buttonJoin, true);
     }
 
     showError(message);
-}
-
-void CMenuCustomLobby::LobbyCallbacks::MessageResult(SLNet::Client_Login* message)
-{
-    switch (message->resultCode) {
-    case SLNet::L2RC_SUCCESS:
-        menuLobby->processLogin(message->userName.C_String());
-        break;
-
-    case SLNet::L2RC_Client_Login_HANDLE_NOT_IN_USE_OR_BAD_SECRET_KEY:
-        menuLobby->showError("Wrong account name or password");
-        break;
-
-    case SLNet::L2RC_Client_Login_BANNED:
-        menuLobby->showError("Banned from server");
-        break;
-
-    default: {
-        SLNet::RakString str;
-        message->DebugMsg(str);
-        menuLobby->showError(str.C_String());
-        break;
-    }
-    }
-}
-
-void CMenuCustomLobby::LobbyCallbacks::MessageResult(SLNet::Client_Logoff* message)
-{
-    if (message->resultCode == SLNet::L2RC_SUCCESS) {
-        menuLobby->processLogout();
-        return;
-    }
-
-    SLNet::RakString str;
-    message->DebugMsg(str);
-    menuLobby->showError(str.C_String());
 }
 
 void CMenuCustomLobby::RoomListCallbacks::JoinByFilter_Callback(

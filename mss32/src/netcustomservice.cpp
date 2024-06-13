@@ -52,7 +52,7 @@ game::IMqNetServiceVftable CNetCustomService::m_vftable = {
     (game::IMqNetServiceVftable::JoinSession)joinSession,
 };
 
-bool connectToLobby(SLNet::RakPeerInterface* peer)
+bool startLobbyConnection(SLNet::RakPeerInterface* peer)
 {
     const auto& lobbySettings = userSettings().lobby;
     const auto& clientPort = lobbySettings.client.port;
@@ -69,7 +69,7 @@ bool connectToLobby(SLNet::RakPeerInterface* peer)
                                       serverIp, serverPort));
     if (peer->Connect(serverIp.c_str(), serverPort, nullptr, 0)
         != SLNet::CONNECTION_ATTEMPT_STARTED) {
-        logError("lobby.log", "Failed to connect to lobby server");
+        logError("lobby.log", "Failed to start lobby connection");
         return false;
     }
 
@@ -83,7 +83,7 @@ CNetCustomService* CNetCustomService::create()
 
     logDebug("lobby.log", "Get peer instance");
     auto peer = SLNet::RakPeerInterface::GetInstance();
-    if (!connectToLobby(peer)) {
+    if (!startLobbyConnection(peer)) {
         peer->Shutdown(peerShutdownTimeout);
         SLNet::RakPeerInterface::DestroyInstance(peer);
         return nullptr;
@@ -105,6 +105,7 @@ CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
     : m_peer(peer)
     , m_session{nullptr}
     , m_callbacks(this)
+    , m_lobbyCallbacks(this)
 {
     vftable = &m_vftable;
 
@@ -115,7 +116,7 @@ CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
     m_lobbyClient.SetMessageFactory(&m_lobbyMsgFactory);
 
     logDebug("lobby.log", "Create callbacks");
-    m_lobbyClient.SetCallbackInterface(&m_loggingCallbacks);
+    m_lobbyClient.SetCallbackInterface(&m_lobbyCallbacks);
 
     logDebug("lobby.log", "Attach lobby client as a plugin");
     m_peer->AttachPlugin(&m_lobbyClient);
@@ -126,6 +127,8 @@ CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
 
 CNetCustomService::~CNetCustomService()
 {
+    logDebug("lobby.log", "CNetCustomService is destroyed");
+
     game::UiEventApi::get().destructor(&m_peerProcessEvent);
 
     m_peer->Shutdown(peerShutdownTimeout);
@@ -145,6 +148,11 @@ void CNetCustomService::setSession(CNetCustomSession* value)
 const std::string& CNetCustomService::getAccountName() const
 {
     return m_accountName;
+}
+
+bool CNetCustomService::loggedIn() const
+{
+    return !m_accountName.empty();
 }
 
 const SLNet::RakNetGUID CNetCustomService::getPeerGuid() const
@@ -274,17 +282,6 @@ void CNetCustomService::logoutAccount()
 
     m_lobbyClient.SendMsg(logoff);
     m_lobbyMsgFactory.Dealloc(logoff);
-}
-
-void CNetCustomService::setCurrentLobbyPlayer(const char* accountName)
-{
-    if (accountName) {
-        logDebug("lobby.log", fmt::format("Set current logged account to {:s}", accountName));
-        m_accountName = accountName;
-    } else {
-        logDebug("lobby.log", "Forget current logged account");
-        m_accountName.clear();
-    }
 }
 
 bool CNetCustomService::createRoom(const char* name, const char* password)
@@ -578,12 +575,35 @@ void CNetCustomService::Callbacks::onPacketReceived(DefaultMessageIDTypes type,
     }
 }
 
-void CNetCustomService::LobbyLoggingCallbacks::ExecuteDefaultResult(SLNet::Lobby2Message* msg)
+void CNetCustomService::LobbyCallbacks::MessageResult(SLNet::Client_Login* message)
 {
+    if (message->resultCode == SLNet::L2RC_SUCCESS) {
+        m_service->m_accountName = message->userName.C_String();
+    }
+
+    ExecuteDefaultResult(message);
+}
+
+void CNetCustomService::LobbyCallbacks::MessageResult(SLNet::Client_Logoff* message)
+{
+    if (message->resultCode == SLNet::L2RC_SUCCESS) {
+        m_service->m_accountName.clear();
+    }
+
+    ExecuteDefaultResult(message);
+}
+
+void CNetCustomService::LobbyCallbacks::ExecuteDefaultResult(SLNet::Lobby2Message* msg)
+{
+    // To optimize out DebugMsg call
+    if (!userSettings().debugMode) {
+        return;
+    }
+
     SLNet::RakString str;
     msg->DebugMsg(str);
 
-    logDebug("lobbyCallbacks.log", str.C_String());
+    logDebug("lobby.log", str.C_String());
 }
 
 CNetCustomService* getNetService()
