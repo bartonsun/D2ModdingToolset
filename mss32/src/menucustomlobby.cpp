@@ -74,7 +74,7 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     logDebug("transitions.log", "Call CMenuBase c-tor for CMenuCustomLobby");
     menuBaseApi.constructor(this, menuPhase);
 
-    static game::RttiInfo<game::CInterfaceVftable> rttiInfo = {};
+    static game::RttiInfo<game::CMenuBaseVftable> rttiInfo = {};
     if (rttiInfo.locator == nullptr) {
         // Reuse object locator for our custom this.
         // We only need it for dynamic_cast<CAnimInterf>() to work properly without exceptions

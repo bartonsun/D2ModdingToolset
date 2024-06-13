@@ -24,11 +24,15 @@
 
 namespace game {
 
+template <typename T>
+struct CInterfFullScreenT : public CInterfaceT<T>
+{ };
+
 /**
  * Assumption: base class for all full screen ui elements.
  * Actual size unknown.
  */
-struct CInterfFullScreen : public CInterface
+struct CInterfFullScreen : public CInterfFullScreenT<CInterfaceVftable>
 { };
 
 } // namespace game

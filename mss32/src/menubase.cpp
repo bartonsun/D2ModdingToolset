@@ -57,13 +57,13 @@ static std::array<Api, 3> functions = {{
     },
 }};
 
-static std::array<CInterfaceVftable*, 3> vftables = {{
+static std::array<CMenuBaseVftable*, 3> vftables = {{
     // Akella
-    (CInterfaceVftable*)0x6dd294,
+    (CMenuBaseVftable*)0x6dd294,
     // Russobit
-    (CInterfaceVftable*)0x6dd294,
+    (CMenuBaseVftable*)0x6dd294,
     // Gog
-    (CInterfaceVftable*)0x6db234,
+    (CMenuBaseVftable*)0x6db234,
 }};
 // clang-format on
 
@@ -72,7 +72,7 @@ Api& get()
     return functions[static_cast<int>(hooks::gameVersion())];
 }
 
-const CInterfaceVftable* vftable()
+const CMenuBaseVftable* vftable()
 {
     return vftables[static_cast<int>(hooks::gameVersion())];
 }

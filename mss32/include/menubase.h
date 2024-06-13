@@ -30,6 +30,7 @@ namespace game {
 
 struct CDialogInterf;
 struct CMenuPhase;
+struct CMenuBaseVftable;
 
 struct CMenuBaseData
 {
@@ -40,13 +41,19 @@ struct CMenuBaseData
 assert_size(CMenuBaseData, 48);
 
 /** Base class for all menus. */
-struct CMenuBase : public CInterfFullScreen
+struct CMenuBase : public CInterfFullScreenT<CMenuBaseVftable>
 {
     CMenuBaseData* menuBaseData;
 };
 
 assert_size(CMenuBase, 12);
 assert_offset(CMenuBase, menuBaseData, 8);
+
+struct CMenuBaseVftable : public CInterfaceVftable
+{
+    void* method35;
+};
+assert_vftable_size(CMenuBaseVftable, 35);
 
 namespace CMenuBaseApi {
 
@@ -101,7 +108,7 @@ struct Api
 
 Api& get();
 
-const CInterfaceVftable* vftable();
+const CMenuBaseVftable* vftable();
 
 } // namespace CMenuBaseApi
 
