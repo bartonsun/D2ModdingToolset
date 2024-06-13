@@ -252,5 +252,8 @@ textids = {
 		-- Player entered wrong room password
 		-- Fallback text "Wrong room password"
 		wrongRoomPassword = "",
+		-- Player hit back button (or pressed Esc) while on the lobby screen
+		-- Fallback text "Do you really want to exit the lobby?"
+		confirmBack = "",
 	},
 }
