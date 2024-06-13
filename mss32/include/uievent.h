@@ -86,6 +86,9 @@ namespace UiEventApi {
 
 struct Api
 {
+    using Constructor = UiEvent*(__thiscall*)(UiEvent* thisptr);
+    Constructor constructor;
+
     using CopyConstructor = UiEvent*(__thiscall*)(UiEvent* thisptr, const UiEvent* other);
     CopyConstructor copy;
 

@@ -27,16 +27,19 @@ namespace game::UiEventApi {
 static std::array<Api, 3> functions = {{
     // Akella
     Api{
+        (Api::Constructor)0x561fc5,
         (Api::CopyConstructor)0x562081,
         (Api::Destructor)0x562050,
     },
     // Russobit
     Api{
+        (Api::Constructor)0x561fc5,
         (Api::CopyConstructor)0x562081,
         (Api::Destructor)0x562050,
     },
     // Gog
     Api{
+        (Api::Constructor)0x561762,
         (Api::CopyConstructor)0x56181e,
         (Api::Destructor)0x5617ed,
     },
