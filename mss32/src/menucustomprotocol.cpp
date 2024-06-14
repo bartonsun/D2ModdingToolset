@@ -82,7 +82,7 @@ void __fastcall CMenuCustomProtocol::destructor(CMenuCustomProtocol* thisptr,
     }
 }
 
-void CMenuCustomProtocol::createCustomServiceStartWaitingConnection()
+void CMenuCustomProtocol::createNetCustomServiceStartWaitingConnection()
 {
     using namespace game;
 

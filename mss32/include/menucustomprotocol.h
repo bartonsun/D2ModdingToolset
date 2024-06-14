@@ -35,7 +35,7 @@ public:
     CMenuCustomProtocol(game::CMenuPhase* menuPhase);
     ~CMenuCustomProtocol();
 
-    void createCustomServiceStartWaitingConnection();
+    void createNetCustomServiceStartWaitingConnection();
 
 protected:
     // CInterface

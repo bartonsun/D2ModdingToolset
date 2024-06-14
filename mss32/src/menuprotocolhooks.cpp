@@ -70,7 +70,7 @@ void __fastcall menuProtocolContinueHandlerHooked(CMenuCustomProtocol* thisptr, 
     if (listBox) {
         auto data = listBox->listBoxData;
         if (data->selectedElement == data->elementsTotal - 1) {
-            thisptr->createCustomServiceStartWaitingConnection();
+            thisptr->createNetCustomServiceStartWaitingConnection();
             return;
         }
     }
