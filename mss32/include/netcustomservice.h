@@ -54,10 +54,10 @@ enum ClientMessages
 
 class CNetCustomSession;
 
-class NetPeerCallbacks
+class NetPeerCallback
 {
 public:
-    virtual ~NetPeerCallbacks() = default;
+    virtual ~NetPeerCallback() = default;
     virtual void onPacketReceived(DefaultMessageIDTypes type,
                                   SLNet::RakPeerInterface* peer,
                                   const SLNet::Packet* packet) = 0;
@@ -121,8 +121,8 @@ public:
      * The service is always first to receive peer notifications.
      * So other listeners will be dealing with already updated service state.
      */
-    void addPeerCallbacks(NetPeerCallbacks* callbacks);
-    void removePeerCallbacks(NetPeerCallbacks* callbacks);
+    void addPeerCallback(NetPeerCallback* callback);
+    void removePeerCallback(NetPeerCallback* callback);
 
     /**
      * The service is always first to receive lobby notifications.
@@ -163,10 +163,10 @@ protected:
                                        const char* password);
 
 private:
-    class Callbacks : public NetPeerCallbacks
+    class PeerCallback : public NetPeerCallback
     {
     public:
-        Callbacks(CNetCustomService* service)
+        PeerCallback(CNetCustomService* service)
             : m_service(service)
         { }
 
@@ -196,9 +196,9 @@ private:
     };
 
     static void __fastcall peerProcessEventCallback(CNetCustomService* thisptr, int /*%edx*/);
-    std::vector<NetPeerCallbacks*> getPeerCallbacks() const;
+    std::vector<NetPeerCallback*> getPeerCallbacks() const;
 
-    Callbacks m_callbacks;
+    PeerCallback m_peerCallback;
     CNetCustomSession* m_session;
     std::string m_accountName;
     SLNet::SystemAddress m_roomOwnerAddress;
@@ -213,7 +213,7 @@ private:
     /** Connection with lobby server. */
     SLNet::RakPeerInterface* m_peer;
     game::UiEvent m_peerProcessEvent;
-    std::vector<NetPeerCallbacks*> m_peerCallbacks;
+    std::vector<NetPeerCallback*> m_peerCallbacks;
     mutable std::mutex m_peerCallbacksMutex;
 };
 

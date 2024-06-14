@@ -49,7 +49,7 @@ CNetCustomPlayerServer::CNetCustomPlayerServer(CNetCustomSession* session,
                                                game::IMqNetSystem* system,
                                                game::IMqNetReception* reception)
     : CNetCustomPlayer(session, system, reception, "SERVER", game::serverNetPlayerId)
-    , m_peerCallbacks(this)
+    , m_peerCallback(this)
     , m_roomsCallback(this)
 {
     static game::IMqNetPlayerServerVftable vftable = {
@@ -68,14 +68,14 @@ CNetCustomPlayerServer::CNetCustomPlayerServer(CNetCustomSession* session,
     };
 
     this->vftable = &vftable;
-    getService()->addPeerCallbacks(&m_peerCallbacks);
+    getService()->addPeerCallback(&m_peerCallback);
     getService()->addRoomsCallback(&m_roomsCallback);
 }
 
 CNetCustomPlayerServer::~CNetCustomPlayerServer()
 {
     logDebug("lobby.log", "Destroying CNetCustomPlayerServer");
-    getService()->removePeerCallbacks(&m_peerCallbacks);
+    getService()->removePeerCallback(&m_peerCallback);
     getService()->removeRoomsCallback(&m_roomsCallback);
 }
 
@@ -218,9 +218,9 @@ bool __fastcall CNetCustomPlayerServer::setAllowJoin(CNetCustomPlayerServer* thi
     return true;
 }
 
-void CNetCustomPlayerServer::PeerCallbacks::onPacketReceived(DefaultMessageIDTypes type,
-                                                             SLNet::RakPeerInterface* peer,
-                                                             const SLNet::Packet* packet)
+void CNetCustomPlayerServer::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
+                                                            SLNet::RakPeerInterface* peer,
+                                                            const SLNet::Packet* packet)
 {
     switch (type) {
     case ID_REMOTE_DISCONNECTION_NOTIFICATION: {

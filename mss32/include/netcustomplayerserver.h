@@ -66,10 +66,10 @@ protected:
                                         bool allowJoin);
 
 private:
-    class PeerCallbacks : public NetPeerCallbacks
+    class PeerCallback : public NetPeerCallback
     {
     public:
-        PeerCallbacks(CNetCustomPlayerServer* player)
+        PeerCallback(CNetCustomPlayerServer* player)
             : m_player{player}
         { }
 
@@ -106,7 +106,7 @@ private:
         CNetCustomPlayerServer* m_player;
     };
 
-    PeerCallbacks m_peerCallbacks;
+    PeerCallback m_peerCallback;
     RoomsCallback m_roomsCallback;
     std::map<SLNet::RakNetGUID, SLNet::RakString> m_clients;
     mutable std::mutex m_clientsMutex;

@@ -60,13 +60,13 @@ bool CNetCustomService::isCustom(const game::IMqNetService* service)
 CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
     : m_peer(peer)
     , m_session{nullptr}
-    , m_callbacks(this)
+    , m_peerCallback(this)
     , m_lobbyCallbacks(this)
 {
     vftable = &m_vftable;
 
     createTimerEvent(&m_peerProcessEvent, this, peerProcessEventCallback, peerProcessInterval);
-    addPeerCallbacks(&m_callbacks);
+    addPeerCallback(&m_peerCallback);
 
     logDebug("lobby.log", "Set msg factory");
     m_lobbyClient.SetMessageFactory(&m_lobbyMsgFactory);
@@ -375,19 +375,19 @@ bool CNetCustomService::checkFilesIntegrity(const char* hash)
     return result != 0;
 }
 
-void CNetCustomService::addPeerCallbacks(NetPeerCallbacks* callbacks)
+void CNetCustomService::addPeerCallback(NetPeerCallback* callback)
 {
     std::lock_guard lock(m_peerCallbacksMutex);
-    if (std::find(m_peerCallbacks.begin(), m_peerCallbacks.end(), callbacks)
+    if (std::find(m_peerCallbacks.begin(), m_peerCallbacks.end(), callback)
         == m_peerCallbacks.end()) {
-        m_peerCallbacks.push_back(callbacks);
+        m_peerCallbacks.push_back(callback);
     }
 }
 
-void CNetCustomService::removePeerCallbacks(NetPeerCallbacks* callbacks)
+void CNetCustomService::removePeerCallback(NetPeerCallback* callback)
 {
     std::lock_guard lock(m_peerCallbacksMutex);
-    m_peerCallbacks.erase(std::remove(m_peerCallbacks.begin(), m_peerCallbacks.end(), callbacks),
+    m_peerCallbacks.erase(std::remove(m_peerCallbacks.begin(), m_peerCallbacks.end(), callback),
                           m_peerCallbacks.end());
 }
 
@@ -491,15 +491,15 @@ void __fastcall CNetCustomService::peerProcessEventCallback(CNetCustomService* t
     }
 }
 
-std::vector<NetPeerCallbacks*> CNetCustomService::getPeerCallbacks() const
+std::vector<NetPeerCallback*> CNetCustomService::getPeerCallbacks() const
 {
     std::lock_guard lock(m_peerCallbacksMutex);
     return m_peerCallbacks;
 }
 
-void CNetCustomService::Callbacks::onPacketReceived(DefaultMessageIDTypes type,
-                                                    SLNet::RakPeerInterface* peer,
-                                                    const SLNet::Packet* packet)
+void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
+                                                       SLNet::RakPeerInterface* peer,
+                                                       const SLNet::Packet* packet)
 {
     switch (type) {
     case ID_DISCONNECTION_NOTIFICATION:

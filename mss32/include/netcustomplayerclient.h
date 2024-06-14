@@ -62,13 +62,13 @@ protected:
     static bool __fastcall isHost(CNetCustomPlayerClient* thisptr, int /*%edx*/);
 
 private:
-    class Callbacks : public NetPeerCallbacks
+    class PeerCallback : public NetPeerCallback
     {
     public:
-        Callbacks(CNetCustomPlayerClient* player)
+        PeerCallback(CNetCustomPlayerClient* player)
             : m_player{player}
         { }
-        virtual ~Callbacks() = default;
+        virtual ~PeerCallback() = default;
 
         void onPacketReceived(DefaultMessageIDTypes type,
                               SLNet::RakPeerInterface* peer,
@@ -78,7 +78,7 @@ private:
         CNetCustomPlayerClient* m_player;
     };
 
-    Callbacks m_callbacks;
+    PeerCallback m_peerCallback;
     SLNet::RakNetGUID m_serverGuid;
 };
 

@@ -33,7 +33,7 @@ namespace hooks {
 
 CMenuCustomProtocol::CMenuCustomProtocol(game::CMenuPhase* menuPhase)
     : m_menuWait{nullptr}
-    , m_callbacks{this}
+    , m_peerCallback{this}
     , m_lobbyCallbacks{this}
 {
     using namespace game;
@@ -64,7 +64,7 @@ CMenuCustomProtocol ::~CMenuCustomProtocol()
     auto service = getNetService();
     if (service) {
         service->removeLobbyCallbacks(&m_lobbyCallbacks);
-        service->removePeerCallbacks(&m_callbacks);
+        service->removePeerCallback(&m_peerCallback);
     }
 
     CMenuProtocolApi::get().destructor(this);
@@ -98,7 +98,7 @@ void CMenuCustomProtocol::createNetCustomServiceStartWaitingConnection()
         }
         return;
     }
-    service->addPeerCallbacks(&m_callbacks);
+    service->addPeerCallback(&m_peerCallback);
     service->addLobbyCallbacks(&m_lobbyCallbacks);
     midgardApi.setNetService(midgardApi.instance(), service, true, false);
 
@@ -124,9 +124,9 @@ void CMenuCustomProtocol::stopWaitingConnection(const char* errorMessage)
     showMessageBox(errorMessage);
 }
 
-void CMenuCustomProtocol::Callbacks::onPacketReceived(DefaultMessageIDTypes type,
-                                                      SLNet::RakPeerInterface* peer,
-                                                      const SLNet::Packet* packet)
+void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
+                                                         SLNet::RakPeerInterface* peer,
+                                                         const SLNet::Packet* packet)
 {
     switch (type) {
     case ID_CONNECTION_ATTEMPT_FAILED: {

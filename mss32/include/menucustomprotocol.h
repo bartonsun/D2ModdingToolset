@@ -42,14 +42,14 @@ protected:
     static void __fastcall destructor(CMenuCustomProtocol* thisptr, int /*%edx*/, char flags);
 
 private:
-    class Callbacks : public NetPeerCallbacks
+    class PeerCallback : public NetPeerCallback
     {
     public:
-        Callbacks(CMenuCustomProtocol* menu)
+        PeerCallback(CMenuCustomProtocol* menu)
             : m_menu{menu}
         { }
 
-        ~Callbacks() override = default;
+        ~PeerCallback() override = default;
 
         void onPacketReceived(DefaultMessageIDTypes type,
                               SLNet::RakPeerInterface* peer,
@@ -78,7 +78,7 @@ private:
     void stopWaitingConnection(const char* errorMessage);
 
     game::CMenuFlashWait* m_menuWait;
-    Callbacks m_callbacks;
+    PeerCallback m_peerCallback;
     LobbyCallbacks m_lobbyCallbacks;
 };
 
