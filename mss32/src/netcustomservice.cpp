@@ -52,50 +52,6 @@ game::IMqNetServiceVftable CNetCustomService::m_vftable = {
     (game::IMqNetServiceVftable::JoinSession)joinSession,
 };
 
-bool startLobbyConnection(SLNet::RakPeerInterface* peer)
-{
-    const auto& lobbySettings = userSettings().lobby;
-    const auto& clientPort = lobbySettings.client.port;
-    SLNet::SocketDescriptor socket{clientPort, nullptr};
-    logDebug("lobby.log", fmt::format("Start lobby peer on port {:d}", clientPort));
-    if (peer->Startup(1, &socket, 1) != SLNet::RAKNET_STARTED) {
-        logError("lobby.log", "Failed to start lobby client");
-        return false;
-    }
-
-    const auto& serverIp = lobbySettings.server.ip;
-    const auto& serverPort = lobbySettings.server.port;
-    logDebug("lobby.log", fmt::format("Connecting to lobby server with ip '{:s}', port {:d}",
-                                      serverIp, serverPort));
-    if (peer->Connect(serverIp.c_str(), serverPort, nullptr, 0)
-        != SLNet::CONNECTION_ATTEMPT_STARTED) {
-        logError("lobby.log", "Failed to start lobby connection");
-        return false;
-    }
-
-    logDebug("lobby.log", "Attempting to connect to lobby server");
-    return true;
-}
-
-CNetCustomService* CNetCustomService::create()
-{
-    using namespace game;
-
-    logDebug("lobby.log", "Get peer instance");
-    auto peer = SLNet::RakPeerInterface::GetInstance();
-    if (!startLobbyConnection(peer)) {
-        peer->Shutdown(peerShutdownTimeout);
-        SLNet::RakPeerInterface::DestroyInstance(peer);
-        return nullptr;
-    }
-
-    auto service = (CNetCustomService*)game::Memory::get().allocate(sizeof(CNetCustomService));
-    new (service) CNetCustomService(peer);
-
-    logDebug("lobby.log", "CNetCustomService created");
-    return service;
-}
-
 bool CNetCustomService::isCustom(const game::IMqNetService* service)
 {
     return service && service->vftable == &m_vftable;
@@ -123,6 +79,8 @@ CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
 
     m_peer->AttachPlugin(&m_roomsClient);
     m_roomsClient.SetRoomsCallback(&m_roomsLoggingCallback);
+
+    logDebug("lobby.log", "CNetCustomService is created");
 }
 
 CNetCustomService::~CNetCustomService()
@@ -604,6 +562,36 @@ void CNetCustomService::LobbyCallbacks::ExecuteDefaultResult(SLNet::Lobby2Messag
     msg->DebugMsg(str);
 
     logDebug("lobby.log", str.C_String());
+}
+
+CNetCustomService* createNetCustomServiceStartConnection()
+{
+    auto peer = SLNet::RakPeerInterface::GetInstance();
+
+    const auto& lobbySettings = userSettings().lobby;
+    const auto& clientPort = lobbySettings.client.port;
+    SLNet::SocketDescriptor socket{clientPort, nullptr};
+    logDebug("lobby.log", fmt::format("Start lobby peer on port {:d}", clientPort));
+    if (peer->Startup(1, &socket, 1) != SLNet::RAKNET_STARTED) {
+        logError("lobby.log", "Failed to start lobby client");
+        SLNet::RakPeerInterface::DestroyInstance(peer);
+        return nullptr;
+    }
+
+    const auto& serverIp = lobbySettings.server.ip;
+    const auto& serverPort = lobbySettings.server.port;
+    logDebug("lobby.log", fmt::format("Connecting to lobby server with ip '{:s}', port {:d}",
+                                      serverIp, serverPort));
+    if (peer->Connect(serverIp.c_str(), serverPort, nullptr, 0)
+        != SLNet::CONNECTION_ATTEMPT_STARTED) {
+        logError("lobby.log", "Failed to start lobby connection");
+        SLNet::RakPeerInterface::DestroyInstance(peer);
+        return nullptr;
+    }
+
+    auto service = (CNetCustomService*)game::Memory::get().allocate(sizeof(CNetCustomService));
+    new (service) CNetCustomService(peer);
+    return service;
 }
 
 CNetCustomService* getNetService()

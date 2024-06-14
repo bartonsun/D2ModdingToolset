@@ -103,6 +103,7 @@ void readLobbyTextIds(const sol::table& table, TextIds::Lobby& value)
     auto& lobby = lobbyTable.value();
     value.serverName = lobby.get_or("serverName", std::string());
     value.serverNotResponding = lobby.get_or("serverNotResponding", std::string());
+    value.connectAttemptFailed = lobby.get_or("connectStartFailed", std::string());
     value.connectAttemptFailed = lobby.get_or("connectAttemptFailed", std::string());
     value.serverIsFull = lobby.get_or("serverIsFull", std::string());
     value.computeHashFailed = lobby.get_or("computeHashFailed", std::string());

@@ -234,7 +234,9 @@ textids = {
 		-- Shown when client could not connect due to server being unresponsive
 		-- Fallback text "Failed to connect.\nLobby server not responding"
 		serverNotResponding = "",
-		-- Client's connection attemt failed
+		-- Fallback text "Connection start failed"
+		connectStartFailed = "",
+		-- Client's connection attempt failed
 		-- Fallback text "Connection attempt failed"
 		connectAttemptFailed = "",
 		-- Client could not connect due to server being full

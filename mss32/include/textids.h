@@ -103,6 +103,7 @@ struct TextIds
     {
         std::string serverName;
         std::string serverNotResponding;
+        std::string connectStartFailed;
         std::string connectAttemptFailed;
         std::string serverIsFull;
         std::string computeHashFailed;

@@ -90,15 +90,17 @@ void CMenuCustomProtocol::createNetCustomServiceStartWaitingConnection()
 
     stopWaitingConnection();
 
-    auto midgard = midgardApi.instance();
-    auto service = CNetCustomService::create();
-    midgardApi.setNetService(midgard, service, true, false);
+    auto service = createNetCustomServiceStartConnection();
     if (!service) {
-        // TODO: show error dialog
+        auto message{getInterfaceText(textIds().lobby.connectStartFailed.c_str())};
+        if (message.empty()) {
+            message = "Connection start failed";
+        }
         return;
     }
     service->addPeerCallbacks(&m_callbacks);
     service->addLobbyCallbacks(&m_lobbyCallbacks);
+    midgardApi.setNetService(midgardApi.instance(), service, true, false);
 
     m_menuWait = (CMenuFlashWait*)Memory::get().allocate(sizeof(CMenuFlashWait));
     CMenuFlashWaitApi::get().constructor(m_menuWait);

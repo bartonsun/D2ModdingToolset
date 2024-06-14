@@ -69,7 +69,6 @@ public:
     static constexpr std::uint32_t peerShutdownTimeout{100};
     static constexpr std::uint32_t peerProcessInterval{100};
 
-    static CNetCustomService* create();
     static bool isCustom(const game::IMqNetService* service);
 
     CNetCustomService(SLNet::RakPeerInterface* peer);
@@ -219,6 +218,8 @@ private:
 };
 
 assert_offset(CNetCustomService, vftable, 0);
+
+CNetCustomService* createNetCustomServiceStartConnection();
 
 /** Returns net service if it is present and has type CNetCustomService. */
 CNetCustomService* getNetService();
