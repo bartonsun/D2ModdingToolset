@@ -128,8 +128,8 @@ public:
      * The service is always first to receive lobby notifications.
      * So other listeners will be dealing with already updated service state.
      */
-    void addLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks);
-    void removeLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks);
+    void addLobbyCallback(SLNet::Lobby2Callbacks* callback);
+    void removeLobbyCallback(SLNet::Lobby2Callbacks* callback);
 
     /**
      * The service is always first to receive room notifications.
@@ -178,14 +178,14 @@ private:
         CNetCustomService* m_service;
     };
 
-    class LobbyCallbacks : public SLNet::Lobby2Callbacks
+    class LobbyCallback : public SLNet::Lobby2Callbacks
     {
     public:
-        LobbyCallbacks(CNetCustomService* service)
+        LobbyCallback(CNetCustomService* service)
             : m_service(service)
         { }
 
-        ~LobbyCallbacks() override = default;
+        ~LobbyCallback() override = default;
 
         void MessageResult(SLNet::Client_Login* message) override;
         void MessageResult(SLNet::Client_Logoff* message) override;
@@ -206,7 +206,7 @@ private:
     SLNet::Lobby2Client m_lobbyClient;
     /** Creates network messages. */
     SLNet::Lobby2MessageFactory m_lobbyMsgFactory;
-    LobbyCallbacks m_lobbyCallbacks;
+    LobbyCallback m_lobbyCallback;
     /** Interacts with lobby server rooms. */
     SLNet::RoomsPlugin m_roomsClient;
     RoomsLoggingCallback m_roomsLoggingCallback;

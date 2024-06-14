@@ -59,14 +59,14 @@ private:
         CMenuCustomProtocol* m_menu;
     };
 
-    class LobbyCallbacks : public SLNet::Lobby2Callbacks
+    class LobbyCallback : public SLNet::Lobby2Callbacks
     {
     public:
-        LobbyCallbacks(CMenuCustomProtocol* menu)
+        LobbyCallback(CMenuCustomProtocol* menu)
             : m_menu{menu}
         { }
 
-        ~LobbyCallbacks() override = default;
+        ~LobbyCallback() override = default;
 
         void MessageResult(SLNet::Client_Login* message) override;
 
@@ -79,7 +79,7 @@ private:
 
     game::CMenuFlashWait* m_menuWait;
     PeerCallback m_peerCallback;
-    LobbyCallbacks m_lobbyCallbacks;
+    LobbyCallback m_lobbyCallback;
 };
 
 assert_offset(CMenuCustomProtocol, vftable, 0);

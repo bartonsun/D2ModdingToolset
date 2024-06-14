@@ -34,7 +34,7 @@ namespace hooks {
 CMenuCustomProtocol::CMenuCustomProtocol(game::CMenuPhase* menuPhase)
     : m_menuWait{nullptr}
     , m_peerCallback{this}
-    , m_lobbyCallbacks{this}
+    , m_lobbyCallback{this}
 {
     using namespace game;
 
@@ -63,7 +63,7 @@ CMenuCustomProtocol ::~CMenuCustomProtocol()
 
     auto service = getNetService();
     if (service) {
-        service->removeLobbyCallbacks(&m_lobbyCallbacks);
+        service->removeLobbyCallback(&m_lobbyCallback);
         service->removePeerCallback(&m_peerCallback);
     }
 
@@ -99,7 +99,7 @@ void CMenuCustomProtocol::createNetCustomServiceStartWaitingConnection()
         return;
     }
     service->addPeerCallback(&m_peerCallback);
-    service->addLobbyCallbacks(&m_lobbyCallbacks);
+    service->addLobbyCallback(&m_lobbyCallback);
     midgardApi.setNetService(midgardApi.instance(), service, true, false);
 
     m_menuWait = (CMenuFlashWait*)Memory::get().allocate(sizeof(CMenuFlashWait));
@@ -202,7 +202,7 @@ void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes t
     }
 }
 
-void CMenuCustomProtocol::LobbyCallbacks::MessageResult(SLNet::Client_Login* message)
+void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_Login* message)
 {
     using namespace game;
 

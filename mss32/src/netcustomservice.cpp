@@ -61,7 +61,7 @@ CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
     : m_peer(peer)
     , m_session{nullptr}
     , m_peerCallback(this)
-    , m_lobbyCallbacks(this)
+    , m_lobbyCallback(this)
 {
     vftable = &m_vftable;
 
@@ -71,8 +71,8 @@ CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
     logDebug("lobby.log", "Set msg factory");
     m_lobbyClient.SetMessageFactory(&m_lobbyMsgFactory);
 
-    logDebug("lobby.log", "Create callbacks");
-    m_lobbyClient.SetCallbackInterface(&m_lobbyCallbacks);
+    logDebug("lobby.log", "Set lobby callback");
+    m_lobbyClient.SetCallbackInterface(&m_lobbyCallback);
 
     logDebug("lobby.log", "Attach lobby client as a plugin");
     m_peer->AttachPlugin(&m_lobbyClient);
@@ -391,14 +391,14 @@ void CNetCustomService::removePeerCallback(NetPeerCallback* callback)
                           m_peerCallbacks.end());
 }
 
-void CNetCustomService::addLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks)
+void CNetCustomService::addLobbyCallback(SLNet::Lobby2Callbacks* callback)
 {
-    m_lobbyClient.AddCallbackInterface(callbacks);
+    m_lobbyClient.AddCallbackInterface(callback);
 }
 
-void CNetCustomService::removeLobbyCallbacks(SLNet::Lobby2Callbacks* callbacks)
+void CNetCustomService::removeLobbyCallback(SLNet::Lobby2Callbacks* callback)
 {
-    m_lobbyClient.RemoveCallbackInterface(callbacks);
+    m_lobbyClient.RemoveCallbackInterface(callback);
 }
 
 void CNetCustomService::addRoomsCallback(SLNet::RoomsCallback* callback)
@@ -533,7 +533,7 @@ void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes typ
     }
 }
 
-void CNetCustomService::LobbyCallbacks::MessageResult(SLNet::Client_Login* message)
+void CNetCustomService::LobbyCallback::MessageResult(SLNet::Client_Login* message)
 {
     if (message->resultCode == SLNet::L2RC_SUCCESS) {
         m_service->m_accountName = message->userName.C_String();
@@ -542,7 +542,7 @@ void CNetCustomService::LobbyCallbacks::MessageResult(SLNet::Client_Login* messa
     ExecuteDefaultResult(message);
 }
 
-void CNetCustomService::LobbyCallbacks::MessageResult(SLNet::Client_Logoff* message)
+void CNetCustomService::LobbyCallback::MessageResult(SLNet::Client_Logoff* message)
 {
     if (message->resultCode == SLNet::L2RC_SUCCESS) {
         m_service->m_accountName.clear();
@@ -551,7 +551,7 @@ void CNetCustomService::LobbyCallbacks::MessageResult(SLNet::Client_Logoff* mess
     ExecuteDefaultResult(message);
 }
 
-void CNetCustomService::LobbyCallbacks::ExecuteDefaultResult(SLNet::Lobby2Message* msg)
+void CNetCustomService::LobbyCallback::ExecuteDefaultResult(SLNet::Lobby2Message* msg)
 {
     // To optimize out DebugMsg call
     if (!userSettings().debugMode) {
