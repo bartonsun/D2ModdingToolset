@@ -22,6 +22,7 @@
 
 #include "menuprotocol.h"
 #include "netcustomservice.h"
+#include "popupdialoginterf.h"
 
 namespace game {
 struct CMenuFlashWait;
@@ -38,10 +39,17 @@ public:
     void createNetCustomServiceStartWaitingConnection();
 
 protected:
+    static constexpr char loginDialogName[] = "DLG_LOGIN_ACCOUNT";
+
     // CInterface
     static void __fastcall destructor(CMenuCustomProtocol* thisptr, int /*%edx*/, char flags);
 
-private:
+    void showWaitDialog();
+    void hideWaitDialog();
+    void showLoginDialog();
+    void stopWaitingConnection();
+    void stopWaitingConnection(const char* errorMessage);
+
     class PeerCallback : public NetPeerCallback
     {
     public:
@@ -74,9 +82,19 @@ private:
         CMenuCustomProtocol* m_menu;
     };
 
-    void stopWaitingConnection();
-    void stopWaitingConnection(const char* errorMessage);
+    struct CLoginAccountInterf : public game::CPopupDialogInterf
+    {
+        CLoginAccountInterf(CMenuCustomProtocol* menu);
 
+    protected:
+        static void __fastcall okBtnHandler(CLoginAccountInterf* thisptr, int /*%edx*/);
+        static void __fastcall cancelBtnHandler(CLoginAccountInterf* thisptr, int /*%edx*/);
+
+    private:
+        CMenuCustomProtocol* m_menu;
+    };
+
+private:
     game::CMenuFlashWait* m_menuWait;
     PeerCallback m_peerCallback;
     LobbyCallback m_lobbyCallback;

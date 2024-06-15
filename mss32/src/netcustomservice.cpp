@@ -196,6 +196,8 @@ bool CNetCustomService::createAccount(const char* accountName,
 
 bool CNetCustomService::loginAccount(const char* accountName, const char* password)
 {
+    logDebug("lobby.log", "User tries to log in");
+
     if (!accountName) {
         return false;
     }

@@ -18,10 +18,11 @@
  */
 
 #include "menucustomprotocol.h"
+#include "button.h"
 #include "dialoginterf.h"
+#include "editboxinterf.h"
 #include "listbox.h"
 #include "log.h"
-#include "loginaccountinterf.h"
 #include "mempool.h"
 #include "menuflashwait.h"
 #include "menuphase.h"
@@ -102,15 +103,20 @@ void CMenuCustomProtocol::createNetCustomServiceStartWaitingConnection()
     service->addLobbyCallback(&m_lobbyCallback);
     midgardApi.setNetService(midgardApi.instance(), service, true, false);
 
+    showWaitDialog();
+}
+
+void CMenuCustomProtocol::showWaitDialog()
+{
+    using namespace game;
+
     m_menuWait = (CMenuFlashWait*)Memory::get().allocate(sizeof(CMenuFlashWait));
     CMenuFlashWaitApi::get().constructor(m_menuWait);
     showInterface(m_menuWait);
 }
 
-void CMenuCustomProtocol::stopWaitingConnection()
+void CMenuCustomProtocol::hideWaitDialog()
 {
-    using namespace game;
-
     if (m_menuWait) {
         hideInterface(m_menuWait);
         m_menuWait->vftable->destructor(m_menuWait, 1);
@@ -118,9 +124,22 @@ void CMenuCustomProtocol::stopWaitingConnection()
     }
 }
 
+void CMenuCustomProtocol::showLoginDialog()
+{
+    using namespace game;
+
+    auto dialog = (CLoginAccountInterf*)game::Memory::get().allocate(sizeof(CLoginAccountInterf));
+    showInterface(new (dialog) CLoginAccountInterf(this));
+}
+
+void CMenuCustomProtocol::stopWaitingConnection()
+{
+    hideWaitDialog();
+}
+
 void CMenuCustomProtocol::stopWaitingConnection(const char* errorMessage)
 {
-    stopWaitingConnection();
+    hideWaitDialog();
     showMessageBox(errorMessage);
 }
 
@@ -195,8 +214,7 @@ void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes t
             break;
         }
 
-        // TODO: refactor, control wait message
-        showLoginAccountDialog();
+        m_menu->showLoginDialog();
         break;
     }
     }
@@ -206,7 +224,7 @@ void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_Login* mess
 {
     using namespace game;
 
-    // TODO: hide wait message
+    m_menu->hideWaitDialog();
 
     switch (message->resultCode) {
     case SLNet::L2RC_SUCCESS: {
@@ -233,6 +251,69 @@ void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_Login* mess
         break;
     }
     }
+}
+
+CMenuCustomProtocol::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomProtocol* menu)
+    : m_menu{menu}
+{
+    using namespace game;
+
+    const auto createFunctor = CMenuBaseApi::get().createButtonFunctor;
+    const auto assignFunctor = CButtonInterfApi::get().assignFunctor;
+    const auto freeFunctor = SmartPointerApi::get().createOrFreeNoDtor;
+
+    CPopupDialogInterfApi::get().constructor(this, loginDialogName, nullptr);
+
+    SmartPointer functor;
+    auto callback = (CMenuBaseApi::Api::ButtonCallback)cancelBtnHandler;
+    createFunctor(&functor, 0, (CMenuBase*)this, &callback);
+    assignFunctor(*this->dialog, "BTN_CANCEL", loginDialogName, &functor, 0);
+    freeFunctor(&functor, nullptr);
+
+    callback = (CMenuBaseApi::Api::ButtonCallback)okBtnHandler;
+    createFunctor(&functor, 0, (CMenuBase*)this, &callback);
+    assignFunctor(*this->dialog, "BTN_OK", loginDialogName, &functor, 0);
+    freeFunctor(&functor, nullptr);
+}
+
+void __fastcall CMenuCustomProtocol::CLoginAccountInterf::okBtnHandler(CLoginAccountInterf* thisptr,
+                                                                       int /*%edx*/)
+{
+    using namespace game;
+
+    auto& dialogApi = CDialogInterfApi::get();
+    auto dialog = *thisptr->dialog;
+
+    const char* accountName = nullptr;
+    auto accountNameEdit = dialogApi.findEditBox(dialog, "EDIT_ACCOUNT_NAME");
+    if (accountNameEdit) {
+        accountName = accountNameEdit->data->editBoxData.inputString.string;
+    }
+
+    const char* password = nullptr;
+    auto passwordEdit = dialogApi.findEditBox(dialog, "EDIT_PASSWORD");
+    if (passwordEdit) {
+        password = passwordEdit->data->editBoxData.inputString.string;
+    }
+
+    if (!getNetService()->loginAccount(accountName, password)) {
+        // TODO: detailed error messages
+        showMessageBox("Wrong user input");
+        return;
+    }
+
+    hideInterface(thisptr);
+    thisptr->m_menu->showWaitDialog();
+    thisptr->vftable->destructor(thisptr, 1);
+}
+
+void __fastcall CMenuCustomProtocol::CLoginAccountInterf::cancelBtnHandler(
+    CLoginAccountInterf* thisptr,
+    int /*%edx*/)
+{
+    logDebug("lobby.log", "User canceled logging in");
+    hideInterface(thisptr);
+    thisptr->vftable->destructor(thisptr, 1);
 }
 
 } // namespace hooks

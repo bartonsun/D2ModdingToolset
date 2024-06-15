@@ -29,7 +29,6 @@
 #include "interfmanager.h"
 #include "listbox.h"
 #include "log.h"
-#include "loginaccountinterf.h"
 #include "mempool.h"
 #include "menuflashwait.h"
 #include "menuphase.h"
@@ -196,7 +195,7 @@ void __fastcall CMenuCustomLobby::registerAccountBtnHandler(CMenuCustomLobby*, i
 
 void __fastcall CMenuCustomLobby::loginAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/)
 {
-    showLoginAccountDialog();
+    // TODO: remove
 }
 
 void __fastcall CMenuCustomLobby::logoutAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/)

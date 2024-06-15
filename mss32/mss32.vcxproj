@@ -328,7 +328,6 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\listbox.cpp" />
     <ClCompile Include="src\idlistutils.cpp" />
     <ClCompile Include="src\log.cpp" />
-    <ClCompile Include="src\loginaccountinterf.cpp" />
     <ClCompile Include="src\lordcat.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\mainview2.cpp" />
@@ -843,7 +842,6 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\listbox.h" />
     <ClInclude Include="include\idlistutils.h" />
     <ClInclude Include="include\log.h" />
-    <ClInclude Include="include\loginaccountinterf.h" />
     <ClInclude Include="include\lordcat.h" />
     <ClInclude Include="include\lordtype.h" />
     <ClInclude Include="include\mapelement.h" />
