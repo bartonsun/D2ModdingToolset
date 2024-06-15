@@ -157,7 +157,7 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
         logDebug("playerClient.log", "Server was shut down");
         auto system = m_player->getSystem();
         if (system) {
-            system->vftable->onPlayerDisconnected(system, 1);
+            system->vftable->onPlayerDisconnected(system, game::serverNetPlayerId);
         }
         break;
     }
@@ -165,7 +165,7 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
         logDebug("playerClient.log", "Connection with server is lost");
         auto system = m_player->getSystem();
         if (system) {
-            system->vftable->onPlayerDisconnected(system, 1);
+            system->vftable->onPlayerDisconnected(system, game::serverNetPlayerId);
         }
         break;
     }
