@@ -47,6 +47,7 @@ protected:
     void showWaitDialog();
     void hideWaitDialog();
     void showLoginDialog();
+    void hideLoginDialog();
     void stopWaitingConnection();
     void stopWaitingConnection(const char* errorMessage);
 
@@ -96,6 +97,7 @@ protected:
 
 private:
     game::CMenuFlashWait* m_menuWait;
+    CLoginAccountInterf* m_loginDialog;
     PeerCallback m_peerCallback;
     LobbyCallback m_lobbyCallback;
 };

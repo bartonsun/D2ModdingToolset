@@ -110,6 +110,11 @@ void CMenuCustomProtocol::showWaitDialog()
 {
     using namespace game;
 
+    if (m_menuWait) {
+        logDebug("lobby.log", "Error showing wait dialog that is already shown");
+        return;
+    }
+
     m_menuWait = (CMenuFlashWait*)Memory::get().allocate(sizeof(CMenuFlashWait));
     CMenuFlashWaitApi::get().constructor(m_menuWait);
     showInterface(m_menuWait);
@@ -128,8 +133,22 @@ void CMenuCustomProtocol::showLoginDialog()
 {
     using namespace game;
 
-    auto dialog = (CLoginAccountInterf*)game::Memory::get().allocate(sizeof(CLoginAccountInterf));
-    showInterface(new (dialog) CLoginAccountInterf(this));
+    if (m_loginDialog) {
+        logDebug("lobby.log", "Error showing login dialog that is already shown");
+        return;
+    }
+
+    m_loginDialog = (CLoginAccountInterf*)game::Memory::get().allocate(sizeof(CLoginAccountInterf));
+    showInterface(new (m_loginDialog) CLoginAccountInterf(this));
+}
+
+void CMenuCustomProtocol::hideLoginDialog()
+{
+    if (m_loginDialog) {
+        hideInterface(m_loginDialog);
+        m_loginDialog->vftable->destructor(m_loginDialog, 1);
+        m_loginDialog = nullptr;
+    }
 }
 
 void CMenuCustomProtocol::stopWaitingConnection()
@@ -217,6 +236,8 @@ void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes t
         m_menu->showLoginDialog();
         break;
     }
+
+        // TODO: handle lobby connection lost
     }
 }
 
@@ -228,6 +249,7 @@ void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_Login* mess
 
     switch (message->resultCode) {
     case SLNet::L2RC_SUCCESS: {
+        m_menu->hideLoginDialog();
         CMenuPhase* menuPhase = m_menu->menuBaseData->menuPhase;
         CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Protocol2CustomLobby);
         break;
@@ -305,9 +327,7 @@ void __fastcall CMenuCustomProtocol::CLoginAccountInterf::okBtnHandler(CLoginAcc
         return;
     }
 
-    hideInterface(thisptr);
     thisptr->m_menu->showWaitDialog();
-    thisptr->vftable->destructor(thisptr, 1);
 }
 
 void __fastcall CMenuCustomProtocol::CLoginAccountInterf::cancelBtnHandler(
@@ -315,8 +335,7 @@ void __fastcall CMenuCustomProtocol::CLoginAccountInterf::cancelBtnHandler(
     int /*%edx*/)
 {
     logDebug("lobby.log", "User canceled logging in");
-    hideInterface(thisptr);
-    thisptr->vftable->destructor(thisptr, 1);
+    thisptr->m_menu->hideLoginDialog();
 }
 
 } // namespace hooks
