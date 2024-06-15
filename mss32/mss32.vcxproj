@@ -277,6 +277,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\logutils.cpp" />
     <ClCompile Include="src\managestkinterf.cpp" />
     <ClCompile Include="src\managestkinterfhooks.cpp" />
+    <ClCompile Include="src\menucustombase.cpp" />
     <ClCompile Include="src\menucustomprotocol.cpp" />
     <ClCompile Include="src\middragdropinterfhooks.cpp" />
     <ClCompile Include="src\midgardscenariomap.cpp" />
@@ -693,6 +694,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\logutils.h" />
     <ClInclude Include="include\managestkinterf.h" />
     <ClInclude Include="include\managestkinterfhooks.h" />
+    <ClInclude Include="include\menucustombase.h" />
     <ClInclude Include="include\menucustomprotocol.h" />
     <ClInclude Include="include\midanim2.h" />
     <ClInclude Include="include\midanim2base.h" />
