@@ -102,7 +102,6 @@ struct TextIds
     struct Lobby
     {
         std::string serverName;
-        std::string serverNotResponding;
         std::string connectStartFailed;
         std::string connectAttemptFailed;
         std::string serverIsFull;

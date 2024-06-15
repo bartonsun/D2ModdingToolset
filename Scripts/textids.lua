@@ -231,9 +231,6 @@ textids = {
 		-- Server name shown in network protocols list
 		-- Fallback text "Lobby server"
 		serverName = "",
-		-- Shown when client could not connect due to server being unresponsive
-		-- Fallback text "Failed to connect.\nLobby server not responding"
-		serverNotResponding = "",
 		-- Fallback text "Connection start failed"
 		connectStartFailed = "",
 		-- Client's connection attempt failed
