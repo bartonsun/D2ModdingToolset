@@ -113,7 +113,10 @@ struct TextIds
         std::string invalidAccountNameOrPassword;
         std::string noSuchAccountOrWrongPassword;
         std::string accountIsBanned;
+        std::string accountNameAlreadyInUse;
         std::string unableToLogin;
+        std::string unableToLoginAfterRegistration;
+        std::string unableToRegister;
     } lobby;
 };
 

@@ -115,7 +115,11 @@ void readLobbyTextIds(const sol::table& table, TextIds::Lobby& value)
     value.noSuchAccountOrWrongPassword = lobby.get_or("noSuchAccountOrWrongPassword",
                                                       std::string());
     value.accountIsBanned = lobby.get_or("accountIsBanned", std::string());
+    value.accountNameAlreadyInUse = lobby.get_or("accountNameAlreadyInUse", std::string());
     value.unableToLogin = lobby.get_or("unableToLogin", std::string());
+    value.unableToLoginAfterRegistration = lobby.get_or("unableToLoginAfterRegistration",
+                                                        std::string());
+    value.unableToRegister = lobby.get_or("unableToRegister", std::string());
 }
 
 void readInterfTextIds(const sol::table& table, TextIds::Interf& value)

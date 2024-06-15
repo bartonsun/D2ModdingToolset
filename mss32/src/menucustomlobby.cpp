@@ -40,7 +40,6 @@
 #include "netmsgmapentry.h"
 #include "originalfunctions.h"
 #include "racelist.h"
-#include "registeraccountinterf.h"
 #include "roompasswordinterf.h"
 #include "textboxinterf.h"
 #include "textids.h"
@@ -176,7 +175,7 @@ void __fastcall CMenuCustomLobby::destructor(CMenuCustomLobby* thisptr, int /*%e
 
 void __fastcall CMenuCustomLobby::registerAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/)
 {
-    showRegisterAccountDialog();
+    // TODO: remove
 }
 
 void __fastcall CMenuCustomLobby::loginAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/)

@@ -410,7 +410,6 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\racecategory.cpp" />
     <ClCompile Include="src\racelist.cpp" />
     <ClCompile Include="src\radiobuttoninterf.cpp" />
-    <ClCompile Include="src\registeraccountinterf.cpp" />
     <ClCompile Include="src\rendererimpl.cpp" />
     <ClCompile Include="src\restrictions.cpp" />
     <ClCompile Include="src\roompasswordinterf.cpp" />
@@ -993,7 +992,6 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\racelist.h" />
     <ClInclude Include="include\racetype.h" />
     <ClInclude Include="include\radiobuttoninterf.h" />
-    <ClInclude Include="include\registeraccountinterf.h" />
     <ClInclude Include="include\rendererimpl.h" />
     <ClInclude Include="include\rendertypes.h" />
     <ClInclude Include="include\resetstackext.h" />

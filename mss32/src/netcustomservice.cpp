@@ -134,34 +134,15 @@ bool CNetCustomService::send(const SLNet::BitStream& stream, const SLNet::RakNet
     return true;
 }
 
-bool CNetCustomService::createAccount(const char* accountName,
-                                      const char* nickname,
-                                      const char* password,
-                                      const char* pwdRecoveryQuestion,
-                                      const char* pwdRecoveryAnswer)
+bool CNetCustomService::createAccount(const char* accountName, const char* password)
 {
     if (!accountName) {
         logDebug("lobby.log", "Empty account name");
         return false;
     }
 
-    if (!nickname) {
-        logDebug("lobby.log", "Empty nick name");
-        return false;
-    }
-
     if (!password) {
         logDebug("lobby.log", "Empty password");
-        return false;
-    }
-
-    if (!pwdRecoveryQuestion) {
-        logDebug("lobby.log", "Empty pwd recv question");
-        return false;
-    }
-
-    if (!pwdRecoveryAnswer) {
-        logDebug("lobby.log", "Empty pwd recv answer");
         return false;
     }
 
@@ -176,11 +157,7 @@ bool CNetCustomService::createAccount(const char* accountName,
     account->titleName = titleName;
 
     auto& params = account->createAccountParameters;
-    params.firstName = nickname;
-    params.lastName = params.firstName;
     params.password = password;
-    params.passwordRecoveryQuestion = pwdRecoveryQuestion;
-    params.passwordRecoveryAnswer = pwdRecoveryAnswer;
 
     const auto result{account->PrevalidateInput()};
     if (!result) {

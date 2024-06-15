@@ -18,13 +18,14 @@
  */
 
 #include "menucustombase.h"
+#include "button.h"
 #include "interfmanager.h"
 #include "log.h"
 #include "mempool.h"
-#include "menubase.h"
 #include "menuflashwait.h"
 #include "midgardmsgbox.h"
 #include "originalfunctions.h"
+#include "popupdialoginterf.h"
 #include "utils.h"
 
 namespace hooks {
@@ -37,6 +38,11 @@ CMenuCustomBase::CMenuCustomBase(game::CMenuBase* menu)
 CMenuCustomBase::~CMenuCustomBase()
 {
     hideWaitDialog();
+}
+
+game::CMenuBase* CMenuCustomBase::getMenu() const
+{
+    return m_menu;
 }
 
 void CMenuCustomBase::showWaitDialog()
@@ -72,6 +78,25 @@ void CMenuCustomBase::onConnectionLost()
 
     // Connection to the server is lost.
     showMessageBox(getInterfaceText("X005TA0403"), handler, false);
+}
+
+CMenuCustomBase::CPopupDialogCustomBase::CPopupDialogCustomBase(game::CPopupDialogInterf* dialog,
+                                                                const char* dialogName)
+    : m_dialog{dialog}
+    , m_dialogName{dialogName}
+{ }
+
+void CMenuCustomBase::CPopupDialogCustomBase::assignButtonHandler(
+    const char* buttonName,
+    game::CMenuBaseApi::Api::ButtonCallback handler)
+{
+    using namespace game;
+
+    SmartPointer functor;
+    CMenuBaseApi::get().createButtonFunctor(&functor, 0, (CMenuBase*)m_dialog, &handler);
+    CButtonInterfApi::get().assignFunctor(*m_dialog->dialog, buttonName, m_dialogName.c_str(),
+                                          &functor, 0);
+    SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
 }
 
 CMenuCustomBase::CConnectionLostMsgBoxButtonHandler::CConnectionLostMsgBoxButtonHandler(

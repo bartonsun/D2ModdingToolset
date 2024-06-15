@@ -38,13 +38,13 @@ public:
     void createNetCustomServiceStartWaitingConnection();
 
 protected:
-    static constexpr char loginDialogName[] = "DLG_LOGIN_ACCOUNT";
-
     // CInterface
     static void __fastcall destructor(CMenuCustomProtocol* thisptr, int /*%edx*/, char flags);
 
     void showLoginDialog();
     void hideLoginDialog();
+    void showRegisterDialog();
+    void hideRegisterDialog();
 
     class PeerCallback : public NetPeerCallback
     {
@@ -73,18 +73,38 @@ protected:
         ~LobbyCallback() override = default;
 
         void MessageResult(SLNet::Client_Login* message) override;
+        void MessageResult(SLNet::Client_RegisterAccount* message) override;
 
     private:
         CMenuCustomProtocol* m_menu;
     };
 
-    struct CLoginAccountInterf : public game::CPopupDialogInterf
+    struct CLoginAccountInterf
+        : public game::CPopupDialogInterf
+        , public CPopupDialogCustomBase
     {
-        CLoginAccountInterf(CMenuCustomProtocol* menu);
+        CLoginAccountInterf(CMenuCustomProtocol* menu,
+                            const char* dialogName = "DLG_LOGIN_ACCOUNT");
 
     protected:
         static void __fastcall okBtnHandler(CLoginAccountInterf* thisptr, int /*%edx*/);
         static void __fastcall cancelBtnHandler(CLoginAccountInterf* thisptr, int /*%edx*/);
+        static void __fastcall registerBtnHandler(CLoginAccountInterf* thisptr, int /*%edx*/);
+
+    private:
+        CMenuCustomProtocol* m_menu;
+    };
+
+    struct CRegisterAccountInterf
+        : public game::CPopupDialogInterf
+        , public CPopupDialogCustomBase
+    {
+        CRegisterAccountInterf(CMenuCustomProtocol* menu,
+                               const char* dialogName = "DLG_REGISTER_ACCOUNT");
+
+    protected:
+        static void __fastcall okBtnHandler(CRegisterAccountInterf* thisptr, int /*%edx*/);
+        static void __fastcall cancelBtnHandler(CRegisterAccountInterf* thisptr, int /*%edx*/);
 
     private:
         CMenuCustomProtocol* m_menu;
@@ -94,6 +114,7 @@ private:
     PeerCallback m_peerCallback;
     LobbyCallback m_lobbyCallback;
     CLoginAccountInterf* m_loginDialog;
+    CRegisterAccountInterf* m_registerDialog;
 };
 
 assert_offset(CMenuCustomProtocol, vftable, 0);

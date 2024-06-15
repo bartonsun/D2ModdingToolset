@@ -18,7 +18,6 @@
  */
 
 #include "menucustomprotocol.h"
-#include "button.h"
 #include "dialoginterf.h"
 #include "editboxinterf.h"
 #include "listbox.h"
@@ -64,6 +63,7 @@ CMenuCustomProtocol ::~CMenuCustomProtocol()
 
     hideWaitDialog();
     hideLoginDialog();
+    hideRegisterDialog();
 
     auto service = getNetService();
     if (service) {
@@ -126,6 +126,29 @@ void CMenuCustomProtocol::hideLoginDialog()
         hideInterface(m_loginDialog);
         m_loginDialog->vftable->destructor(m_loginDialog, 1);
         m_loginDialog = nullptr;
+    }
+}
+
+void CMenuCustomProtocol::showRegisterDialog()
+{
+    using namespace game;
+
+    if (m_registerDialog) {
+        logDebug("lobby.log", "Error showing register dialog that is already shown");
+        return;
+    }
+
+    m_registerDialog = (CRegisterAccountInterf*)game::Memory::get().allocate(
+        sizeof(CRegisterAccountInterf));
+    showInterface(new (m_registerDialog) CRegisterAccountInterf(this));
+}
+
+void CMenuCustomProtocol::hideRegisterDialog()
+{
+    if (m_registerDialog) {
+        hideInterface(m_registerDialog);
+        m_registerDialog->vftable->destructor(m_registerDialog, 1);
+        m_registerDialog = nullptr;
     }
 }
 
@@ -273,27 +296,63 @@ void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_Login* mess
     }
 }
 
-CMenuCustomProtocol::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomProtocol* menu)
-    : m_menu{menu}
+void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_RegisterAccount* message)
 {
     using namespace game;
 
-    const auto createFunctor = CMenuBaseApi::get().createButtonFunctor;
-    const auto assignFunctor = CButtonInterfApi::get().assignFunctor;
-    const auto freeFunctor = SmartPointerApi::get().createOrFreeNoDtor;
+    m_menu->hideWaitDialog();
 
-    CPopupDialogInterfApi::get().constructor(this, loginDialogName, nullptr);
+    switch (message->resultCode) {
+    case SLNet::L2RC_SUCCESS: {
+        m_menu->hideRegisterDialog();
 
-    SmartPointer functor;
-    auto callback = (CMenuBaseApi::Api::ButtonCallback)cancelBtnHandler;
-    createFunctor(&functor, 0, (CMenuBase*)this, &callback);
-    assignFunctor(*this->dialog, "BTN_CANCEL", loginDialogName, &functor, 0);
-    freeFunctor(&functor, nullptr);
+        if (!getNetService()->loginAccount(message->userName,
+                                           message->createAccountParameters.password)) {
+            auto msg{getInterfaceText(textIds().lobby.unableToLoginAfterRegistration.c_str())};
+            if (msg.empty()) {
+                msg = "An unexpected error trying to login after successful registration.";
+            }
+            showMessageBox(msg);
+            break;
+        }
 
-    callback = (CMenuBaseApi::Api::ButtonCallback)okBtnHandler;
-    createFunctor(&functor, 0, (CMenuBase*)this, &callback);
-    assignFunctor(*this->dialog, "BTN_OK", loginDialogName, &functor, 0);
-    freeFunctor(&functor, nullptr);
+        m_menu->showWaitDialog();
+        break;
+    }
+
+    case SLNet::L2RC_Client_RegisterAccount_HANDLE_ALREADY_IN_USE: {
+        auto msg{getInterfaceText(textIds().lobby.accountNameAlreadyInUse.c_str())};
+        if (msg.empty()) {
+            msg = "The account name already exists.";
+        }
+        showMessageBox(msg);
+        break;
+    }
+
+    default: {
+        auto msg{getInterfaceText(textIds().lobby.unableToRegister.c_str())};
+        if (msg.empty()) {
+            msg = "An unexpected error during account registration.\nError code: %CODE%.";
+        }
+        replace(msg, "%CODE%", fmt::format("{:d}", message->resultCode));
+        showMessageBox(msg);
+        break;
+    }
+    }
+}
+
+CMenuCustomProtocol::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomProtocol* menu,
+                                                              const char* dialogName)
+    : CPopupDialogCustomBase{this, dialogName}
+    , m_menu{menu}
+{
+    using namespace game;
+
+    CPopupDialogInterfApi::get().constructor(this, dialogName, nullptr);
+
+    assignButtonHandler("BTN_CANCEL", (CMenuBaseApi::Api::ButtonCallback)cancelBtnHandler);
+    assignButtonHandler("BTN_OK", (CMenuBaseApi::Api::ButtonCallback)okBtnHandler);
+    assignButtonHandler("BTN_REGISTER", (CMenuBaseApi::Api::ButtonCallback)registerBtnHandler);
 }
 
 void __fastcall CMenuCustomProtocol::CLoginAccountInterf::okBtnHandler(CLoginAccountInterf* thisptr,
@@ -334,6 +393,69 @@ void __fastcall CMenuCustomProtocol::CLoginAccountInterf::cancelBtnHandler(
 {
     logDebug("lobby.log", "User canceled logging in");
     thisptr->m_menu->hideLoginDialog();
+}
+
+void __fastcall CMenuCustomProtocol::CLoginAccountInterf::registerBtnHandler(
+    CLoginAccountInterf* thisptr,
+    int /*%edx*/)
+{
+    auto menu = thisptr->m_menu;
+    menu->hideLoginDialog();
+    menu->showRegisterDialog();
+}
+
+CMenuCustomProtocol::CRegisterAccountInterf::CRegisterAccountInterf(CMenuCustomProtocol* menu,
+                                                                    const char* dialogName)
+    : CPopupDialogCustomBase{this, dialogName}
+    , m_menu{menu}
+{
+    using namespace game;
+
+    CPopupDialogInterfApi::get().constructor(this, dialogName, nullptr);
+
+    assignButtonHandler("BTN_CANCEL", (CMenuBaseApi::Api::ButtonCallback)cancelBtnHandler);
+    assignButtonHandler("BTN_OK", (CMenuBaseApi::Api::ButtonCallback)okBtnHandler);
+}
+
+void __fastcall CMenuCustomProtocol::CRegisterAccountInterf::okBtnHandler(
+    CRegisterAccountInterf* thisptr,
+    int /*%edx*/)
+{
+    using namespace game;
+
+    auto& dialogApi = CDialogInterfApi::get();
+    auto dialog = *thisptr->dialog;
+
+    const char* accountName = nullptr;
+    auto accountNameEdit = dialogApi.findEditBox(dialog, "EDIT_ACCOUNT_NAME");
+    if (accountNameEdit) {
+        accountName = accountNameEdit->data->editBoxData.inputString.string;
+    }
+
+    const char* password = nullptr;
+    auto passwordEdit = dialogApi.findEditBox(dialog, "EDIT_PASSWORD");
+    if (passwordEdit) {
+        password = passwordEdit->data->editBoxData.inputString.string;
+    }
+
+    if (!getNetService()->createAccount(accountName, password)) {
+        auto message{getInterfaceText(textIds().lobby.invalidAccountNameOrPassword.c_str())};
+        if (message.empty()) {
+            message = "Account name or password are either empty or invalid.";
+        }
+        showMessageBox(message);
+        return;
+    }
+
+    thisptr->m_menu->showWaitDialog();
+}
+
+void __fastcall CMenuCustomProtocol::CRegisterAccountInterf::cancelBtnHandler(
+    CRegisterAccountInterf* thisptr,
+    int /*%edx*/)
+{
+    logDebug("lobby.log", "User canceled register account");
+    thisptr->m_menu->hideRegisterDialog();
 }
 
 } // namespace hooks

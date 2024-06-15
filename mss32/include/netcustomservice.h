@@ -87,11 +87,7 @@ public:
      * Tries to register new account using credentials provided.
      * @returns true if register request message was successfully send to the server.
      */
-    bool createAccount(const char* accountName,
-                       const char* nickname,
-                       const char* password,
-                       const char* pwdRecoveryQuestion,
-                       const char* pwdRecoveryAnswer);
+    bool createAccount(const char* accountName, const char* password);
 
     /**
      * Tries to login user with provided credentials.

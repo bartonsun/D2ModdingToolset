@@ -254,7 +254,7 @@ textids = {
 		-- Player hit back button (or pressed Esc) while on the lobby screen
 		-- Fallback text "Do you really want to exit the lobby?"
 		confirmBack = "",
-		-- Player tried to login with invalid credentials
+		-- Player tried to login or register with invalid credentials
 		-- Fallback text "Account name or password are either empty or invalid."
 		invalidAccountNameOrPassword = "",
 		-- Player tried to login to non-existent account or provided a wrong password
@@ -263,9 +263,19 @@ textids = {
 		-- Player tried to login to a banned account
 		-- Fallback text "The account is banned from the lobby server."
 		accountIsBanned = "",
+		-- Player tried to register an existing account
+		-- Fallback text "The account name already exists."
+		accountNameAlreadyInUse = "",
 		-- Player tried to login but received an unexpected error.
 		-- The text must contain keyword "%CODE%".
 		-- Fallback text "An unexpected error during login.\nError code: %CODE%."
 		unableToLogin = "",
+		-- Player successfully registered but received an unexpected error trying to login.
+		-- Fallback text "An unexpected error trying to login after successful registration."
+		unableToLoginAfterRegistration = "",
+		-- Player tried to register an account but received an unexpected error.
+		-- The text must contain keyword "%CODE%".
+		-- Fallback text "An unexpected error during account registration.\nError code: %CODE%."
+		unableToRegister = "",
 	},
 }

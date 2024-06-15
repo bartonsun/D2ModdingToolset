@@ -20,10 +20,12 @@
 #ifndef MENUCUSTOMBASE_H
 #define MENUCUSTOMBASE_H
 
+#include "menubase.h"
 #include "midmsgboxbuttonhandler.h"
+#include <string>
 
 namespace game {
-struct CMenuBase;
+struct CPopupDialogInterf;
 struct CMenuFlashWait;
 } // namespace game
 
@@ -36,11 +38,26 @@ public:
     ~CMenuCustomBase();
 
 protected:
+    game::CMenuBase* getMenu() const;
     void showWaitDialog();
     void hideWaitDialog();
     void onConnectionLost();
 
-    struct CConnectionLostMsgBoxButtonHandler : public game::CMidMsgBoxButtonHandler
+    class CPopupDialogCustomBase
+    {
+    public:
+        CPopupDialogCustomBase(game::CPopupDialogInterf* dialog, const char* dialogName);
+
+    protected:
+        void assignButtonHandler(const char* buttonName,
+                                 game::CMenuBaseApi::Api::ButtonCallback handler);
+
+    private:
+        game::CPopupDialogInterf* m_dialog;
+        std::string m_dialogName;
+    };
+
+    class CConnectionLostMsgBoxButtonHandler : public game::CMidMsgBoxButtonHandler
     {
     public:
         CConnectionLostMsgBoxButtonHandler(game::CMenuBase* menu);
