@@ -20,17 +20,16 @@
 #ifndef MENUCUSTOMPROTOCOL_H
 #define MENUCUSTOMPROTOCOL_H
 
+#include "menucustombase.h"
 #include "menuprotocol.h"
 #include "netcustomservice.h"
 #include "popupdialoginterf.h"
 
-namespace game {
-struct CMenuFlashWait;
-} // namespace game
-
 namespace hooks {
 
-class CMenuCustomProtocol : public game::CMenuProtocol
+class CMenuCustomProtocol
+    : public game::CMenuProtocol
+    , public CMenuCustomBase
 {
 public:
     CMenuCustomProtocol(game::CMenuPhase* menuPhase);
@@ -44,12 +43,8 @@ protected:
     // CInterface
     static void __fastcall destructor(CMenuCustomProtocol* thisptr, int /*%edx*/, char flags);
 
-    void showWaitDialog();
-    void hideWaitDialog();
     void showLoginDialog();
     void hideLoginDialog();
-    void stopWaitingConnection();
-    void stopWaitingConnection(const char* errorMessage);
 
     class PeerCallback : public NetPeerCallback
     {
@@ -96,10 +91,9 @@ protected:
     };
 
 private:
-    game::CMenuFlashWait* m_menuWait;
-    CLoginAccountInterf* m_loginDialog;
     PeerCallback m_peerCallback;
     LobbyCallback m_lobbyCallback;
+    CLoginAccountInterf* m_loginDialog;
 };
 
 assert_offset(CMenuCustomProtocol, vftable, 0);

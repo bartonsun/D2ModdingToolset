@@ -19,6 +19,7 @@
 
 #include "menuphasehooks.h"
 #include "log.h"
+#include "mempool.h"
 #include "menucustomlobby.h"
 #include "menuphase.h"
 #include "midgard.h"
@@ -30,7 +31,8 @@ namespace hooks {
 
 game::CMenuBase* __stdcall createCustomLobbyCallback(game::CMenuPhase* menuPhase)
 {
-    return CMenuCustomLobby::create(menuPhase);
+    auto menu = (CMenuCustomLobby*)game::Memory::get().allocate(sizeof(CMenuCustomLobby));
+    return new (menu) CMenuCustomLobby(menuPhase);
 }
 
 void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,

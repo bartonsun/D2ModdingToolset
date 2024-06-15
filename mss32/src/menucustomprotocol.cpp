@@ -34,9 +34,10 @@
 namespace hooks {
 
 CMenuCustomProtocol::CMenuCustomProtocol(game::CMenuPhase* menuPhase)
-    : m_menuWait{nullptr}
+    : CMenuCustomBase{this}
     , m_peerCallback{this}
     , m_lobbyCallback{this}
+    , m_loginDialog{nullptr}
 {
     using namespace game;
 
@@ -61,7 +62,8 @@ CMenuCustomProtocol ::~CMenuCustomProtocol()
 {
     using namespace game;
 
-    stopWaitingConnection();
+    hideWaitDialog();
+    hideLoginDialog();
 
     auto service = getNetService();
     if (service) {
@@ -90,8 +92,6 @@ void CMenuCustomProtocol::createNetCustomServiceStartWaitingConnection()
 
     const auto& midgardApi = CMidgardApi::get();
 
-    stopWaitingConnection();
-
     auto service = createNetCustomServiceStartConnection();
     if (!service) {
         auto message{getInterfaceText(textIds().lobby.connectStartFailed.c_str())};
@@ -105,29 +105,6 @@ void CMenuCustomProtocol::createNetCustomServiceStartWaitingConnection()
     midgardApi.setNetService(midgardApi.instance(), service, true, false);
 
     showWaitDialog();
-}
-
-void CMenuCustomProtocol::showWaitDialog()
-{
-    using namespace game;
-
-    if (m_menuWait) {
-        logDebug("lobby.log", "Error showing wait dialog that is already shown");
-        return;
-    }
-
-    m_menuWait = (CMenuFlashWait*)Memory::get().allocate(sizeof(CMenuFlashWait));
-    CMenuFlashWaitApi::get().constructor(m_menuWait);
-    showInterface(m_menuWait);
-}
-
-void CMenuCustomProtocol::hideWaitDialog()
-{
-    if (m_menuWait) {
-        hideInterface(m_menuWait);
-        m_menuWait->vftable->destructor(m_menuWait, 1);
-        m_menuWait = nullptr;
-    }
 }
 
 void CMenuCustomProtocol::showLoginDialog()
@@ -152,21 +129,12 @@ void CMenuCustomProtocol::hideLoginDialog()
     }
 }
 
-void CMenuCustomProtocol::stopWaitingConnection()
-{
-    hideWaitDialog();
-}
-
-void CMenuCustomProtocol::stopWaitingConnection(const char* errorMessage)
-{
-    hideWaitDialog();
-    showMessageBox(errorMessage);
-}
-
 void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
                                                          SLNet::RakPeerInterface* peer,
                                                          const SLNet::Packet* packet)
 {
+    using namespace game;
+
     switch (type) {
     case ID_CONNECTION_ATTEMPT_FAILED: {
         auto message{getInterfaceText(textIds().lobby.connectAttemptFailed.c_str())};
@@ -174,20 +142,25 @@ void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes t
             message = "Connection attempt failed";
         }
 
-        m_menu->stopWaitingConnection(message.c_str());
+        m_menu->hideWaitDialog();
+        showMessageBox(message);
         break;
     }
+
     case ID_NO_FREE_INCOMING_CONNECTIONS: {
         auto message{getInterfaceText(textIds().lobby.serverIsFull.c_str())};
         if (message.empty()) {
             message = "Lobby server is full";
         }
 
-        m_menu->stopWaitingConnection(message.c_str());
+        m_menu->hideWaitDialog();
+        showMessageBox(message);
         break;
     }
+
     case ID_ALREADY_CONNECTED:
-        m_menu->stopWaitingConnection("Already connected.\nThis should never happen");
+        m_menu->hideWaitDialog();
+        logDebug("lobby.log", "Error connecting - already connected. This should never happen.");
         break;
 
     // TODO: move integrity request to custom service callbacks, only check results here
@@ -199,7 +172,8 @@ void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes t
                 message = "Could not compute hash";
             }
 
-            m_menu->stopWaitingConnection(message.c_str());
+            m_menu->hideWaitDialog();
+            showMessageBox(message);
             break;
         }
 
@@ -209,7 +183,8 @@ void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes t
                 message = "Could not request game integrity check";
             }
 
-            m_menu->stopWaitingConnection(message.c_str());
+            m_menu->hideWaitDialog();
+            showMessageBox(message);
             break;
         }
 
@@ -217,7 +192,7 @@ void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes t
     }
 
     case ID_FILES_INTEGRITY_RESULT: {
-        m_menu->stopWaitingConnection();
+        m_menu->hideWaitDialog();
 
         SLNet::BitStream input{packet->data, packet->length, false};
         input.IgnoreBytes(sizeof(SLNet::MessageID));
@@ -230,7 +205,7 @@ void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes t
                 message = "Game integrity check failed";
             }
 
-            m_menu->stopWaitingConnection(message.c_str());
+            showMessageBox(message);
             break;
         }
 
@@ -238,7 +213,17 @@ void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes t
         break;
     }
 
-        // TODO: handle lobby connection lost
+    case ID_DISCONNECTION_NOTIFICATION: {
+        logDebug("lobby.log", "Server was shut down");
+        m_menu->onConnectionLost();
+        break;
+    }
+
+    case ID_CONNECTION_LOST: {
+        logDebug("lobby.log", "Connection with server is lost");
+        m_menu->onConnectionLost();
+        break;
+    }
     }
 }
 

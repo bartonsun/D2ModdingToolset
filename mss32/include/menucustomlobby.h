@@ -21,7 +21,9 @@
 #define MENUCUSTOMLOBBY_H
 
 #include "menubase.h"
+#include "menucustombase.h"
 #include "midmsgboxbuttonhandler.h"
+#include "netcustomservice.h"
 #include "uievent.h"
 #include <Lobby2Message.h>
 #include <RoomsPlugin.h>
@@ -30,22 +32,21 @@
 
 namespace game {
 struct NetMsgEntryData;
-struct CMenuFlashWait;
 struct CMenusAnsInfoMsg;
 struct CGameVersionMsg;
 } // namespace game
 
 namespace hooks {
 
-class CMenuCustomLobby : public game::CMenuBase
+class CMenuCustomLobby
+    : public game::CMenuBase
+    , public CMenuCustomBase
 {
 public:
     static constexpr char dialogName[] = "DLG_CUSTOM_LOBBY";
     static constexpr char transitionFromProtoName[] = "TRANS_PROTO2CUSTOMLOBBY";
     static constexpr char transitionFromBlackName[] = "TRANS_BLACK2CUSTOMLOBBY";
     static constexpr std::uint32_t roomListUpdateInterval{5000};
-
-    static CMenuCustomLobby* create(game::CMenuPhase* menuPhase);
 
     CMenuCustomLobby(game::CMenuPhase* menuPhase);
     ~CMenuCustomLobby();
@@ -82,6 +83,23 @@ protected:
     static bool onRoomPasswordEnter(CMenuCustomLobby* menu, const char* password);
 
 private:
+    class PeerCallback : public NetPeerCallback
+    {
+    public:
+        PeerCallback(CMenuCustomLobby* menuLobby)
+            : menuLobby{menuLobby}
+        { }
+
+        ~PeerCallback() override = default;
+
+        void onPacketReceived(DefaultMessageIDTypes type,
+                              SLNet::RakPeerInterface* peer,
+                              const SLNet::Packet* packet) override;
+
+    private:
+        CMenuCustomLobby* menuLobby;
+    };
+
     class RoomListCallbacks : public SLNet::RoomsCallback
     {
     public:
@@ -131,7 +149,6 @@ private:
 
     int getCurrentRoomIndex();
     void tryJoinRoom(const char* roomName);
-    void deleteWaitMenu();
     void updateAccountText(const char* accountName);
     void initializeButtonsHandlers();
     void showError(const char* message);
@@ -140,11 +157,11 @@ private:
     void processJoinError(const char* message);
     void registerClientPlayerAndJoin();
 
+    PeerCallback peerCallback;
     game::UiEvent roomsListEvent;
     std::vector<RoomInfo> rooms;
     RoomListCallbacks roomsCallbacks;
     game::NetMsgEntryData** netMsgEntryData;
-    game::CMenuFlashWait* waitMenu;
 };
 
 assert_offset(CMenuCustomLobby, vftable, 0);

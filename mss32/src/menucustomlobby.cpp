@@ -30,12 +30,10 @@
 #include "listbox.h"
 #include "log.h"
 #include "mempool.h"
-#include "menuflashwait.h"
 #include "menuphase.h"
 #include "midgard.h"
 #include "midgardmsgbox.h"
 #include "netcustomplayerclient.h"
-#include "netcustomservice.h"
 #include "netcustomsession.h"
 #include "netmessages.h"
 #include "netmsgcallbacks.h"
@@ -54,17 +52,10 @@
 
 namespace hooks {
 
-CMenuCustomLobby* CMenuCustomLobby::create(game::CMenuPhase* menuPhase)
-{
-    logDebug("lobby.log", "Creating CMenuCustomLobby");
-
-    auto menu = (CMenuCustomLobby*)game::Memory::get().allocate(sizeof(CMenuCustomLobby));
-    return new (menu) CMenuCustomLobby(menuPhase);
-}
-
 CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
-    : roomsCallbacks(this)
-    , waitMenu(nullptr)
+    : CMenuCustomBase(this)
+    , peerCallback(this)
+    , roomsCallbacks(this)
     , netMsgEntryData(nullptr)
 {
     using namespace game;
@@ -92,6 +83,9 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
 
     auto service = getNetService();
     updateAccountText(service->getAccountName().c_str());
+
+    // Connect ui-related rooms callbacks
+    service->addPeerCallback(&peerCallback);
 
     // Connect ui-related rooms callbacks
     service->addRoomsCallback(&roomsCallbacks);
@@ -133,7 +127,7 @@ CMenuCustomLobby ::~CMenuCustomLobby()
 {
     using namespace game;
 
-    deleteWaitMenu();
+    hideWaitDialog();
 
     if (netMsgEntryData) {
         logDebug("transitions.log", "Delete custom lobby menu netMsgEntryData");
@@ -146,18 +140,10 @@ CMenuCustomLobby ::~CMenuCustomLobby()
     auto service = getNetService();
     if (service) {
         service->removeRoomsCallback(&roomsCallbacks);
+        service->removePeerCallback(&peerCallback);
     }
 
     CMenuBaseApi::get().destructor(this);
-}
-
-void CMenuCustomLobby::deleteWaitMenu()
-{
-    if (waitMenu) {
-        hideInterface(waitMenu);
-        waitMenu->vftable->destructor(waitMenu, 1);
-        waitMenu = nullptr;
-    }
 }
 
 void CMenuCustomLobby::updateAccountText(const char* accountName)
@@ -266,13 +252,7 @@ void CMenuCustomLobby::tryJoinRoom(const char* roomName)
         buttonJoin->vftable->setEnabled(buttonJoin, false);
     }
 
-    deleteWaitMenu();
-
-    auto flashWait = (CMenuFlashWait*)Memory::get().allocate(sizeof(CMenuFlashWait));
-    CMenuFlashWaitApi::get().constructor(flashWait);
-
-    showInterface(flashWait);
-    waitMenu = flashWait;
+    showWaitDialog();
 }
 
 void CMenuCustomLobby::onRoomPasswordCorrect(CMenuCustomLobby* menu)
@@ -558,7 +538,7 @@ void __fastcall CMenuCustomLobby::backBtnHandler(CMenuCustomLobby* thisptr, int 
         sizeof(CConfirmBackMsgBoxButtonHandler));
     new (handler) CConfirmBackMsgBoxButtonHandler(thisptr);
 
-    hooks::showMessageBox(message, handler, true);
+    showMessageBox(message, handler, true);
 }
 
 void CMenuCustomLobby::initializeButtonsHandlers()
@@ -770,8 +750,6 @@ void CMenuCustomLobby::processJoinError(const char* message)
 {
     using namespace game;
 
-    deleteWaitMenu();
-
     auto& menuBase = CMenuBaseApi::get();
     auto& dialogApi = CDialogInterfApi::get();
     auto dialog = menuBase.getDialogInterface(this);
@@ -787,10 +765,33 @@ void CMenuCustomLobby::processJoinError(const char* message)
     showError(message);
 }
 
+void CMenuCustomLobby::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
+                                                      SLNet::RakPeerInterface* peer,
+                                                      const SLNet::Packet* packet)
+{
+    using namespace game;
+
+    switch (type) {
+    case ID_DISCONNECTION_NOTIFICATION: {
+        logDebug("lobby.log", "Server was shut down");
+        menuLobby->onConnectionLost();
+        break;
+    }
+
+    case ID_CONNECTION_LOST: {
+        logDebug("lobby.log", "Connection with server is lost");
+        menuLobby->onConnectionLost();
+        break;
+    }
+    }
+}
+
 void CMenuCustomLobby::RoomListCallbacks::JoinByFilter_Callback(
     const SLNet::SystemAddress&,
     SLNet::JoinByFilter_Func* callResult)
 {
+    menuLobby->hideWaitDialog();
+
     if (callResult->resultCode == SLNet::REC_SUCCESS) {
         auto& room = callResult->joinedRoomResult.roomDescriptor;
         auto roomName = room.GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c;
