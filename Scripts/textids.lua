@@ -257,5 +257,8 @@ textids = {
 		-- Player hit back button (or pressed Esc) while on the lobby screen
 		-- Fallback text "Do you really want to exit the lobby?"
 		confirmBack = "",
+		-- Player tried to login with invalid credentials
+		-- Fallback text "Account name or password are either empty or invalid."
+		invalidAccountNameOrPassword = "",
 	},
 }

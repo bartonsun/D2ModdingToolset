@@ -111,6 +111,7 @@ struct TextIds
         std::string wrongHash;
         std::string wrongRoomPassword;
         std::string confirmBack;
+        std::string invalidAccountNameOrPassword;
     } lobby;
 };
 

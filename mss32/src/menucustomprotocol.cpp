@@ -297,8 +297,11 @@ void __fastcall CMenuCustomProtocol::CLoginAccountInterf::okBtnHandler(CLoginAcc
     }
 
     if (!getNetService()->loginAccount(accountName, password)) {
-        // TODO: detailed error messages
-        showMessageBox("Wrong user input");
+        auto message{getInterfaceText(textIds().lobby.invalidAccountNameOrPassword.c_str())};
+        if (message.empty()) {
+            message = "Account name or password are either empty or invalid.";
+        }
+        showMessageBox(message);
         return;
     }
 
