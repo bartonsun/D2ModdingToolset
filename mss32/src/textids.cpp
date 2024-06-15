@@ -113,6 +113,10 @@ void readLobbyTextIds(const sol::table& table, TextIds::Lobby& value)
     value.confirmBack = lobby.get_or("confirmBack", std::string());
     value.invalidAccountNameOrPassword = lobby.get_or("invalidAccountNameOrPassword",
                                                       std::string());
+    value.noSuchAccountOrWrongPassword = lobby.get_or("noSuchAccountOrWrongPassword",
+                                                      std::string());
+    value.accountIsBanned = lobby.get_or("accountIsBanned", std::string());
+    value.unableToLogin = lobby.get_or("unableToLogin", std::string());
 }
 
 void readInterfTextIds(const sol::table& table, TextIds::Interf& value)

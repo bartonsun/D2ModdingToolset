@@ -112,6 +112,9 @@ struct TextIds
         std::string wrongRoomPassword;
         std::string confirmBack;
         std::string invalidAccountNameOrPassword;
+        std::string noSuchAccountOrWrongPassword;
+        std::string accountIsBanned;
+        std::string unableToLogin;
     } lobby;
 };
 

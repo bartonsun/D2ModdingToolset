@@ -29,6 +29,7 @@
 #include "midgard.h"
 #include "textids.h"
 #include "utils.h"
+#include <fmt/format.h>
 
 namespace hooks {
 
@@ -250,26 +251,37 @@ void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_Login* mess
     switch (message->resultCode) {
     case SLNet::L2RC_SUCCESS: {
         m_menu->hideLoginDialog();
+
         CMenuPhase* menuPhase = m_menu->menuBaseData->menuPhase;
         CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Protocol2CustomLobby);
         break;
     }
 
-    case SLNet::L2RC_Client_Login_HANDLE_NOT_IN_USE_OR_BAD_SECRET_KEY:
-        // TODO: textIds, add error caption to the message (see CMenuCustomLobby::showError)
-        showMessageBox("Wrong account name or password");
+    case SLNet::L2RC_Client_Login_HANDLE_NOT_IN_USE_OR_BAD_SECRET_KEY: {
+        auto msg{getInterfaceText(textIds().lobby.noSuchAccountOrWrongPassword.c_str())};
+        if (msg.empty()) {
+            msg = "Wrong password or the account does not exist.";
+        }
+        showMessageBox(msg);
         break;
+    }
 
-    case SLNet::L2RC_Client_Login_BANNED:
-        // TODO: textIds, add error caption to the message (see CMenuCustomLobby::showError)
-        showMessageBox("Banned from server");
+    case SLNet::L2RC_Client_Login_BANNED: {
+        auto msg{getInterfaceText(textIds().lobby.accountIsBanned.c_str())};
+        if (msg.empty()) {
+            msg = "The account is banned from the lobby server.";
+        }
+        showMessageBox(msg);
         break;
+    }
 
     default: {
-        // TODO: textIds, add error caption to the message (see CMenuCustomLobby::showError)
-        SLNet::RakString str;
-        message->DebugMsg(str);
-        showMessageBox(str.C_String());
+        auto msg{getInterfaceText(textIds().lobby.unableToLogin.c_str())};
+        if (msg.empty()) {
+            msg = "An unexpected error during login.\nError code: %CODE%.";
+        }
+        replace(msg, "%CODE%", fmt::format("{:d}", message->resultCode));
+        showMessageBox(msg);
         break;
     }
     }

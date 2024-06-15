@@ -260,5 +260,15 @@ textids = {
 		-- Player tried to login with invalid credentials
 		-- Fallback text "Account name or password are either empty or invalid."
 		invalidAccountNameOrPassword = "",
+		-- Player tried to login to non-existent account or provided a wrong password
+		-- Fallback text "Wrong password or the account does not exist."
+		noSuchAccountOrWrongPassword = "",
+		-- Player tried to login to a banned account
+		-- Fallback text "The account is banned from the lobby server."
+		accountIsBanned = "",
+		-- Player tried to login but received an unexpected error.
+		-- The text must contain keyword "%CODE%".
+		-- Fallback text "An unexpected error during login.\nError code: %CODE%."
+		unableToLogin = "",
 	},
 }
