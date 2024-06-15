@@ -3001,6 +3001,9 @@
     <ClInclude Include="include\menucustomprotocol.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
+    <ClInclude Include="include\midmsgboxupdatehandler.h">
+      <Filter>game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="mss32.rc">
