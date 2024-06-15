@@ -163,7 +163,8 @@ void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes t
         logDebug("lobby.log", "Error connecting - already connected. This should never happen.");
         break;
 
-    // TODO: move integrity request to custom service callbacks, only check results here
+    // TODO: move integrity request to join room
+    // TODO: add Scripts to computeHash
     case ID_CONNECTION_REQUEST_ACCEPTED: {
         std::string hash;
         if (!computeHash(globalsFolder(), hash)) {
