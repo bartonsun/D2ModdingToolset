@@ -66,6 +66,8 @@ struct EditBoxData
     };
 };
 
+assert_size(EditBoxData, 56);
+
 struct CEditBoxInterfData
 {
     SmartPtr<CEditBoxFocus> editBoxFocus;
@@ -129,6 +131,9 @@ struct Api
 
     using EditBoxDataCtor = EditBoxData*(__thiscall*)(EditBoxData* thisptr);
     EditBoxDataCtor editBoxDataCtor;
+
+    using GetTextCursorPosIdx = std::uint32_t(__thiscall*)(EditBoxData* thisptr);
+    GetTextCursorPosIdx getTextCursorPosIdx;
 };
 
 Api& get();
