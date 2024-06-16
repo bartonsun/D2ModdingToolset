@@ -49,7 +49,7 @@ struct EditBoxData
     int maxInputLength; /**< Allowed range is [1 : 4096]. */
     String formatString;
     String inputString;
-    int editCursorPos;
+    std::uint32_t textCursorPosIdx;
     union
     {
         struct

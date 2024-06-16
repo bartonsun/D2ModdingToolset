@@ -18,6 +18,7 @@
  */
 
 #include "editboxinterfhooks.h"
+#include "formattedtext.h"
 #include "originalfunctions.h"
 #include "textboxinterf.h"
 #include <string>
@@ -30,14 +31,35 @@ void __fastcall editBoxInterfUpdateHooked(game::CEditBoxInterf* thisptr, int /*%
 
     getOriginalFunctions().editBoxInterfUpdate(thisptr);
 
-    const auto& data = thisptr->data->editBoxData;
-    if (data.patched.isPassword) {
-        auto textBox = (CTextBoxInterf*)
-                           thisptr->vftable->getChild(thisptr, &thisptr->data->textBoxChildIndex);
+    auto* data = thisptr->data;
+    if (data->editBoxData.patched.isPassword) {
+        auto textBox = (CTextBoxInterf*)thisptr->vftable->getChild(thisptr,
+                                                                   &data->textBoxChildIndex);
         if (textBox) {
-            std::string mask(data.inputString.length, '*');
+            std::string mask(data->editBoxData.inputString.length, '*');
             CTextBoxInterfApi::get().setString(textBox, mask.c_str());
-            // TODO: recalc textCursorPos using CFormattedTextImpl
+
+            auto cursorPosPtr = mask.c_str();
+            auto cursorPosIdx = data->editBoxData.textCursorPosIdx;
+            if (cursorPosIdx <= mask.length()) {
+                cursorPosPtr += cursorPosIdx;
+            }
+            auto& cursorPos = data->textCursorPos;
+            auto editBoxArea = thisptr->vftable->getArea(thisptr);
+
+            FormattedTextPtr ptr;
+            IFormattedTextApi::get().getFormattedText(&ptr);
+            ptr.data->vftable->getTextCursorPos(ptr.data, &cursorPos, mask.c_str(), cursorPosPtr,
+                                                editBoxArea);
+            SmartPointerApi::get().createOrFree((SmartPointer*)&ptr, nullptr);
+
+            // See CEditBoxInterf::Update
+            if (cursorPos.x <= 0 || cursorPos.y <= 0) {
+                cursorPos.x = editBoxArea->left;
+                cursorPos.y = editBoxArea->top;
+            } else {
+                cursorPos.y -= data->textCursorHeight;
+            }
         }
     }
 }

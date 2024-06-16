@@ -407,7 +407,7 @@ void __fastcall condScriptInterfPasteIdButtonHandler(CCondScriptInterf* thisptr,
     const auto idString{fmt::format("'{:s}'", idToString(objectId))};
 
     std::string code{editBox->data->editBoxData.inputString.string};
-    const auto cursor = editBox->data->editBoxData.editCursorPos;
+    const auto cursor = editBox->data->editBoxData.textCursorPosIdx;
 
     code.insert(cursor, idString);
 
@@ -415,7 +415,7 @@ void __fastcall condScriptInterfPasteIdButtonHandler(CCondScriptInterf* thisptr,
     editBoxApi.setString(editBox, code.c_str());
 
     // Set cursor position after inserted id string
-    editBox->data->editBoxData.editCursorPos = cursor + idString.size();
+    editBox->data->editBoxData.textCursorPosIdx = cursor + idString.size();
     editBoxApi.updateFocus(editBox->data->editBoxFocus.data);
     editBoxApi.update(editBox);
 }
