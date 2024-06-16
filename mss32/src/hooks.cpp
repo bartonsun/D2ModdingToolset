@@ -379,9 +379,6 @@ static Hooks getGameHooks()
         {fn.changeUnitXpCheckUpgrade, changeUnitXpCheckUpgradeHooked},
         // Allow player to customize movement cost
         {fn.computeMovementCost, computeMovementCostHooked},
-        // Support password editbox
-        {CEditBoxInterfApi::get().editBoxDataCtor, editBoxDataCtorHooked, (void**)&orig.editBoxDataCtor},
-        {CEditBoxInterfApi::get().update, editBoxInterfUpdateHooked, (void**)&orig.editBoxInterfUpdate},
     };
     // clang-format on
 
@@ -735,8 +732,15 @@ Hooks getHooks()
 
     // Fixes incorrect order of building status checks along with missing lordHasBuilding condition
     hooks.emplace_back(HookInfo{fn.getBuildingStatus, getBuildingStatusHooked});
+
     // Fix input of 'io' (U+0451) and 'IO' (U+0401)
     hooks.emplace_back(HookInfo{CEditBoxInterfApi::get().isCharValid, editBoxIsCharValidHooked});
+
+    // Support password editbox
+    hooks.emplace_back(HookInfo{CEditBoxInterfApi::get().editBoxDataCtor, editBoxDataCtorHooked,
+                                (void**)&orig.editBoxDataCtor});
+    hooks.emplace_back(HookInfo{CEditBoxInterfApi::get().update, editBoxInterfUpdateHooked,
+                                (void**)&orig.editBoxInterfUpdate});
 
     return hooks;
 }
