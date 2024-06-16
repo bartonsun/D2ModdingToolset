@@ -60,8 +60,9 @@ struct CEditBoxInterfData
     int textBoxChildIndex;
     int unknown2;
     EditBoxData editBoxData;
-    CImage2Fill* image2Fill;
-    char unknown[12];
+    CImage2Fill* textCursor;
+    CMqPoint textCursorPos;
+    int textCursorHeight;
     CImage2TextBackground* background;
     CMqPoint bgndImagePos;
 };
