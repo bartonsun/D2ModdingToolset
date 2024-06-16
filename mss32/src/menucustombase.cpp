@@ -19,6 +19,7 @@
 
 #include "menucustombase.h"
 #include "button.h"
+#include "editboxinterf.h"
 #include "interfmanager.h"
 #include "log.h"
 #include "mempool.h"
@@ -97,6 +98,16 @@ void CMenuCustomBase::CPopupDialogCustomBase::assignButtonHandler(
     CButtonInterfApi::get().assignFunctor(*m_dialog->dialog, buttonName, m_dialogName.c_str(),
                                           &functor, 0);
     SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
+}
+
+void CMenuCustomBase::CPopupDialogCustomBase::setEditFilterAndLength(const char* editName,
+                                                                     game::EditFilter filter,
+                                                                     int length)
+{
+    using namespace game;
+
+    CEditBoxInterfApi::get().setFilterAndLength(*m_dialog->dialog, editName, m_dialogName.c_str(),
+                                                filter, length);
 }
 
 CMenuCustomBase::CConnectionLostMsgBoxButtonHandler::CConnectionLostMsgBoxButtonHandler(

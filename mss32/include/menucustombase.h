@@ -27,6 +27,8 @@
 namespace game {
 struct CPopupDialogInterf;
 struct CMenuFlashWait;
+
+enum class EditFilter : int;
 } // namespace game
 
 namespace hooks {
@@ -51,6 +53,7 @@ protected:
     protected:
         void assignButtonHandler(const char* buttonName,
                                  game::CMenuBaseApi::Api::ButtonCallback handler);
+        void setEditFilterAndLength(const char* editName, game::EditFilter filter, int length);
 
     private:
         game::CPopupDialogInterf* m_dialog;

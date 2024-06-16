@@ -353,6 +353,10 @@ CMenuCustomProtocol::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomProtoco
     assignButtonHandler("BTN_CANCEL", (CMenuBaseApi::Api::ButtonCallback)cancelBtnHandler);
     assignButtonHandler("BTN_OK", (CMenuBaseApi::Api::ButtonCallback)okBtnHandler);
     assignButtonHandler("BTN_REGISTER", (CMenuBaseApi::Api::ButtonCallback)registerBtnHandler);
+
+    // Using EditFilter::Names for consistency with other game menus like CMenuNewSkirmishMulti
+    setEditFilterAndLength("EDIT_ACCOUNT_NAME", EditFilter::Names, 16);
+    setEditFilterAndLength("EDIT_PASSWORD", EditFilter::Names, 16);
 }
 
 void __fastcall CMenuCustomProtocol::CLoginAccountInterf::okBtnHandler(CLoginAccountInterf* thisptr,
@@ -415,6 +419,10 @@ CMenuCustomProtocol::CRegisterAccountInterf::CRegisterAccountInterf(CMenuCustomP
 
     assignButtonHandler("BTN_CANCEL", (CMenuBaseApi::Api::ButtonCallback)cancelBtnHandler);
     assignButtonHandler("BTN_OK", (CMenuBaseApi::Api::ButtonCallback)okBtnHandler);
+
+    // Using EditFilter::Names for consistency with other game menus like CMenuNewSkirmishMulti
+    setEditFilterAndLength("EDIT_ACCOUNT_NAME", EditFilter::Names, 16);
+    setEditFilterAndLength("EDIT_PASSWORD", EditFilter::Names, 16);
 }
 
 void __fastcall CMenuCustomProtocol::CRegisterAccountInterf::okBtnHandler(
