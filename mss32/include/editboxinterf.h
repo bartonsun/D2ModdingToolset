@@ -117,6 +117,21 @@ Api& get();
 
 } // namespace CEditBoxInterfApi
 
+namespace editor {
+
+struct CEditBoxInterfData
+{
+    int textBoxChildIndex;
+    int unknown4[14];
+    game::SmartPointer unknown60;
+    int unknown68[2];
+};
+
+assert_size(CEditBoxInterfData, 76);
+assert_offset(CEditBoxInterfData, unknown60, 60);
+
+} // namespace editor
+
 } // namespace game
 
 #endif // EDITBOXINTERF_H
