@@ -48,7 +48,8 @@ static void startScenarioNet(CMenuRandomScenario* menu)
 
     // Setup game host: reuse original game logic that creates player server and client
     if (CMenuNewSkirmishMultiApi::get().createServer(menu)) {
-        CMenuPhaseApi::get().setTransition(menu->menuBaseData->menuPhase, 0);
+        CMenuPhaseApi::get().switchPhase(menu->menuBaseData->menuPhase,
+                                         MenuTransition::RandomScenarioMulti2LobbyHost);
     }
 }
 

@@ -31,9 +31,9 @@ static void __fastcall showMenuRandomScenarioSingle(game::CMenuNewSkirmishSingle
 {
     using namespace game;
 
-    // Transfer to a new single player random scenario generation menu, from state 6 to 37
     CMenuPhase* menuPhase{thisptr->menuBaseData->menuPhase};
-    CMenuPhaseApi::get().setTransition(menuPhase, 1);
+    CMenuPhaseApi::get().switchPhase(menuPhase,
+                                     MenuTransition::NewSkirmishSingle2RandomScenarioSingle);
 }
 
 game::CMenuNewSkirmishSingle* __fastcall menuNewSkirmishSingleCtorHooked(

@@ -30,9 +30,9 @@ static void __fastcall showMenuRandomScenarioSingle(game::CMenuNewSkirmishHotsea
 {
     using namespace game;
 
-    // Transfer to a new random scenario generation menu, from state 30 to 39
     CMenuPhase* menuPhase{thisptr->menuBaseData->menuPhase};
-    CMenuPhaseApi::get().setTransition(menuPhase, 1);
+    CMenuPhaseApi::get().switchPhase(menuPhase,
+                                     MenuTransition::NewSkirmishHotseat2RandomScenarioHotseat);
 }
 
 game::CMenuNewSkirmishHotseat* __fastcall menuNewSkirmishHotseatCtorHooked(

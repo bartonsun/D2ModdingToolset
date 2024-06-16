@@ -65,7 +65,7 @@ static const int roadsSpinStep{5};
 static const int goldSpinStep{100};
 static const int manaSpinStep{50};
 
-static game::RttiInfo<game::CInterfaceVftable> menuRttiInfo;
+static game::RttiInfo<game::CMenuBaseVftable> menuRttiInfo;
 static game::CInterfaceVftable::Destructor menuBaseDtor{nullptr};
 
 static std::unique_ptr<NativeGameInfo> gameInfo;
@@ -419,7 +419,7 @@ static void __fastcall menuRandomScenarioDtor(CMenuRandomScenario* menu, int /*%
     if (menuBaseDtor) {
         logDebug("mss32Proxy.log", "CMenuRandomScenario d-tor calls CMenuBase d-tor");
         // This will properly destroy base class and free memory
-        menuBaseDtor(menu, flags);
+        menuBaseDtor((game::CInterface*)menu, flags);
     }
 }
 
@@ -888,7 +888,7 @@ static void menuRandomScenarioCtor(CMenuRandomScenario* menu,
     const auto& menuBase{CMenuBaseApi::get()};
     menuBase.constructor(menu, menuPhase);
 
-    CInterfaceVftable* vftable = &menuRttiInfo.vftable;
+    CMenuBaseVftable* vftable = &menuRttiInfo.vftable;
 
     static bool firstTime{true};
     if (firstTime) {
