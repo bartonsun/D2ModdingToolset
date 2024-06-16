@@ -355,8 +355,8 @@ CMenuCustomProtocol::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomProtoco
     assignButtonHandler("BTN_REGISTER", (CMenuBaseApi::Api::ButtonCallback)registerBtnHandler);
 
     // Using EditFilter::Names for consistency with other game menus like CMenuNewSkirmishMulti
-    setEditFilterAndLength("EDIT_ACCOUNT_NAME", EditFilter::Names, 16);
-    setEditFilterAndLength("EDIT_PASSWORD", EditFilter::Names, 16);
+    setEditFilterAndLength("EDIT_ACCOUNT_NAME", EditFilter::Names, 16, false);
+    setEditFilterAndLength("EDIT_PASSWORD", EditFilter::Names, 16, true);
 }
 
 void __fastcall CMenuCustomProtocol::CLoginAccountInterf::okBtnHandler(CLoginAccountInterf* thisptr,
@@ -421,8 +421,9 @@ CMenuCustomProtocol::CRegisterAccountInterf::CRegisterAccountInterf(CMenuCustomP
     assignButtonHandler("BTN_OK", (CMenuBaseApi::Api::ButtonCallback)okBtnHandler);
 
     // Using EditFilter::Names for consistency with other game menus like CMenuNewSkirmishMulti
-    setEditFilterAndLength("EDIT_ACCOUNT_NAME", EditFilter::Names, 16);
-    setEditFilterAndLength("EDIT_PASSWORD", EditFilter::Names, 16);
+    setEditFilterAndLength("EDIT_ACCOUNT_NAME", EditFilter::Names, 16, false);
+    // TODO: add repeat-password edit, mask both edits with asterisks
+    setEditFilterAndLength("EDIT_PASSWORD", EditFilter::Names, 16, false);
 }
 
 void __fastcall CMenuCustomProtocol::CRegisterAccountInterf::okBtnHandler(

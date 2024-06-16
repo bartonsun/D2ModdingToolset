@@ -27,6 +27,7 @@
 #include "condinterf.h"
 #include "d2osexception.h"
 #include "ddcarryoveritems.h"
+#include "editboxinterf.h"
 #include "effectinterf.h"
 #include "effectresult.h"
 #include "enclayoutcity.h"
@@ -134,6 +135,9 @@ struct OriginalFunctions
     game::CMidDataCache2::INotifyVftable::OnObjectChanged cityStackInterfOnObjectChanged;
 
     game::CMidDataCache2::INotifyVftable::OnObjectChanged siteMerchantInterfOnObjectChanged;
+
+    game::CEditBoxInterfApi::Api::Update editBoxInterfUpdate;
+    game::CEditBoxInterfApi::Api::EditBoxDataCtor editBoxDataCtor;
 };
 
 OriginalFunctions& getOriginalFunctions();

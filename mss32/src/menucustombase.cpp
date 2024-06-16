@@ -102,12 +102,17 @@ void CMenuCustomBase::CPopupDialogCustomBase::assignButtonHandler(
 
 void CMenuCustomBase::CPopupDialogCustomBase::setEditFilterAndLength(const char* editName,
                                                                      game::EditFilter filter,
-                                                                     int length)
+                                                                     int length,
+                                                                     bool password)
 {
     using namespace game;
 
-    CEditBoxInterfApi::get().setFilterAndLength(*m_dialog->dialog, editName, m_dialogName.c_str(),
-                                                filter, length);
+    auto editBox = CEditBoxInterfApi::get().setFilterAndLength(*m_dialog->dialog, editName,
+                                                               m_dialogName.c_str(), filter,
+                                                               length);
+    if (editBox) {
+        editBox->data->editBoxData.patched.isPassword = password;
+    }
 }
 
 CMenuCustomBase::CConnectionLostMsgBoxButtonHandler::CConnectionLostMsgBoxButtonHandler(

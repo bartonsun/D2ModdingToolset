@@ -50,8 +50,20 @@ struct EditBoxData
     String formatString;
     String inputString;
     int editCursorPos;
-    bool allowEnter;
-    char padding[3];
+    union
+    {
+        struct
+        {
+            bool allowEnter;
+            char padding[3];
+        } original;
+        struct
+        {
+            bool allowEnter;
+            bool isPassword;
+            char padding[2];
+        } patched;
+    };
 };
 
 struct CEditBoxInterfData

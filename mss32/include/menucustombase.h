@@ -53,7 +53,10 @@ protected:
     protected:
         void assignButtonHandler(const char* buttonName,
                                  game::CMenuBaseApi::Api::ButtonCallback handler);
-        void setEditFilterAndLength(const char* editName, game::EditFilter filter, int length);
+        void setEditFilterAndLength(const char* editName,
+                                    game::EditFilter filter,
+                                    int length,
+                                    bool password);
 
     private:
         game::CPopupDialogInterf* m_dialog;

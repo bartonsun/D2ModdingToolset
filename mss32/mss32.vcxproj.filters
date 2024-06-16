@@ -1148,6 +1148,9 @@
     <ClCompile Include="src\menucustombase.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
+    <ClCompile Include="src\editboxinterfhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -2997,6 +3000,9 @@
     </ClInclude>
     <ClInclude Include="include\menucustombase.h">
       <Filter>features\lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="include\editboxinterfhooks.h">
+      <Filter>hooks</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

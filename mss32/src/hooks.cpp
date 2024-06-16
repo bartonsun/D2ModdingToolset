@@ -66,6 +66,8 @@
 #include "drainlevelhooks.h"
 #include "dynamiccast.h"
 #include "dynupgrade.h"
+#include "editboxinterf.h"
+#include "editboxinterfhooks.h"
 #include "editor.h"
 #include "effectinterfhooks.h"
 #include "effectresulthooks.h"
@@ -351,6 +353,9 @@ static Hooks getGameHooks()
         // Fix inability to use heal potion on transformed unit if its current hp is greater than maximum hp of unit it is transformed to
         // (most common case is a unit transformed to Imp by a Witch while retaining his original hp)
         {fn.canApplyPotionToUnit, canApplyPotionToUnitHooked},
+        // Support password editbox
+        {CEditBoxInterfApi::get().editBoxDataCtor, editBoxDataCtorHooked, (void**)&orig.editBoxDataCtor},
+        {CEditBoxInterfApi::get().update, editBoxInterfUpdateHooked, (void**)&orig.editBoxInterfUpdate},
     };
     // clang-format on
 
