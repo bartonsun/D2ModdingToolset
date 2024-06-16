@@ -43,6 +43,8 @@ void FortView::bind(sol::state& lua)
     fortView["visitor"] = sol::property(&FortView::getVisitor);
     fortView["subrace"] = sol::property(&FortView::getSubrace);
     fortView["inventory"] = sol::property(&FortView::getInventoryItems);
+    fortView["capital"] = sol::property(&FortView::isCapital);
+    fortView["tier"] = sol::property(&FortView::getTier);
 }
 
 IdView FortView::getId() const
@@ -62,7 +64,7 @@ std::optional<PlayerView> FortView::getOwner() const
         return std::nullopt;
     }
 
-    return PlayerView{player};
+    return PlayerView{player, objectMap};
 }
 
 GroupView FortView::getGroup() const
@@ -100,6 +102,18 @@ std::vector<ItemView> FortView::getInventoryItems() const
     }
 
     return result;
+}
+
+bool FortView::isCapital() const
+{
+    return getTier() == 6;
+}
+
+int FortView::getTier() const
+{
+    const auto* vftable{static_cast<const game::CFortificationVftable*>(fort->vftable)};
+
+    return vftable->getTier(fort, objectMap);
 }
 
 } // namespace bindings

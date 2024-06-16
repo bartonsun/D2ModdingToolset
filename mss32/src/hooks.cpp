@@ -18,6 +18,8 @@
  */
 
 #include "hooks.h"
+#include "aigiveitemsaction.h"
+#include "aigiveitemsactionhooks.h"
 #include "attackimpl.h"
 #include "attackreachcat.h"
 #include "attackutils.h"
@@ -28,6 +30,7 @@
 #include "batattackdrainlevel.h"
 #include "batattackdrainoverflow.h"
 #include "batattackgiveattack.h"
+#include "batattackgroupupgrade.h"
 #include "batattackshatter.h"
 #include "batattacksummon.h"
 #include "batattacktransformother.h"
@@ -82,13 +85,17 @@
 #include "eventeffectcathooks.h"
 #include "exchangeinterf.h"
 #include "exchangeinterfhooks.h"
+#include "fonts.h"
+#include "fontshooks.h"
 #include "fortcategory.h"
 #include "fortification.h"
 #include "gameutils.h"
 #include "globaldata.h"
+#include "groupupgradehooks.h"
 #include "idlist.h"
 #include "interfmanager.h"
 #include "interftexthooks.h"
+#include "intvector.h"
 #include "isoenginegroundhooks.h"
 #include "itembase.h"
 #include "itemcategory.h"
@@ -103,9 +110,11 @@
 #include "mainview2hooks.h"
 #include "managestkinterf.h"
 #include "managestkinterfhooks.h"
-#include "mapgen.h"
 #include "mempool.h"
+#include "menunewskirmishhotseathooks.h"
+#include "menunewskirmishmultihooks.h"
 #include "menunewskirmishsingle.h"
+#include "menunewskirmishsinglehooks.h"
 #include "menuphasehooks.h"
 #include "menuprotocolhooks.h"
 #include "middatacache.h"
@@ -202,8 +211,13 @@ static Hooks getGameHooks()
         {CBuildingBranchApi::get().constructor, buildingBranchCtorHooked},
         // Allow alchemists to buff retreating units
         {CBatAttackGiveAttackApi::vftable()->canPerform, giveAttackCanPerformHooked},
-        // Random map generation
-        //HookInfo{CMenuNewSkirmishSingleApi::get().constructor, menuNewSkirmishSingleCtorHooked},
+        // Random scenario generator
+        {CMenuNewSkirmishSingleApi::get().constructor, menuNewSkirmishSingleCtorHooked, (void**)&orig.menuNewSkirmishSingleCtor},
+        {CMenuNewSkirmishHotseatApi::get().constructor, menuNewSkirmishHotseatCtorHooked, (void**)&orig.menuNewSkirmishHotseatCtor},
+        {CMenuNewSkirmishMultiApi::get().constructor, menuNewSkirmishMultiCtorHooked, (void**)&orig.menuNewSkirmishMultiCtor},
+        // Random scenario generator templates
+        {CMenuPhaseApi::get().constructor, menuPhaseCtorHooked, (void**)&orig.menuPhaseCtor},
+        {CMenuPhaseApi::vftable()->destructor, menuPhaseDtorHooked, (void**)&orig.menuPhaseDtor},
         // Support custom battle attack objects
         {fn.createBatAttack, createBatAttackHooked, (void**)&orig.createBatAttack},
         // Support immunity bitmask in BattleMsgData
@@ -341,6 +355,8 @@ static Hooks getGameHooks()
         {CMidUnitApi::get().upgrade, upgradeHooked},
         // Fix doppelganger attack using alternative attack when attacker is transformed (by doppelganger, drain-level, transform-self/other attacks)
         {battle.cannotUseDoppelgangerAttack, cannotUseDoppelgangerAttackHooked},
+        // Support new menu windows
+        {CMenuPhaseApi::get().switchPhase, menuPhaseSwitchPhaseHooked},
         // Support custom modifiers
         {fn.loadScenarioMap, loadScenarioMapHooked, (void**)&orig.loadScenarioMap},
         // Show broken (removed) wards in unit encyclopedia
@@ -353,6 +369,16 @@ static Hooks getGameHooks()
         // Fix inability to use heal potion on transformed unit if its current hp is greater than maximum hp of unit it is transformed to
         // (most common case is a unit transformed to Imp by a Witch while retaining his original hp)
         {fn.canApplyPotionToUnit, canApplyPotionToUnitHooked},
+        // Fix crash on AI turn when it tries to exchange items and a source stack is destroyed in battle/event while moving to destination
+        {CAiGiveItemsActionApi::vftable().action->execute, aiGiveItemsActionExecuteHooked},
+        // Allow foreign race units to upgrade even if its race capital is present in scenario (functions as if the unit type is locked)
+        // Allow foreign race units (including neutral) to be upgraded using capital buildings
+        // Fix errornous logic that allowed retreated units to upgrade under certain conditions (introduce setting battle.allowRetreatedUnitsToUpgrade)
+        {CBatAttackGroupUpgradeApi::get().upgradeGroup, upgradeGroupHooked},
+        {fn.getUpgradeUnitImplCheckXp, getUpgradeUnitImplCheckXpHooked},
+        {fn.changeUnitXpCheckUpgrade, changeUnitXpCheckUpgradeHooked},
+        // Allow player to customize movement cost
+        {fn.computeMovementCost, computeMovementCostHooked},
         // Support password editbox
         {CEditBoxInterfApi::get().editBoxDataCtor, editBoxDataCtorHooked, (void**)&orig.editBoxDataCtor},
         {CEditBoxInterfApi::get().update, editBoxInterfUpdateHooked, (void**)&orig.editBoxInterfUpdate},
@@ -450,7 +476,6 @@ static Hooks getGameHooks()
     if (isLobbySupported()) {
         // clang-format off
         // Support new menu windows
-        hooks.emplace_back(HookInfo{CMenuPhaseApi::get().switchPhase, menuPhaseSwitchPhaseHooked});
         hooks.emplace_back(HookInfo{CMenuPhaseApi::get().backToMainOrCloseGame, menuPhaseBackToMainOrCloseGameHooked, (void**)&orig.menuPhaseBackToMainOrCloseGame});
         // Support custom lobby server
         hooks.emplace_back(HookInfo{CMenuProtocolApi::get().createMenu, menuProtocolCreateMenuHooked});
@@ -688,11 +713,30 @@ Hooks getHooks()
     hooks.emplace_back(
         HookInfo{CEncLayoutCityApi::get().updateGroupUi, encLayoutCityUpdateGroupUiHooked});
 
+    // Fix display of required buildings when multiple units have the same upgrade building
+    hooks.emplace_back(HookInfo{fn.getUnitRequiredBuildings, getUnitRequiredBuildingsHooked});
+
+    // Allow foreign race units to upgrade even if its race capital is present in scenario
+    // (functions as if the unit type is locked) Allow foreign race units (including neutral) to be
+    // upgraded using capital buildings
+    hooks.emplace_back(HookInfo{fn.isUnitTierMax, isUnitTierMaxHooked});
+    hooks.emplace_back(HookInfo{fn.isUnitLevelNotMax, isUnitLevelNotMaxHooked});
+    hooks.emplace_back(HookInfo{fn.isUnitUpgradePending, isUnitUpgradePendingHooked});
+
     // Fixes crash on scenario loading when level of any unit is below its template from
     // `GUnits.dbf`, or above maximum level for generated units (restricted by total count of unit
     // templates)
     hooks.emplace_back(
         HookInfo{CMidUnitApi::get().streamImplIdAndLevel, midUnitStreamImplIdAndLevelHooked});
+
+    // Support custom fonts
+    hooks.emplace_back(HookInfo{FontCacheApi::get().loadFontFiles, loadFontFilesHooked});
+    hooks.emplace_back(HookInfo{FontCacheApi::get().dataDestructor, fontCacheDataDtorHooked});
+
+    // Fixes incorrect order of building status checks along with missing lordHasBuilding condition
+    hooks.emplace_back(HookInfo{fn.getBuildingStatus, getBuildingStatusHooked});
+    // Fix input of 'io' (U+0451) and 'IO' (U+0401)
+    hooks.emplace_back(HookInfo{CEditBoxInterfApi::get().isCharValid, editBoxIsCharValidHooked});
 
     return hooks;
 }
@@ -741,230 +785,6 @@ void* __fastcall toggleShowBannersInitHooked(void* thisptr, int /*%edx*/)
     ptr[1] = 0;
 
     logDebug("mss32Proxy.log", "Show banners hook finished");
-    return thisptr;
-}
-
-using ScriptLines = std::vector<std::string>;
-
-ScriptLines::iterator addDialogUiElements(ScriptLines& script,
-                                          const std::string& dialogName,
-                                          const ScriptLines& newElements)
-{
-    const std::string dialogStr{std::string{"DIALOG\t"} + dialogName};
-
-    auto line = std::find_if(script.begin(), script.end(), [&dialogStr](const std::string& line) {
-        return line.find(dialogStr) != std::string::npos;
-    });
-
-    if (line == script.end()) {
-        return line;
-    }
-
-    // Skip DIALOG and BEGIN lines
-    std::advance(line, 2);
-    return script.insert(line, newElements.begin(), newElements.end());
-}
-
-void addRandomMapGeneratorUi(ScriptLines& script)
-{
-    const ScriptLines uiElements{
-        "\tBUTTON\tBINKW_PROXY_BTN_GEN_MAP,212,122,422,142,,,,,\"\",0",
-        "\tTEXT\tBINKW_PROXY_TXT_GEN_MAP,212,122,422,142,\\hC;\\vC;,\"Generate random map\",\"Open map generation menu\""};
-
-    addDialogUiElements(script, "DLG_CHOOSE_SKIRMISH", uiElements);
-}
-
-void changeHireDialogUi(ScriptLines& script)
-{
-    const std::string btnPgUpName{"BINKW_PROXY_BTN_PG_UP"};
-    const std::string btnPgDownName{"BINKW_PROXY_BTN_PG_DN"};
-    const std::string btnUpName{"BINKW_PROXY_BTN_LIST_UP"};
-    const std::string btnDownName{"BINKW_PROXY_BTN_LIST_DN"};
-
-    const std::string buttonImageName{"DLG_UPGRADE_LEADER_ARROW"};
-    const std::string btnDownImageName{fmt::format("{:s}_DOWN_", buttonImageName)};
-    const std::string btnUpImageName{fmt::format("{:s}_UP_", buttonImageName)};
-
-    const int buttonSize{26};
-    const int buttonX{415};
-    const int buttonUpY{30};
-    const int buttonDownY{480};
-
-    const ScriptLines uiElements{
-        // Page up and page down hotkeys
-        fmt::format("\tBUTTON\t{0},0,0,10,10,,,,,\"\",0,34", btnPgDownName),
-        fmt::format("\tBUTTON\t{0},10,0,20,10,,,,,\"\",0,33", btnPgUpName),
-        // Up and down keys, this also enables list scrolling with mouse wheel
-        fmt::format("\tBUTTON\t{0},{1},{2},{3},{4},{5}N,{5}H,{5}C,{5}N,\"\",1,38", btnUpName,
-                    buttonX, buttonUpY, buttonX + buttonSize, buttonUpY + buttonSize,
-                    btnUpImageName),
-        fmt::format("\tBUTTON\t{0},{1},{2},{3},{4},{5}N,{5}H,{5}C,{5}N,\"\",1,40", btnDownName,
-                    buttonX, buttonDownY, buttonX + buttonSize, buttonDownY + buttonSize,
-                    btnDownImageName)};
-
-    auto line = addDialogUiElements(script, "DLG_HIRE_LEADER_2", uiElements);
-    auto lboxLine = std::find_if(line, script.end(), [](const std::string& scriptLine) {
-        return scriptLine.find("\tLBOX\tLBOX_LEADER") != std::string::npos;
-    });
-
-    if (lboxLine != script.end()) {
-        *lboxLine = fmt::format(
-            "\tLBOX\tLBOX_LEADER,125,43,410,503,285,85,0,7,{0},{1},,,{2},{3},BTN_HIRE_LEADER,,,0,\"\",0",
-            btnUpName, btnDownName, btnPgUpName, btnPgDownName);
-    }
-}
-
-game::DialogScriptData* __fastcall loadScriptFileHooked(game::DialogScriptData* thisptr,
-                                                        int /*%edx*/,
-                                                        const char* filePath,
-                                                        int /*unknown*/)
-{
-    const auto& stringApi = game::StringApi::get();
-
-    thisptr->initialized = false;
-    thisptr->unknown = 0;
-
-    game::StringArray* array = &thisptr->lines;
-    std::memset(array, 0, sizeof(game::StringArray));
-
-    stringApi.initFromString(&thisptr->scriptPath, filePath);
-
-    ScriptLines scriptLines;
-
-    {
-        std::ifstream stream(filePath);
-        if (!stream) {
-            logError("mssProxyError.log", "Failed to open AutoDialog script file");
-            return thisptr;
-        }
-
-        for (std::string line; std::getline(stream, line);) {
-            scriptLines.push_back(line);
-        }
-    }
-
-    // As for now, it is easier to add new ui elements to AutoDialog script
-    // and let the game do processing, than reverse-engineer all CDlgPrototype class hierarchy.
-    // Use uncommon names to avoid collisions.
-    // addRandomMapGeneratorUi(scriptLines);
-
-    if (!unitsForHire().empty()) {
-        changeHireDialogUi(scriptLines);
-    }
-
-    for (auto& line : scriptLines) {
-        if (line.empty()) {
-            continue;
-        }
-
-        const auto lastCharacter = line.length() - 1;
-        if (line[lastCharacter] == '\n') {
-            line.erase(lastCharacter);
-        }
-
-        game::String str;
-        stringApi.initFromString(&str, line.c_str());
-        game::StringArrayApi::get().pushBack(array, &str);
-        stringApi.free(&str);
-    }
-
-    thisptr->initialized = true;
-    return thisptr;
-}
-
-static int* sub_6804ae(void* thisptr)
-{
-    return *(int**)(((int*)thisptr)[2]);
-}
-
-/**
- * Returns ScenarioDataArrayWrapped, actual meaning and types are unknown.
- * @param[in] unknown parameter is a pointer returned from sub_6804ae().
- */
-static game::ScenarioDataArrayWrapped* sub_573134(int* unknown)
-{
-    return *(game::ScenarioDataArrayWrapped**)(*(unknown + 2) + 20);
-}
-
-static size_t getScenariosTotal(const game::ScenarioDataArray& data)
-{
-    const auto bgn = reinterpret_cast<size_t>(data.bgn);
-    const auto end = reinterpret_cast<size_t>(data.end);
-
-    return (end - bgn) / sizeof(game::ScenarioData);
-}
-
-static void __fastcall buttonGenerateMapCallback(game::CMenuNewSkirmish* thisptr, int /*%edx*/)
-{
-    std::string errorMessage;
-    if (!showMapGeneratorDialog(errorMessage)) {
-        showMessageBox(errorMessage);
-    }
-}
-
-static void menuNewSkirmishCtor(game::CMenuNewSkirmish* thisptr,
-                                game::CMenuPhase* menuPhase,
-                                const char* dialogName)
-{
-    using namespace game;
-
-    const auto& menuBase = CMenuBaseApi::get();
-    menuBase.constructor(thisptr, menuPhase);
-    thisptr->vftable = (game::CMenuBaseVftable*)CMenuNewSkirmishApi::vftable();
-    menuBase.createMenu(thisptr, dialogName);
-
-    const auto dialog = menuBase.getDialogInterface(thisptr);
-    const auto& menu = CMenuNewSkirmishApi::get();
-    const auto& button = CButtonInterfApi::get();
-    const auto freeFunctor = SmartPointerApi::get().createOrFreeNoDtor;
-    SmartPointer functor;
-
-    menuBase.createButtonFunctor(&functor, 0, thisptr, &menuBase.buttonBackCallback);
-    button.assignFunctor(dialog, "BTN_BACK", dialogName, &functor, 0);
-    freeFunctor(&functor, nullptr);
-
-    menuBase.createButtonFunctor(&functor, 0, thisptr, &menu.loadScenarioCallback);
-    CButtonInterf* loadButton = button.assignFunctor(dialog, "BTN_LOAD", dialogName, &functor, 0);
-    freeFunctor(&functor, nullptr);
-
-    void* callback = buttonGenerateMapCallback;
-    menuBase.createButtonFunctor(&functor, 0, thisptr,
-                                 (CMenuBaseApi::Api::ButtonCallback*)&callback);
-    button.assignFunctor(dialog, "BINKW_PROXY_BTN_GEN_MAP", dialogName, &functor, 0);
-    freeFunctor(&functor, nullptr);
-
-    const auto& listBox = CListBoxInterfApi::get();
-    menu.createListBoxDisplayTextFunctor(&functor, 0, thisptr, &menu.displayTextCallback);
-    listBox.assignDisplayTextFunctor(dialog, "TLBOX_GAME_SLOT", dialogName, &functor, true);
-    freeFunctor(&functor, nullptr);
-
-    menu.createListBoxFunctor(&functor, 0, thisptr, &menu.listBoxCallback);
-    listBox.assignFunctor(dialog, "TLBOX_GAME_SLOT", dialogName, &functor);
-    freeFunctor(&functor, nullptr);
-
-    int* unknown = sub_6804ae(thisptr);
-    ScenarioDataArrayWrapped* scenarios = sub_573134(unknown);
-
-    const size_t scenariosTotal = getScenariosTotal(scenarios->data);
-    if (!scenariosTotal) {
-        // Nothing to load
-        loadButton->vftable->setEnabled(loadButton, false);
-        return;
-    }
-
-    CListBoxInterf* lBox = CDialogInterfApi::get().findListBox(dialog, "TLBOX_GAME_SLOT");
-    listBox.setElementsTotal(lBox, scenariosTotal);
-    menu.updateScenarioUi(unknown, dialog, listBox.selectedIndex(lBox));
-}
-
-game::CMenuNewSkirmishSingle* __fastcall menuNewSkirmishSingleCtorHooked(
-    game::CMenuNewSkirmishSingle* thisptr,
-    int /*%edx*/,
-    game::CMenuPhase* menuPhase)
-{
-    menuNewSkirmishCtor(thisptr, menuPhase, "DLG_CHOOSE_SKIRMISH");
-    thisptr->vftable = (game::CMenuBaseVftable*)game::CMenuNewSkirmishSingleApi::vftable();
-
     return thisptr;
 }
 
@@ -1087,7 +907,7 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
         }
 
         auto upgradeBuildingId = racialSoldier->vftable->getUpgradeBuildingId(racialSoldier);
-        if (!upgradeBuildingId) {
+        if (*upgradeBuildingId == emptyId) {
             continue;
         }
 
@@ -1104,19 +924,7 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
             continue;
         }
 
-        auto buildingType = (const TBuildingType*)global.findById(globalData->buildings,
-                                                                  upgradeBuildingId);
-        if (!buildingType) {
-            continue;
-        }
-
-        auto upgBuilding = (const TBuildingUnitUpgType*)
-            dynamicCast(buildingType, 0, rtti.TBuildingTypeType, rtti.TBuildingUnitUpgTypeType, 0);
-        if (!upgBuilding) {
-            continue;
-        }
-
-        if (upgBuilding->level <= hireTierMax) {
+        if (getBuildingLevel(upgradeBuildingId) <= hireTierMax) {
             list.pushBack(hireList, &current->first);
         }
     }
@@ -1557,7 +1365,7 @@ bool __stdcall buildLordSpecificBuildingsHooked(game::IMidgardObjectMap* objectM
 game::CEncLayoutSpell* __fastcall encLayoutSpellCtorHooked(game::CEncLayoutSpell* thisptr,
                                                            int /*%edx*/,
                                                            game::IMidgardObjectMap* objectMap,
-                                                           game::CInterface* interface,
+                                                           game::CInterface* interf,
                                                            void* a2,
                                                            game::CMidgardID* spellId,
                                                            game::CEncParamBase* encParam,
@@ -1577,7 +1385,7 @@ game::CEncLayoutSpell* __fastcall encLayoutSpellCtorHooked(game::CEncLayoutSpell
 
     // Show spell price and casting cost
     encParam->data->statuses = 4;
-    return getOriginalFunctions().encLayoutSpellCtor(thisptr, objectMap, interface, a2, spellId,
+    return getOriginalFunctions().encLayoutSpellCtor(thisptr, objectMap, interf, a2, spellId,
                                                      encParam, playerId);
 }
 
@@ -1783,7 +1591,7 @@ void __stdcall afterBattleTurnHooked(game::BattleMsgData* battleMsgData,
     using namespace game;
 
     if (*unitId != *nextUnitId) {
-        battleMsgData->unknown9 |= 2;
+        battleMsgData->battleStateFlags2.parts.shouldUpdateUnitEffects = true;
         BattleMsgDataApi::get().removeFiniteBoostLowerDamage(battleMsgData, unitId);
     }
 
@@ -1971,18 +1779,7 @@ bool __stdcall enableUnitInHireListUiHooked(const game::CMidPlayer* player,
 
     auto objectMap = CPhaseApi::get().getObjectMap(&phaseGame->phase);
 
-    auto buildingsObject = objectMap->vftable->findScenarioObjectById(objectMap,
-                                                                      &player->buildingsId);
-    if (!buildingsObject) {
-        return false;
-    }
-
-    const auto dynamicCast = RttiApi::get().dynamicCast;
-    const auto& rtti = RttiApi::rtti();
-
-    auto playerBuildings = (CPlayerBuildings*)dynamicCast(buildingsObject, 0,
-                                                          rtti.IMidScenarioObjectType,
-                                                          rtti.CPlayerBuildingsType, 0);
+    auto playerBuildings = getPlayerBuildings(objectMap, player);
     if (!playerBuildings) {
         return false;
     }
@@ -2282,6 +2079,321 @@ game::CanApplyPotionResult __stdcall canApplyPotionToUnitHooked(
     }
 
     return CanApplyPotionResult::Ok;
+}
+
+void __stdcall getUnitRequiredBuildingsHooked(const game::IMidgardObjectMap* objectMap,
+                                              const game::CMidgardID* playerId,
+                                              const game::IUsUnit* unitImpl,
+                                              game::Vector<game::TBuildingType*>* result)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+    const auto& globalDataApi = GlobalDataApi::get();
+    const auto& intVectorApi = IntVectorApi::get();
+
+    const GlobalData* globalData = *globalDataApi.getGlobalData();
+    auto player = getPlayer(objectMap, playerId);
+
+    const auto& units = globalData->units->map->data;
+    const auto& buildings = (*globalData->buildings)->data;
+    for (auto building = buildings.bgn; building != buildings.end; ++building) {
+        for (auto unit = units.bgn; unit != units.end; ++unit) {
+            auto racialSoldier = fn.castUnitImplToRacialSoldier(unit->second);
+            if (racialSoldier) {
+                auto upgradeBuildingId = racialSoldier->vftable->getUpgradeBuildingId(
+                    racialSoldier);
+                if (*upgradeBuildingId == building->first) {
+                    auto prevUnitImplId = racialSoldier->vftable->getPrevUnitImplId(racialSoldier);
+                    if (*prevUnitImplId == unitImpl->id) {
+                        if (!player || lordHasBuilding(&player->lordId, &building->first)) {
+                            intVectorApi.pushBack((IntVector*)result, (int*)&building->second);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+const game::TUsUnitImpl* __stdcall getUpgradeUnitImplCheckXpHooked(
+    const game::IMidgardObjectMap* objectMap,
+    const game::CMidUnit* unit)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+
+    auto soldier = fn.castUnitImplToSoldier(unit->unitImpl);
+    if (unit->currentXp < soldier->vftable->getXpNext(soldier)) {
+        return nullptr;
+    }
+
+    return getUpgradeUnitImpl(objectMap, getPlayerByUnitId(objectMap, &unit->id), unit);
+}
+
+bool __stdcall changeUnitXpCheckUpgradeHooked(game::IMidgardObjectMap* objectMap,
+                                              const game::CMidgardID* playerId,
+                                              const game::CMidgardID* unitId,
+                                              int amount)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+    const auto& visitors = VisitorApi::get();
+
+    auto unit = static_cast<const CMidUnit*>(
+        objectMap->vftable->findScenarioObjectById(objectMap, unitId));
+
+    auto soldier = fn.castUnitImplToSoldier(unit->unitImpl);
+    int xpNext = soldier->vftable->getXpNext(soldier);
+
+    int xpAmount = amount;
+    if (unit->currentXp + xpAmount >= xpNext) {
+        if (!getUpgradeUnitImpl(objectMap, getPlayer(objectMap, playerId), unit)) {
+            xpAmount = xpNext - unit->currentXp - 1;
+        }
+    }
+
+    return visitors.changeUnitXp(unitId, xpAmount, objectMap, 1);
+}
+
+bool __stdcall isUnitTierMaxHooked(const game::IMidgardObjectMap* objectMap,
+                                   const game::CMidgardID* playerId,
+                                   const game::CMidgardID* unitId)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+
+    if (fn.isPlayerRaceUnplayable(playerId, objectMap)) {
+        return true;
+    }
+
+    auto unit = static_cast<const CMidUnit*>(
+        objectMap->vftable->findScenarioObjectById(objectMap, unitId));
+    if (unit->dynLevel) {
+        return true;
+    }
+
+    if (!canUnitGainXp(unit->unitImpl)) {
+        return true;
+    }
+
+    if (hasMaxTierUpgradeBuilding(objectMap, unit->unitImpl)) {
+        return true;
+    }
+
+    return hasNextTierUnitImpl(unit->unitImpl) == false;
+}
+
+bool __stdcall isUnitLevelNotMaxHooked(const game::IMidgardObjectMap* objectMap,
+                                       const game::CMidgardID* playerId,
+                                       const game::CMidgardID* unitId)
+{
+    // Originally calls isUnitTierMax, but it is already getting called before this function
+    // everywhere in the game code, so the excessive call is removed from here.
+
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+
+    auto unit = static_cast<const CMidUnit*>(
+        objectMap->vftable->findScenarioObjectById(objectMap, unitId));
+    if (!canUnitGainXp(unit->unitImpl)) {
+        return false;
+    }
+
+    auto soldier = fn.castUnitImplToSoldier(unit->unitImpl);
+    auto soldierLevel = soldier->vftable->getLevel(soldier);
+    if (soldierLevel == getGeneratedUnitImplLevelMax()) {
+        return false;
+    }
+
+    auto stackLeader = fn.castUnitImplToStackLeader(unit->unitImpl);
+    if (stackLeader) {
+        auto scenarioInfo = getScenarioInfo(objectMap);
+        if (!scenarioInfo) {
+            return false;
+        }
+
+        return soldierLevel < scenarioInfo->leaderMaxLevel;
+    }
+
+    return soldierLevel < *gameRestrictions().unitMaxLevel;
+}
+
+bool __stdcall isUnitUpgradePendingHooked(const game::CMidgardID* unitId,
+                                          const game::IMidgardObjectMap* objectMap)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+
+    auto unit = static_cast<const CMidUnit*>(
+        objectMap->vftable->findScenarioObjectById(objectMap, unitId));
+
+    auto soldier = fn.castUnitImplToSoldier(unit->unitImpl);
+    if (unit->currentXp == soldier->vftable->getXpNext(soldier) - 1) {
+        auto playerId = getPlayerIdByUnitId(objectMap, unitId);
+        if (fn.isUnitLevelNotMax(objectMap, &playerId, unitId)) {
+            return getUpgradeUnitImpl(objectMap, getPlayer(objectMap, &playerId), unit) == nullptr;
+        }
+    }
+
+    return false;
+}
+
+bool __fastcall editBoxIsCharValidHooked(const game::EditBoxData* thisptr,
+                                         int /*%edx*/,
+                                         char character)
+{
+    using namespace game;
+
+    // Cast to int using unsigned char
+    // so extended symbols (>= 127) are handled correctly by isalpha()
+    const int ch = static_cast<unsigned char>(character);
+
+    if (!(ch && ch != VK_ESCAPE && (thisptr->original.allowEnter || ch != '\n' && ch != '\r'))) {
+        return false;
+    }
+
+    // clang-format off
+    // These characters are language specific and depend on actual code page being used.
+    // For example, in cp-1251 they will represent Russian alphabet.
+    // They are hardcoded in game and should work fine on different code pages
+    // such as cp-1250, cp-1251
+    static const unsigned char languageSpecific[] = {
+        0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8,
+        0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF, 0xF0, 0xF1,
+        0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA,
+        0xFB, 0xFC, 0xFD, 0xFE, 0xFF, 0xC0, 0xC1, 0xC2, 0xC3,
+        0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC,
+        0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5,
+        0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE,
+        0xDF,
+        0xA8, 0xB8, // This allows players to enter 'io' (U+0451) and 'IO' (U+0401) in cp-1251 
+        0
+    };
+    // clang-format on
+
+    if (thisptr->filter == EditFilter::TextOnly) {
+        if (isalpha(ch) || isspace(ch)) {
+            return true;
+        }
+
+        // Check if ch is language specific character
+        if (strchr(reinterpret_cast<const char*>(languageSpecific), ch)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    if (thisptr->filter >= EditFilter::AlphaNum) {
+        if (thisptr->filter == EditFilter::DigitsOnly) {
+            return isdigit(ch) != 0;
+        }
+
+        if (thisptr->filter >= EditFilter::AlphaNumNoSlash) {
+            if (thisptr->filter >= EditFilter::NamesDot) {
+                if (thisptr->filter == EditFilter::NamesDot) {
+                    return true;
+                }
+
+                if ((ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9')
+                    && ch != ' ' && ch != '\\' && ch != '_' && ch != '-') {
+                    return false;
+                }
+
+                return true;
+            }
+
+            if (iscntrl(ch)) {
+                return false;
+            }
+
+            if (!strchr("/?*\"<>|+':\\", ch)) {
+                return true;
+            }
+
+            return false;
+        }
+
+        if (iscntrl(ch)) {
+            return false;
+        }
+
+        if (!strchr("/?*\"<>|+'", ch)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // Remove two symbols from forbidden list.
+    // This allows players to enter 'io' (U+0451) and 'IO' (U+0401) in cp-1251
+    static const char forbiddenSymbols[] = {'`', '^', '~', /* 0xA8, 0xB8, */ 0};
+
+    if (!strchr(forbiddenSymbols, ch)) {
+        if (isalpha(ch) || isdigit(ch) || isspace(ch) || ispunct(ch)) {
+            return true;
+        }
+
+        if (strchr(reinterpret_cast<const char*>(languageSpecific), ch)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    return false;
+}
+
+// Conditions should be checked from most critical to less critical to provide correct flow of unit
+// upgrades, AI building decisions and UI messages
+game::BuildingStatus __stdcall getBuildingStatusHooked(const game::IMidgardObjectMap* objectMap,
+                                                       const game::CMidgardID* playerId,
+                                                       const game::CMidgardID* buildingId,
+                                                       bool ignoreBuildTurnAndCost)
+{
+    using namespace game;
+
+    auto player = getPlayer(objectMap, playerId);
+    if (playerHasBuilding(objectMap, player, buildingId)) {
+        return BuildingStatus::AlreadyBuilt;
+    }
+
+    auto building = getBuilding(buildingId);
+    auto scenarioInfo = getScenarioInfo(objectMap);
+    if (getBuildingLevel(building) > scenarioInfo->unitMaxTier) {
+        return BuildingStatus::ExceedsMaxLevel;
+    }
+
+    if (!lordHasBuilding(&player->lordId, buildingId)) {
+        return BuildingStatus::LordHasNoBuilding;
+    }
+
+    if (playerHasSiblingUnitBuilding(objectMap, player, building)) {
+        return BuildingStatus::PlayerHasSiblingUnitBuilding;
+    }
+
+    auto requiredId = building->data->requiredId;
+    if (requiredId != emptyId && !playerHasBuilding(objectMap, player, &requiredId)) {
+        return BuildingStatus::PlayerHasNoRequiredBuilding;
+    }
+
+    if (!ignoreBuildTurnAndCost) {
+        if (player->bank < building->data->cost) {
+            return BuildingStatus::InsufficientBank;
+        }
+
+        if (player->constructionTurn == scenarioInfo->currentTurn) {
+            return BuildingStatus::PlayerAlreadyBuiltThisDay;
+        }
+    }
+
+    return BuildingStatus::CanBeBuilt;
 }
 
 } // namespace hooks

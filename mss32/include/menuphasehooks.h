@@ -27,6 +27,13 @@ enum class MenuTransition : int;
 
 namespace hooks {
 
+game::CMenuPhase* __fastcall menuPhaseCtorHooked(game::CMenuPhase* thisptr,
+                                                 int /*%edx*/,
+                                                 int a2,
+                                                 int a3);
+
+void __fastcall menuPhaseDtorHooked(game::CMenuPhase* thisptr, int /*%edx*/, char flags);
+
 void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
                                            int /*%edx*/,
                                            game::MenuTransition transition);

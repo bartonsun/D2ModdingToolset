@@ -211,6 +211,23 @@ std::string addOverflowText(const std::string& base,
     return text;
 }
 
+std::string addInfiniteText(const std::string& base,
+                            const utils::AttackDescriptor& actual,
+                            const utils::AttackDescriptor& global)
+{
+    if (!actual.infinite()) {
+        return base;
+    }
+
+    auto result = getInterfaceText(textIds().interf.infiniteText.c_str());
+    if (result.empty())
+        result = "%ATTACK% (%INFINITE%)";
+
+    replace(result, "%ATTACK%", base);
+    replace(result, "%INFINITE%", getModifiedStringText(getInfiniteText(), !global.infinite()));
+    return result;
+}
+
 std::string getRatedAttackDamageText(int damage, int critDamage, double ratio)
 {
     auto result = getNumberText(applyAttackDamageRatio(damage, ratio), false);
@@ -286,9 +303,10 @@ std::string getAttackPowerText(const utils::AttackDescriptor& actual,
     }
 
     if (actual.critHit()) {
+        bool full = !userSettings().unitEncyclopedia.displayCriticalHitTextInAttackName;
         result = addCritHitText(result,
                                 getModifiedNumberText(actual.critPower(), global.critPower(), true),
-                                true);
+                                full);
     }
 
     return result;
@@ -303,11 +321,12 @@ std::string getDamageDrainAttackDamageText(const utils::AttackDescriptor& actual
     auto result = getDamageText(actual.damage(), global.damage(), damageMax * multiplier);
 
     if (actual.critHit()) {
+        bool full = !userSettings().unitEncyclopedia.displayCriticalHitTextInAttackName;
         result = addCritHitText(result,
                                 getModifiedNumberText(actual.damage() * actual.critDamage() / 100,
                                                       actual.damage() * global.critDamage() / 100,
                                                       false),
-                                true);
+                                full);
     }
 
     if (maxTargets < 2)
@@ -441,17 +460,17 @@ std::string getAttackTargetsText(game::AttackReachId id)
 std::string getAttackNameText(const utils::AttackDescriptor& actual,
                               const utils::AttackDescriptor& global)
 {
-    auto name = getModifiedStringText(actual.name(), actual.name() != global.name());
-    if (!actual.infinite() || !userSettings().unitEncyclopedia.displayInfiniteAttackIndicator) {
-        return name;
+    auto result = getModifiedStringText(actual.name(), actual.name() != global.name());
+
+    if (actual.infinite() && userSettings().unitEncyclopedia.displayInfiniteAttackIndicator) {
+        result = addInfiniteText(result, actual, global);
     }
 
-    auto result = getInterfaceText(textIds().interf.infiniteText.c_str());
-    if (result.empty())
-        result = "%ATTACK% (%INFINITE%)";
+    if (actual.critHit() && userSettings().unitEncyclopedia.displayCriticalHitTextInAttackName) {
+        result = addCritHitText(result, getModifiedStringText(getCritHitText(), !global.critHit()),
+                                false);
+    }
 
-    replace(result, "%ATTACK%", name);
-    replace(result, "%INFINITE%", getModifiedStringText(getInfiniteText(), !global.infinite()));
     return result;
 }
 

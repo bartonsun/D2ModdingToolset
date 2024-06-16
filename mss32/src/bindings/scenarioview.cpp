@@ -18,6 +18,7 @@
  */
 
 #include "scenarioview.h"
+#include "diplomacyview.h"
 #include "dynamiccast.h"
 #include "fortview.h"
 #include "gameutils.h"
@@ -76,6 +77,7 @@ void ScenarioView::bind(sol::state& lua)
                                                  &ScenarioView::findRuinByUnitIdString);
     scenario["day"] = sol::property(&ScenarioView::getCurrentDay);
     scenario["size"] = sol::property(&ScenarioView::getSize);
+    scenario["diplomacy"] = sol::property(&ScenarioView::getDiplomacy);
 }
 
 std::optional<LocationView> ScenarioView::getLocation(const std::string& id) const
@@ -410,7 +412,7 @@ std::optional<PlayerView> ScenarioView::getPlayerById(const IdView& id) const
         return std::nullopt;
     }
 
-    return {PlayerView{player}};
+    return {PlayerView{player, objectMap}};
 }
 
 std::optional<UnitView> ScenarioView::getUnit(const std::string& id) const
@@ -456,6 +458,15 @@ int ScenarioView::getSize() const
 
     auto info = hooks::getScenarioInfo(objectMap);
     return info ? info->mapSize : 0;
+}
+
+std::optional<DiplomacyView> ScenarioView::getDiplomacy() const
+{
+    if (!objectMap) {
+        return std::nullopt;
+    }
+
+    return DiplomacyView{hooks::getDiplomacy(objectMap)};
 }
 
 const game::CMidgardID* ScenarioView::getObjectId(int x, int y, game::IdType type) const

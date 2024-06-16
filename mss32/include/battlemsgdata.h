@@ -87,6 +87,13 @@ enum class BattleAction : int
     Resolve,
 };
 
+enum class RetreatStatus : std::uint8_t
+{
+    NoRetreat = 0,   /**< Group does not retreat. */
+    CoverAndRetreat, /**< Frontline units defend and cover retreating leader and backline units. */
+    FullRetreat,     /**< Entire group retreats. */
+};
+
 struct ModifiedUnitInfo
 {
     CMidgardID unitId;
@@ -172,10 +179,11 @@ struct UnitInfo
     AttackSourceImmunityStatusesPatched attackSourceImmunityStatuses;
     /** Bitmask with values for each of LAttackClass. */
     std::uint32_t attackClassImmunityStatuses;
-    std::int16_t unitHp;
-    std::int16_t unitXp;
+    std::uint16_t unitHp;
+    std::uint16_t unitXp;
     UnitFlags unitFlags;
-    char unknown2;
+    /** Bit 0 indicates that unit should be hidden in battle UI since its slot used by summon. */
+    std::uint8_t unknown2;
     /** Round when paralyze, petrify or fear was applied. */
     std::int8_t disableAppliedRound;
     /** Round when long poison was applied. 0 means poison was not applied. */
@@ -210,6 +218,48 @@ assert_offset(UnitInfo, shatteredArmor, 156);
 
 using GroupIdTargetsPair = Pair<CMidgardID, TargetSet>;
 
+union BattleStateFlags
+{
+    struct
+    {
+        /** Decision about attacker or defender retreat was made and should not be changed. */
+        bool retreatDecisionWasMade : 1;
+        /** RetreatStatus for attacker stack. */
+        std::uint8_t attackerRetreatStatus : 2;
+        /** RetreatStatus for defender group. */
+        std::uint8_t defenderRetreatStatus : 2;
+        /** Battle is over but healers can make one more turn. */
+        bool afterBattle : 1;
+        /** Player turned on 'AutoBattle' mode. Also set along with fast battle mode. */
+        bool autoBattle : 1;
+        /** Player turned on 'Resolve' (fast battle) mode. */
+        bool fastBattle : 1;
+    } parts;
+
+    std::uint8_t value;
+};
+
+assert_size(BattleStateFlags, 1);
+
+union BattleStateFlags2
+{
+    struct
+    {
+        /** Special zero round for doppelgangers was handled. */
+        bool doppelgangerRoundWasHandled : 1;
+        /** Negative and retreat effects on units needs to be updated. */
+        bool shouldUpdateUnitEffects : 1;
+        /** Attacker stack leader original position before duel. */
+        std::uint8_t attackerLeaderOriginalPos : 3;
+        /** Defender stack leader original position before duel. */
+        std::uint8_t defenderLeaderOriginalPos : 3;
+    } parts;
+
+    std::uint8_t value;
+};
+
+assert_size(BattleStateFlags2, 1);
+
 /**
  * Common part of the network messages that is being sent during battle.
  */
@@ -237,13 +287,10 @@ struct BattleMsgData
     std::int8_t currentRound;
     char padding[3];
     int unknown3;
-    int unknown4;
-    int unknown5;
-    int unknown6;
-    int unknown7;
-    char unknown8;
-    /** Holds leaders positions before duel. */
-    char unknown9;
+    double attackerGroupCoefficient;
+    double defenderGroupCoefficient;
+    BattleStateFlags battleStateFlags;
+    BattleStateFlags2 battleStateFlags2;
     /**
      * Indicates that battle is a duel.
      * Before duel starts, group leaders change their positions to 2, so they face each other.
@@ -258,6 +305,7 @@ struct BattleMsgData
 assert_size(BattleMsgData, 3920);
 assert_offset(BattleMsgData, turnsOrder, 3696);
 assert_offset(BattleMsgData, attackerStackUnitIds, 3816);
+assert_offset(BattleMsgData, battleStateFlags2, 3913);
 
 namespace BattleMsgDataApi {
 

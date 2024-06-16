@@ -188,9 +188,11 @@ bool __fastcall upgradeHooked(game::CMidUnit* thisptr,
     }
     listApi.destructor(&modifierIds);
 
+    // Reset XP first, because getHitPoints can return different values depending on current XP in
+    // case of custom modifiers (has real examples in MNS)
     auto soldier = fn.castUnitImplToSoldier(thisptr->unitImpl);
-    thisptr->currentHp = soldier->vftable->getHitPoints(soldier);
     thisptr->currentXp = 0;
+    thisptr->currentHp = soldier->vftable->getHitPoints(soldier);
     return true;
 }
 
@@ -355,6 +357,9 @@ bool addModifier(game::CMidUnit* unit,
 
     const auto unitModifier = getUnitModifier(modifierId);
     if (!unitModifier) {
+        auto message = fmt::format("MidUnit: Missing modifier '{:s}', unit '{:s}'",
+                                   idToString(modifierId), idToString(&unit->id));
+        errorBuffer[message.copy(errorBuffer, 128)] = 0;
         return false;
     }
 
@@ -364,9 +369,9 @@ bool addModifier(game::CMidUnit* unit,
         }
 
         if (!canReapplyModifier(unit, unitModifier)) {
-            fmt::format("MidUnit: Invalid modifier '{:s}', unit '{:s}'", idToString(modifierId),
-                        idToString(&unit->id))
-                .copy(errorBuffer, 128);
+            auto message = fmt::format("MidUnit: Invalid modifier '{:s}', unit '{:s}'",
+                                       idToString(modifierId), idToString(&unit->id));
+            errorBuffer[message.copy(errorBuffer, 128)] = 0;
             return false;
         }
     }

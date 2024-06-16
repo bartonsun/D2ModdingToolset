@@ -19,14 +19,21 @@
 
 #include "gameutils.h"
 #include "battlemsgdata.h"
+#include "buildingtype.h"
 #include "dynamiccast.h"
 #include "fortification.h"
 #include "game.h"
+#include "globalvariables.h"
+#include "idset.h"
+#include "leaderabilitycat.h"
+#include "lordtype.h"
 #include "midclient.h"
 #include "midclientcore.h"
+#include "middiplomacy.h"
 #include "midgard.h"
 #include "midgardmap.h"
 #include "midgardmapblock.h"
+#include "midgardmapfog.h"
 #include "midgardobjectmap.h"
 #include "midgardplan.h"
 #include "midgardscenariomap.h"
@@ -38,10 +45,14 @@
 #include "midserverlogic.h"
 #include "midstack.h"
 #include "midunit.h"
+#include "playerbuildings.h"
 #include "scenarioinfo.h"
 #include "scenedit.h"
+#include "unitutils.h"
 #include "ussoldier.h"
+#include "utils.h"
 #include "version.h"
+#include <fmt/format.h>
 #include <thread>
 
 extern std::thread::id mainThreadId;
@@ -197,17 +208,28 @@ const game::CMidPlayer* getPlayer(const game::IMidgardObjectMap* objectMap,
 const game::CMidPlayer* getPlayerByUnitId(const game::IMidgardObjectMap* objectMap,
                                           const game::CMidgardID* unitId)
 {
+    using namespace game;
+
+    auto playerId = getPlayerIdByUnitId(objectMap, unitId);
+    return playerId != emptyId ? getPlayer(objectMap, &playerId) : nullptr;
+}
+
+const game::CMidgardID getPlayerIdByUnitId(const game::IMidgardObjectMap* objectMap,
+                                           const game::CMidgardID* unitId)
+{
+    using namespace game;
+
     auto stack = getStackByUnitId(objectMap, unitId);
     if (stack) {
-        return getPlayer(objectMap, &stack->ownerId);
+        return stack->ownerId;
     }
 
     auto fort = getFortByUnitId(objectMap, unitId);
     if (fort) {
-        return getPlayer(objectMap, &fort->ownerId);
+        return fort->ownerId;
     }
 
-    return nullptr;
+    return emptyId;
 }
 
 const game::CMidScenVariables* getScenarioVariables(const game::IMidgardObjectMap* objectMap)
@@ -445,6 +467,270 @@ game::CMidInventory* getInventory(const game::IMidgardObjectMap* objectMap,
     }
 
     return nullptr;
+}
+
+bool canGroupGainXp(const game::IMidgardObjectMap* objectMap, const game::CMidgardID* groupId)
+{
+    using namespace game;
+
+    const auto& idApi = CMidgardIDApi::get();
+
+    if (idApi.getType(groupId) == IdType::Stack) {
+        auto stack = getStack(objectMap, groupId);
+        auto leader = static_cast<const CMidUnit*>(
+            objectMap->vftable->findScenarioObjectById(objectMap, &stack->leaderId));
+        if (!canUnitGainXp(leader->unitImpl)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+int getWeaponMasterBonusXpPercent(const game::IMidgardObjectMap* objectMap,
+                                  const game::CMidgardID* groupId)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+    const auto& idApi = CMidgardIDApi::get();
+
+    if (idApi.getType(groupId) == IdType::Stack) {
+        auto stack = getStack(objectMap, groupId);
+        auto leader = fn.findUnitById(objectMap, &stack->leaderId);
+        if (hasLeaderAbility(leader->unitImpl, LeaderAbilityCategories::get().weaponMaster)) {
+            const auto vars = *(*GlobalDataApi::get().getGlobalData())->globalVariables;
+            return vars->weaponMaster;
+        }
+    }
+
+    return 0;
+}
+
+int getEasyDifficultyBonusXpPercent(const game::IMidgardObjectMap* objectMap,
+                                    const game::CMidgardID* playerId)
+{
+    using namespace game;
+
+    const auto& difficulties = DifficultyLevelCategories::get();
+
+    auto player = getPlayer(objectMap, playerId);
+    if (player && player->isHuman) {
+        auto scenarioInfo = getScenarioInfo(objectMap);
+        if (scenarioInfo->gameDifficulty.id == difficulties.easy->id) {
+            return 20;
+        }
+    }
+
+    return 0;
+}
+
+int getAiBonusXpPercent(const game::IMidgardObjectMap* objectMap)
+{
+    using namespace game;
+
+    const auto& difficulties = DifficultyLevelCategories::get();
+
+    auto scenarioInfo = getScenarioInfo(objectMap);
+    if (scenarioInfo->suggestedLevel >= 10) {
+        auto difficultyId = scenarioInfo->gameDifficulty.id;
+        if (difficultyId == difficulties.average->id) {
+            return 25;
+        } else if (difficultyId == difficulties.hard->id) {
+            return 50;
+        } else if (difficultyId == difficulties.veryHard->id) {
+            return 100;
+        }
+    }
+
+    return 0;
+}
+
+const game::TBuildingType* getBuilding(const game::CMidgardID* buildingId)
+{
+    using namespace game;
+
+    const auto& globalApi = GlobalDataApi::get();
+
+    const auto globalData = *globalApi.getGlobalData();
+    return (const TBuildingType*)globalApi.findById(globalData->buildings, buildingId);
+}
+
+int getBuildingLevel(const game::CMidgardID* buildingId)
+{
+    auto building = getBuilding(buildingId);
+    return building ? getBuildingLevel(building) : 0;
+}
+
+int getBuildingLevel(const game::TBuildingType* building)
+{
+    using namespace game;
+
+    const auto& rtti = RttiApi::rtti();
+    const auto dynamicCast = RttiApi::get().dynamicCast;
+
+    auto unitBuilding = (const TBuildingUnitUpgType*)dynamicCast(building, 0,
+                                                                 rtti.TBuildingTypeType,
+                                                                 rtti.TBuildingUnitUpgTypeType, 0);
+    return unitBuilding ? unitBuilding->level : 0;
+}
+
+const game::CPlayerBuildings* getPlayerBuildings(const game::IMidgardObjectMap* objectMap,
+                                                 const game::CMidPlayer* player)
+{
+    using namespace game;
+
+    const auto& rtti = RttiApi::rtti();
+    const auto dynamicCast = RttiApi::get().dynamicCast;
+
+    auto obj = objectMap->vftable->findScenarioObjectById(objectMap, &player->buildingsId);
+    return (const CPlayerBuildings*)dynamicCast(obj, 0, rtti.IMidScenarioObjectType,
+                                                rtti.CPlayerBuildingsType, 0);
+}
+
+bool playerHasBuilding(const game::IMidgardObjectMap* objectMap,
+                       const game::CMidPlayer* player,
+                       const game::CMidgardID* buildingId)
+{
+    auto playerBuildings = getPlayerBuildings(objectMap, player);
+    if (!playerBuildings) {
+        return false;
+    }
+
+    const auto& buildings = playerBuildings->buildings;
+    for (auto node = buildings.head->next; node != buildings.head; node = node->next) {
+        if (node->data == *buildingId) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool playerHasSiblingUnitBuilding(const game::IMidgardObjectMap* objectMap,
+                                  const game::CMidPlayer* player,
+                                  const game::TBuildingType* building)
+{
+    using namespace game;
+
+    const auto& rtti = RttiApi::rtti();
+    const auto dynamicCast = RttiApi::get().dynamicCast;
+
+    auto unitBuilding = (const TBuildingUnitUpgType*)dynamicCast(building, 0,
+                                                                 rtti.TBuildingTypeType,
+                                                                 rtti.TBuildingUnitUpgTypeType, 0);
+    if (!unitBuilding) {
+        return false;
+    }
+
+    auto playerBuildings = getPlayerBuildings(objectMap, player);
+    if (!playerBuildings) {
+        return false;
+    }
+
+    const auto& buildings = playerBuildings->buildings;
+    for (auto node = buildings.head->next; node != buildings.head; node = node->next) {
+        auto otherBuilding = getBuilding(&node->data);
+        if (otherBuilding->data->category.id == building->data->category.id) {
+            auto otherUnitBuilding = (const TBuildingUnitUpgType*)
+                dynamicCast(otherBuilding, 0, rtti.TBuildingTypeType, rtti.TBuildingUnitUpgTypeType,
+                            0);
+            if (otherUnitBuilding && otherUnitBuilding->level == unitBuilding->level
+                && otherUnitBuilding->branch.id == unitBuilding->branch.id) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool lordHasBuilding(const game::CMidgardID* lordId, const game::CMidgardID* buildingId)
+{
+    using namespace game;
+
+    const auto& globalApi = GlobalDataApi::get();
+    const auto& idSetApi = IdSetApi::get();
+
+    const GlobalData* globalData = *globalApi.getGlobalData();
+    auto lord = static_cast<const TLordType*>(globalApi.findById(globalData->lords, lordId));
+    if (!lord) {
+        return false;
+    }
+
+    IdSetIterator it;
+    auto buildings = lord->data->buildList->data;
+    return *idSetApi.find(&buildings, &it, buildingId) != buildings.end();
+}
+
+bool isBuildingBuildable(const game::IMidgardObjectMap* objectMap,
+                         const game::CMidgardID* playerId,
+                         const game::CMidgardID* buildingId)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+    const auto& globalApi = GlobalDataApi::get();
+    const auto globalData = *globalApi.getGlobalData();
+
+    const TBuildingType* building = nullptr;
+    for (auto currentId = *buildingId; currentId != emptyId;
+         currentId = building->data->requiredId) {
+        building = (const TBuildingType*)globalApi.findById(globalData->buildings, &currentId);
+        if (!building) {
+            return false;
+        }
+
+        auto status = fn.getBuildingStatus(objectMap, playerId, &currentId, true);
+        switch (status) {
+        case BuildingStatus::CanBeBuilt:
+            return true;
+        case BuildingStatus::AlreadyBuilt:
+            return currentId != *buildingId ? true : false;
+        case BuildingStatus::PlayerHasNoRequiredBuilding:
+            break;
+        case BuildingStatus::ExceedsMaxLevel:
+        case BuildingStatus::LordHasNoBuilding:
+        case BuildingStatus::PlayerHasSiblingUnitBuilding:
+            return false;
+        case BuildingStatus::InsufficientBank:
+        case BuildingStatus::PlayerAlreadyBuiltThisDay:
+            showErrorMessageBox(fmt::format("Unexpected building status {:d}.", status));
+            return false;
+        default:
+            showErrorMessageBox(fmt::format("Unknown building status {:d}.", status));
+            return false;
+        }
+    }
+
+    return false;
+}
+
+const game::CMidDiplomacy* getDiplomacy(const game::IMidgardObjectMap* objectMap)
+{
+    using namespace game;
+
+    const auto id{createIdWithType(objectMap, game::IdType::Diplomacy)};
+
+    auto obj{objectMap->vftable->findScenarioObjectById(objectMap, &id)};
+    if (!obj) {
+        return nullptr;
+    }
+
+    return static_cast<const game::CMidDiplomacy*>(obj);
+}
+
+const game::CMidgardMapFog* getFog(const game::IMidgardObjectMap* objectMap,
+                                   const game::CMidPlayer* player)
+{
+    using namespace game;
+
+    auto obj{objectMap->vftable->findScenarioObjectById(objectMap, &player->fogId)};
+    if (!obj) {
+        return nullptr;
+    }
+
+    return static_cast<const CMidgardMapFog*>(obj);
 }
 
 } // namespace hooks

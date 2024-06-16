@@ -40,7 +40,9 @@
 #include "gameimages.h"
 #include "menubase.h"
 #include "menuload.h"
+#include "menunewskirmishhotseat.h"
 #include "menunewskirmishmulti.h"
+#include "menunewskirmishsingle.h"
 #include "menuphase.h"
 #include "menuprotocol.h"
 #include "midevcondition.h"
@@ -107,8 +109,9 @@ struct OriginalFunctions
 
     game::IEffectResultApi::Api::Create createEffectResult;
 
+    game::CMenuPhaseApi::Api::Constructor menuPhaseCtor;
+    game::IMqNetSystemVftable::Destructor menuPhaseDtor;
     game::CMenuPhaseApi::Api::BackToMainOrCloseGame menuPhaseBackToMainOrCloseGame;
-
     game::CMenuProtocolApi::Api::DisplayCallback menuProtocolDisplayCallback;
     game::CMenuProtocolApi::Api::ButtonHandler menuProtocolContinueHandler;
 
@@ -126,6 +129,9 @@ struct OriginalFunctions
 
     game::IMidMsgSenderVftable::SendObjectsChanges midServerLogicSendObjectsChanges;
 
+    game::CMenuNewSkirmishSingleApi::Api::Constructor menuNewSkirmishSingleCtor;
+    game::CMenuNewSkirmishHotseatApi::Api::Constructor menuNewSkirmishHotseatCtor;
+    game::CMenuNewSkirmishMultiApi::Api::Constructor menuNewSkirmishMultiCtor;
     game::IMqNetPlayerVftable::SendNetMessage netSinglePlayerSendMessage;
 
     game::CMidDataCache2::INotifyVftable::OnObjectChanged manageStkInterfOnObjectChanged;

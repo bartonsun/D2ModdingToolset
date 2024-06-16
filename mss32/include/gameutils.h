@@ -38,6 +38,10 @@ struct LRaceCategory;
 struct LTerrainCategory;
 struct CMidRod;
 struct CMidInventory;
+struct CMidDiplomacy;
+struct CMidgardMapFog;
+struct TBuildingType;
+struct CPlayerBuildings;
 } // namespace game
 
 namespace hooks {
@@ -78,6 +82,9 @@ const game::CMidPlayer* getPlayer(const game::IMidgardObjectMap* objectMap,
 
 const game::CMidPlayer* getPlayerByUnitId(const game::IMidgardObjectMap* objectMap,
                                           const game::CMidgardID* unitId);
+
+const game::CMidgardID getPlayerIdByUnitId(const game::IMidgardObjectMap* objectMap,
+                                           const game::CMidgardID* unitId);
 
 const game::CMidScenVariables* getScenarioVariables(const game::IMidgardObjectMap* objectMap);
 
@@ -128,6 +135,44 @@ int getGroupXpKilled(const game::IMidgardObjectMap* objectMap, const game::CMidU
 
 game::CMidInventory* getInventory(const game::IMidgardObjectMap* objectMap,
                                   const game::CMidgardID* groupId);
+
+bool canGroupGainXp(const game::IMidgardObjectMap* objectMap, const game::CMidgardID* groupId);
+
+int getWeaponMasterBonusXpPercent(const game::IMidgardObjectMap* objectMap,
+                                  const game::CMidgardID* groupId);
+
+int getEasyDifficultyBonusXpPercent(const game::IMidgardObjectMap* objectMap,
+                                    const game::CMidgardID* playerId);
+
+int getAiBonusXpPercent(const game::IMidgardObjectMap* objectMap);
+
+const game::TBuildingType* getBuilding(const game::CMidgardID* buildingId);
+
+int getBuildingLevel(const game::CMidgardID* buildingId);
+
+int getBuildingLevel(const game::TBuildingType* building);
+
+const game::CPlayerBuildings* getPlayerBuildings(const game::IMidgardObjectMap* objectMap,
+                                                 const game::CMidPlayer* player);
+
+bool playerHasBuilding(const game::IMidgardObjectMap* objectMap,
+                       const game::CMidPlayer* player,
+                       const game::CMidgardID* buildingId);
+
+bool playerHasSiblingUnitBuilding(const game::IMidgardObjectMap* objectMap,
+                                  const game::CMidPlayer* player,
+                                  const game::TBuildingType* building);
+
+bool lordHasBuilding(const game::CMidgardID* lordId, const game::CMidgardID* buildingId);
+
+bool isBuildingBuildable(const game::IMidgardObjectMap* objectMap,
+                         const game::CMidgardID* playerId,
+                         const game::CMidgardID* buildingId);
+
+const game::CMidDiplomacy* getDiplomacy(const game::IMidgardObjectMap* objectMap);
+
+const game::CMidgardMapFog* getFog(const game::IMidgardObjectMap* objectMap,
+                                   const game::CMidPlayer* player);
 
 } // namespace hooks
 

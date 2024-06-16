@@ -118,6 +118,14 @@ struct TextIds
         std::string unableToLoginAfterRegistration;
         std::string unableToRegister;
     } lobby;
+
+    struct ScenarioGenerator
+    {
+        std::string description;
+        std::string wrongGameData;
+        std::string generationError;
+        std::string limitExceeded;
+    } rsg;
 };
 
 const TextIds& textIds();

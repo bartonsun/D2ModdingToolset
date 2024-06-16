@@ -101,6 +101,9 @@ static void readUnitEncyclopediaSettings(const sol::table& table, Settings::Unit
     value.displayInfiniteAttackIndicator = readSetting(category.value(),
                                                        "displayInfiniteAttackIndicator",
                                                        def.displayInfiniteAttackIndicator);
+    value.displayCriticalHitTextInAttackName = readSetting(category.value(),
+                                                           "displayCriticalHitTextInAttackName",
+                                                           def.displayCriticalHitTextInAttackName);
 }
 
 static void readModifierSettings(const sol::table& table, Settings::Modifiers& value)
@@ -131,6 +134,35 @@ static Color readColor(const sol::table& table, const Color& def)
     return color;
 }
 
+static void readWaterMoveCostSettings(const sol::table& table, Settings::MovementCost::Water& water)
+{
+    const auto& def = defaultSettings().movementCost.water;
+
+    water.dflt = readSetting(table, "default", def.dflt, 1);
+    water.deadLeader = readSetting(table, "withDeadLeader", def.deadLeader, 1);
+    water.withBonus = readSetting(table, "withBonus", def.withBonus, 1);
+    water.waterOnly = readSetting(table, "waterOnly", def.waterOnly, 1);
+}
+
+static void readForestMoveCostSettings(const sol::table& table,
+                                       Settings::MovementCost::Forest& forest)
+{
+    const auto& def = defaultSettings().movementCost.forest;
+
+    forest.dflt = readSetting(table, "default", def.dflt, 1);
+    forest.deadLeader = readSetting(table, "withDeadLeader", def.deadLeader, 1);
+    forest.withBonus = readSetting(table, "withBonus", def.withBonus, 1);
+}
+
+static void readPlainMoveCostSettings(const sol::table& table, Settings::MovementCost::Plain& plain)
+{
+    const auto& def = defaultSettings().movementCost.plain;
+
+    plain.dflt = readSetting(table, "default", def.dflt, 1);
+    plain.deadLeader = readSetting(table, "withDeadLeader", def.deadLeader, 1);
+    plain.onRoad = readSetting(table, "onRoad", def.onRoad, 1);
+}
+
 static void readMovementCostSettings(const sol::table& table, Settings::MovementCost& value)
 {
     const auto& defTextColor = defaultSettings().movementCost.textColor;
@@ -143,6 +175,21 @@ static void readMovementCostSettings(const sol::table& table, Settings::Movement
     auto moveCost = table.get<sol::optional<sol::table>>("movementCost");
     if (!moveCost.has_value()) {
         return;
+    }
+
+    auto water = moveCost.value().get<sol::optional<sol::table>>("water");
+    if (water.has_value()) {
+        readWaterMoveCostSettings(water.value(), value.water);
+    }
+
+    auto forest = moveCost.value().get<sol::optional<sol::table>>("forest");
+    if (forest.has_value()) {
+        readForestMoveCostSettings(forest.value(), value.forest);
+    }
+
+    auto plain = moveCost.value().get<sol::optional<sol::table>>("plain");
+    if (plain.has_value()) {
+        readPlainMoveCostSettings(plain.value(), value.plain);
     }
 
     value.show = readSetting(moveCost.value(), "show", defaultSettings().movementCost.show);
@@ -215,6 +262,40 @@ static void readEngineSettings(const sol::table& table, Settings::Engine& value)
                                                         def.sendRefreshInfoObjectCountLimit);
 }
 
+static void readBattleSettings(const sol::table& table, Settings::Battle& value)
+{
+    const auto& def = defaultSettings().battle;
+
+    auto category = table.get<sol::optional<sol::table>>("battle");
+    if (!category.has_value()) {
+        value = def;
+        return;
+    }
+
+    value.allowRetreatedUnitsToUpgrade = readSetting(category.value(),
+                                                     "allowRetreatedUnitsToUpgrade",
+                                                     def.allowRetreatedUnitsToUpgrade);
+    value.carryXpOverUpgrade = readSetting(category.value(), "carryXpOverUpgrade",
+                                           def.carryXpOverUpgrade);
+    value.allowMultiUpgrade = readSetting(category.value(), "allowMultiUpgrade",
+                                          def.allowMultiUpgrade);
+}
+
+static void readAdditionalLordIncomeSettings(const sol::table& table, Settings::AdditionalLordIncome& value)
+{
+    const auto& def = defaultSettings().additionalLordIncome;
+
+    auto income = table.get<sol::optional<sol::table>>("additionalLordIncome");
+    if (!income.has_value()) {
+        value = def;
+        return;
+    }
+
+    value.warrior = readSetting(income.value(), "warrior", def.warrior);
+    value.mage = readSetting(income.value(), "mage", def.mage);
+    value.guildmaster = readSetting(income.value(), "guildmaster", def.guildmaster);
+}
+
 static void readSettings(const sol::table& table, Settings& settings)
 {
     // clang-format off
@@ -261,6 +342,8 @@ static void readSettings(const sol::table& table, Settings& settings)
     readLobbySettings(table, settings.lobby);
     readDebugSettings(table, settings.debug);
     readEngineSettings(table, settings.engine);
+    readBattleSettings(table, settings.battle);
+    readAdditionalLordIncomeSettings(table, settings.additionalLordIncome);
 }
 
 const Settings& baseSettings()
@@ -319,6 +402,16 @@ const Settings& baseSettings()
         settings.allowBattleItems.onTransformSelf = false;
         settings.allowBattleItems.onDrainLevel = false;
         settings.allowBattleItems.onDoppelganger = false;
+        settings.movementCost.water.dflt = 6;
+        settings.movementCost.water.deadLeader = 12;
+        settings.movementCost.water.withBonus = 2;
+        settings.movementCost.water.waterOnly = 2;
+        settings.movementCost.forest.dflt = 4;
+        settings.movementCost.forest.deadLeader = 8;
+        settings.movementCost.forest.withBonus = 2;
+        settings.movementCost.plain.dflt = 2;
+        settings.movementCost.plain.deadLeader = 4;
+        settings.movementCost.plain.onRoad = 1;
         settings.movementCost.textColor = Color{200, 200, 200};
         settings.movementCost.show = false;
         settings.debugMode = false;

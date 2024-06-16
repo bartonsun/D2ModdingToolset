@@ -77,6 +77,13 @@ enum class MenuTransition : int
     Unknown2NewSkirmish = 0,
     Unknown2LobbyHost = 1,
     Unknown2LobbyJoin = 1,
+    NewSkirmish2RaceSkirmish = 0,
+    NewSkirmishSingle2RandomScenarioSingle = 1,
+    NewSkirmishMulti2RandomScenarioMulti = 2,
+    NewSkirmishHotseat2HotseatLobby = 0,
+    NewSkirmishHotseat2RandomScenarioHotseat = NewSkirmishSingle2RandomScenarioSingle,
+    RandomScenarioSingle2RaceCampaign = 0,
+    RandomScenarioMulti2LobbyHost = 0,
 };
 
 /**
@@ -166,7 +173,16 @@ enum class MenuPhase : int
 
     Back2CustomLobby = 37,
 
-    Last = Back2CustomLobby,
+    NewSkirmishSingle2RandomScenarioSingle = 38,
+    RandomScenarioSingle = 39,
+
+    NewSkirmishHotseat2RandomScenarioHotseat = 40,
+    RandomScenarioHotseat = 41,
+
+    NewSkirmishMulti2RandomScenarioMulti = 42,
+    RandomScenarioMulti = 43,
+
+    Last = RandomScenarioMulti,
 };
 
 assert_enum_value(MenuPhase, Main, 0);
@@ -211,6 +227,7 @@ assert_enum_value(MenuPhase, Protocol2Hotseat, 24);
 assert_enum_value(MenuPhase, Protocol2Multi, 25);
 assert_enum_value(MenuPhase, Single2RaceCampaign, 26);
 assert_enum_value(MenuPhase, Single2NewSkirmish, 27);
+assert_enum_value(MenuPhase, NewSkirmish2RaceSkirmish, 28);
 assert_enum_value(MenuPhase, CustomCampaign2RaceSkirmish, 28);
 assert_enum_value(MenuPhase, Single2CustomCampaign, 29);
 assert_enum_value(MenuPhase, NewSkirmishHotseat, 30);
@@ -221,6 +238,12 @@ assert_enum_value(MenuPhase, Single2LoadCampaign, 34);
 assert_enum_value(MenuPhase, Protocol2CustomLobby, 35);
 assert_enum_value(MenuPhase, CustomLobby, 36);
 assert_enum_value(MenuPhase, Back2CustomLobby, 37);
+assert_enum_value(MenuPhase, NewSkirmishSingle2RandomScenarioSingle, 38);
+assert_enum_value(MenuPhase, RandomScenarioSingle, 39);
+assert_enum_value(MenuPhase, NewSkirmishHotseat2RandomScenarioHotseat, 40);
+assert_enum_value(MenuPhase, RandomScenarioHotseat, 41);
+assert_enum_value(MenuPhase, NewSkirmishMulti2RandomScenarioMulti, 42);
+assert_enum_value(MenuPhase, RandomScenarioMulti, 43);
 
 struct CMenuPhaseData
 {
@@ -231,7 +254,7 @@ struct CMenuPhaseData
     ScenarioDataArrayWrapped* scenarios;
     SmartPtr<IMqImage2> transitionAnimation;
     int maxPlayers;
-    bool loadScenario;
+    bool networkGame;
     bool host;
     bool useGameSpy;
     char padding2;
@@ -269,6 +292,9 @@ namespace CMenuPhaseApi {
 
 struct Api
 {
+    using Constructor = CMenuPhase*(__thiscall*)(CMenuPhase* thisptr, int a2, int a3);
+    Constructor constructor;
+
     /** Switches menu phase, implements menu screen transitions logic. */
     using SwitchPhase = void(__thiscall*)(CMenuPhase* thisptr, MenuTransition transition);
     SwitchPhase switchPhase;
@@ -380,6 +406,16 @@ struct Api
     // 16
     SwitchToMenu switchToWait;
 
+    using SetString = void(__thiscall*)(CMenuPhase* thisptr, const char* string);
+
+    SetString setScenarioFilePath;
+
+    using SetCampaignId = void(__thiscall*)(CMenuPhase* thisptr, const CMidgardID* campaignId);
+    SetCampaignId setCampaignId;
+
+    SetString setScenarioName;
+    SetString setScenarioDescription;
+
     using BackToMainOrCloseGame = void(__thiscall*)(CMenuPhase* thisptr, bool showIntroTransition);
     BackToMainOrCloseGame backToMainOrCloseGame;
 
@@ -390,6 +426,8 @@ struct Api
 };
 
 Api& get();
+
+IMqNetSystemVftable* vftable();
 
 } // namespace CMenuPhaseApi
 

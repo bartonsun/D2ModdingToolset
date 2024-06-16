@@ -32,6 +32,8 @@ struct IAttack;
 
 namespace bindings {
 
+class ModifierView;
+
 class AttackView
 {
 public:
@@ -58,7 +60,12 @@ public:
     bool isInfinite() const;
     /** Returns true if attack can apply critical damage. */
     bool canCrit() const;
+    /** Returns level for boost damage, lower damage and lower initiative attacks. */
+    int getLevel() const;
+    /** Returns list of modifiers applied by bestow wards attack. */
+    std::vector<ModifierView> getWards() const;
 
+    /** Custom attack data. */
     bool isMelee() const;
     int maxTargets() const;
     int critDamage() const;

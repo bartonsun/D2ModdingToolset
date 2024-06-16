@@ -47,6 +47,9 @@
     <Filter Include="features\custom event conditions">
       <UniqueIdentifier>{a12ec29a-1852-47f8-bff4-1fa0ceca32e9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="features\random scenario generator">
+      <UniqueIdentifier>{54ad4f5d-bf7a-487f-9a3c-94547ca33f44}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\fmt\src\format.cc">
@@ -119,9 +122,6 @@
       <Filter>utils</Filter>
     </ClCompile>
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\mapgen.cpp">
-      <Filter>game</Filter>
-    </ClCompile>
     <ClCompile Include="src\mempool.cpp">
       <Filter>game</Filter>
     </ClCompile>
@@ -1085,35 +1085,68 @@
     <ClCompile Include="src\streamutils.cpp">
       <Filter>utils</Filter>
     </ClCompile>
+    <ClCompile Include="src\menurandomscenariosingle.cpp">
+      <Filter>features\random scenario generator</Filter>
+    </ClCompile>
     <ClCompile Include="src\refreshinfo.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\menunewskirmishsinglehooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
     <ClCompile Include="src\midserver.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\spinbuttoninterf.cpp">
       <Filter>game</Filter>
     </ClCompile>
     <ClCompile Include="src\umstack.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\scenariotemplates.cpp">
+      <Filter>features\random scenario generator</Filter>
+    </ClCompile>
     <ClCompile Include="src\encparambase.cpp">
       <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nativegameinfo.cpp">
+      <Filter>features\random scenario generator</Filter>
     </ClCompile>
     <ClCompile Include="src\encparambasehooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\menunewskirmishhotseat.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
     <ClCompile Include="src\netsingleplayer.cpp">
       <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menunewskirmishhotseathooks.cpp">
+      <Filter>hooks</Filter>
     </ClCompile>
     <ClCompile Include="src\netsingleplayerhooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\waitgenerationinterf.cpp">
+      <Filter>features\random scenario generator</Filter>
+    </ClCompile>
     <ClCompile Include="src\logutils.cpp">
       <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menunewskirmishmultihooks.cpp">
+      <Filter>hooks</Filter>
     </ClCompile>
     <ClCompile Include="src\unitstovalidate.cpp">
       <Filter>features</Filter>
     </ClCompile>
+    <ClCompile Include="src\menurandomscenariomulti.cpp">
+      <Filter>features\random scenario generator</Filter>
+    </ClCompile>
     <ClCompile Include="src\managestkinterf.cpp">
       <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menurandomscenario.cpp">
+      <Filter>features\random scenario generator</Filter>
     </ClCompile>
     <ClCompile Include="src\managestkinterfhooks.cpp">
       <Filter>hooks</Filter>
@@ -1150,6 +1183,75 @@
     </ClCompile>
     <ClCompile Include="src\editboxinterfhooks.cpp">
       <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\aigiveitemsaction.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\aimovestackaction.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\aigiveitemsactionhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\battleutils.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\groupupgradehooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\batattackgroupupgrade.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mqimage2surface16.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\image2memory.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="src\generationresultinterf.cpp">
+      <Filter>features\random scenario generator</Filter>
+    </ClCompile>
+    <ClCompile Include="src\displayd3d.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\chatinterf.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formattedtext.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mqpresentationmanager.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\displayddraw.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\middiplomacy.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\diplomacyhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bindings\diplomacyview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fonts.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fontshooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midgardmapfog.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bindings\fogview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sitecategories.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scenarioobjectstreams.cpp">
+      <Filter>game</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1271,9 +1373,6 @@
       <Filter>game</Filter>
     </ClInclude>
     <ClInclude Include="include\mapelement.h">
-      <Filter>game</Filter>
-    </ClInclude>
-    <ClInclude Include="include\mapgen.h">
       <Filter>game</Filter>
     </ClInclude>
     <ClInclude Include="include\mempool.h">
@@ -3003,6 +3102,174 @@
     </ClInclude>
     <ClInclude Include="include\editboxinterfhooks.h">
       <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\aitacticaction.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\aitacticactionsimple.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\aimovestackaction.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\aigiveitemsaction.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\aistack.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\aistackgeneric.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\aiattitudes.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\aigiveitemsactionhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\battleutils.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\groupupgradehooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\batattackgroupupgrade.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\subracetype.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menurandomscenariosingle.h">
+      <Filter>features\random scenario generator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menunewskirmishsinglehooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenariotemplates.h">
+      <Filter>features\random scenario generator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\nativegameinfo.h">
+      <Filter>features\random scenario generator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\nativeunitinfo.h">
+      <Filter>features\random scenario generator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\nativeraceinfo.h">
+      <Filter>features\random scenario generator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\nativeiteminfo.h">
+      <Filter>features\random scenario generator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\itemtypelist.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\nativespellinfo.h">
+      <Filter>features\random scenario generator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\nativelandmarkinfo.h">
+      <Filter>features\random scenario generator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menunewskirmishhotseat.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menunewskirmishhotseathooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\waitgenerationinterf.h">
+      <Filter>features\random scenario generator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menunewskirmishmultihooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menurandomscenariomulti.h">
+      <Filter>features\random scenario generator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menurandomscenario.h">
+      <Filter>features\random scenario generator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sounds.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\wdb.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\quickstring.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\wavstore.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\soundsystemsample.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\soundsystemstream.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\streamholder.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\image2memory.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="include\generationresultinterf.h">
+      <Filter>features\random scenario generator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\displayd3d.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\chatinterf.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\lovechat.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\notifyplayerlist.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midpopupinterf.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\textmessage.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\playerlistentry.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\formattedtext.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\displayddraw.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\middiplomacy.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\diplomacyhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\diplomacyview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fonts.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fontshooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midgardmapfog.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\fogview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenarioobjectstreams.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\streamregister.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\objectinterf.h">
+      <Filter>game</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

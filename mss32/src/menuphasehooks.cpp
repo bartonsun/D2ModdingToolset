@@ -22,9 +22,12 @@
 #include "mempool.h"
 #include "menucustomlobby.h"
 #include "menuphase.h"
+#include "menurandomscenariomulti.h"
+#include "menurandomscenariosingle.h"
 #include "midgard.h"
 #include "netcustomservice.h"
 #include "originalfunctions.h"
+#include "scenariotemplates.h"
 #include <fmt/format.h>
 
 namespace hooks {
@@ -33,6 +36,25 @@ game::CMenuBase* __stdcall createCustomLobbyCallback(game::CMenuPhase* menuPhase
 {
     auto menu = (CMenuCustomLobby*)game::Memory::get().allocate(sizeof(CMenuCustomLobby));
     return new (menu) CMenuCustomLobby(menuPhase);
+}
+
+game::CMenuPhase* __fastcall menuPhaseCtorHooked(game::CMenuPhase* thisptr,
+                                                 int /*%edx*/,
+                                                 int a2,
+                                                 int a3)
+{
+    getOriginalFunctions().menuPhaseCtor(thisptr, a2, a3);
+
+    loadScenarioTemplates();
+
+    return thisptr;
+}
+
+void __fastcall menuPhaseDtorHooked(game::CMenuPhase* thisptr, int /*%edx*/, char flags)
+{
+    freeScenarioTemplates();
+
+    getOriginalFunctions().menuPhaseDtor(thisptr, flags);
 }
 
 void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
@@ -112,7 +134,7 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
         case MenuPhase::Back2CustomLobby: {
             logDebug("transitions.log", "Show CustomLobby");
             CMenuPhaseApi::Api::CreateMenuCallback tmp = createCustomLobbyCallback;
-            CMenuPhaseApi::Api::CreateMenuCallback* callback = &tmp;
+            auto* callback = &tmp;
             menuPhase.showMenu(thisptr, &data->currentPhase, &data->interfManager,
                                &data->currentMenu, &data->transitionAnimation,
                                MenuPhase::CustomLobby, nullptr, &callback);
@@ -148,7 +170,22 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             break;
         case MenuPhase::NewSkirmishSingle:
             logDebug("transitions.log", "Current is NewSkirmishSingle");
-            menuPhase.transitionFromNewSkirmish(thisptr);
+            if (transition == MenuTransition::NewSkirmish2RaceSkirmish) {
+                menuPhase.transitionFromNewSkirmish(thisptr);
+            } else if (transition == MenuTransition::NewSkirmishSingle2RandomScenarioSingle) {
+                menuPhase.showFullScreenAnimation(thisptr, &data->currentPhase,
+                                                  &data->interfManager, &data->currentMenu,
+                                                  MenuPhase::NewSkirmishSingle2RandomScenarioSingle,
+                                                  "TRANS_NEWQUEST2RNDSINGLE");
+            } else if (transition == MenuTransition::NewSkirmishMulti2RandomScenarioMulti) {
+                menuPhase.showFullScreenAnimation(thisptr, &data->currentPhase,
+                                                  &data->interfManager, &data->currentMenu,
+                                                  MenuPhase::NewSkirmishMulti2RandomScenarioMulti,
+                                                  "TRANS_HOST2RNDMULTI");
+            } else {
+                logError("mssProxyError.log", "Invalid menu transition from NewSkirmishSingle");
+                return;
+            }
             break;
         case MenuPhase::NewSkirmish2RaceSkirmish:
             logDebug("transitions.log", "Current is NewSkirmish2RaceSkirmish");
@@ -210,10 +247,28 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             logDebug("transitions.log", "Current is Hotseat2LoadSkirmishHotseat");
             menuPhase.switchToLoadSkirmishHotseat(thisptr);
             break;
-        case MenuPhase::NewSkirmishHotseat:
+        case MenuPhase::NewSkirmishHotseat: {
             logDebug("transitions.log", "Current is NewSkirmishHotseat");
-            menuPhase.transitionFromNewSkirmishHotseat(thisptr);
+            if (transition == MenuTransition::NewSkirmishHotseat2HotseatLobby) {
+                menuPhase.showFullScreenAnimation(thisptr, &data->currentPhase,
+                                                  &data->interfManager, &data->currentMenu,
+                                                  MenuPhase::NewSkirmishHotseat2HotseatLobby,
+                                                  "TRANS_NEW2HSLOBBY");
+            } else if (transition == MenuTransition::NewSkirmishHotseat2RandomScenarioHotseat) {
+                // Reuse animation when transitioning from CMenuNewSkirmishHotseat
+                // to CMenuRandomScenarioSingle
+                menuPhase
+                    .showFullScreenAnimation(thisptr, &data->currentPhase, &data->interfManager,
+                                             &data->currentMenu,
+                                             MenuPhase::NewSkirmishHotseat2RandomScenarioHotseat,
+                                             "TRANS_NEWQUEST2RNDSINGLE");
+            } else {
+                logError("mssProxyError.log", "Invalid menu transition from NewSkirmishHotseat");
+                return;
+            }
+
             break;
+        }
         case MenuPhase::NewSkirmishHotseat2HotseatLobby:
             logDebug("transitions.log", "Current is NewSkirmishHotseat2HotseatLobby");
             menuPhase.switchToHotseatLobby(thisptr);
@@ -230,6 +285,63 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             logDebug("transitions.log", "Current is WaitInterf");
             menuPhase.switchToWait(thisptr);
             break;
+        case MenuPhase::NewSkirmishSingle2RandomScenarioSingle: {
+            logDebug("transitions.log", "Current is NewSkirmishSingle2RandomScenarioSingle");
+            // Create random scenario single menu window during fullscreen animation
+            CMenuPhaseApi::Api::CreateMenuCallback tmp = createMenuRandomScenarioSingle;
+            auto* callback = &tmp;
+            logDebug("transitions.log", "Try to transition to RandomScenarioSingle");
+            menuPhase.showMenu(thisptr, &data->currentPhase, &data->interfManager,
+                               &data->currentMenu, &data->transitionAnimation,
+                               MenuPhase::RandomScenarioSingle, nullptr, &callback);
+            break;
+        }
+        case MenuPhase::RandomScenarioSingle: {
+            logDebug("transitions.log", "Current is RandomScenarioSingle");
+            menuPhase.showFullScreenAnimation(thisptr, &data->currentPhase, &data->interfManager,
+                                              &data->currentMenu,
+                                              MenuPhase::NewSkirmish2RaceSkirmish,
+                                              "TRANS_RNDSINGLE2GOD");
+            break;
+        }
+        case MenuPhase::NewSkirmishHotseat2RandomScenarioHotseat: {
+            logDebug("transitions.log", "Current is NewSkirmishHotseat2RandomScenarioHotseat");
+            // Create random scenario single menu window during fullscreen animation.
+            // Reuse CMenuRandomScenarioSingle for hotseat games
+            CMenuPhaseApi::Api::CreateMenuCallback tmp = createMenuRandomScenarioSingle;
+            auto* callback = &tmp;
+            menuPhase.showMenu(thisptr, &data->currentPhase, &data->interfManager,
+                               &data->currentMenu, &data->transitionAnimation,
+                               MenuPhase::RandomScenarioHotseat, nullptr, &callback);
+            break;
+        }
+        case MenuPhase::RandomScenarioHotseat: {
+            logDebug("transitions.log", "Current is RandomScenarioHotseat");
+            // CMenuRandomScenarioSingle state for hotseat game mode.
+            menuPhase.showFullScreenAnimation(thisptr, &data->currentPhase, &data->interfManager,
+                                              &data->currentMenu,
+                                              MenuPhase::NewSkirmishHotseat2HotseatLobby,
+                                              "TRANS_RND2HSLOBBY");
+            break;
+        }
+        case MenuPhase::NewSkirmishMulti2RandomScenarioMulti: {
+            logDebug("transitions.log", "Current is NewSkirmishMulti2RandomScenarioMulti");
+
+            // Create random scenario multi menu window during fullscreen animaation
+            CMenuPhaseApi::Api::CreateMenuCallback tmp = createMenuRandomScenarioMulti;
+            auto* callback = &tmp;
+            logDebug("transitions.log", "Try to transition to RandomScenarioMulti");
+            menuPhase.showMenu(thisptr, &data->currentPhase, &data->interfManager,
+                               &data->currentMenu, &data->transitionAnimation,
+                               MenuPhase::RandomScenarioMulti, nullptr, &callback);
+            break;
+        }
+        case MenuPhase::RandomScenarioMulti: {
+            logDebug("transitions.log", "Current is RandomScenarioMulti");
+            menuPhase.transitionFromNewSkirmish(thisptr);
+            break;
+        }
+
         }
 
         break;
@@ -255,8 +367,8 @@ void __fastcall menuPhaseBackToMainOrCloseGameHooked(game::CMenuPhase* thisptr,
     // Close the current scenario file
     menuPhaseApi.openScenarioFile(thisptr, nullptr);
 
-    // Clear network state while preserving net service - because it holds connection with the lobby
-    // server. GameSpy does the same.
+    // Clear network state while preserving net service - because it holds connection with the
+    // lobby server. GameSpy does the same.
     auto data = thisptr->data;
     midgardApi.clearNetworkState(data->midgard);
 

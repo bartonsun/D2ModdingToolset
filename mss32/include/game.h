@@ -61,6 +61,7 @@ struct CMidStack;
 struct CFortification;
 struct CMidRuin;
 struct CMidgardPlan;
+struct CMidgardMap;
 struct IMqImage2;
 struct IEncUnitDescriptor;
 struct CDialogInterf;
@@ -77,6 +78,7 @@ struct IUsLeader;
 struct LDeathAnimCategory;
 struct CMidStreamEnvFile;
 struct CMidgardScenarioMap;
+struct TBuildingType;
 
 enum class ModifierElementTypeFlag : int;
 
@@ -90,6 +92,18 @@ enum class CanApplyPotionResult : int
     AlreadyApplied = 9,
     CannotBoostDead = 10,
     CannotHealDead = 11,
+};
+
+enum class BuildingStatus : int
+{
+    CanBeBuilt = 0,
+    InsufficientBank = 3,
+    ExceedsMaxLevel = 5,
+    PlayerAlreadyBuiltThisDay = 6,
+    AlreadyBuilt = 8,
+    PlayerHasNoRequiredBuilding = 9,
+    PlayerHasSiblingUnitBuilding = 10,
+    LordHasNoBuilding = 11, // Custom value, compatible with all occurrences of getBuildingStatus
 };
 
 /** Sets initial values for 'show resources' and 'minimap mode' toggle buttons. */
@@ -641,6 +655,17 @@ using UnitHasDoppelgangerAttack = bool(__stdcall*)(const IMidgardObjectMap* obje
 using GetDeathAnimationByUnitOrItemId =
     LDeathAnimCategory*(__stdcall*)(const CMidgardID* unitOrItemId);
 
+/**
+ * Translates a string from the OEM-defined character set
+ * into either an ANSI or a wide-character string.
+ * This is import from user32.dll used by game executable.
+ * If Verok's DisciplesGL wrapper is present function will be hooked,
+ * otherwise it remains the same.
+ * We don't care and always use it through a function pointer.
+ * DO NOT hook this function from mss32!
+ */
+using OemToCharA = int(__stdcall**)(const char* pSrc, char* pDst);
+
 /** Throws CMidScenException with specified param name and message. */
 using ThrowScenarioException = void(__stdcall*)(const char* paramName, const char* message);
 
@@ -648,7 +673,8 @@ using LoadScenarioMap = int(__stdcall*)(int a1,
                                         CMidStreamEnvFile* streamEnv,
                                         CMidgardScenarioMap* scenarioMap);
 
-/** big determines whether "*FACEB" (round) instead of "*FACE" (rectangle) image from Faces.ff
+/**
+ * 'big' determines whether '*FACEB' (round) instead of '*FACE' (rectangle) image from Faces.ff
  * should be used.
  */
 using CreateUnitFaceImage = CFaceImg::IFaceImg*(__stdcall*)(CMidgardID* unitImplId, bool big);
@@ -657,6 +683,53 @@ using CanApplyPotionToUnit = CanApplyPotionResult(__stdcall*)(const IMidgardObje
                                                               const CMidgardID* unitId,
                                                               const CMidgardID* groupId,
                                                               const CMidgardID* itemId);
+
+/** Returns either next tier (if available) or next level implementation if unit xp is enough. */
+using GetUpgradeUnitImplCheckXp = const TUsUnitImpl*(__stdcall*)(const IMidgardObjectMap* objectMap,
+                                                                 const CMidUnit* unit);
+
+/** Runs ChangeUnitXP visitor, if unit has no upgrade - decreases the amount by 1. */
+using ChangeUnitXpCheckUpgrade = bool(__stdcall*)(IMidgardObjectMap* objectMap,
+                                                  const CMidgardID* playerId,
+                                                  const CMidgardID* unitId,
+                                                  int amount);
+
+using IsUnitTierMax = bool(__stdcall*)(const IMidgardObjectMap* objectMap,
+                                       const CMidgardID* playerId,
+                                       const CMidgardID* unitId);
+
+using IsUnitLevelNotMax = bool(__stdcall*)(const IMidgardObjectMap* objectMap,
+                                           const CMidgardID* playerId,
+                                           const CMidgardID* unitId);
+
+using IsUnitUpgradePending = bool(__stdcall*)(const CMidgardID* unitId,
+                                              const IMidgardObjectMap* objectMap);
+
+using GetUnitImplIdForIsoUnitImage = const CMidgardID*(__stdcall*)(const CMidgardID* unitImplId);
+
+using GetUnitRequiredBuildings = void(__stdcall*)(const IMidgardObjectMap* objectMap,
+                                                  const CMidgardID* playerId,
+                                                  const IUsUnit* unitImpl,
+                                                  Vector<TBuildingType*>* result);
+
+using ComputeMovementCost = int(__stdcall*)(const CMqPoint* mapPosition,
+                                            const IMidgardObjectMap* objectMap,
+                                            const CMidgardMap* midgardMap,
+                                            const CMidgardPlan* plan,
+                                            const CMidgardID* stackId,
+                                            const char* a6,
+                                            const char* a7,
+                                            bool leaderAlive,
+                                            bool plainsBonus,
+                                            bool forestBonus,
+                                            bool waterBonus,
+                                            bool waterOnly,
+                                            bool forbidWaterOnlyOnLand);
+
+using GetBuildingStatus = BuildingStatus(__stdcall*)(const IMidgardObjectMap* objectMap,
+                                                     const CMidgardID* playerId,
+                                                     const CMidgardID* buildingId,
+                                                     bool ignoreBuildTurnAndCost);
 
 /** Game and editor functions that can be hooked. */
 struct Functions
@@ -770,10 +843,20 @@ struct Functions
     GetAltAttackIdCheckClass getAltAttackIdCheckClass;
     UnitHasDoppelgangerAttack unitHasDoppelgangerAttack;
     GetDeathAnimationByUnitOrItemId getDeathAnimationByUnitOrItemId;
+    OemToCharA oemToCharA;
     ThrowScenarioException throwScenarioException;
     LoadScenarioMap loadScenarioMap;
     CreateUnitFaceImage createUnitFaceImage;
     CanApplyPotionToUnit canApplyPotionToUnit;
+    GetUpgradeUnitImplCheckXp getUpgradeUnitImplCheckXp;
+    ChangeUnitXpCheckUpgrade changeUnitXpCheckUpgrade;
+    IsUnitTierMax isUnitTierMax;
+    IsUnitLevelNotMax isUnitLevelNotMax;
+    IsUnitUpgradePending isUnitUpgradePending;
+    GetUnitImplIdForIsoUnitImage getUnitImplIdForIsoUnitImage;
+    GetUnitRequiredBuildings getUnitRequiredBuildings;
+    ComputeMovementCost computeMovementCost;
+    GetBuildingStatus getBuildingStatus;
 };
 
 /** Global variables used in game. */

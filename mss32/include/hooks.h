@@ -62,9 +62,14 @@ struct LRaceCategory;
 struct CMidgardScenarioMap;
 struct IMidgardStreamEnv;
 struct CMidStreamEnvFile;
+struct IUsUnit;
+struct TBuildingType;
+struct TUsUnitImpl;
+struct EditBoxData;
 
 enum class BuildingBranchNumber : int;
 enum class CanApplyPotionResult : int;
+enum class BuildingStatus : int;
 }; // namespace game
 
 namespace hooks {
@@ -83,16 +88,6 @@ Hooks getVftableHooks();
 
 void respopupInitHooked(void);
 void* __fastcall toggleShowBannersInitHooked(void* thisptr, int /*%edx*/);
-
-game::DialogScriptData* __fastcall loadScriptFileHooked(game::DialogScriptData* thisptr,
-                                                        int /*%edx*/,
-                                                        const char* filePath,
-                                                        int /*unknown*/);
-
-game::CMenuNewSkirmishSingle* __fastcall menuNewSkirmishSingleCtorHooked(
-    game::CMenuNewSkirmishSingle* thisptr,
-    int /*%edx*/,
-    game::CMenuPhase* menuPhase);
 
 bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
                                               const game::CMidgardID* playerId,
@@ -163,7 +158,7 @@ bool __stdcall buildLordSpecificBuildingsHooked(game::IMidgardObjectMap* objectM
 game::CEncLayoutSpell* __fastcall encLayoutSpellCtorHooked(game::CEncLayoutSpell* thisptr,
                                                            int /*%edx*/,
                                                            game::IMidgardObjectMap* objectMap,
-                                                           game::CInterface* interface,
+                                                           game::CInterface* interf,
                                                            void* a2,
                                                            game::CMidgardID* spellId,
                                                            game::CEncParamBase* encParam,
@@ -267,6 +262,38 @@ game::CanApplyPotionResult __stdcall canApplyPotionToUnitHooked(
     const game::CMidgardID* unitId,
     const game::CMidgardID* groupId,
     const game::CMidgardID* itemId);
+
+void __stdcall getUnitRequiredBuildingsHooked(const game::IMidgardObjectMap* objectMap,
+                                              const game::CMidgardID* playerId,
+                                              const game::IUsUnit* unitImpl,
+                                              game::Vector<game::TBuildingType*>* result);
+
+const game::TUsUnitImpl* __stdcall getUpgradeUnitImplCheckXpHooked(
+    const game::IMidgardObjectMap* objectMap,
+    const game::CMidUnit* unit);
+
+bool __stdcall changeUnitXpCheckUpgradeHooked(game::IMidgardObjectMap* objectMap,
+                                              const game::CMidgardID* playerId,
+                                              const game::CMidgardID* unitId,
+                                              int amount);
+
+bool __stdcall isUnitTierMaxHooked(const game::IMidgardObjectMap* objectMap,
+                                   const game::CMidgardID* playerId,
+                                   const game::CMidgardID* unitId);
+
+bool __stdcall isUnitLevelNotMaxHooked(const game::IMidgardObjectMap* objectMap,
+                                       const game::CMidgardID* playerId,
+                                       const game::CMidgardID* unitId);
+
+bool __stdcall isUnitUpgradePendingHooked(const game::CMidgardID* unitId,
+                                          const game::IMidgardObjectMap* objectMap);
+
+bool __fastcall editBoxIsCharValidHooked(const game::EditBoxData* thisptr, int /*%edx*/, char ch);
+
+game::BuildingStatus __stdcall getBuildingStatusHooked(const game::IMidgardObjectMap* objectMap,
+                                                       const game::CMidgardID* playerId,
+                                                       const game::CMidgardID* buildingId,
+                                                       bool ignoreBuildTurnAndCost);
 
 } // namespace hooks
 

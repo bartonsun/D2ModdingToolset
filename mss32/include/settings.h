@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <string>
+#include <array>
 
 namespace hooks {
 
@@ -77,6 +78,13 @@ struct Settings
     bool freeTransformSelfAttack;
     bool freeTransformSelfAttackInfinite;
     bool fixEffectiveHpFormula;
+    
+    struct AdditionalLordIncome
+    {
+        int warrior = 0;
+        int mage = 0;
+        int guildmaster = 0;
+    } additionalLordIncome;
 
     struct UnitEncyclopedia
     {
@@ -86,6 +94,7 @@ struct Settings
         bool displayBonusHp;
         bool displayBonusXp;
         bool displayInfiniteAttackIndicator;
+        bool displayCriticalHitTextInAttackName;
     } unitEncyclopedia;
 
     struct Modifiers
@@ -105,6 +114,28 @@ struct Settings
 
     struct MovementCost
     {
+        struct Water
+        {
+            int dflt;
+            int deadLeader;
+            int withBonus;
+            int waterOnly;
+        } water;
+
+        struct Forest
+        {
+            int dflt;
+            int deadLeader;
+            int withBonus;
+        } forest;
+
+        struct Plain
+        {
+            int dflt;
+            int deadLeader;
+            int onRoad;
+        } plain;
+
         Color textColor{};
         Color outlineColor{};
         bool show{};
@@ -139,6 +170,13 @@ struct Settings
         // scenario, because it needs to fit to the network message buffer of 512 KB.
         std::uint32_t sendRefreshInfoObjectCountLimit{0};
     } engine;
+
+    struct Battle
+    {
+        bool allowRetreatedUnitsToUpgrade{false};
+        bool carryXpOverUpgrade{false};
+        bool allowMultiUpgrade{false};
+    } battle;
 
     bool debugMode;
 };

@@ -82,6 +82,7 @@ using RacesMap = mq_c_s<Pair<CMidgardID, TRaceType*>>;
 using DynUpgradeList = List<SmartPtr<CDynUpgrade>>;
 using TextMap = mq_c_s<Pair<CMidgardID, char*>>;
 using AttackMap = mq_c_s<Pair<CMidgardID, CAttackImpl*>>;
+using BuildingMap = mq_c_s<Pair<CMidgardID, TBuildingType*>>;
 
 struct GlobalUnits
 {
@@ -129,11 +130,11 @@ struct GlobalData
     LEventEffectCategoryTable* eventEffectCategories;
     LLandmarkCategoryTable* landmarkCategories;
     LDeathAnimCategoryTable* deathAnimCategories;
-    mq_c_s<Pair<CMidgardID, TBuildingType*>>* buildings;
+    BuildingMap** buildings;
     RacesMap** races;
     mq_c_s<Pair<CMidgardID, TSubRaceType*>>* subRaces;
     mq_c_s<Pair<CMidgardID, TLordType*>>* lords;
-    mq_c_s<Pair<CMidgardID, TStrategicSpell*>>* spells;
+    mq_c_s<Pair<CMidgardID, TStrategicSpell*>>** spells;
     GlobalUnits* units;
     mq_c_s<Pair<CMidgardID, TUnitModifier*>>* modifiers;
     AttackMap* attacks;

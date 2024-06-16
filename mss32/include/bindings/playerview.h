@@ -22,6 +22,7 @@
 
 #include "currencyview.h"
 #include "idview.h"
+#include <optional>
 
 namespace sol {
 class state;
@@ -29,14 +30,17 @@ class state;
 
 namespace game {
 struct CMidPlayer;
+struct IMidgardObjectMap;
 } // namespace game
 
 namespace bindings {
 
+class FogView;
+
 class PlayerView
 {
 public:
-    PlayerView(const game::CMidPlayer* player);
+    PlayerView(const game::CMidPlayer* player, const game::IMidgardObjectMap* objectMap);
 
     static void bind(sol::state& lua);
 
@@ -47,8 +51,11 @@ public:
     bool isHuman() const;
     bool isAlwaysAi() const;
 
+    std::optional<FogView> getFog() const;
+
 private:
     const game::CMidPlayer* player;
+    const game::IMidgardObjectMap* objectMap;
 };
 
 } // namespace bindings

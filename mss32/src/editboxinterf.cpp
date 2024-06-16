@@ -32,6 +32,7 @@ static std::array<Api, 4> functions = {{
         (Api::SetString)0x5391f9,
         (Api::Update)0x539486,
         (Api::UpdateFocus)0x5389e6,
+        (Api::IsCharValid)0x538471,
         (Api::EditBoxDataCtor)0x5377aa,
     },
     // Russobit
@@ -41,6 +42,7 @@ static std::array<Api, 4> functions = {{
         (Api::SetString)0x5391f9,
         (Api::Update)0x539486,
         (Api::UpdateFocus)0x5389e6,
+        (Api::IsCharValid)0x538471,
         (Api::EditBoxDataCtor)0x5377aa,
     },
     // Gog
@@ -50,6 +52,7 @@ static std::array<Api, 4> functions = {{
         (Api::SetString)0x538801,
         (Api::Update)0x538a8e,
         (Api::UpdateFocus)0x537fee,
+        (Api::IsCharValid)0x537a79,
         (Api::EditBoxDataCtor)0x536da5,
     },
     // Scenario Editor
@@ -59,6 +62,7 @@ static std::array<Api, 4> functions = {{
         (Api::SetString)0x492ddb,
         (Api::Update)0x493068,
         (Api::UpdateFocus)0x4925bd,
+        (Api::IsCharValid)0x492048,
         (Api::EditBoxDataCtor)nullptr,
     },
 }};

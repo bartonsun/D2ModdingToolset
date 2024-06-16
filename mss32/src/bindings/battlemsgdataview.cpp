@@ -19,19 +19,30 @@
 
 #include "battlemsgdataview.h"
 #include "battlemsgdata.h"
+#include "gameutils.h"
 #include "idview.h"
+#include "playerview.h"
+#include "stackview.h"
 #include <sol/sol.hpp>
 
 namespace bindings {
 
-BattleMsgDataView::BattleMsgDataView(const game::BattleMsgData* battleMsgData)
+BattleMsgDataView::BattleMsgDataView(const game::BattleMsgData* battleMsgData,
+                                     const game::IMidgardObjectMap* objectMap)
     : battleMsgData{battleMsgData}
+    , objectMap{objectMap}
 { }
 
 void BattleMsgDataView::bind(sol::state& lua)
 {
     auto view = lua.new_usertype<BattleMsgDataView>("BattleView");
     view["getUnitStatus"] = &BattleMsgDataView::getUnitStatus;
+    view["currentRound"] = sol::property(&BattleMsgDataView::getCurrentRound);
+    view["autoBattle"] = sol::property(&BattleMsgDataView::getAutoBattle);
+    view["attackerPlayer"] = sol::property(&BattleMsgDataView::getAttackerPlayer);
+    view["defenderPlayer"] = sol::property(&BattleMsgDataView::getDefenderPlayer);
+    view["attacker"] = sol::property(&BattleMsgDataView::getAttacker);
+    view["defender"] = sol::property(&BattleMsgDataView::getDefender);
 }
 
 bool BattleMsgDataView::getUnitStatus(const IdView& unitId, int status) const
@@ -39,6 +50,56 @@ bool BattleMsgDataView::getUnitStatus(const IdView& unitId, int status) const
     using namespace game;
 
     return BattleMsgDataApi::get().getUnitStatus(battleMsgData, &unitId.id, (BattleStatus)status);
+}
+
+int BattleMsgDataView::getCurrentRound() const
+{
+    return battleMsgData->currentRound;
+}
+
+bool BattleMsgDataView::getAutoBattle() const
+{
+    return game::BattleMsgDataApi::get().isAutoBattle(battleMsgData);
+}
+
+std::optional<PlayerView> BattleMsgDataView::getAttackerPlayer() const
+{
+    return getPlayer(battleMsgData->attackerPlayerId);
+}
+
+std::optional<PlayerView> BattleMsgDataView::getDefenderPlayer() const
+{
+    return getPlayer(battleMsgData->defenderPlayerId);
+}
+
+std::optional<StackView> BattleMsgDataView::getAttacker() const
+{
+    auto stack{hooks::getStack(objectMap, &battleMsgData->attackerGroupId)};
+    if (!stack) {
+        return std::nullopt;
+    }
+
+    return StackView{stack, objectMap};
+}
+
+std::optional<GroupView> BattleMsgDataView::getDefender() const
+{
+    auto group{hooks::getGroup(objectMap, &battleMsgData->defenderGroupId)};
+    if (!group) {
+        return std::nullopt;
+    }
+
+    return GroupView{group, objectMap, &battleMsgData->defenderGroupId};
+}
+
+std::optional<PlayerView> BattleMsgDataView::getPlayer(const game::CMidgardID& playerId) const
+{
+    auto player{hooks::getPlayer(objectMap, &playerId)};
+    if (!player) {
+        return std::nullopt;
+    }
+
+    return PlayerView{player, objectMap};
 }
 
 } // namespace bindings

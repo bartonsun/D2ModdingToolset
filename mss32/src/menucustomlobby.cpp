@@ -213,7 +213,7 @@ void __fastcall CMenuCustomLobby::loadBtnHandler(CMenuCustomLobby* thisptr, int 
 
     auto menuPhase = thisptr->menuBaseData->menuPhase;
     menuPhase->data->currentPhase = MenuPhase::Multi;
-    menuPhase->data->loadScenario = true;
+    menuPhase->data->networkGame = true;
 
     logDebug("transitions.log",
              "Create room, pretend we are in CMenuMulti, transition to CMenuLoadSkirmishMulti");

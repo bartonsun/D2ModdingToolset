@@ -4,7 +4,29 @@
 
 #### General
 - Can be used on vanilla version or with other mods installed;
-- Allows players to search and create PvP matches without external software using custom lobby server. Currently only for [Motlin's mod](https://dis2modding.fandom.com/ru/wiki/Мод_Мотлина).
+- Allows players to search and create PvP matches without external software using custom lobby server. Currently only for [Motlin's mod](https://dis2modding.fandom.com/ru/wiki/Мод_Мотлина);
+- <details>
+    <summary>Adds random scenario map generator;</summary>
+    
+    - Add `generatorSettings.lua` into `Scripts` forlder;
+    - Create `Templates` folder inside game folder and place template files here;
+    - Add buttons `BTN_RANDOM_MAP` to `DLG_CHOOSE_SKIRMISH`, `DLG_HOST` and `DLG_HOTSEAT_NEW` in `Interf.dlg`:
+    ```
+    BUTTON	BTN_RANDOM_MAP,27,541,336,592,BTN_GENERATE_N,BTN_GENERATE_H,BTN_GENERATE_C,BTN_GENERATE_D,"",0
+	TEXT	TXT_RANDOM_MAP,27,541,336,592,\hC;\vC;\fMenu;,"X015TA0022","X015TA0023"
+    ```
+    - Add two new menu screens: for random multiplayer maps and local play (singleplayer or hotseat) maps. Add `DLG_RANDOM_SCENARIO_SINGLE` and `DLG_RANDOM_SCENARIO_MULTI` in `Interf.dlg`;
+    - Add popup menu that will be displayed during scenario map generation process, add `DLG_WAIT_GENERATION` in `Interf.dlg`;
+    - Add popup menu that will show zones placement preview after map generation, add `DLG_GENERATION_RESULT` in `Interf.dlg`;
+    - Add transition animations for new menu screens in `MenuAnim.ff`:
+        - `TRANS_HOST2RNDMULTI.BIK` - transition from multiplayer host to generator menu;
+        - `TRANS_NEWQUEST2RNDSINGLE.BIK` - transition from local game to generator menu;
+        - `TRANS_RND2HSLOBBY.BIK` - transition from generator menu to hotseat lobby;
+        - `TRANS_RNDSINGLE2GOD.BIK` - transition from generator menu to race selection menu;
+    - Add race preview images as well as 'random race' to `Interf.ff`. Images should be named as `GOD_EMPIRE`, `GOD_CLANS`, `GOD_UNDEAD`, `GOD_LEGIONS`, `GOD_ELVES`, `GOD_RANDOM`;
+    - Add `ZONE_BORDER` image for zones placement preview to `Interf.ff`;
+    - Add translated text ids to `TApp.dbf` and into `generator` section of `Scripts/textids.lua`.
+  </details>
 - Increases maximum game turn to 9999;
 - Allows to load and create scenarios with no magic (maximum spell level set to 0);
 - Buildings up to tier 10 are supported in editor and game;
@@ -20,7 +42,7 @@
     ![Demo video](https://user-images.githubusercontent.com/5180699/218980554-b2eae5dd-efac-4b96-9eb8-918333da5487.mp4)
 
     - Create custom category records `L_FIGHTER`, `L_MAGE`, `L_ARCHER`, `L_SPECIAL` and `L_CUSTOM` ('Other buildings') in `Lbuild.dbf`;
-    - Set corresponding category number in `CATEGORY` field and empty id `g000000000` in `REQUIRED` field for desired sideshow buildings in `Gbuild.dbf`;
+    - Set corresponding category number in `CATEGORY` field and empty id `g000000000` in `REQUIRED` field for desired sideshow buildings in `Gbuild.dbf`. *Note* that you only need to change the first building in a tree: for example, in case of the 'Elven Alliance', you only need these changes for 'Aviary' building that enlists 'Griffins', while 'Volary' should be left unchanged.
   </details>
 - <details>
     <summary>Allows each race to hire up to 10 new tier-1 units in cities and capital;</summary>
@@ -43,6 +65,16 @@
     	TEXT	TXT_LEGENDE,144,13,394,43,\fLarge;\hC;\vC;,"",""
     END
     ```
+  </details>
+- <details>
+    <summary>Allows foreign race units (including neutral) to be upgraded using capital buildings;</summary>
+    
+    ![Demo video](https://user-images.githubusercontent.com/5180699/222949835-0217ddd2-5ccc-4ee6-82b8-9b265f1d9b7e.mp4)
+
+    - Use existing or create a new unit to be used as upgrade in `GUnits.dbf`;
+    - Specify a building to upgrade in `UPGRADE_B` (the game does not allow to do free upgrades without a building);
+    - Refer to the previous unit in `PREV_ID` (if you want different previous units to be upgraded into one single unit, you will have to make copies of the latter using `BASE_UNIT`);
+    - The `LEVEL` of the upgrade unit must be equal to the level of the previous unit + 1;
   </details>
 - <details>
     <summary>Allows scenarios with prebuilt capital cities;</summary>
@@ -459,6 +491,20 @@
     Note that this also works in pure vanilla version.
   </details>
 - <details>
+    <summary>Allows to carry extra XP received over unit's upgrade (limited to value required for the next upgrade minus 1);</summary>
+    
+    ![Demo video](https://user-images.githubusercontent.com/5180699/228959454-8535959d-e617-41b0-9e0f-e6220112ba6b.mp4)
+    
+    - Enable `battle.carryXpOverUpgrade` in [settings.lua](Scripts/settings.lua).
+  </details>
+- <details>
+    <summary>Allows units to receive multiple upgrades per single battle;</summary>
+    
+    ![Demo video](https://user-images.githubusercontent.com/5180699/229345630-62b31034-d94f-4370-bec5-5f5d63172a7f.mp4)
+    
+    - Enable `battle.allowMultiUpgrade` in [settings.lua](Scripts/settings.lua).
+  </details>
+- <details>
     <summary>Supports custom attack sources;</summary>
     **Note** that the total number of attack sources (including the base 8) cannot exceed 32 due to game limitations.<br />
 
@@ -684,6 +730,10 @@
 - Fixes missing update of city encyclopedia popup dialog on visiting stack changes;
 - Fixes infamous crash in multiplayer games when observing other player's cities using encyclopedia popup dialog while the player performs unit reordering or summoning units in battle;
 - Fixes inability to use heal potion on transformed unit if its current hp is greater than maximum hp of unit it is transformed to (most common case is a unit transformed to Imp by a Witch while retaining his original hp);
+- Fixes crash on AI turn when it tries to exchange items and a source stack is destroyed in battle/event while moving to destination;
+- Fixes display of required buildings when multiple units have the same upgrade building;
+- Fixes stuck upgrades of foreign race mercenaries ('This unit is ready to upgrade but can not because it needs a building that is only accessible to the %RACE%'). It will now function as if 'Lock unit type' is applied;
+- Fixes errornous logic that allowed retreated units to upgrade under certain conditions. The behavior is now controllable via `battle.allowRetreatedUnitsToUpgrade` setting;
 - Fixes crash on scenario loading when level of any unit is below its template from `GUnits.dbf`, or above maximum level for generated units (restricted by total count of unit templates);
 
 ### Scripting:

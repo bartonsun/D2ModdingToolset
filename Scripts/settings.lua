@@ -95,6 +95,13 @@ settings = {
 	-- Change accuracy reduction for mage leaders per each additional target
 	mageLeaderAccuracyReduction = 10,
 
+	-- set additional income for each lord type
+	additionalLordIncome = {
+		warrior = 0,
+		mage = 0,
+		guildmaster = 0
+	},
+
 	aiAccuracyBonus = {
 		-- Treat AI accuracy bonus as absolute value or as percentage.
 		-- Absolute: accuracy += bonus;
@@ -119,7 +126,39 @@ settings = {
 		},
 		outlineColor = {
 			red = 0, green = 0, blue = 0
-		}
+		},
+        
+        -- Movement cost on water tiles
+        water = {
+            -- Default movement cost
+            default = 6,
+            -- Movement cost for non water-only stacks with dead leader
+            withDeadLeader = 12,
+            -- Movement cost for stacks with water movement bonus
+            withBonus = 2,
+            -- Movement cost for water-only stacks
+            waterOnly = 2,
+        },
+        
+        -- Movement cost on forest tiles
+        forest = {
+            -- Default movement cost
+            default = 4,
+            -- Movement cost for stacks with dead leader
+            withDeadLeader = 8,
+            -- Movement cost for stacks with forest movement bonus 
+            withBonus = 2,
+        },
+        
+        -- Movement cost on plain tiles
+        plain = {
+            -- Default movement cost
+            default = 2,
+            -- Movement cost for stacks with dead leader
+            withDeadLeader = 4,
+            -- Movement cost for stacks without plain movement bonus on road tiles
+            onRoad = 1,
+        },
 	},
 
 	lobby = {
@@ -161,6 +200,10 @@ settings = {
 		-- Display infinite effect indicator along with attack name (alternative to effect duration)
 		-- Requires detailedUnitDescription
 		displayInfiniteAttackIndicator = false,
+
+		-- Display Critical Hit text in Attack section instead of Damage and Power sections
+		-- Requires detailedAttackDescription
+		displayCriticalHitTextInAttackName = false,
 	},
 
 	-- Fix effective unit hp computation
@@ -191,6 +234,15 @@ settings = {
 		-- to resolve issues with custom HP / XP modifiers, that depend on other units (like auras in MNS mod).
 		-- Keep it disabled if you don't need it to improve general performance.
 		validateUnitsOnGroupChanged = false,
+	},
+
+	battle = {
+		-- Allows retreated units to upgrade (the behavior is bugged in vanilla causing non-constant and opaque behaviour)
+		allowRetreatedUnitsToUpgrade = false,
+		-- Allows to carry extra XP received over unit's upgrade (limited to value required for the next upgrade minus 1)
+		carryXpOverUpgrade = false,
+		-- Allows units to receive multiple upgrades per single battle
+		allowMultiUpgrade = false,
 	},
 
 	-- Create mss32 proxy dll log files with debug info

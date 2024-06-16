@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2020 Vladimir Makeev.
+ * Copyright (C) 2023 Vladimir Makeev.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,20 +17,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MAPGEN_H
-#define MAPGEN_H
+#include "displayddraw.h"
+#include "version.h"
+#include <array>
 
-#include <string>
+namespace game::CDisplayDDrawApi {
 
-namespace hooks {
+// clang-format off
+static std::array<IMqRasterizerVftable*, 4> vftables = {{
+    // Akella
+    (IMqRasterizerVftable*)0x6f5c7c,
+    // Russobit
+    (IMqRasterizerVftable*)0x6f5c7c,
+    // Gog
+    (IMqRasterizerVftable*)0x6f3c2c,
+    // Scenario Editor
+    (IMqRasterizerVftable*)0x5e5494,
+}};
+// clang-format on
 
-/**
- * Tries to load and run dll that implements map generation dialog.
- * @param[inout] errorMessage message set in case of errors.
- * @returns false in case of errors.
- */
-bool showMapGeneratorDialog(std::string& errorMessage);
+const IMqRasterizerVftable* vftable()
+{
+    return vftables[static_cast<int>(hooks::gameVersion())];
+}
 
-} // namespace hooks
-
-#endif // MAPGEN_H
+} // namespace game::CDisplayDDrawApi

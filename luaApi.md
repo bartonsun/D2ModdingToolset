@@ -167,6 +167,11 @@ BattleStatus = {
 }
 ```
 
+##### Relation
+```
+Relation = { War, Neutral, Peace }
+```
+
 ---
 
 #### Point
@@ -410,6 +415,16 @@ Returns true if the implementation has [modifier](luaApi.md#modifier) specified 
 impl:hasModifier("G000UM5021")
 impl:hasModifier(Id.new("G000UM5021"))
 ```
+##### getImmuneToAttackClass
+Returns [immune type](luaApi.md#immune) for specified [attack type](luaApi.md#attack).
+```lua
+impl:getImmuneToAttackClass(Attack.Paralyze)
+```
+##### getImmuneToAttackSource
+Returns [immune type](luaApi.md#immune) for specified [attack source](luaApi.md#source).
+```lua
+impl:getImmuneToAttackSource(Source.Water)
+```
 
 ---
 
@@ -447,6 +462,11 @@ slot.distance(otherSlot)
 Represents 6 unit slots.
 
 Methods:
+##### id
+Returns group [id](luaApi.md#id).
+```lua
+group.id
+```
 ##### slots
 Returns group as array of 6 [unit slots](luaApi.md#unit-slot).
 ```lua
@@ -462,6 +482,19 @@ Returns true if group has specified [unit](luaApi.md#unit-1) or [unit id](luaApi
 ```lua
 group:hasUnit(unit)
 group:hasUnit(Id.new('S143UN0001'))
+```
+
+---
+
+#### Fog
+Represents player's fog of war.
+
+Methods:
+##### getFog
+Returns true if specified map position is covered by fog of war.
+Map position can be specified by pair of coordinates or a [point](luaApi.md#point).
+```lua
+local hidden = fog:getFog(3, 7)
 ```
 
 ---
@@ -499,6 +532,15 @@ player.human
 Returns true if player is always AI.
 ```lua
 player.alwaysAi
+```
+##### fog
+Returns player's [fog of war](luaApi.md#fog).
+In fully loaded scenario, player objects always have fog of war. During scenario loading this property can return `nil`.
+```lua
+local fog = player.fog
+if fog == nil then
+    return
+end
 ```
 
 ---
@@ -602,6 +644,16 @@ fort.subrace
 Returns array of inventory [items](luaApi.md#item-2).
 ```lua
 fort.inventory
+```
+##### capital
+Returns true if fort is a capital city.
+```lua
+fort.capital
+```
+##### tier
+Returns fort tier (level). Tiers are in range \[1 : 6\]. Tier 6 corresponds to the capital city.
+```lua
+fort.tier
 ```
 
 ---
@@ -739,6 +791,53 @@ tile.terrain
 Returns tile [ground](luaApi.md#ground) type.
 ```lua
 tile.ground
+```
+
+---
+
+#### Diplomacy
+Represents diplomacy relations between [races](luaApi.md#race) in [scenario](luaApi.md#scenario).
+
+Methods:
+##### getCurrentRelation
+Returns current diplomacy relations value between two [races](luaApi.md#race) in range \[0 : 100\].
+```lua
+local current = diplomacy:getCurrentRelation(race1, race2)
+```
+##### getPreviousRelation
+Returns previous diplomacy relations value between two [races](luaApi.md#race) in range \[0 : 100\].
+```lua
+local prev = diplomacy:getPreviousRelation(race1, race2)
+```
+##### getAlliance
+Returns true if two [races](luaApi.md#race) are in alliance.
+```lua
+local allies = diplomacy:getAlliance(race1, race2)
+```
+##### getAllianceTurn
+Returns turn number when two [races](luaApi.md#race) made an alliance.
+Returns zero if races are not in alliance.
+```lua
+local turn = diplomacy:getAllianceTurn(race1, race2)
+```
+##### getAlwaysAtWar
+Returns true if two [races](luaApi.md#race) are always at war.
+```lua
+local atWar = diplomacy:getAlwaysAtWar(race1, race2)
+```
+##### getAiCouldNotBreakAlliance
+Returns true if diplomacy relations prohibit AI-controlled [races](luaApi.md#race) from breaking alliance.
+```lua
+local couldNotBreak = diplomacy:getAiCouldNotBreakAlliance(race1, race2)
+```
+##### getRelationType
+Returns [relation type](luaApi.md#relation) according to diplomacy relations value.
+```lua
+-- Value to type mapping (D_WAR and D_NEUTRAL can be found in GVars.dbf):
+-- 0       D_WAR           D_NEUTRAL         100
+-- |   War   |     Neutral     |     Peace    |
+--
+local relation = diplomacy:getRelationType(relationValue)
 ```
 
 ---
@@ -887,6 +986,15 @@ Returns scenario map size.
 ```lua
 scenario.size
 ```
+##### diplomacy
+Returns object that holds [diplomacy](luaApi.md#diplomacy) relations between races.
+Fully loaded scenario always have diplomacy relations. During scenario loading this property can return `nil`.
+```lua
+local diplomacy = scenario.diplomacy
+if diplomacy == nil then
+    return
+end
+```
 
 ---
 
@@ -914,6 +1022,11 @@ Returns attack [reach](luaApi.md#reach).
 ```lua
 attack.reach
 ```
+##### wards
+Returns array of [modifiers](luaApi.md#modifier) applied by bestow wards attack.
+```lua
+attack.wards
+```
 ```lua
 --- Returns attack initiative value.
 attack.initiative
@@ -927,6 +1040,8 @@ attack.heal
 attack.infinite
 --- Returns true if attack can inflict critical damage.
 attack.crit
+--- Returns level for boost damage, lower damage and lower initiative attacks.
+attack.level
 --- Returns true if attack is melee (L_ADJACENT or custom reach marked as MELEE in LAttR.dbf).
 attack.melee
 --- Returns maximum number of targets (1, 6 or MAX_TARGTS value for custom reach in LAttR.dbf).
@@ -1055,15 +1170,50 @@ if battle:getUnitStatus(unit.id, BattleStatus.Defend) then
     -- Do something scary
 end
 ```
+##### currentRound
+Returns current round in battle. Round counting starts from 1, but there is a special round 0 when units with 'Doppelganger' [attacks](luaApi.md#attack) present.
+```lua
+battle.currentRound
+```
+##### autoBattle
+Returns true if autobattle mode is turned on.
+```lua
+battle.autoBattle
+```
+##### attackerPlayer
+Returns [player](luaApi.md#player) that started battle.
+```lua
+battle.attackerPlayer
+```
+##### defenderPlayer
+Returns [player](luaApi.md#player) that was attacked.
+```lua
+battle.defenderPlayer
+```
+##### attacker
+Returns [stack](luaApi.md#stack) that started battle.
+Only stacks can initiate battles.
+```lua
+battle.attacker
+```
+##### defender
+Returns [group](luaApi.md#group) that was attacked.
+Defender group can represent units of a [stack](luaApi.md#stack), [fort](luaApi.md#fort) or [ruin](luaApi.md#ruin).
+Use `group.id` to get actual type of a group.
+```lua
+battle.defender
+```
 
 ---
 
 ### Examples
 
 #### doppelganger.lua
+`doppelganger` and `target` have type [Unit](luaApi.md#unit-1).
+`item` is [Item](luaApi.md#item-2) used to perform the attack.
+`battle` specifies an information about current [battle](luaApi.md#battle).
 ```lua
--- 'doppelganger' and 'target' are both of type Unit.
-function getLevel(doppelganger, target)
+function getLevel(doppelganger, target, item, battle)
     -- Get current doppelganger implementation
     local impl = doppelganger.impl
     -- Get target unit implementation
@@ -1085,29 +1235,33 @@ end
 #### transformSelf.lua
 `unit` has type [Unit](luaApi.md#unit-1).
 `transformImpl` is [Unit implementation](luaApi.md#unit-implementation).
+`item` is [Item](luaApi.md#item-2) used to perform the attack.
+`battle` specifies an information about current [battle](luaApi.md#battle).
 ```lua
-function getLevel(unit, transformImpl)
+function getLevel(unit, transformImpl, item, battle)
     -- Transform into current level or level of resulting unit's template, whichever is bigger.
     return math.max(unit.impl.level, transformImpl.level)
 end
 ```
 
 #### transformOther.lua
-`attacker` and `target` has type [Unit](luaApi.md#unit-1).
+`attacker` and `target` have type [Unit](luaApi.md#unit-1).
 `transformImpl` is [Unit implementation](luaApi.md#unit-implementation).
-`item` is [Item](luaApi.md#item-2).
+`item` is [Item](luaApi.md#item-2) used to perform the attack.
+`battle` specifies an information about current [battle](luaApi.md#battle).
 ```lua
-function getLevel(attacker, target, transformImpl, item)
+function getLevel(attacker, target, transformImpl, item, battle)
     -- transform using target level with a minimum of transform impl level
     return math.max(target.impl.level, transformImpl.level);
 end
 ```
 
-`attacker` and `target` has type [Unit](luaApi.md#unit-1).
-`item` is [Item](luaApi.md#item-2).
+`attacker` and `target` have type [Unit](luaApi.md#unit-1).
+`item` is [Item](luaApi.md#item-2) used to perform the attack.
+`battle` specifies an information about current [battle](luaApi.md#battle).
 #### drainLevel.lua
 ```lua
-function getLevel(attacker, target, item)
+function getLevel(attacker, target, item, battle)
     -- transform into unit with its level minus 1 and minus attacker over-level
     return math.max(1, target.impl.level - 1 - attacker.impl.level + attacker.baseImpl.level);
 end
@@ -1116,9 +1270,10 @@ end
 #### summon.lua
 `summoner` has type [Unit](luaApi.md#unit-1).
 `summonImpl` is [Unit implementation](luaApi.md#unit-implementation).
-`item` is [Item](luaApi.md#item-2).
+`item` is [Item](luaApi.md#item-2) used to perform the attack.
+`battle` specifies an information about current [battle](luaApi.md#battle).
 ```lua
-function getLevel(summoner, summonImpl, item)
+function getLevel(summoner, summonImpl, item, battle)
     -- Use base level of summon if cheap item is used to summon it
     if item and item.base.value.gold < 500 then
         return summonImpl.level

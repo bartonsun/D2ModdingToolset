@@ -27,6 +27,7 @@ namespace game::CMenuPhaseApi {
 std::array<Api, 3> functions = {{
     // Akella
     Api{
+        (Api::Constructor)0x4ea926,
         (Api::SwitchPhase)0x4eb20c,
         (Api::ShowMenu)0x4eae89,
         (Api::ShowFullScreenAnimation)0x4ead7e,
@@ -38,7 +39,7 @@ std::array<Api, 3> functions = {{
         (Api::ShowTransition)0x4ebf3a,
         (Api::SwitchToMenu)0x4ec23e,
         (Api::ShowTransition)0x4ec340,
-        (Api::SwitchToMenu)0x4e398,
+        (Api::SwitchToMenu)0x4ec398,
         (Api::ShowTransition)0x4ec3fe,
         (Api::SwitchToMenu)0x4ec079,
         (Api::SwitchToMenu)0x4ec0f2,
@@ -60,11 +61,16 @@ std::array<Api, 3> functions = {{
         (Api::SwitchToMenu)0x4ec037,
         (Api::SwitchToMenu)0x4ec4e0,
         (Api::SwitchToMenu)0x4ebbf4,
+        (Api::SetString)0x4eba33,
+        (Api::SetCampaignId)0x4ebb97,
+        (Api::SetString)0x4ebbac,
+        (Api::SetString)0x4ebbd0,
         (Api::BackToMainOrCloseGame)0x4eacf1,
         (Api::OpenScenarioFile)0x4ebab0,
     },
     // Russobit
     Api{
+        (Api::Constructor)0x4ea926,
         (Api::SwitchPhase)0x4eb20c,
         (Api::ShowMenu)0x4eae89,
         (Api::ShowFullScreenAnimation)0x4ead7e,
@@ -76,7 +82,7 @@ std::array<Api, 3> functions = {{
         (Api::ShowTransition)0x4ebf3a,
         (Api::SwitchToMenu)0x4ec23e,
         (Api::ShowTransition)0x4ec340,
-        (Api::SwitchToMenu)0x4e398,
+        (Api::SwitchToMenu)0x4ec398,
         (Api::ShowTransition)0x4ec3fe,
         (Api::SwitchToMenu)0x4ec079,
         (Api::SwitchToMenu)0x4ec0f2,
@@ -98,11 +104,16 @@ std::array<Api, 3> functions = {{
         (Api::SwitchToMenu)0x4ec037,
         (Api::SwitchToMenu)0x4ec4e0,
         (Api::SwitchToMenu)0x4ebbf4,
+        (Api::SetString)0x4eba33,
+        (Api::SetCampaignId)0x4ebb97,
+        (Api::SetString)0x4ebbac,
+        (Api::SetString)0x4ebbd0,
         (Api::BackToMainOrCloseGame)0x4eacf1,
         (Api::OpenScenarioFile)0x4ebab0,
     },
     // Gog
     Api{
+        (Api::Constructor)0x4e9dd8,
         (Api::SwitchPhase)0x4ea6be,
         (Api::ShowMenu)0x4ea33b,
         (Api::ShowFullScreenAnimation)0x4ea230,
@@ -136,15 +147,33 @@ std::array<Api, 3> functions = {{
         (Api::SwitchToMenu)0x4eb4f7,
         (Api::SwitchToMenu)0x4eb9a0,
         (Api::SwitchToMenu)0x4eb0b4,
+        (Api::SetString)0x4eaeec,
+        (Api::SetCampaignId)0x4eb050,
+        (Api::SetString)0x4eb06c,
+        (Api::SetString)0x4eb090,
         (Api::BackToMainOrCloseGame)0x4ea1a3,
         (Api::OpenScenarioFile)0x4eaf69,
     },
+}};
+
+static std::array<IMqNetSystemVftable*, 3> vftables = {{
+    // Akella
+    (IMqNetSystemVftable*)0x6df0a4,
+    // Russobit
+    (IMqNetSystemVftable*)0x6df0a4,
+    // Gog
+    (IMqNetSystemVftable*)0x6dd04c,
 }};
 // clang-format on
 
 Api& get()
 {
     return functions[static_cast<int>(hooks::gameVersion())];
+}
+
+IMqNetSystemVftable* vftable()
+{
+    return vftables[static_cast<int>(hooks::gameVersion())];
 }
 
 } // namespace game::CMenuPhaseApi

@@ -124,6 +124,9 @@ struct Api
     using UpdateFocus = void(__thiscall*)(CEditBoxFocus* thisptr);
     UpdateFocus updateFocus;
 
+    using IsCharValid = bool(__thiscall*)(const EditBoxData* thisptr, char ch);
+    IsCharValid isCharValid;
+
     using EditBoxDataCtor = EditBoxData*(__thiscall*)(EditBoxData* thisptr);
     EditBoxDataCtor editBoxDataCtor;
 };
