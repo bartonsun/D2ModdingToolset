@@ -111,6 +111,9 @@ struct Api
     /** Meaning and name are assumed*/
     using UpdateFocus = void(__thiscall*)(CEditBoxFocus* thisptr);
     UpdateFocus updateFocus;
+
+    using EditBoxDataCtor = EditBoxData*(__thiscall*)(EditBoxData* thisptr);
+    EditBoxDataCtor editBoxDataCtor;
 };
 
 Api& get();
