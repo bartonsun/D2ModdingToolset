@@ -30,7 +30,7 @@ static std::array<Api, 4> functions = {{
         (Api::SetFilterAndLength)0x5c9c86,
         (Api::SetInputLength)0x5390dc,
         (Api::SetString)0x5391f9,
-        (Api::Update)0x539468,
+        (Api::Update)0x539486,
         (Api::UpdateFocus)0x5389e6,
     },
     // Russobit
@@ -38,7 +38,7 @@ static std::array<Api, 4> functions = {{
         (Api::SetFilterAndLength)0x5c9c86,
         (Api::SetInputLength)0x5390dc,
         (Api::SetString)0x5391f9,
-        (Api::Update)0x539468,
+        (Api::Update)0x539486,
         (Api::UpdateFocus)0x5389e6,
     },
     // Gog
