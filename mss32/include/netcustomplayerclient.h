@@ -78,7 +78,23 @@ private:
         CNetCustomPlayerClient* m_player;
     };
 
+    class RoomsCallback : public SLNet::RoomsCallback
+    {
+    public:
+        RoomsCallback(CNetCustomPlayerClient* player)
+            : m_player{player}
+        { }
+
+        void RoomDestroyedOnModeratorLeft_Callback(
+            const SLNet::SystemAddress& senderAddress,
+            SLNet::RoomDestroyedOnModeratorLeft_Notification* notification) override;
+
+    private:
+        CNetCustomPlayerClient* m_player;
+    };
+
     PeerCallback m_peerCallback;
+    RoomsCallback m_roomsCallback;
     SLNet::RakNetGUID m_serverGuid;
 };
 

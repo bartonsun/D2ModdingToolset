@@ -55,6 +55,7 @@ CNetCustomPlayerClient::CNetCustomPlayerClient(CNetCustomSession* session,
     : CNetCustomPlayer{session, system, reception, name,
                        getClientId(session->getService()->getPeerGuid())}
     , m_peerCallback(this)
+    , m_roomsCallback(this)
     , m_serverGuid{serverGuid}
 {
     static game::IMqNetPlayerClientVftable vftable = {
@@ -72,13 +73,17 @@ CNetCustomPlayerClient::CNetCustomPlayerClient(CNetCustomSession* session,
     };
 
     this->vftable = &vftable;
-    getService()->addPeerCallback(&m_peerCallback);
+    auto service = getService();
+    service->addPeerCallback(&m_peerCallback);
+    service->addRoomsCallback(&m_roomsCallback);
 }
 
 CNetCustomPlayerClient ::~CNetCustomPlayerClient()
 {
     logDebug("lobby.log", "Destroying CNetCustomPlayerClient");
-    getService()->removePeerCallback(&m_peerCallback);
+    auto service = getService();
+    service->removeRoomsCallback(&m_roomsCallback);
+    service->removePeerCallback(&m_peerCallback);
 }
 
 void __fastcall CNetCustomPlayerClient::destructor(CNetCustomPlayerClient* thisptr,
@@ -194,6 +199,18 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
     default:
         logDebug("playerClient.log", fmt::format("Packet type {:d}", static_cast<int>(type)));
         break;
+    }
+}
+
+void CNetCustomPlayerClient::RoomsCallback::RoomDestroyedOnModeratorLeft_Callback(
+    const SLNet::SystemAddress& senderAddress,
+    SLNet::RoomDestroyedOnModeratorLeft_Notification* notification)
+{
+    // TODO: check that this is our roomId
+    logDebug("playerClient.log", "Server left a room");
+    auto system = m_player->getSystem();
+    if (system) {
+        system->vftable->onPlayerDisconnected(system, game::serverNetPlayerId);
     }
 }
 
