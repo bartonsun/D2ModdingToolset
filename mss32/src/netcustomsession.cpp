@@ -66,7 +66,8 @@ CNetCustomSession::CNetCustomSession(CNetCustomService* service,
 
 CNetCustomSession ::~CNetCustomSession()
 {
-    getService()->removeRoomsCallback(&m_roomsCallback);
+    m_service->leaveRoom();
+    m_service->removeRoomsCallback(&m_roomsCallback);
 }
 
 CNetCustomService* CNetCustomSession::getService() const

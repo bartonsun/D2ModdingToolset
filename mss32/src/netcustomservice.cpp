@@ -234,6 +234,7 @@ bool CNetCustomService::createRoom(const char* name, const char* password)
     room.resultCode = SLNet::REC_SUCCESS;
 
     auto& params = room.networkedRoomCreationParameters;
+    params.destroyOnModeratorLeave = true;
     params.roomName = name;
     params.slots.publicSlots = 1;
     params.slots.reservedSlots = 0;
@@ -281,6 +282,14 @@ bool CNetCustomService::createRoom(const char* name, const char* password)
     logDebug("lobby.log", fmt::format("Account {:s} is trying to create and enter a room {:s}",
                                       room.userName.C_String(), params.roomName.C_String()));
     m_roomsClient.ExecuteFunc(&room);
+    return true;
+}
+
+bool CNetCustomService::leaveRoom()
+{
+    SLNet::LeaveRoom_Func func{};
+    func.userName = m_accountName.c_str();
+    m_roomsClient.ExecuteFunc(&func);
     return true;
 }
 
