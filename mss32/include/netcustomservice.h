@@ -45,8 +45,8 @@ extern const char* passwordColumnName;
 // Should not exceed the size of SLNet::MessageID
 enum ClientMessages
 {
-    ID_CHECK_FILES_INTEGRITY = ID_USER_PACKET_ENUM + 1,
-    ID_FILES_INTEGRITY_RESULT,
+    ID_CHECK_FILES_EQUALITY_REQUEST = ID_USER_PACKET_ENUM + 1,
+    ID_CHECK_FILES_EQUALITY_RESPONSE,
     ID_GAME_MESSAGE_TO_HOST_SERVER,
     ID_GAME_MESSAGE_TO_HOST_CLIENT,
     ID_GAME_MESSAGE = game::netMessageNormalType & 0xff,
@@ -107,14 +107,14 @@ public:
     /** Requests a list of rooms for specified account. */
     bool searchRooms(const char* accountName = nullptr);
 
-    /** Tries to join existing room by its name. */
-    bool joinRoom(const char* roomName);
+    /** Requests joining a room. */
+    void joinRoom(SLNet::RoomID id);
 
     /** Tries to change number of public slots in current room. */
     bool changeRoomPublicSlots(unsigned int publicSlots);
 
-    /** Tries to request files integrity check from the server. */
-    bool checkFilesIntegrity(const char* hash);
+    /** Requests game files equality check from the target. */
+    bool checkGameFilesEquality(const SLNet::RakNetGUID& target);
 
     /**
      * The service is always first to receive peer notifications.
@@ -196,6 +196,7 @@ private:
 
     static void __fastcall peerProcessEventCallback(CNetCustomService* thisptr, int /*%edx*/);
     std::vector<NetPeerCallback*> getPeerCallbacks() const;
+    const std::string& getGameFilesHash();
 
     PeerCallback m_peerCallback;
     CNetCustomSession* m_session;
@@ -214,6 +215,7 @@ private:
     game::UiEvent m_peerProcessEvent;
     std::vector<NetPeerCallback*> m_peerCallbacks;
     mutable std::mutex m_peerCallbacksMutex;
+    std::string m_gameFilesHash;
 };
 
 assert_offset(CNetCustomService, vftable, 0);

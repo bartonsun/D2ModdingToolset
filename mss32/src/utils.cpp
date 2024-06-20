@@ -329,7 +329,7 @@ std::uint32_t createMessageEvent(game::UiEvent* messageEvent,
     return messageId;
 }
 
-bool computeHash(const std::filesystem::path& folder, std::string& hash)
+std::string computeHash(const std::vector<std::filesystem::path>& folders)
 {
     struct HashGuard
     {
@@ -345,8 +345,12 @@ bool computeHash(const std::filesystem::path& folder, std::string& hash)
     };
 
     std::vector<std::filesystem::path> filenames;
-    for (const auto& entry : std::filesystem::directory_iterator(folder)) {
-        filenames.push_back(entry.path());
+    for (const auto& folder : folders) {
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(folder)) {
+            if (entry.is_regular_file()) {
+                filenames.push_back(entry.path());
+            }
+        }
     }
 
     std::sort(filenames.begin(), filenames.end());
@@ -356,13 +360,13 @@ bool computeHash(const std::filesystem::path& folder, std::string& hash)
                              CRYPT_VERIFYCONTEXT)) {
         logError("mssProxyError.log",
                  fmt::format("Could not acquire context, reason {:d}", GetLastError()));
-        return false;
+        return "";
     }
 
     if (!CryptCreateHash(guard.provider, CALG_MD5, 0, 0, &guard.hash)) {
         logError("mssProxyError.log",
                  fmt::format("Could not create hash, reason {:d}", GetLastError()));
-        return false;
+        return "";
     }
 
     for (const auto& file : filenames) {
@@ -370,7 +374,7 @@ bool computeHash(const std::filesystem::path& folder, std::string& hash)
         if (!stream) {
             logError("mssProxyError.log",
                      fmt::format("Could not open file '{:s}'", file.filename().string()));
-            return false;
+            return "";
         }
 
         const auto size = static_cast<size_t>(std::filesystem::file_size(file));
@@ -382,7 +386,7 @@ bool computeHash(const std::filesystem::path& folder, std::string& hash)
         if (!CryptHashData(guard.hash, contents.data(), size, 0)) {
             logError("mssProxyError.log",
                      fmt::format("Compute hash failed, reason {:d}", GetLastError()));
-            return false;
+            return "";
         }
     }
 
@@ -393,18 +397,16 @@ bool computeHash(const std::filesystem::path& folder, std::string& hash)
     if (!CryptGetHashParam(guard.hash, HP_HASHVAL, md5Hash, &length, 0)) {
         logError("mssProxyError.log",
                  fmt::format("Could not get hash value, reason {:d}", GetLastError()));
-        return false;
+        return "";
     }
 
-    hash.clear();
-
+    std::string hash;
     static const char hexDigits[] = "0123456789abcdef";
     for (DWORD i = 0; i < length; ++i) {
         hash += hexDigits[md5Hash[i] >> 4];
         hash += hexDigits[md5Hash[i] & 0xf];
     }
-
-    return true;
+    return hash;
 }
 
 void forEachScenarioObject(game::IMidgardObjectMap* objectMap,

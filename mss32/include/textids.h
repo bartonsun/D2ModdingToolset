@@ -105,9 +105,8 @@ struct TextIds
         std::string connectStartFailed;
         std::string connectAttemptFailed;
         std::string serverIsFull;
-        std::string computeHashFailed;
-        std::string requestHashCheckFailed;
-        std::string wrongHash;
+        std::string checkFilesRequestFailed;
+        std::string checkFilesFailed;
         std::string wrongRoomPassword;
         std::string confirmBack;
         std::string invalidAccountNameOrPassword;

@@ -113,8 +113,8 @@ std::uint32_t createMessageEvent(game::UiEvent* messageEvent,
                                  void* callback,
                                  const char* messageName);
 
-/** Computes MD5 hash of files in specified folder. */
-bool computeHash(const std::filesystem::path& folder, std::string& hash);
+/** Computes MD5 hash of files in the specified folders (recursively). */
+std::string computeHash(const std::vector<std::filesystem::path>& folders);
 
 /** Executes function for each scenario object with specified id type. */
 void forEachScenarioObject(game::IMidgardObjectMap* objectMap,

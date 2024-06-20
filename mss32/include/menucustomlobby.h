@@ -140,15 +140,16 @@ private:
 
     struct RoomInfo
     {
+        SLNet::RoomID id;
         std::string name;
+        SLNet::RakNetGUID hostGuid;
         std::string hostName;
         std::string password;
         int totalSlots;
         int usedSlots;
     };
 
-    int getCurrentRoomIndex();
-    void tryJoinRoom(const char* roomName);
+    const RoomInfo* getSelectedRoom();
     void updateAccountText(const char* accountName);
     void initializeButtonsHandlers();
     void showError(const char* message);
@@ -162,6 +163,7 @@ private:
     std::vector<RoomInfo> rooms;
     RoomListCallbacks roomsCallbacks;
     game::NetMsgEntryData** netMsgEntryData;
+    bool joiningRoom;
 };
 
 assert_offset(CMenuCustomLobby, vftable, 0);

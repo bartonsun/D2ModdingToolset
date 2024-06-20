@@ -159,95 +159,37 @@ void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes t
     using namespace game;
 
     switch (type) {
+    case ID_CONNECTION_REQUEST_ACCEPTED:
+        m_menu->hideWaitDialog();
+        m_menu->showLoginDialog();
+        break;
+
     case ID_CONNECTION_ATTEMPT_FAILED: {
+        m_menu->hideWaitDialog();
+
         auto message{getInterfaceText(textIds().lobby.connectAttemptFailed.c_str())};
         if (message.empty()) {
             message = "Connection attempt failed";
         }
-
-        m_menu->hideWaitDialog();
         showMessageBox(message);
         break;
     }
 
     case ID_NO_FREE_INCOMING_CONNECTIONS: {
+        m_menu->hideWaitDialog();
+
         auto message{getInterfaceText(textIds().lobby.serverIsFull.c_str())};
         if (message.empty()) {
             message = "Lobby server is full";
         }
-
-        m_menu->hideWaitDialog();
         showMessageBox(message);
         break;
     }
 
-    case ID_ALREADY_CONNECTED:
-        m_menu->hideWaitDialog();
-        logDebug("lobby.log", "Error connecting - already connected. This should never happen.");
-        break;
-
-    // TODO: move integrity request to join room
-    // TODO: add Scripts to computeHash
-    case ID_CONNECTION_REQUEST_ACCEPTED: {
-        std::string hash;
-        if (!computeHash(globalsFolder(), hash)) {
-            auto message{getInterfaceText(textIds().lobby.computeHashFailed.c_str())};
-            if (message.empty()) {
-                message = "Could not compute hash";
-            }
-
-            m_menu->hideWaitDialog();
-            showMessageBox(message);
-            break;
-        }
-
-        if (!getNetService()->checkFilesIntegrity(hash.c_str())) {
-            auto message{getInterfaceText(textIds().lobby.requestHashCheckFailed.c_str())};
-            if (message.empty()) {
-                message = "Could not request game integrity check";
-            }
-
-            m_menu->hideWaitDialog();
-            showMessageBox(message);
-            break;
-        }
-
-        return;
-    }
-
-    case ID_FILES_INTEGRITY_RESULT: {
-        m_menu->hideWaitDialog();
-
-        SLNet::BitStream input{packet->data, packet->length, false};
-        input.IgnoreBytes(sizeof(SLNet::MessageID));
-
-        bool checkPassed{false};
-        input.Read(checkPassed);
-        if (!checkPassed) {
-            auto message{getInterfaceText(textIds().lobby.wrongHash.c_str())};
-            if (message.empty()) {
-                message = "Game integrity check failed";
-            }
-
-            showMessageBox(message);
-            break;
-        }
-
-        m_menu->showLoginDialog();
-        break;
-    }
-
-    case ID_DISCONNECTION_NOTIFICATION: {
-        logDebug("lobby.log", "Server was shut down");
+    case ID_DISCONNECTION_NOTIFICATION:
+    case ID_CONNECTION_LOST:
         m_menu->onConnectionLost();
         break;
-    }
-
-    case ID_CONNECTION_LOST: {
-        logDebug("lobby.log", "Connection with server is lost");
-        m_menu->onConnectionLost();
-        break;
-    }
     }
 }
 

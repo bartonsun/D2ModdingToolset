@@ -56,6 +56,7 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     , peerCallback(this)
     , roomsCallbacks(this)
     , netMsgEntryData(nullptr)
+    , joiningRoom(false)
 {
     using namespace game;
 
@@ -189,10 +190,12 @@ void __fastcall CMenuCustomLobby::logoutAccountBtnHandler(CMenuCustomLobby*, int
     getNetService()->logoutAccount();
 }
 
-void __fastcall CMenuCustomLobby::roomsListSearchHandler(CMenuCustomLobby*, int /*%edx*/)
+void __fastcall CMenuCustomLobby::roomsListSearchHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
 {
-    logDebug("lobby.log", "Request fresh rooms list");
-    getNetService()->searchRooms();
+    if (!thisptr->joiningRoom) {
+        logDebug("lobby.log", "Request fresh rooms list");
+        getNetService()->searchRooms();
+    }
 }
 
 void __fastcall CMenuCustomLobby::createRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
@@ -220,73 +223,37 @@ void __fastcall CMenuCustomLobby::loadBtnHandler(CMenuCustomLobby* thisptr, int 
     game::CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Multi2LoadSkirmish);
 }
 
-int CMenuCustomLobby::getCurrentRoomIndex()
+const CMenuCustomLobby::RoomInfo* CMenuCustomLobby::getSelectedRoom()
 {
     using namespace game;
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
     auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
-
-    return CListBoxInterfApi::get().selectedIndex(listBox);
-}
-
-void CMenuCustomLobby::tryJoinRoom(const char* roomName)
-{
-    using namespace game;
-
-    if (!getNetService()->joinRoom(roomName)) {
-        logDebug("transitions.log", "Failed to request room join");
-    }
-
-    // Rooms callback will notify us when its time to send game messages to server,
-    // requesting version and info.
-    auto& menuBase = CMenuBaseApi::get();
-    auto& dialogApi = CDialogInterfApi::get();
-    auto dialog = menuBase.getDialogInterface(this);
-
-    // For now, disable join button
-    // TODO: why? the button should be inaccessible already due to wait dialog
-    auto buttonJoin = dialogApi.findButton(dialog, "BTN_JOIN");
-    if (buttonJoin) {
-        buttonJoin->vftable->setEnabled(buttonJoin, false);
-    }
-
-    showWaitDialog();
+    auto index = (size_t)CListBoxInterfApi::get().selectedIndex(listBox);
+    return index < rooms.size() ? &rooms[index] : nullptr;
 }
 
 void CMenuCustomLobby::onRoomPasswordCorrect(CMenuCustomLobby* menu)
 {
     logDebug("transitions.log", "Room password correct, trying to join a room");
 
-    // Get current room name, try to join
-    using namespace game;
-
-    auto index = menu->getCurrentRoomIndex();
-    if (index < 0 || index >= (int)menu->rooms.size()) {
-        return;
-    }
-
-    const auto& room = menu->rooms[index];
-    menu->tryJoinRoom(room.name.c_str());
+    getNetService()->joinRoom(menu->getSelectedRoom()->id);
+    menu->showWaitDialog();
 }
 
 void CMenuCustomLobby::onRoomPasswordCancel(CMenuCustomLobby* menu)
 {
-    // Create rooms list event once again
-    createTimerEvent(&menu->roomsListEvent, menu, roomsListSearchHandler, 5000);
+    menu->joiningRoom = false;
 }
 
 bool CMenuCustomLobby::onRoomPasswordEnter(CMenuCustomLobby* menu, const char* password)
 {
-    using namespace game;
-
-    auto index = menu->getCurrentRoomIndex();
-    if (index < 0 || index >= (int)menu->rooms.size()) {
+    if (menu->getSelectedRoom()->password != password) {
+        menu->joiningRoom = false; // TODO: refactor dialog logic to eliminate such guesses
         return false;
     }
 
-    const auto& room = menu->rooms[index];
-    return room.password == password;
+    return true;
 }
 
 void __fastcall CMenuCustomLobby::joinRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
@@ -295,30 +262,29 @@ void __fastcall CMenuCustomLobby::joinRoomBtnHandler(CMenuCustomLobby* thisptr, 
 
     logDebug("transitions.log", "Join room button pressed");
 
-    auto index = thisptr->getCurrentRoomIndex();
-    if (index < 0 || index >= (int)thisptr->rooms.size()) {
+    auto room = thisptr->getSelectedRoom();
+    if (!room) {
         return;
     }
 
-    const auto& room = thisptr->rooms[index];
-
     // Do fast check if room can be joined
-    if (room.usedSlots >= room.totalSlots) {
+    if (room->usedSlots >= room->totalSlots) {
         // Could not join game. Host did not report any available race.
         showMessageBox(getInterfaceText("X005TA0886"));
         return;
     }
 
-    // Check if room protected with password, ask user to input
-    if (!room.password.empty()) {
-        // Remove rooms list callback so we don't mess with the list
-        UiEventApi::get().destructor(&thisptr->roomsListEvent);
-        showRoomPasswordDialog(thisptr, onRoomPasswordCorrect, onRoomPasswordCancel,
-                               onRoomPasswordEnter);
+    if (!getNetService()->checkGameFilesEquality(room->hostGuid)) {
+        auto message{getInterfaceText(textIds().lobby.checkFilesRequestFailed.c_str())};
+        if (message.empty()) {
+            message = "Could not request a check for game files equality from the room owner.";
+        }
+        showMessageBox(message);
         return;
     }
 
-    thisptr->tryJoinRoom(room.name.c_str());
+    thisptr->joiningRoom = true;
+    thisptr->showWaitDialog();
 }
 
 void __fastcall CMenuCustomLobby::listBoxDisplayHandler(CMenuCustomLobby* thisptr,
@@ -675,15 +641,6 @@ void CMenuCustomLobby::processJoin(const char* roomName, const SLNet::RakNetGUID
 {
     using namespace game;
 
-    logDebug("roomJoin.log", "Unsubscribe from rooms list updates while joining the room");
-
-    // Unsubscribe from rooms list notification while we joining the room
-    // Remove timer event
-    game::UiEventApi::get().destructor(&roomsListEvent);
-
-    // Disconnect ui-related rooms callbacks
-    getNetService()->removeRoomsCallback(&roomsCallbacks);
-
     // Create session ourselves
     logDebug("roomJoin.log", fmt::format("Process join to {:s}", roomName));
 
@@ -768,9 +725,45 @@ void CMenuCustomLobby::PeerCallback::onPacketReceived(DefaultMessageIDTypes type
                                                       SLNet::RakPeerInterface* peer,
                                                       const SLNet::Packet* packet)
 {
-    using namespace game;
+    // TODO: determine if a target guid that we sent a message for files check is left to drop
+    // waiting and show error. See ConnectionGraph2 to track remote connections
 
     switch (type) {
+    case ID_CHECK_FILES_EQUALITY_RESPONSE: {
+        logDebug("lobby.log", "Received files equality check response");
+        menuLobby->hideWaitDialog();
+
+        SLNet::BitStream input{packet->data, packet->length, false};
+        input.IgnoreBytes(sizeof(SLNet::MessageID));
+        // TODO: sanity check that the selected room belongs to the guid
+        SLNet::RakNetGUID sender;
+        input.Read(sender);
+
+        bool checkPassed{false};
+        input.Read(checkPassed);
+        if (!checkPassed) {
+            menuLobby->joiningRoom = false;
+
+            auto message{getInterfaceText(textIds().lobby.checkFilesFailed.c_str())};
+            if (message.empty()) {
+                message = "Unable to join the room because the owner's game files are different.";
+            }
+            showMessageBox(message);
+            break;
+        }
+
+        auto room = menuLobby->getSelectedRoom();
+        if (!room->password.empty()) {
+            showRoomPasswordDialog(menuLobby, onRoomPasswordCorrect, onRoomPasswordCancel,
+                                   onRoomPasswordEnter);
+            break;
+        }
+
+        getNetService()->joinRoom(room->id);
+        menuLobby->showWaitDialog();
+        break;
+    }
+
     case ID_DISCONNECTION_NOTIFICATION: {
         logDebug("lobby.log", "Server was shut down");
         menuLobby->onConnectionLost();
@@ -790,6 +783,7 @@ void CMenuCustomLobby::RoomListCallbacks::JoinByFilter_Callback(
     SLNet::JoinByFilter_Func* callResult)
 {
     menuLobby->hideWaitDialog();
+    menuLobby->joiningRoom = false;
 
     if (callResult->resultCode == SLNet::REC_SUCCESS) {
         auto& room = callResult->joinedRoomResult.roomDescriptor;
@@ -846,6 +840,7 @@ void CMenuCustomLobby::RoomListCallbacks::SearchByFilter_Callback(
         auto room = rooms[i];
 
         auto name = room->GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c;
+        SLNet::RakNetGUID hostGuid;
         const char* hostName{nullptr};
 
         auto& members = room->roomMemberList;
@@ -853,6 +848,7 @@ void CMenuCustomLobby::RoomListCallbacks::SearchByFilter_Callback(
             auto& member = members[j];
 
             if (member.roomMemberMode == RMM_MODERATOR) {
+                hostGuid = member.guid;
                 hostName = member.name.C_String();
                 break;
             }
@@ -873,7 +869,7 @@ void CMenuCustomLobby::RoomListCallbacks::SearchByFilter_Callback(
         }
 
         // Add 1 to used and total slots because they are not counting room moderator
-        roomsInfo.push_back(RoomInfo{std::string(name),
+        roomsInfo.push_back(RoomInfo{room->lobbyRoomId, std::string(name), hostGuid,
                                      std::string{hostName ? hostName : "Unknown"},
                                      password ? std::string{password} : std::string{},
                                      totalSlots + 1, usedSlots + 1});

@@ -306,25 +306,19 @@ bool CNetCustomService::searchRooms(const char* accountName)
     return true;
 }
 
-bool CNetCustomService::joinRoom(const char* roomName)
+void CNetCustomService::joinRoom(SLNet::RoomID id)
 {
-    if (!roomName) {
-        logDebug("lobby.log", "Could not join room without a name");
-        return false;
-    }
-
     SLNet::JoinByFilter_Func join;
     join.gameIdentifier = titleName;
     join.userName = m_accountName.c_str();
-    join.query.AddQuery_STRING(DefaultRoomColumns::GetColumnName(DefaultRoomColumns::TC_ROOM_NAME),
-                               roomName);
+    join.query.AddQuery_NUMERIC(DefaultRoomColumns::GetColumnName(DefaultRoomColumns::TC_ROOM_ID),
+                                id);
     join.roomMemberMode = RMM_PUBLIC;
 
-    logDebug("lobby.log", fmt::format("Account {:s} is trying to join room {:s}",
-                                      join.userName.C_String(), roomName));
+    logDebug("lobby.log",
+             fmt::format("Account {:s} is trying to join room {:d}", join.userName.C_String(), id));
 
     m_roomsClient.ExecuteFunc(&join);
-    return true;
 }
 
 bool CNetCustomService::changeRoomPublicSlots(unsigned int publicSlots)
@@ -345,22 +339,18 @@ bool CNetCustomService::changeRoomPublicSlots(unsigned int publicSlots)
     return true;
 }
 
-bool CNetCustomService::checkFilesIntegrity(const char* hash)
+bool CNetCustomService::checkGameFilesEquality(const SLNet::RakNetGUID& target)
 {
-    if (!hash || !std::strlen(hash)) {
-        logDebug("lobby.log", "Could not check client integrity with empty hash");
+    const auto& hash = getGameFilesHash();
+    if (hash.empty()) {
         return false;
     }
 
     SLNet::BitStream stream;
-    stream.Write(static_cast<SLNet::MessageID>(ID_CHECK_FILES_INTEGRITY));
-    stream.Write(hash);
-
-    const auto serverAddress{m_lobbyClient.GetServerAddress()};
-    const auto result{m_peer->Send(&stream, PacketPriority::HIGH_PRIORITY,
-                                   PacketReliability::RELIABLE_ORDERED, 0, serverAddress, false)};
-
-    return result != 0;
+    stream.Write(static_cast<SLNet::MessageID>(ID_CHECK_FILES_EQUALITY_REQUEST));
+    stream.Write(target);
+    stream.Write(hash.c_str());
+    return send(stream, getLobbyGuid());
 }
 
 void CNetCustomService::addPeerCallback(NetPeerCallback* callback)
@@ -485,19 +475,31 @@ std::vector<NetPeerCallback*> CNetCustomService::getPeerCallbacks() const
     return m_peerCallbacks;
 }
 
+const std::string& CNetCustomService::getGameFilesHash()
+{
+    if (m_gameFilesHash.empty()) {
+        m_gameFilesHash = computeHash({globalsFolder(), scriptsFolder()});
+        if (m_gameFilesHash.empty()) {
+            logDebug("lobby.log", "Failed to compute hash of game files");
+        }
+    }
+
+    return m_gameFilesHash;
+}
+
 void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
                                                        SLNet::RakPeerInterface* peer,
                                                        const SLNet::Packet* packet)
 {
     switch (type) {
     case ID_DISCONNECTION_NOTIFICATION:
-        logDebug("lobby.log", "Disconnected");
+        logDebug("lobby.log", "Server was shut down");
         break;
     case ID_ALREADY_CONNECTED:
-        logDebug("lobby.log", "Already connected");
+        logDebug("lobby.log", "Error connecting - already connected. This should never happen");
         break;
     case ID_CONNECTION_LOST:
-        logDebug("lobby.log", "Connection lost");
+        logDebug("lobby.log", "Connection with server is lost");
         break;
     case ID_CONNECTION_ATTEMPT_FAILED:
         logDebug("lobby.log", "Connection attempt failed");
@@ -515,6 +517,28 @@ void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes typ
     case ID_LOBBY2_SERVER_ERROR:
         logDebug("lobby.log", "Lobby server error");
         break;
+    case ID_CHECK_FILES_EQUALITY_REQUEST: {
+        SLNet::BitStream input{packet->data, packet->length, false};
+        input.IgnoreBytes(sizeof(SLNet::MessageID));
+
+        SLNet::RakNetGUID sender;
+        if (!input.Read(sender)) {
+            logDebug("lobby.log", "Failed to deserialize sender guid");
+            return;
+        }
+
+        SLNet::RakString hash;
+        if (!input.Read(hash)) {
+            logDebug("lobby.log", "Failed to deserialize files hash");
+        }
+
+        SLNet::BitStream response;
+        response.Write(static_cast<SLNet::MessageID>(ID_CHECK_FILES_EQUALITY_RESPONSE));
+        response.Write(sender);
+        response.Write(m_service->getGameFilesHash() == hash.C_String());
+        m_service->send(response, packet->guid);
+        break;
+    }
     default:
         logDebug("lobby.log", fmt::format("Packet type {:d}", static_cast<int>(type)));
         break;
