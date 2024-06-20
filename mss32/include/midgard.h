@@ -157,8 +157,8 @@ struct Api
     SendNetMsgToServer sendNetMsgToServer;
 
     /**
-     * Destroys CMidServer and CMidClient, clears client players list and drops all net messages
-     * from game window's queue.
+     * Destroys CMidClient and CMidServer, clears client players list and destroys IMqNetSession,
+     * finally removes all net messages from the game window's queue.
      */
     using ClearNetworkState = void(__thiscall*)(CMidgard* thisptr);
     ClearNetworkState clearNetworkState;
