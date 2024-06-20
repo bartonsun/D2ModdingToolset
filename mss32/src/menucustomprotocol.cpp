@@ -37,6 +37,7 @@ CMenuCustomProtocol::CMenuCustomProtocol(game::CMenuPhase* menuPhase)
     , m_peerCallback{this}
     , m_lobbyCallback{this}
     , m_loginDialog{nullptr}
+    , m_registerDialog{nullptr}
 {
     using namespace game;
 
