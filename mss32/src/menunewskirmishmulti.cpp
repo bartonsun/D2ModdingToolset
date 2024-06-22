@@ -27,18 +27,21 @@ namespace game::CMenuNewSkirmishMultiApi {
 static std::array<Api, 3> functions = {{
     // Akella
     Api{
-        (Api::CreateServer)0x4ea31b,
         (Api::Constructor)0x4ea0d6,
+        (Api::Destructor)0x4ea5cf,
+        (Api::CreateServer)0x4ea31b,
     },
     // Russobit
     Api{
-        (Api::CreateServer)0x4ea31b,
         (Api::Constructor)0x4ea0d6,
+        (Api::Destructor)0x4ea5cf,
+        (Api::CreateServer)0x4ea31b,
     },
     // Gog
     Api{
-        (Api::CreateServer)0x4e97b6,
         (Api::Constructor)0x4e9571,
+        (Api::Destructor)0x4e9cd8,
+        (Api::CreateServer)0x4e97b6,
     },
 }};
 // clang-format on
