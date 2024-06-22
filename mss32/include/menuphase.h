@@ -407,12 +407,11 @@ struct Api
     SwitchToMenu switchToWait;
 
     using SetString = void(__thiscall*)(CMenuPhase* thisptr, const char* string);
+    using SetId = void(__thiscall*)(CMenuPhase* thisptr, const CMidgardID* scenarioFileId);
 
+    SetId setCampaignId;
+    SetId setScenarioFileId;
     SetString setScenarioFilePath;
-
-    using SetCampaignId = void(__thiscall*)(CMenuPhase* thisptr, const CMidgardID* campaignId);
-    SetCampaignId setCampaignId;
-
     SetString setScenarioName;
     SetString setScenarioDescription;
 
