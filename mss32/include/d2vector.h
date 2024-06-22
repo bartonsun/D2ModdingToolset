@@ -30,6 +30,11 @@ struct Vector
     T* end;
     T* allocatedMemEnd;
     Allocator allocator;
+
+    size_t size() const
+    {
+        return end - bgn;
+    }
 };
 
 } // namespace game
