@@ -707,7 +707,7 @@ static void __fastcall buttonGenerateHandler(CMenuRandomScenario* thisptr, int /
 
     if (!isRoomAndPlayerNamesValid(thisptr)) {
         // Please enter valid game and player names
-        showMessageBox(getInterfaceText("X005ta0867"));
+        showMessageBox(getInterfaceText("X005TA0867"));
         return;
     }
 
