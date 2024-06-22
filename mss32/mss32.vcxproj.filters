@@ -1253,6 +1253,9 @@
     <ClCompile Include="src\scenarioobjectstreams.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\menucustomnewskirmishmulti.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3270,6 +3273,9 @@
     </ClInclude>
     <ClInclude Include="include\objectinterf.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menucustomnewskirmishmulti.h">
+      <Filter>features\lobby</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

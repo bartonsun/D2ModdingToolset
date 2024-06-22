@@ -232,6 +232,7 @@ void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_Login* mess
         if (msg.empty()) {
             msg = "An unexpected error during login.\nError code: %CODE%.";
         }
+        // TODO: Lobby2ResultCodeDescription::ToEnglish
         replace(msg, "%CODE%", fmt::format("{:d}", message->resultCode));
         showMessageBox(msg);
         break;
@@ -277,6 +278,7 @@ void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_RegisterAcc
         if (msg.empty()) {
             msg = "An unexpected error during account registration.\nError code: %CODE%.";
         }
+        // TODO: Lobby2ResultCodeDescription::ToEnglish
         replace(msg, "%CODE%", fmt::format("{:d}", message->resultCode));
         showMessageBox(msg);
         break;

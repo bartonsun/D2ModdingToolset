@@ -21,6 +21,7 @@
 #include "log.h"
 #include "mempool.h"
 #include "menucustomlobby.h"
+#include "menucustomnewskirmishmulti.h"
 #include "menuphase.h"
 #include "menurandomscenariomulti.h"
 #include "menurandomscenariosingle.h"
@@ -32,10 +33,18 @@
 
 namespace hooks {
 
-game::CMenuBase* __stdcall createCustomLobbyCallback(game::CMenuPhase* menuPhase)
+game::CMenuBase* __stdcall createMenuCustomLobbyCallback(game::CMenuPhase* menuPhase)
 {
     auto menu = (CMenuCustomLobby*)game::Memory::get().allocate(sizeof(CMenuCustomLobby));
     return new (menu) CMenuCustomLobby(menuPhase);
+}
+
+// TODO: The same for CMenuLoadSkirmishMulti
+game::CMenuBase* __stdcall createMenuCustomNewSkirmishMultiCallback(game::CMenuPhase* menuPhase)
+{
+    auto menu = (CMenuCustomNewSkirmishMulti*)game::Memory::get().allocate(
+        sizeof(CMenuCustomNewSkirmishMulti));
+    return new (menu) CMenuCustomNewSkirmishMulti(menuPhase);
 }
 
 game::CMenuPhase* __fastcall menuPhaseCtorHooked(game::CMenuPhase* thisptr,
@@ -133,7 +142,7 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
         case MenuPhase::Protocol2CustomLobby:
         case MenuPhase::Back2CustomLobby: {
             logDebug("transitions.log", "Show CustomLobby");
-            CMenuPhaseApi::Api::CreateMenuCallback tmp = createCustomLobbyCallback;
+            CMenuPhaseApi::Api::CreateMenuCallback tmp = createMenuCustomLobbyCallback;
             auto* callback = &tmp;
             menuPhase.showMenu(thisptr, &data->currentPhase, &data->interfManager,
                                &data->currentMenu, &data->transitionAnimation,
@@ -166,7 +175,17 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             break;
         case MenuPhase::Single2NewSkirmish:
             logDebug("transitions.log", "Current is Single2NewSkirmish");
-            menuPhase.switchToNewSkirmish(thisptr);
+            if (data->networkGame && getNetService()) {
+                logDebug("transitions.log", "Show CMenuCustomNewSkirmishMulti");
+                CMenuPhaseApi::Api::CreateMenuCallback
+                    tmp = createMenuCustomNewSkirmishMultiCallback;
+                auto* callback = &tmp;
+                menuPhase.showMenu(thisptr, &data->currentPhase, &data->interfManager,
+                                   &data->currentMenu, &data->transitionAnimation,
+                                   MenuPhase::NewSkirmishMulti, nullptr, &callback);
+            } else {
+                menuPhase.switchToNewSkirmish(thisptr);
+            }
             break;
         case MenuPhase::NewSkirmishSingle:
             logDebug("transitions.log", "Current is NewSkirmishSingle");
@@ -341,7 +360,6 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             menuPhase.transitionFromNewSkirmish(thisptr);
             break;
         }
-
         }
 
         break;

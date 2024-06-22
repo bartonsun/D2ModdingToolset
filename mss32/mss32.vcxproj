@@ -296,6 +296,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\managestkinterf.cpp" />
     <ClCompile Include="src\managestkinterfhooks.cpp" />
     <ClCompile Include="src\menucustombase.cpp" />
+    <ClCompile Include="src\menucustomnewskirmishmulti.cpp" />
     <ClCompile Include="src\menucustomprotocol.cpp" />
     <ClCompile Include="src\middiplomacy.cpp" />
     <ClCompile Include="src\middragdropinterfhooks.cpp" />
@@ -671,6 +672,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\diplomacyhooks.h" />
     <ClInclude Include="include\fonts.h" />
     <ClInclude Include="include\fontshooks.h" />
+    <ClInclude Include="include\menucustomnewskirmishmulti.h" />
     <ClInclude Include="include\middiplomacy.h" />
     <ClInclude Include="include\midgardmapfog.h" />
     <ClInclude Include="include\displayd3d.h" />

@@ -272,6 +272,11 @@ textids = {
 		-- The text must contain keyword "%CODE%".
 		-- Fallback text "An unexpected error during account registration.\nError code: %CODE%."
 		unableToRegister = "",
+		-- Fallback text "Could not request to create a room from the lobby server."
+		createRoomRequestFailed = "",
+		-- The text must contain keyword "%ERROR%".
+		-- Fallback text "Could not create a room.\n%ERROR%"
+		createRoomFailed = "",
 	},
     
     generator = {

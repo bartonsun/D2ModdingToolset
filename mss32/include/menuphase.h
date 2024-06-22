@@ -78,6 +78,7 @@ enum class MenuTransition : int
     Unknown2LobbyHost = 1,
     Unknown2LobbyJoin = 1,
     NewSkirmish2RaceSkirmish = 0,
+    NewSkirmishMulti2LobbyHost = NewSkirmish2RaceSkirmish,
     NewSkirmishSingle2RandomScenarioSingle = 1,
     NewSkirmishMulti2RandomScenarioMulti = 2,
     NewSkirmishHotseat2HotseatLobby = 0,

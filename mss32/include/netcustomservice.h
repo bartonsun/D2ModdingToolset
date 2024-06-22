@@ -78,6 +78,7 @@ public:
     void setSession(CNetCustomSession* value);
     // TODO: rename accountName to userName to correspond to RakNet naming
     const std::string& getAccountName() const;
+    bool connected() const;
     bool loggedIn() const;
     const SLNet::RakNetGUID getPeerGuid() const;
     const SLNet::RakNetGUID getLobbyGuid() const;
@@ -101,8 +102,8 @@ public:
     /** Tries to create and enter a new room. */
     bool createRoom(const char* name, const char* password = nullptr);
 
-    /** Tries to leave a room. */
-    bool leaveRoom();
+    /** Requests to leave the previously entered room. */
+    void leaveRoom();
 
     /** Requests a list of rooms for specified account. */
     bool searchRooms(const char* accountName = nullptr);
@@ -198,6 +199,7 @@ private:
     std::vector<NetPeerCallback*> getPeerCallbacks() const;
     const std::string& getGameFilesHash();
 
+    bool m_connected;
     PeerCallback m_peerCallback;
     CNetCustomSession* m_session;
     std::string m_accountName;

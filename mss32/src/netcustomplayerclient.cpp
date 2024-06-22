@@ -206,7 +206,7 @@ void CNetCustomPlayerClient::RoomsCallback::RoomDestroyedOnModeratorLeft_Callbac
     const SLNet::SystemAddress& senderAddress,
     SLNet::RoomDestroyedOnModeratorLeft_Notification* notification)
 {
-    // TODO: check that this is our roomId
+    // TODO: make sure that the notification only arrives for our room, otherwise check roomId
     logDebug("playerClient.log", "Server left a room");
     auto system = m_player->getSystem();
     if (system) {

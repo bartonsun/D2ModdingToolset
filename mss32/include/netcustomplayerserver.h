@@ -88,12 +88,6 @@ private:
             : m_player{player}
         { }
 
-        void CreateRoom_Callback(const SLNet::SystemAddress& senderAddress,
-                                 SLNet::CreateRoom_Func* callResult) override;
-
-        void LeaveRoom_Callback(const SLNet::SystemAddress& senderAddress,
-                                SLNet::LeaveRoom_Func* callResult) override;
-
         void RoomMemberLeftRoom_Callback(
             const SLNet::SystemAddress& senderAddress,
             SLNet::RoomMemberLeftRoom_Notification* notification) override;

@@ -22,10 +22,8 @@
 
 #include "d2list.h"
 #include "mqnetsession.h"
-#include <RoomsPlugin.h>
 #include <slikenet/types.h>
 #include <string>
-#include <vector>
 
 namespace game {
 struct String;
@@ -85,21 +83,6 @@ protected:
                                         game::IMqNetReception* reception);
 
 private:
-    class RoomsCallback : public SLNet::RoomsCallback
-    {
-    public:
-        RoomsCallback(CNetCustomSession* session)
-            : m_session{session}
-        { }
-
-        void CreateRoom_Callback(const SLNet::SystemAddress& senderAddress,
-                                 SLNet::CreateRoom_Func* callResult) override;
-
-    private:
-        CNetCustomSession* m_session;
-    };
-
-    RoomsCallback m_roomsCallback;
     CNetCustomService* m_service;
     std::string m_name;
     std::string m_password;

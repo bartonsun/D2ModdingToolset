@@ -45,7 +45,6 @@ CNetCustomSession::CNetCustomSession(CNetCustomService* service,
     , m_isHost{serverGuid == service->getPeerGuid()}
     , m_server(nullptr)
     , m_serverGuid(serverGuid)
-    , m_roomsCallback(this)
 {
     logDebug("lobby.log", fmt::format("Creating CNetCustomSession with server: {:x}, host: {:d}",
                                       m_serverGuid.g, m_isHost));
@@ -61,13 +60,11 @@ CNetCustomSession::CNetCustomSession(CNetCustomService* service,
     };
 
     this->vftable = &vftable;
-    service->addRoomsCallback(&m_roomsCallback);
 }
 
 CNetCustomSession ::~CNetCustomSession()
 {
     m_service->leaveRoom();
-    m_service->removeRoomsCallback(&m_roomsCallback);
 }
 
 CNetCustomService* CNetCustomSession::getService() const
@@ -179,23 +176,6 @@ void __fastcall CNetCustomSession::createServer(CNetCustomSession* thisptr,
 
     thisptr->m_server = CNetCustomPlayerServer::create(thisptr, netSystem, reception);
     *server = (game::IMqNetPlayerServer*)thisptr->m_server;
-}
-
-void CNetCustomSession::RoomsCallback::CreateRoom_Callback(
-    const SLNet::SystemAddress& senderAddress,
-    SLNet::CreateRoom_Func* callResult)
-{
-    if (callResult->resultCode != SLNet::REC_SUCCESS) {
-        auto result{SLNet::RoomsErrorCodeDescription::ToEnglish(callResult->resultCode)};
-        const auto msg{fmt::format("Could not create a room.\nReason: {:s}", result)};
-
-        logDebug("lobby.log", msg);
-        showMessageBox(msg);
-        // TODO: return to lobby menu
-        return;
-    }
-
-    // TODO: save roomId for futher callback filtering
 }
 
 } // namespace hooks

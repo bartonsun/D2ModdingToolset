@@ -63,16 +63,16 @@ protected:
         std::string m_dialogName;
     };
 
-    class CConnectionLostMsgBoxButtonHandler : public game::CMidMsgBoxButtonHandler
+    class CMidMsgBoxBackToMainButtonHandler : public game::CMidMsgBoxButtonHandler
     {
     public:
-        CConnectionLostMsgBoxButtonHandler(game::CMenuBase* menu);
+        CMidMsgBoxBackToMainButtonHandler(game::CMenuBase* menu);
 
     protected:
-        static void __fastcall destructor(CConnectionLostMsgBoxButtonHandler* thisptr,
+        static void __fastcall destructor(CMidMsgBoxBackToMainButtonHandler* thisptr,
                                           int /*%edx*/,
                                           char flags);
-        static void __fastcall handler(CConnectionLostMsgBoxButtonHandler* thisptr,
+        static void __fastcall handler(CMidMsgBoxBackToMainButtonHandler* thisptr,
                                        int /*%edx*/,
                                        game::CMidgardMsgBox* msgBox,
                                        bool okPressed);
@@ -80,7 +80,7 @@ protected:
     private:
         game::CMenuBase* m_menu;
     };
-    assert_offset(CConnectionLostMsgBoxButtonHandler, vftable, 0);
+    assert_offset(CMidMsgBoxBackToMainButtonHandler, vftable, 0);
 
 private:
     game::CMenuBase* m_menu;

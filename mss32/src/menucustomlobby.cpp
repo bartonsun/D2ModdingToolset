@@ -204,6 +204,7 @@ void __fastcall CMenuCustomLobby::createRoomBtnHandler(CMenuCustomLobby* thisptr
 
     auto menuPhase = thisptr->menuBaseData->menuPhase;
     menuPhase->data->currentPhase = MenuPhase::Multi;
+    menuPhase->data->host = true;
 
     logDebug("transitions.log",
              "Create room, pretend we are in CMenuMulti, transition to CMenuNewSkirmishMulti");
@@ -216,7 +217,7 @@ void __fastcall CMenuCustomLobby::loadBtnHandler(CMenuCustomLobby* thisptr, int 
 
     auto menuPhase = thisptr->menuBaseData->menuPhase;
     menuPhase->data->currentPhase = MenuPhase::Multi;
-    menuPhase->data->networkGame = true;
+    menuPhase->data->host = true;
 
     logDebug("transitions.log",
              "Create room, pretend we are in CMenuMulti, transition to CMenuLoadSkirmishMulti");

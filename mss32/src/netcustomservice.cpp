@@ -59,7 +59,8 @@ bool CNetCustomService::isCustom(const game::IMqNetService* service)
 
 CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
     : m_peer(peer)
-    , m_session{nullptr}
+    , m_connected(false)
+    , m_session(nullptr)
     , m_peerCallback(this)
     , m_lobbyCallback(this)
 {
@@ -108,9 +109,14 @@ const std::string& CNetCustomService::getAccountName() const
     return m_accountName;
 }
 
+bool CNetCustomService::connected() const
+{
+    return m_connected;
+}
+
 bool CNetCustomService::loggedIn() const
 {
-    return !m_accountName.empty();
+    return m_connected && !m_accountName.empty();
 }
 
 const SLNet::RakNetGUID CNetCustomService::getPeerGuid() const
@@ -259,7 +265,7 @@ bool CNetCustomService::createRoom(const char* name, const char* password)
     }
 
     unsigned int passwordColumn{invalidColumn};
-    if (password) {
+    if (password && strlen(password)) {
         passwordColumn = properties.AddColumn(passwordColumnName, DataStructures::Table::STRING);
         if (passwordColumn == invalidColumn) {
             logDebug("lobby.log",
@@ -275,7 +281,7 @@ bool CNetCustomService::createRoom(const char* name, const char* password)
     }
 
     row->UpdateCell(guidColumn, serverGuid);
-    if (password) {
+    if (password && strlen(password)) {
         row->UpdateCell(passwordColumn, password);
     }
 
@@ -285,12 +291,11 @@ bool CNetCustomService::createRoom(const char* name, const char* password)
     return true;
 }
 
-bool CNetCustomService::leaveRoom()
+void CNetCustomService::leaveRoom()
 {
     SLNet::LeaveRoom_Func func{};
     func.userName = m_accountName.c_str();
     m_roomsClient.ExecuteFunc(&func);
-    return true;
 }
 
 bool CNetCustomService::searchRooms(const char* accountName)
@@ -433,13 +438,6 @@ void __fastcall CNetCustomService::createSession(CNetCustomService* thisptr,
              fmt::format("CNetCustomService createSession called. Name '{:s}'", sessionName));
     auto session = (CNetCustomSession*)game::Memory::get().allocate(sizeof(CNetCustomSession));
     new (session) CNetCustomSession(thisptr, sessionName, password, thisptr->getPeerGuid());
-    // Creating a room after the session because the session needs to add its Rooms callback to get
-    // CreateRoom notification
-    if (!thisptr->createRoom(sessionName, password)) {
-        logDebug("lobby.log", "Failed to request room creation");
-        session->vftable->destructor(session, 1);
-        session = nullptr;
-    }
     thisptr->m_session = session;
     *netSession = session;
 }
@@ -492,28 +490,31 @@ void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes typ
                                                        const SLNet::Packet* packet)
 {
     switch (type) {
-    case ID_DISCONNECTION_NOTIFICATION:
-        logDebug("lobby.log", "Server was shut down");
-        break;
-    case ID_ALREADY_CONNECTED:
-        logDebug("lobby.log", "Error connecting - already connected. This should never happen");
-        break;
-    case ID_CONNECTION_LOST:
-        logDebug("lobby.log", "Connection with server is lost");
-        break;
-    case ID_CONNECTION_ATTEMPT_FAILED:
-        logDebug("lobby.log", "Connection attempt failed");
-        break;
-    case ID_NO_FREE_INCOMING_CONNECTIONS:
-        logDebug("lobby.log", "Server is full");
-        break;
     case ID_CONNECTION_REQUEST_ACCEPTED: {
         logDebug("lobby.log", "Connection request accepted, set server address");
         // Make sure plugins know about the server
         m_service->m_lobbyClient.SetServerAddress(packet->systemAddress);
         m_service->m_roomsClient.SetServerAddress(packet->systemAddress);
+        m_service->m_connected = true;
         break;
     }
+    case ID_CONNECTION_ATTEMPT_FAILED:
+        logDebug("lobby.log", "Connection attempt failed");
+        break;
+    case ID_ALREADY_CONNECTED:
+        logDebug("lobby.log", "Error connecting - already connected. This should never happen");
+        break;
+    case ID_NO_FREE_INCOMING_CONNECTIONS:
+        logDebug("lobby.log", "Server is full");
+        break;
+    case ID_DISCONNECTION_NOTIFICATION:
+        logDebug("lobby.log", "Server was shut down");
+        m_service->m_connected = false;
+        break;
+    case ID_CONNECTION_LOST:
+        logDebug("lobby.log", "Connection with server is lost");
+        m_service->m_connected = false;
+        break;
     case ID_LOBBY2_SERVER_ERROR:
         logDebug("lobby.log", "Lobby server error");
         break;

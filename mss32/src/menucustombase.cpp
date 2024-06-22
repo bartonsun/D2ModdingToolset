@@ -24,8 +24,8 @@
 #include "log.h"
 #include "mempool.h"
 #include "menuflashwait.h"
+#include "menuphase.h"
 #include "midgardmsgbox.h"
-#include "originalfunctions.h"
 #include "popupdialoginterf.h"
 #include "utils.h"
 
@@ -73,9 +73,11 @@ void CMenuCustomBase::onConnectionLost()
 {
     using namespace game;
 
-    auto handler = (CConnectionLostMsgBoxButtonHandler*)Memory::get().allocate(
-        sizeof(CConnectionLostMsgBoxButtonHandler));
-    new (handler) CConnectionLostMsgBoxButtonHandler(m_menu);
+    hideWaitDialog();
+
+    auto handler = (CMidMsgBoxBackToMainButtonHandler*)Memory::get().allocate(
+        sizeof(CMidMsgBoxBackToMainButtonHandler));
+    new (handler) CMidMsgBoxBackToMainButtonHandler(m_menu);
 
     // Connection to the server is lost.
     showMessageBox(getInterfaceText("X005TA0403"), handler, false);
@@ -115,7 +117,7 @@ void CMenuCustomBase::CPopupDialogCustomBase::setEditFilterAndLength(const char*
     }
 }
 
-CMenuCustomBase::CConnectionLostMsgBoxButtonHandler::CConnectionLostMsgBoxButtonHandler(
+CMenuCustomBase::CMidMsgBoxBackToMainButtonHandler::CMidMsgBoxBackToMainButtonHandler(
     game::CMenuBase* menu)
     : m_menu{menu}
 {
@@ -127,14 +129,14 @@ CMenuCustomBase::CConnectionLostMsgBoxButtonHandler::CConnectionLostMsgBoxButton
     this->vftable = &vftable;
 }
 
-void __fastcall CMenuCustomBase::CConnectionLostMsgBoxButtonHandler::destructor(
-    CConnectionLostMsgBoxButtonHandler* thisptr,
+void __fastcall CMenuCustomBase::CMidMsgBoxBackToMainButtonHandler::destructor(
+    CMidMsgBoxBackToMainButtonHandler* thisptr,
     int /*%edx*/,
     char flags)
 { }
 
-void __fastcall CMenuCustomBase::CConnectionLostMsgBoxButtonHandler::handler(
-    CConnectionLostMsgBoxButtonHandler* thisptr,
+void __fastcall CMenuCustomBase::CMidMsgBoxBackToMainButtonHandler::handler(
+    CMidMsgBoxBackToMainButtonHandler* thisptr,
     int /*%edx*/,
     game::CMidgardMsgBox* msgBox,
     bool okPressed)
@@ -148,7 +150,7 @@ void __fastcall CMenuCustomBase::CConnectionLostMsgBoxButtonHandler::handler(
 
     if (okPressed) {
         auto menuPhase = thisptr->m_menu->menuBaseData->menuPhase;
-        getOriginalFunctions().menuPhaseBackToMainOrCloseGame(menuPhase, true);
+        CMenuPhaseApi::get().backToMainOrCloseGame(menuPhase, true);
     }
 }
 

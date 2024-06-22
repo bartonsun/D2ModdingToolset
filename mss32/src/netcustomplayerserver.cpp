@@ -282,26 +282,11 @@ void CNetCustomPlayerServer::PeerCallback::onPacketReceived(DefaultMessageIDType
     }
 }
 
-void CNetCustomPlayerServer::RoomsCallback::CreateRoom_Callback(
-    const SLNet::SystemAddress& senderAddress,
-    SLNet::CreateRoom_Func* callResult)
-{
-    // TODO: looks like the server player is create after the room so we are not getting this
-    // notification. Find out if this is ok and handle it.
-    // m_player->addClient(m_player->getService()->getPeerGuid());
-}
-
-void CNetCustomPlayerServer::RoomsCallback::LeaveRoom_Callback(
-    const SLNet::SystemAddress& senderAddress,
-    SLNet::LeaveRoom_Func* callResult)
-{
-    // TODO: figure out if this is possible for server
-}
-
 void CNetCustomPlayerServer::RoomsCallback::RoomMemberLeftRoom_Callback(
     const SLNet::SystemAddress& /*senderAddress is the lobby*/,
     SLNet::RoomMemberLeftRoom_Notification* notification)
 {
+    // TODO: make sure that the notification only arrives for our room, otherwise check roomId
     logDebug("lobby.log", fmt::format("CNetCustomPlayerServer RoomMemberLeftRoom {:s}",
                                       notification->roomMember.C_String()));
     m_player->removeClient(notification->roomMember);
@@ -311,6 +296,7 @@ void CNetCustomPlayerServer::RoomsCallback::RoomMemberJoinedRoom_Callback(
     const SLNet::SystemAddress& /*senderAddress is the lobby*/,
     SLNet::RoomMemberJoinedRoom_Notification* notification)
 {
+    // TODO: make sure that the notification only arrives for our room, otherwise check roomId
     const auto result = notification->joinedRoomResult;
     logDebug("lobby.log", fmt::format("CNetCustomPlayerServer RoomMemberJoinedRoom {:s}",
                                       result->joiningMemberName.C_String()));
