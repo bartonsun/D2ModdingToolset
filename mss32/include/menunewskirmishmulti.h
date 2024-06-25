@@ -24,8 +24,6 @@
 
 namespace game {
 
-struct CMenuNewSkirmishMultiVftable;
-
 /**
  * Multiplayer skirmish menu.
  * Represents DLG_HOST from Interf.dlg.
