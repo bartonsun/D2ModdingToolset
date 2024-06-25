@@ -43,10 +43,10 @@ CMenuCustomProtocol::CMenuCustomProtocol(game::CMenuPhase* menuPhase)
 
     CMenuProtocolApi::get().constructor(this, menuPhase);
 
-    static game::RttiInfo<game::CMenuBaseVftable> rttiInfo = {};
+    static RttiInfo<CMenuBaseVftable> rttiInfo = {};
     if (rttiInfo.locator == nullptr) {
         replaceRttiInfo(rttiInfo, this->vftable);
-        rttiInfo.vftable.destructor = (game::CInterfaceVftable::Destructor)&destructor;
+        rttiInfo.vftable.destructor = (CInterfaceVftable::Destructor)&destructor;
     }
     this->vftable = &rttiInfo.vftable;
 

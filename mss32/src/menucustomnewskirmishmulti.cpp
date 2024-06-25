@@ -25,7 +25,6 @@
 #include "listbox.h"
 #include "log.h"
 #include "mempool.h"
-#include "menunewskirmishmulti.h"
 #include "menuphase.h"
 #include "scenariodata.h"
 #include "scenariodataarray.h"
@@ -46,10 +45,10 @@ CMenuCustomNewSkirmishMulti::CMenuCustomNewSkirmishMulti(game::CMenuPhase* menuP
 
     CMenuNewSkirmishMultiApi::get().constructor(this, menuPhase);
 
-    static game::RttiInfo<game::CMenuNewSkirmishMultiVftable> rttiInfo = {};
+    static RttiInfo<CMenuNewSkirmishMultiVftable> rttiInfo = {};
     if (rttiInfo.locator == nullptr) {
-        replaceRttiInfo(rttiInfo, (game::CMenuNewSkirmishMultiVftable*)this->vftable);
-        rttiInfo.vftable.destructor = (game::CInterfaceVftable::Destructor)&destructor;
+        replaceRttiInfo(rttiInfo, (CMenuNewSkirmishMultiVftable*)this->vftable);
+        rttiInfo.vftable.destructor = (CInterfaceVftable::Destructor)&destructor;
     }
     this->vftable = &rttiInfo.vftable;
 
@@ -218,8 +217,6 @@ void CMenuCustomNewSkirmishMulti::PeerCallback::onPacketReceived(DefaultMessageI
                                                                  SLNet::RakPeerInterface* peer,
                                                                  const SLNet::Packet* packet)
 {
-    using namespace game;
-
     switch (type) {
     case ID_DISCONNECTION_NOTIFICATION:
     case ID_CONNECTION_LOST:
@@ -249,6 +246,7 @@ void CMenuCustomNewSkirmishMulti::RoomsCallback::CreateRoom_Callback(
         CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::NewSkirmishMulti2LobbyHost);
         break;
     }
+
     default: {
         auto msg{getInterfaceText(textIds().lobby.createRoomFailed.c_str())};
         if (msg.empty()) {

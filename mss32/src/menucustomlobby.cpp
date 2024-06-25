@@ -65,14 +65,14 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     logDebug("transitions.log", "Call CMenuBase c-tor for CMenuCustomLobby");
     menuBaseApi.constructor(this, menuPhase);
 
-    static game::RttiInfo<game::CMenuBaseVftable> rttiInfo = {};
+    static RttiInfo<CMenuBaseVftable> rttiInfo = {};
     if (rttiInfo.locator == nullptr) {
         // Reuse object locator for our custom this.
         // We only need it for dynamic_cast<CAnimInterf>() to work properly without exceptions
         // when the game exits main loop and checks for current CInterface.
         // See DestroyAnimInterface() in IDA.
         replaceRttiInfo(rttiInfo, this->vftable);
-        rttiInfo.vftable.destructor = (game::CInterfaceVftable::Destructor)&destructor;
+        rttiInfo.vftable.destructor = (CInterfaceVftable::Destructor)&destructor;
     }
     this->vftable = &rttiInfo.vftable;
 
