@@ -20,6 +20,7 @@
 #include "menuphasehooks.h"
 #include "log.h"
 #include "mempool.h"
+#include "menucustomloadskirmishmulti.h"
 #include "menucustomlobby.h"
 #include "menucustomnewskirmishmulti.h"
 #include "menuphase.h"
@@ -39,12 +40,18 @@ game::CMenuBase* __stdcall createMenuCustomLobbyCallback(game::CMenuPhase* menuP
     return new (menu) CMenuCustomLobby(menuPhase);
 }
 
-// TODO: The same for CMenuLoadSkirmishMulti
 game::CMenuBase* __stdcall createMenuCustomNewSkirmishMultiCallback(game::CMenuPhase* menuPhase)
 {
     auto menu = (CMenuCustomNewSkirmishMulti*)game::Memory::get().allocate(
         sizeof(CMenuCustomNewSkirmishMulti));
     return new (menu) CMenuCustomNewSkirmishMulti(menuPhase);
+}
+
+game::CMenuBase* __stdcall createMenuCustomLoadSkirmishMultiCallback(game::CMenuPhase* menuPhase)
+{
+    auto menu = (CMenuCustomLoadSkirmishMulti*)game::Memory::get().allocate(
+        sizeof(CMenuCustomLoadSkirmishMulti));
+    return new (menu) CMenuCustomLoadSkirmishMulti(menuPhase);
 }
 
 game::CMenuPhase* __fastcall menuPhaseCtorHooked(game::CMenuPhase* thisptr,
@@ -220,7 +227,17 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             break;
         case MenuPhase::Single2LoadSkirmish:
             logDebug("transitions.log", "Current is Single2LoadSkirmish");
-            menuPhase.switchToLoadSkirmish(thisptr);
+            if (data->networkGame && getNetService()) {
+                logDebug("transitions.log", "Show CMenuCustomLoadSkirmishMulti");
+                CMenuPhaseApi::Api::CreateMenuCallback
+                    tmp = createMenuCustomLoadSkirmishMultiCallback;
+                auto* callback = &tmp;
+                menuPhase.showMenu(thisptr, &data->currentPhase, &data->interfManager,
+                                   &data->currentMenu, &data->transitionAnimation,
+                                   MenuPhase::LoadSkirmishMulti, nullptr, &callback);
+            } else {
+                menuPhase.switchToLoadSkirmish(thisptr);
+            }
             break;
         case MenuPhase::Single2LoadCampaign:
             logDebug("transitions.log", "Current is Single2LoadCampaign");

@@ -144,6 +144,8 @@ struct OriginalFunctions
 
     game::CEditBoxInterfApi::Api::Update editBoxInterfUpdate;
     game::CEditBoxInterfApi::Api::EditBoxDataCtor editBoxDataCtor;
+
+    game::CMenuLoadApi::Api::CreateServer menuLoadCreateServer;
 };
 
 OriginalFunctions& getOriginalFunctions();

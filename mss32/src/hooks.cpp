@@ -111,6 +111,8 @@
 #include "managestkinterf.h"
 #include "managestkinterfhooks.h"
 #include "mempool.h"
+#include "menuload.h"
+#include "menuloadhooks.h"
 #include "menunewskirmishhotseathooks.h"
 #include "menunewskirmishmultihooks.h"
 #include "menunewskirmishsingle.h"
@@ -478,6 +480,7 @@ static Hooks getGameHooks()
         hooks.emplace_back(HookInfo{CMenuProtocolApi::get().createMenu, menuProtocolCreateMenuHooked});
         hooks.emplace_back(HookInfo{CMenuProtocolApi::get().continueHandler, menuProtocolContinueHandlerHooked, (void**)&orig.menuProtocolContinueHandler});
         hooks.emplace_back(HookInfo{CMenuProtocolApi::get().displayCallback, menuProtocolDisplayCallbackHooked, (void**)&orig.menuProtocolDisplayCallback});
+        hooks.emplace_back(HookInfo{CMenuLoadApi::get().createServer, menuLoadCreateServerHooked, (void**)&orig.menuLoadCreateServer});
         // clang-format on
     }
 

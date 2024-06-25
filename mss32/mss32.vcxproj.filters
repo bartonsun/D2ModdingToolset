@@ -1256,8 +1256,14 @@
     <ClCompile Include="src\menucustomnewskirmishmulti.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
+    <ClCompile Include="src\menucustomloadskirmishmulti.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
     <ClCompile Include="src\menuloadskirmishmulti.cpp">
       <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menuloadhooks.cpp">
+      <Filter>hooks</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -3280,8 +3286,14 @@
     <ClInclude Include="include\menucustomnewskirmishmulti.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
+    <ClInclude Include="include\menucustomloadskirmishmulti.h">
+      <Filter>features\lobby</Filter>
+    </ClInclude>
     <ClInclude Include="include\menuloadskirmishmulti.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menuloadhooks.h">
+      <Filter>hooks</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
