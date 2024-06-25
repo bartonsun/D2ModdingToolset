@@ -19,6 +19,7 @@
 
 #include "menucustombase.h"
 #include "button.h"
+#include "dialoginterf.h"
 #include "editboxinterf.h"
 #include "interfmanager.h"
 #include "log.h"
@@ -44,6 +45,18 @@ CMenuCustomBase::~CMenuCustomBase()
 game::CMenuBase* CMenuCustomBase::getMenu() const
 {
     return m_menu;
+}
+
+const char* CMenuCustomBase::getEditText(const char* name)
+{
+    using namespace game;
+
+    const auto& dialogApi = CDialogInterfApi::get();
+
+    auto dialog = CMenuBaseApi::get().getDialogInterface(m_menu);
+
+    auto edit = dialogApi.findEditBox(dialog, name);
+    return edit ? edit->data->editBoxData.inputString.string : nullptr;
 }
 
 void CMenuCustomBase::showWaitDialog()

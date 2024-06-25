@@ -41,6 +41,7 @@ public:
 
 protected:
     game::CMenuBase* getMenu() const;
+    const char* getEditText(const char* name);
     void showWaitDialog();
     void hideWaitDialog();
     void onConnectionLost();
