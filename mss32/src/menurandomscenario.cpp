@@ -66,7 +66,6 @@ static const int goldSpinStep{100};
 static const int manaSpinStep{50};
 
 static game::RttiInfo<game::CMenuBaseVftable> menuRttiInfo;
-static game::CInterfaceVftable::Destructor menuBaseDtor{nullptr};
 
 static std::unique_ptr<NativeGameInfo> gameInfo;
 
@@ -416,10 +415,8 @@ static void __fastcall menuRandomScenarioDtor(CMenuRandomScenario* menu, int /*%
     logDebug("mss32Proxy.log", "CMenuRandomScenario d-tor called");
     menu->~CMenuRandomScenario();
 
-    if (menuBaseDtor) {
-        logDebug("mss32Proxy.log", "CMenuRandomScenario d-tor calls CMenuBase d-tor");
-        // This will properly destroy base class and free memory
-        menuBaseDtor((game::CInterface*)menu, flags);
+    if (flags & 1) {
+        game::Memory::get().freeNonZero(menu);
     }
 }
 
@@ -895,8 +892,6 @@ static void menuRandomScenarioCtor(CMenuRandomScenario* menu,
         firstTime = false;
 
         replaceRttiInfo(menuRttiInfo, menu->vftable);
-        // Remember base class destructor
-        menuBaseDtor = menu->vftable->destructor;
         // Make sure our vftable uses our own destructor
         vftable->destructor = (CInterfaceVftable::Destructor)&menuRandomScenarioDtor;
     }
@@ -935,6 +930,8 @@ CMenuRandomScenario::~CMenuRandomScenario()
     game::UiEventApi::get().destructor(&uiEvent);
 
     removePopup(this);
+
+    game::CMenuBaseApi::get().destructor(this);
 }
 
 void prepareToStartRandomScenario(CMenuRandomScenario* menu, bool networkGame)

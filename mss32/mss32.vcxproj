@@ -299,6 +299,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\menucustomloadskirmishmulti.cpp" />
     <ClCompile Include="src\menucustomnewskirmishmulti.cpp" />
     <ClCompile Include="src\menucustomprotocol.cpp" />
+    <ClCompile Include="src\menucustomrandomscenariomulti.cpp" />
     <ClCompile Include="src\menuloadhooks.cpp" />
     <ClCompile Include="src\menuloadskirmishmulti.cpp" />
     <ClCompile Include="src\middiplomacy.cpp" />
@@ -677,6 +678,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\fontshooks.h" />
     <ClInclude Include="include\menucustomloadskirmishmulti.h" />
     <ClInclude Include="include\menucustomnewskirmishmulti.h" />
+    <ClInclude Include="include\menucustomrandomscenariomulti.h" />
     <ClInclude Include="include\menuloadhooks.h" />
     <ClInclude Include="include\menuloadskirmishmulti.h" />
     <ClInclude Include="include\middiplomacy.h" />

@@ -24,7 +24,6 @@
 #include "mempool.h"
 #include "menunewskirmishmulti.h"
 #include "menuphase.h"
-#include "menurandomscenario.h"
 #include "midgard.h"
 
 namespace hooks {
@@ -33,12 +32,6 @@ static constexpr const char dialogName[] = "DLG_RANDOM_SCENARIO_MULTI";
 static constexpr const int gameNameMaxLength{40};
 static constexpr const int playerNameMaxLength{15};
 static constexpr const int passwordMaxLength{8};
-
-struct CMenuRandomScenarioMulti : public CMenuRandomScenario
-{
-    CMenuRandomScenarioMulti(game::CMenuPhase* menuPhase);
-    ~CMenuRandomScenarioMulti() = default;
-};
 
 static void startScenarioNet(CMenuRandomScenario* menu)
 {

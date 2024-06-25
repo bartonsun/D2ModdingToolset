@@ -1265,6 +1265,9 @@
     <ClCompile Include="src\menuloadhooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\menucustomrandomscenariomulti.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3294,6 +3297,9 @@
     </ClInclude>
     <ClInclude Include="include\menuloadhooks.h">
       <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menucustomrandomscenariomulti.h">
+      <Filter>features\lobby</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -23,6 +23,7 @@
 #include "menucustomloadskirmishmulti.h"
 #include "menucustomlobby.h"
 #include "menucustomnewskirmishmulti.h"
+#include "menucustomrandomscenariomulti.h"
 #include "menuphase.h"
 #include "menurandomscenariomulti.h"
 #include "menurandomscenariosingle.h"
@@ -52,6 +53,13 @@ game::CMenuBase* __stdcall createMenuCustomLoadSkirmishMultiCallback(game::CMenu
     auto menu = (CMenuCustomLoadSkirmishMulti*)game::Memory::get().allocate(
         sizeof(CMenuCustomLoadSkirmishMulti));
     return new (menu) CMenuCustomLoadSkirmishMulti(menuPhase);
+}
+
+game::CMenuBase* __stdcall createMenuCustomRandomScenarioMultiCallback(game::CMenuPhase* menuPhase)
+{
+    auto menu = (CMenuCustomRandomScenarioMulti*)game::Memory::get().allocate(
+        sizeof(CMenuCustomRandomScenarioMulti));
+    return new (menu) CMenuCustomRandomScenarioMulti(menuPhase);
 }
 
 game::CMenuPhase* __fastcall menuPhaseCtorHooked(game::CMenuPhase* thisptr,
@@ -364,7 +372,9 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             logDebug("transitions.log", "Current is NewSkirmishMulti2RandomScenarioMulti");
 
             // Create random scenario multi menu window during fullscreen animaation
-            CMenuPhaseApi::Api::CreateMenuCallback tmp = createMenuRandomScenarioMulti;
+            CMenuPhaseApi::Api::CreateMenuCallback
+                tmp = getNetService() ? createMenuCustomRandomScenarioMultiCallback
+                                      : createMenuRandomScenarioMulti;
             auto* callback = &tmp;
             logDebug("transitions.log", "Try to transition to RandomScenarioMulti");
             menuPhase.showMenu(thisptr, &data->currentPhase, &data->interfManager,
