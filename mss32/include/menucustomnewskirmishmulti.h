@@ -31,7 +31,6 @@ struct ScenarioData;
 
 namespace hooks {
 
-// TODO: Reuse common logic with CMenuRandomScenarioMulti
 class CMenuCustomNewSkirmishMulti
     : public game::CMenuNewSkirmishMulti
     , public CMenuCustomBase
@@ -52,8 +51,6 @@ protected:
 
     const game::ScenarioData* getSelectedScenario();
     bool isGameAndPlayerNamesValid();
-    const char* getGameName();
-    const char* getGamePassword();
 
     class PeerCallback : public NetPeerCallback
     {

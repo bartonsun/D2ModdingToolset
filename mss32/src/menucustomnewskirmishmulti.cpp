@@ -139,7 +139,8 @@ void __fastcall CMenuCustomNewSkirmishMulti::loadBtnHandler(CMenuCustomNewSkirmi
     menuPhaseApi.setScenarioName(menuPhase, scenario->name.string);
     menuPhaseApi.setScenarioDescription(menuPhase, scenario->description.string);
 
-    if (!getNetService()->createRoom(thisptr->getGameName(), thisptr->getGamePassword())) {
+    if (!getNetService()->createRoom(thisptr->getEditText("EDIT_GAME"),
+                                     thisptr->getEditText("EDIT_PASSWORD"))) {
         logDebug("lobby.log", "Failed to request room creation");
         auto msg{getInterfaceText(textIds().lobby.createRoomRequestFailed.c_str())};
         if (msg.empty()) {
@@ -170,47 +171,17 @@ const game::ScenarioData* CMenuCustomNewSkirmishMulti::getSelectedScenario()
 
 bool CMenuCustomNewSkirmishMulti::isGameAndPlayerNamesValid()
 {
-    using namespace game;
-
-    const auto& dialogApi = CDialogInterfApi::get();
-
-    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-
-    auto gameEdit = dialogApi.findEditBox(dialog, "EDIT_GAME");
-    if (!gameEdit || !strlen(gameEdit->data->editBoxData.inputString.string)) {
+    auto gameName = getEditText("EDIT_GAME");
+    if (!gameName || !strlen(gameName)) {
         return false;
     }
 
-    auto nameEdit = dialogApi.findEditBox(dialog, "EDIT_NAME");
-    if (!nameEdit || !strlen(nameEdit->data->editBoxData.inputString.string)) {
+    auto playerName = getEditText("EDIT_NAME");
+    if (!playerName || !strlen(playerName)) {
         return false;
     }
 
     return true;
-}
-
-const char* CMenuCustomNewSkirmishMulti::getGameName()
-{
-    using namespace game;
-
-    const auto& dialogApi = CDialogInterfApi::get();
-
-    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-
-    auto gameEdit = dialogApi.findEditBox(dialog, "EDIT_GAME");
-    return gameEdit ? gameEdit->data->editBoxData.inputString.string : nullptr;
-}
-
-const char* CMenuCustomNewSkirmishMulti::getGamePassword()
-{
-    using namespace game;
-
-    const auto& dialogApi = CDialogInterfApi::get();
-
-    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-
-    auto passwordEdit = dialogApi.findEditBox(dialog, "EDIT_PASSWORD");
-    return passwordEdit ? passwordEdit->data->editBoxData.inputString.string : nullptr;
 }
 
 void CMenuCustomNewSkirmishMulti::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
