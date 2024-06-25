@@ -20,13 +20,85 @@
 #ifndef MENULOAD_H
 #define MENULOAD_H
 
+#include "catalogvalidate.h"
+#include "d2string.h"
+#include "idlist.h"
 #include "menubase.h"
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 namespace game {
 
+struct IGameCatalog;
+struct NetMsgEntryData;
+struct CMenuLoadData;
+struct CWaitInterf;
+struct CScensCatalog;
+
 /** Base class for all menus that loads previously saved game. */
-struct CMenuLoad : public CMenuBase
-{ };
+struct CMenuLoad
+    : public CMenuBase
+    , public ICatalogValidate
+{
+    CMenuLoadData* menuLoadData;
+};
+
+assert_offset(CMenuLoad, ICatalogValidate::vftable, 12);
+
+struct CMenuLoadVftable : public CMenuBaseVftable
+{
+    void* methods[3];
+
+    using SetGameName = void(__thiscall*)(CMenuLoad* thisptr, const char* value);
+    SetGameName setGameName;
+
+    using GetGameName = const char*(__thiscall*)(const CMenuLoad* thisptr);
+    GetGameName getGameName;
+
+    using GetPassword = const char*(__thiscall*)(const CMenuLoad* thisptr);
+    GetPassword getPassword;
+
+    using GetPlayerName = const char*(__thiscall*)(const CMenuLoad* thisptr);
+    GetPlayerName getPlayerName;
+
+    using CreateScensCatalog = CScensCatalog*(__thiscall*)(const CMenuLoad* thisptr,
+                                                           ICatalogValidate* catalogValidate);
+    CreateScensCatalog createScensCatalog;
+
+    using GetScenarioFileHandle = HANDLE(__thiscall*)(const CMenuLoad* thisptr,
+                                                      String* resultPath,
+                                                      CScensCatalog* scensCatalog,
+                                                      int selectedIndex);
+    GetScenarioFileHandle getScenarioFileHandle;
+};
+assert_vftable_size(CMenuLoadVftable, 44);
+
+struct CMenuLoadData
+{
+    IGameCatalog* gameCatalog;
+    NetMsgEntryData** netMsgEntryData;
+    CWaitInterf* waitInterf;
+    /** For some reason, CreateServer function is called on timer with 100ms timeout. */
+    UiEvent createServerEvent;
+    char unknown24;
+    /** Determines whether the fullscreen hourglass interface should be used. */
+    bool useWaitInterf;
+    char unknown26;
+    char unknown27;
+    String scenarioFilePath;
+    HANDLE handle;
+    char scenarioFileHeader[2893];
+    char padding[3];
+    IdList list;
+    int unknownB9C;
+    IdListNode* listNode;
+    void* unknownBA4;
+    bool unknownBA8;
+    char unknownBA9[3];
+    int unknownBAC;
+};
+
+assert_size(CMenuLoadData, 2992);
 
 namespace CMenuLoadApi {
 
