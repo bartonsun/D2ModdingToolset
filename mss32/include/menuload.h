@@ -111,6 +111,9 @@ struct Api
     /** Creates host player client and requests game version from server. */
     using CreateHostPlayer = void(__thiscall*)(CMenuLoad* thisptr);
     CreateHostPlayer createHostPlayer;
+
+    using CreateServer = void(__thiscall*)(CMenuLoad* thisptr);
+    CreateServer createServer;
 };
 
 Api& get();
