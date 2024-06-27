@@ -42,6 +42,7 @@ static const char titleSecretKey[]{"Disciples2 Key"};
 #endif
 
 const char* serverGuidColumnName{"ServerGuid"};
+const char* filesHashColumnName{"FilesHash"};
 const char* passwordColumnName{"Password"};
 
 game::IMqNetServiceVftable CNetCustomService::m_vftable = {
@@ -256,11 +257,17 @@ bool CNetCustomService::createRoom(const char* name, const char* password)
 
     const auto guidColumn{
         properties.AddColumn(serverGuidColumnName, DataStructures::Table::STRING)};
-
     constexpr auto invalidColumn{std::numeric_limits<unsigned int>::max()};
     if (guidColumn == invalidColumn) {
         logDebug("lobby.log",
                  fmt::format("Could not add server guid column to room properties table"));
+        return false;
+    }
+
+    const auto hashColumn{properties.AddColumn(filesHashColumnName, DataStructures::Table::STRING)};
+    if (hashColumn == invalidColumn) {
+        logDebug("lobby.log",
+                 fmt::format("Could not add files hash column to room properties table"));
         return false;
     }
 
@@ -280,7 +287,14 @@ bool CNetCustomService::createRoom(const char* name, const char* password)
         return false;
     }
 
+    const auto& hash = getGameFilesHash();
+    if (hash.empty()) {
+        logDebug("lobby.log", "Could not create a room because the game files hash is empty");
+        return false;
+    }
+
     row->UpdateCell(guidColumn, serverGuid);
+    row->UpdateCell(hashColumn, hash.c_str());
     if (password && strlen(password)) {
         row->UpdateCell(passwordColumn, password);
     }
@@ -340,20 +354,6 @@ bool CNetCustomService::changeRoomPublicSlots(unsigned int publicSlots)
 
     m_roomsClient.ExecuteFunc(&slotCounts);
     return true;
-}
-
-bool CNetCustomService::checkGameFilesEquality(const SLNet::RakNetGUID& target)
-{
-    const auto& hash = getGameFilesHash();
-    if (hash.empty()) {
-        return false;
-    }
-
-    SLNet::BitStream stream;
-    stream.Write(static_cast<SLNet::MessageID>(ID_CHECK_FILES_EQUALITY_REQUEST));
-    stream.Write(target);
-    stream.Write(hash.c_str());
-    return send(stream, getLobbyGuid());
 }
 
 void CNetCustomService::addPeerCallback(NetPeerCallback* callback)
@@ -516,28 +516,6 @@ void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes typ
     case ID_LOBBY2_SERVER_ERROR:
         logDebug("lobby.log", "Lobby server error");
         break;
-    case ID_CHECK_FILES_EQUALITY_REQUEST: {
-        SLNet::BitStream input{packet->data, packet->length, false};
-        input.IgnoreBytes(sizeof(SLNet::MessageID));
-
-        SLNet::RakNetGUID sender;
-        if (!input.Read(sender)) {
-            logDebug("lobby.log", "Failed to deserialize sender guid");
-            return;
-        }
-
-        SLNet::RakString hash;
-        if (!input.Read(hash)) {
-            logDebug("lobby.log", "Failed to deserialize files hash");
-        }
-
-        SLNet::BitStream response;
-        response.Write(static_cast<SLNet::MessageID>(ID_CHECK_FILES_EQUALITY_RESPONSE));
-        response.Write(sender);
-        response.Write(m_service->getGameFilesHash() == hash.C_String());
-        m_service->send(response, packet->guid);
-        break;
-    }
     default:
         logDebug("lobby.log", fmt::format("Packet type {:d}", static_cast<int>(type)));
         break;

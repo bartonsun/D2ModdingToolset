@@ -105,7 +105,6 @@ void readLobbyTextIds(const sol::table& table, TextIds::Lobby& value)
     value.connectStartFailed = lobby.get_or("connectStartFailed", std::string());
     value.connectAttemptFailed = lobby.get_or("connectAttemptFailed", std::string());
     value.serverIsFull = lobby.get_or("serverIsFull", std::string());
-    value.checkFilesRequestFailed = lobby.get_or("checkFilesRequestFailed", std::string());
     value.checkFilesFailed = lobby.get_or("checkFilesFailed", std::string());
     value.wrongRoomPassword = lobby.get_or("wrongRoomPassword", std::string());
     value.confirmBack = lobby.get_or("confirmBack", std::string());

@@ -82,23 +82,6 @@ protected:
     static bool onRoomPasswordEnter(CMenuCustomLobby* menu, const char* password);
 
 private:
-    class PeerCallback : public NetPeerCallback
-    {
-    public:
-        PeerCallback(CMenuCustomLobby* menuLobby)
-            : menuLobby{menuLobby}
-        { }
-
-        ~PeerCallback() override = default;
-
-        void onPacketReceived(DefaultMessageIDTypes type,
-                              SLNet::RakPeerInterface* peer,
-                              const SLNet::Packet* packet) override;
-
-    private:
-        CMenuCustomLobby* menuLobby;
-    };
-
     class RoomListCallbacks : public SLNet::RoomsCallback
     {
     public:
@@ -144,6 +127,7 @@ private:
         SLNet::RakNetGUID hostGuid;
         std::string hostName;
         std::string password;
+        std::string gameFilesHash;
         int totalSlots;
         int usedSlots;
     };
@@ -157,12 +141,11 @@ private:
     void processJoinError(const char* message);
     void registerClientPlayerAndJoin();
 
-    PeerCallback peerCallback;
     game::UiEvent roomsListEvent;
     std::vector<RoomInfo> rooms;
     RoomListCallbacks roomsCallbacks;
     game::NetMsgEntryData** netMsgEntryData;
-    bool joiningRoom;
+    SLNet::RoomID joiningRoomId;
 };
 
 assert_offset(CMenuCustomLobby, vftable, 0);

@@ -239,8 +239,6 @@ textids = {
 		-- Client could not connect due to server being full
 		-- Fallback text "Lobby server is full"
 		serverIsFull = "",
-		-- Fallback text "Could not request a check for game files equality from the room owner."
-		checkFilesRequestFailed = "",
 		-- Fallback text "Unable to join the room because the owner's game files are different."
 		checkFilesFailed = "",
 		-- Player entered wrong room password

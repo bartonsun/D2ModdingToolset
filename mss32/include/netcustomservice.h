@@ -40,14 +40,13 @@ struct NetMessageHeader;
 namespace hooks {
 
 extern const char* serverGuidColumnName;
+extern const char* filesHashColumnName;
 extern const char* passwordColumnName;
 
 // Should not exceed the size of SLNet::MessageID
 enum ClientMessages
 {
-    ID_CHECK_FILES_EQUALITY_REQUEST = ID_USER_PACKET_ENUM + 1,
-    ID_CHECK_FILES_EQUALITY_RESPONSE,
-    ID_GAME_MESSAGE_TO_HOST_SERVER,
+    ID_GAME_MESSAGE_TO_HOST_SERVER = ID_USER_PACKET_ENUM + 1,
     ID_GAME_MESSAGE_TO_HOST_CLIENT,
     ID_GAME_MESSAGE = game::netMessageNormalType & 0xff,
 };
@@ -83,6 +82,7 @@ public:
     const SLNet::RakNetGUID getPeerGuid() const;
     const SLNet::RakNetGUID getLobbyGuid() const;
     bool send(const SLNet::BitStream& stream, const SLNet::RakNetGUID& to) const;
+    const std::string& getGameFilesHash();
 
     /**
      * Tries to register new account using credentials provided.
@@ -113,9 +113,6 @@ public:
 
     /** Tries to change number of public slots in current room. */
     bool changeRoomPublicSlots(unsigned int publicSlots);
-
-    /** Requests game files equality check from the target. */
-    bool checkGameFilesEquality(const SLNet::RakNetGUID& target);
 
     /**
      * The service is always first to receive peer notifications.
@@ -198,7 +195,6 @@ private:
 
     static void __fastcall peerProcessEventCallback(CNetCustomService* thisptr, int /*%edx*/);
     std::vector<NetPeerCallback*> getPeerCallbacks() const;
-    const std::string& getGameFilesHash();
 
     bool m_connected;
     PeerCallback m_peerCallback;
