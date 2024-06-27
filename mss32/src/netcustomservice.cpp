@@ -298,17 +298,15 @@ void CNetCustomService::leaveRoom()
     m_roomsClient.ExecuteFunc(&func);
 }
 
-bool CNetCustomService::searchRooms(const char* accountName)
+void CNetCustomService::searchRooms()
 {
     SLNet::SearchByFilter_Func search;
     search.gameIdentifier = titleName;
-    search.userName = accountName ? accountName : m_accountName.c_str();
+    search.userName = m_accountName.c_str();
 
     logDebug("lobby.log",
              fmt::format("Account {:s} is trying to search rooms", search.userName.C_String()));
-
     m_roomsClient.ExecuteFunc(&search);
-    return true;
 }
 
 void CNetCustomService::joinRoom(SLNet::RoomID id)
@@ -559,6 +557,19 @@ void CNetCustomService::LobbyCallback::MessageResult(SLNet::Client_Logoff* messa
 {
     if (message->resultCode == SLNet::L2RC_SUCCESS) {
         m_service->m_accountName.clear();
+    }
+
+    ExecuteDefaultResult(message);
+}
+
+void CNetCustomService::LobbyCallback::MessageResult(
+    SLNet::Notification_Client_RemoteLogin* message)
+{
+    if (message->resultCode == SLNet::L2RC_SUCCESS) {
+        if (m_service->m_accountName == message->handle.C_String()) {
+            // The same account is remotely logged-in, means that we are now logged out
+            m_service->m_accountName.clear();
+        }
     }
 
     ExecuteDefaultResult(message);

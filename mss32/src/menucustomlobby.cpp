@@ -827,6 +827,12 @@ void CMenuCustomLobby::RoomListCallbacks::SearchByFilter_Callback(
     SLNet::SearchByFilter_Func* callResult)
 {
     if (callResult->resultCode != SLNet::REC_SUCCESS) {
+        if (!getNetService()->loggedIn()) {
+            // The error is expected, just silently remove the search event.
+            game::UiEventApi::get().destructor(&menuLobby->roomsListEvent);
+            return;
+        }
+
         menuLobby->showError(SLNet::RoomsErrorCodeDescription::ToEnglish(callResult->resultCode));
         return;
     }

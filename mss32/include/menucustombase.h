@@ -22,6 +22,7 @@
 
 #include "menubase.h"
 #include "midmsgboxbuttonhandler.h"
+#include <Lobby2Message.h>
 #include <string>
 
 namespace game {
@@ -84,8 +85,24 @@ protected:
     assert_offset(CMidMsgBoxBackToMainButtonHandler, vftable, 0);
 
 private:
+    class LobbyCallback : public SLNet::Lobby2Callbacks
+    {
+    public:
+        LobbyCallback(CMenuCustomBase* menu)
+            : m_menu{menu}
+        { }
+
+        ~LobbyCallback() override = default;
+
+        void MessageResult(SLNet::Notification_Client_RemoteLogin* message) override;
+
+    private:
+        CMenuCustomBase* m_menu;
+    };
+
     game::CMenuBase* m_menu;
     game::CMenuFlashWait* m_menuWait;
+    LobbyCallback m_lobbyCallback;
 };
 
 } // namespace hooks

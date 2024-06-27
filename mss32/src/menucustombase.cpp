@@ -27,6 +27,7 @@
 #include "menuflashwait.h"
 #include "menuphase.h"
 #include "midgardmsgbox.h"
+#include "netcustomservice.h"
 #include "popupdialoginterf.h"
 #include "utils.h"
 
@@ -35,11 +36,22 @@ namespace hooks {
 CMenuCustomBase::CMenuCustomBase(game::CMenuBase* menu)
     : m_menu{menu}
     , m_menuWait{nullptr}
-{ }
+    , m_lobbyCallback{this}
+{
+    auto service = getNetService();
+    if (service) {
+        service->addLobbyCallback(&m_lobbyCallback);
+    }
+}
 
 CMenuCustomBase::~CMenuCustomBase()
 {
     hideWaitDialog();
+
+    auto service = getNetService();
+    if (service) {
+        service->removeLobbyCallback(&m_lobbyCallback);
+    }
 }
 
 game::CMenuBase* CMenuCustomBase::getMenu() const
@@ -161,6 +173,17 @@ void __fastcall CMenuCustomBase::CMidMsgBoxBackToMainButtonHandler::handler(
     if (okPressed) {
         auto menuPhase = thisptr->m_menu->menuBaseData->menuPhase;
         CMenuPhaseApi::get().backToMainOrCloseGame(menuPhase, true);
+    }
+}
+
+void CMenuCustomBase::LobbyCallback::MessageResult(SLNet::Notification_Client_RemoteLogin* message)
+{
+    if (message->resultCode == SLNet::L2RC_SUCCESS) {
+        // We can possibly become logged out by a remote login of the same account.
+        // TODO: find a better way (there seems to be no special notification message).
+        if (!getNetService()->loggedIn()) {
+            m_menu->onConnectionLost();
+        }
     }
 }
 

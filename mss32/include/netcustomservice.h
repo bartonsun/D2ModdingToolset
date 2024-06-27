@@ -105,8 +105,8 @@ public:
     /** Requests to leave the previously entered room. */
     void leaveRoom();
 
-    /** Requests a list of rooms for specified account. */
-    bool searchRooms(const char* accountName = nullptr);
+    /** Requests a list of rooms. */
+    void searchRooms();
 
     /** Requests joining a room. */
     void joinRoom(SLNet::RoomID id);
@@ -189,6 +189,7 @@ private:
 
         void MessageResult(SLNet::Client_Login* message) override;
         void MessageResult(SLNet::Client_Logoff* message) override;
+        void MessageResult(SLNet::Notification_Client_RemoteLogin* message) override;
         void ExecuteDefaultResult(SLNet::Lobby2Message* msg) override;
 
     private:
