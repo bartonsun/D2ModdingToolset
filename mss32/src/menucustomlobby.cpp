@@ -764,18 +764,6 @@ void CMenuCustomLobby::PeerCallback::onPacketReceived(DefaultMessageIDTypes type
         menuLobby->showWaitDialog();
         break;
     }
-
-    case ID_DISCONNECTION_NOTIFICATION: {
-        logDebug("lobby.log", "Server was shut down");
-        menuLobby->onConnectionLost();
-        break;
-    }
-
-    case ID_CONNECTION_LOST: {
-        logDebug("lobby.log", "Connection with server is lost");
-        menuLobby->onConnectionLost();
-        break;
-    }
     }
 }
 

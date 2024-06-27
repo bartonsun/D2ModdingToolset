@@ -22,7 +22,6 @@
 
 #include "menucustombase.h"
 #include "menunewskirmishmulti.h"
-#include "netcustomservice.h"
 #include <RoomsPlugin.h>
 
 namespace game {
@@ -52,23 +51,6 @@ protected:
     const game::ScenarioData* getSelectedScenario();
     bool isGameAndPlayerNamesValid();
 
-    class PeerCallback : public NetPeerCallback
-    {
-    public:
-        PeerCallback(CMenuCustomNewSkirmishMulti* menu)
-            : m_menu{menu}
-        { }
-
-        ~PeerCallback() override = default;
-
-        void onPacketReceived(DefaultMessageIDTypes type,
-                              SLNet::RakPeerInterface* peer,
-                              const SLNet::Packet* packet) override;
-
-    private:
-        CMenuCustomNewSkirmishMulti* m_menu;
-    };
-
     class RoomsCallback : public SLNet::RoomsCallback
     {
     public:
@@ -84,7 +66,6 @@ protected:
     };
 
 private:
-    PeerCallback m_peerCallback;
     RoomsCallback m_roomsCallback;
 };
 

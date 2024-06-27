@@ -23,7 +23,6 @@
 #include "dynamiccast.h"
 #include "menucustombase.h"
 #include "menurandomscenariomulti.h"
-#include "netcustomservice.h"
 #include <RoomsPlugin.h>
 
 namespace hooks {
@@ -46,23 +45,6 @@ protected:
                                       int /*%edx*/,
                                       char flags);
 
-    class PeerCallback : public NetPeerCallback
-    {
-    public:
-        PeerCallback(CMenuCustomRandomScenarioMulti* menu)
-            : m_menu{menu}
-        { }
-
-        ~PeerCallback() override = default;
-
-        void onPacketReceived(DefaultMessageIDTypes type,
-                              SLNet::RakPeerInterface* peer,
-                              const SLNet::Packet* packet) override;
-
-    private:
-        CMenuCustomRandomScenarioMulti* m_menu;
-    };
-
     class RoomsCallback : public SLNet::RoomsCallback
     {
     public:
@@ -78,7 +60,6 @@ protected:
     };
 
 private:
-    PeerCallback m_peerCallback;
     RoomsCallback m_roomsCallback;
 };
 

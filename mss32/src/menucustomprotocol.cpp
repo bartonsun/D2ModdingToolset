@@ -189,6 +189,8 @@ void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes t
 
     case ID_DISCONNECTION_NOTIFICATION:
     case ID_CONNECTION_LOST:
+        // We need to handle this ourself: the CMenuCustomBase callback is not attached because the
+        // service is not there yet on the menu creation
         m_menu->onConnectionLost();
         break;
     }

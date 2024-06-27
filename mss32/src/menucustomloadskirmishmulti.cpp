@@ -37,7 +37,6 @@ CMenuCustomLoadSkirmishMulti* CMenuCustomLoadSkirmishMulti::cast(CMenuBase* menu
 
 CMenuCustomLoadSkirmishMulti::CMenuCustomLoadSkirmishMulti(game::CMenuPhase* menuPhase)
     : CMenuCustomBase{this}
-    , m_peerCallback{this}
     , m_roomsCallback{this}
 {
     using namespace game;
@@ -51,7 +50,6 @@ CMenuCustomLoadSkirmishMulti::CMenuCustomLoadSkirmishMulti(game::CMenuPhase* men
     this->CMenuBase::vftable = &rttiInfo.vftable;
 
     auto service = getNetService();
-    service->addPeerCallback(&m_peerCallback);
     service->addRoomsCallback(&m_roomsCallback);
 }
 
@@ -62,7 +60,6 @@ CMenuCustomLoadSkirmishMulti::~CMenuCustomLoadSkirmishMulti()
     auto service = getNetService();
     if (service) {
         service->removeRoomsCallback(&m_roomsCallback);
-        service->removePeerCallback(&m_peerCallback);
     }
 
     CMenuLoadSkirmishMultiApi::get().destructor(this);
@@ -95,18 +92,6 @@ void __fastcall CMenuCustomLoadSkirmishMulti::destructor(CMenuCustomLoadSkirmish
     if (flags & 1) {
         logDebug("transitions.log", "Free CMenuCustomLoadSkirmishMulti memory");
         game::Memory::get().freeNonZero(thisptr);
-    }
-}
-
-void CMenuCustomLoadSkirmishMulti::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
-                                                                  SLNet::RakPeerInterface* peer,
-                                                                  const SLNet::Packet* packet)
-{
-    switch (type) {
-    case ID_DISCONNECTION_NOTIFICATION:
-    case ID_CONNECTION_LOST:
-        m_menu->onConnectionLost();
-        break;
     }
 }
 

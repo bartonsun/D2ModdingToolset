@@ -22,6 +22,7 @@
 
 #include "menubase.h"
 #include "midmsgboxbuttonhandler.h"
+#include "netcustomservice.h"
 #include <Lobby2Message.h>
 #include <string>
 
@@ -85,6 +86,23 @@ protected:
     assert_offset(CMidMsgBoxBackToMainButtonHandler, vftable, 0);
 
 private:
+    class PeerCallback : public NetPeerCallback
+    {
+    public:
+        PeerCallback(CMenuCustomBase* menu)
+            : m_menu{menu}
+        { }
+
+        ~PeerCallback() override = default;
+
+        void onPacketReceived(DefaultMessageIDTypes type,
+                              SLNet::RakPeerInterface* peer,
+                              const SLNet::Packet* packet) override;
+
+    private:
+        CMenuCustomBase* m_menu;
+    };
+
     class LobbyCallback : public SLNet::Lobby2Callbacks
     {
     public:
@@ -102,6 +120,7 @@ private:
 
     game::CMenuBase* m_menu;
     game::CMenuFlashWait* m_menuWait;
+    PeerCallback m_peerCallback;
     LobbyCallback m_lobbyCallback;
 };
 

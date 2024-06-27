@@ -32,7 +32,6 @@ game::RttiInfo<game::CMenuBaseVftable> CMenuCustomRandomScenarioMulti::rttiInfo 
 CMenuCustomRandomScenarioMulti::CMenuCustomRandomScenarioMulti(game::CMenuPhase* menuPhase)
     : CMenuRandomScenarioMulti{menuPhase}
     , CMenuCustomBase{this}
-    , m_peerCallback{this}
     , m_roomsCallback{this}
 {
     using namespace game;
@@ -46,7 +45,6 @@ CMenuCustomRandomScenarioMulti::CMenuCustomRandomScenarioMulti(game::CMenuPhase*
     startScenario = createRoomAndServer;
 
     auto service = getNetService();
-    service->addPeerCallback(&m_peerCallback);
     service->addRoomsCallback(&m_roomsCallback);
 }
 
@@ -57,7 +55,6 @@ CMenuCustomRandomScenarioMulti::~CMenuCustomRandomScenarioMulti()
     auto service = getNetService();
     if (service) {
         service->removeRoomsCallback(&m_roomsCallback);
-        service->removePeerCallback(&m_peerCallback);
     }
 }
 
@@ -89,18 +86,6 @@ void __fastcall CMenuCustomRandomScenarioMulti::destructor(CMenuCustomRandomScen
     if (flags & 1) {
         logDebug("transitions.log", "Free CMenuCustomRandomScenarioMulti memory");
         game::Memory::get().freeNonZero(thisptr);
-    }
-}
-
-void CMenuCustomRandomScenarioMulti::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
-                                                                    SLNet::RakPeerInterface* peer,
-                                                                    const SLNet::Packet* packet)
-{
-    switch (type) {
-    case ID_DISCONNECTION_NOTIFICATION:
-    case ID_CONNECTION_LOST:
-        m_menu->onConnectionLost();
-        break;
     }
 }
 

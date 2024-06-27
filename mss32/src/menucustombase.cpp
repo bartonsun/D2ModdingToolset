@@ -36,10 +36,12 @@ namespace hooks {
 CMenuCustomBase::CMenuCustomBase(game::CMenuBase* menu)
     : m_menu{menu}
     , m_menuWait{nullptr}
+    , m_peerCallback{this}
     , m_lobbyCallback{this}
 {
     auto service = getNetService();
     if (service) {
+        service->addPeerCallback(&m_peerCallback);
         service->addLobbyCallback(&m_lobbyCallback);
     }
 }
@@ -51,6 +53,7 @@ CMenuCustomBase::~CMenuCustomBase()
     auto service = getNetService();
     if (service) {
         service->removeLobbyCallback(&m_lobbyCallback);
+        service->removePeerCallback(&m_peerCallback);
     }
 }
 
@@ -173,6 +176,18 @@ void __fastcall CMenuCustomBase::CMidMsgBoxBackToMainButtonHandler::handler(
     if (okPressed) {
         auto menuPhase = thisptr->m_menu->menuBaseData->menuPhase;
         CMenuPhaseApi::get().backToMainOrCloseGame(menuPhase, true);
+    }
+}
+
+void CMenuCustomBase::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
+                                                     SLNet::RakPeerInterface* peer,
+                                                     const SLNet::Packet* packet)
+{
+    switch (type) {
+    case ID_DISCONNECTION_NOTIFICATION:
+    case ID_CONNECTION_LOST:
+        m_menu->onConnectionLost();
+        break;
     }
 }
 

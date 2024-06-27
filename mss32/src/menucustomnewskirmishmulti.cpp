@@ -36,7 +36,6 @@ namespace hooks {
 
 CMenuCustomNewSkirmishMulti::CMenuCustomNewSkirmishMulti(game::CMenuPhase* menuPhase)
     : CMenuCustomBase{this}
-    , m_peerCallback{this}
     , m_roomsCallback{this}
 {
     using namespace game;
@@ -53,7 +52,6 @@ CMenuCustomNewSkirmishMulti::CMenuCustomNewSkirmishMulti(game::CMenuPhase* menuP
     this->vftable = &rttiInfo.vftable;
 
     auto service = getNetService();
-    service->addPeerCallback(&m_peerCallback);
     service->addRoomsCallback(&m_roomsCallback);
 
     SmartPointer functor;
@@ -71,7 +69,6 @@ CMenuCustomNewSkirmishMulti::~CMenuCustomNewSkirmishMulti()
     auto service = getNetService();
     if (service) {
         service->removeRoomsCallback(&m_roomsCallback);
-        service->removePeerCallback(&m_peerCallback);
     }
 
     CMenuNewSkirmishMultiApi::get().destructor(this);
@@ -182,18 +179,6 @@ bool CMenuCustomNewSkirmishMulti::isGameAndPlayerNamesValid()
     }
 
     return true;
-}
-
-void CMenuCustomNewSkirmishMulti::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
-                                                                 SLNet::RakPeerInterface* peer,
-                                                                 const SLNet::Packet* packet)
-{
-    switch (type) {
-    case ID_DISCONNECTION_NOTIFICATION:
-    case ID_CONNECTION_LOST:
-        m_menu->onConnectionLost();
-        break;
-    }
 }
 
 void CMenuCustomNewSkirmishMulti::RoomsCallback::CreateRoom_Callback(

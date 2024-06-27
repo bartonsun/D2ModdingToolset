@@ -23,7 +23,6 @@
 #include "menubase.h"
 #include "menucustombase.h"
 #include "midmsgboxbuttonhandler.h"
-#include "netcustomservice.h"
 #include "uievent.h"
 #include <Lobby2Message.h>
 #include <RoomsPlugin.h>
