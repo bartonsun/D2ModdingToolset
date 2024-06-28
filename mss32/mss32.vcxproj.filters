@@ -1472,6 +1472,9 @@
     <ClCompile Include="src\bindings\resourcemarketview.cpp">
       <Filter>bindings</Filter>
     </ClCompile>
+    <ClCompile Include="src\bindings\buildingview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3719,6 +3722,9 @@
       <Filter>features\custom scenario objects</Filter>
     </ClInclude>
     <ClInclude Include="include\bindings\resourcemarketview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\buildingview.h">
       <Filter>bindings</Filter>
     </ClInclude>
   </ItemGroup>
