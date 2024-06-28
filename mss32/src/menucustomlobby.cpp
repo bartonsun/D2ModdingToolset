@@ -785,6 +785,7 @@ void CMenuCustomLobby::RoomListCallbacks::SearchByFilter_Callback(
         SLNet::RakNetGUID hostGuid;
         const char* hostName{nullptr};
 
+        // TODO: room->GetModerator
         auto& members = room->roomMemberList;
         for (std::uint32_t j = 0; members.Size(); ++j) {
             auto& member = members[j];

@@ -22,7 +22,6 @@
 
 #include "mqnetservice.h"
 #include "netmsg.h"
-#include "roomsloggingcallback.h"
 #include "uievent.h"
 #include <Lobby2Client.h>
 #include <Lobby2Message.h>
@@ -193,6 +192,36 @@ private:
         CNetCustomService* m_service;
     };
 
+    class RoomsCallback : public SLNet::RoomsCallback
+    {
+    public:
+        RoomsCallback() = default;
+        ~RoomsCallback() override = default;
+
+        void CreateRoom_Callback(const SLNet::SystemAddress& senderAddress,
+                                 SLNet::CreateRoom_Func* callResult) override;
+
+        void EnterRoom_Callback(const SLNet::SystemAddress& senderAddress,
+                                SLNet::EnterRoom_Func* callResult) override;
+
+        void LeaveRoom_Callback(const SLNet::SystemAddress& senderAddress,
+                                SLNet::LeaveRoom_Func* callResult) override;
+
+        void RoomMemberLeftRoom_Callback(
+            const SLNet::SystemAddress& senderAddress,
+            SLNet::RoomMemberLeftRoom_Notification* notification) override;
+
+        void RoomMemberJoinedRoom_Callback(
+            const SLNet::SystemAddress& senderAddress,
+            SLNet::RoomMemberJoinedRoom_Notification* notification) override;
+
+    protected:
+        void ExecuteDefaultResult(const char* callbackName,
+                                  SLNet::RoomsErrorCode resultCode,
+                                  SLNet::RoomID roomId,
+                                  const char* roomName) const;
+    };
+
     static void __fastcall peerProcessEventCallback(CNetCustomService* thisptr, int /*%edx*/);
     std::vector<NetPeerCallback*> getPeerCallbacks() const;
 
@@ -208,7 +237,7 @@ private:
     LobbyCallback m_lobbyCallback;
     /** Interacts with lobby server rooms. */
     SLNet::RoomsPlugin m_roomsClient;
-    RoomsLoggingCallback m_roomsLoggingCallback;
+    RoomsCallback m_roomsCallback;
     /** Connection with lobby server. */
     SLNet::RakPeerInterface* m_peer;
     game::UiEvent m_peerProcessEvent;

@@ -80,7 +80,7 @@ CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
     m_peer->AttachPlugin(&m_lobbyClient);
 
     m_peer->AttachPlugin(&m_roomsClient);
-    m_roomsClient.SetRoomsCallback(&m_roomsLoggingCallback);
+    m_roomsClient.SetRoomsCallback(&m_roomsCallback);
 
     logDebug("lobby.log", "CNetCustomService is created");
 }
@@ -564,6 +564,64 @@ void CNetCustomService::LobbyCallback::ExecuteDefaultResult(SLNet::Lobby2Message
     msg->DebugMsg(str);
 
     logDebug("lobby.log", str.C_String());
+}
+
+void CNetCustomService::RoomsCallback::CreateRoom_Callback(
+    const SLNet::SystemAddress& senderAddress,
+    SLNet::CreateRoom_Func* callResult)
+{
+    auto& roomDescriptor = callResult->roomDescriptor;
+    auto roomName = roomDescriptor.GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c;
+    ExecuteDefaultResult("CreateRoom", callResult->resultCode, callResult->roomId, roomName);
+}
+
+void CNetCustomService::RoomsCallback::EnterRoom_Callback(const SLNet::SystemAddress& senderAddress,
+                                                          SLNet::EnterRoom_Func* callResult)
+{
+    auto& roomDescriptor = callResult->joinedRoomResult.roomDescriptor;
+    auto roomName = roomDescriptor.GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c;
+    ExecuteDefaultResult("EnterRoom", callResult->resultCode, callResult->roomId, roomName);
+}
+
+void CNetCustomService::RoomsCallback::LeaveRoom_Callback(const SLNet::SystemAddress& senderAddress,
+                                                          SLNet::LeaveRoom_Func* callResult)
+{
+    auto roomId = callResult->removeUserResult.roomId;
+    ExecuteDefaultResult("LeaveRoom", callResult->resultCode, roomId, "");
+}
+
+void CNetCustomService::RoomsCallback::RoomMemberLeftRoom_Callback(
+    const SLNet::SystemAddress& senderAddress,
+    SLNet::RoomMemberLeftRoom_Notification* notification)
+{
+    ExecuteDefaultResult("RoomMemberLeftRoom", SLNet::REC_SUCCESS, notification->roomId, "");
+}
+
+void CNetCustomService::RoomsCallback::RoomMemberJoinedRoom_Callback(
+    const SLNet::SystemAddress& senderAddress,
+    SLNet::RoomMemberJoinedRoom_Notification* notification)
+{
+    ExecuteDefaultResult("RoomMemberJoinedRoom", SLNet::REC_SUCCESS, notification->roomId, "");
+}
+
+void CNetCustomService::RoomsCallback::ExecuteDefaultResult(const char* callbackName,
+                                                            SLNet::RoomsErrorCode resultCode,
+                                                            SLNet::RoomID roomId,
+                                                            const char* roomName) const
+{
+    switch (resultCode) {
+    case SLNet::REC_SUCCESS: {
+        logDebug("lobby.log",
+                 fmt::format("{:s} roomId: {:d}, roomName: {:s}", callbackName, roomId, roomName));
+        break;
+    }
+
+    default: {
+        auto resultText = SLNet::RoomsErrorCodeDescription::ToEnglish(resultCode);
+        logDebug("lobby.log", fmt::format("{:s} failed, error: {:s}", callbackName, resultText));
+        break;
+    }
+    }
 }
 
 CNetCustomService* createNetCustomServiceStartConnection()

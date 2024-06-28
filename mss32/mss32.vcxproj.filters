@@ -806,9 +806,6 @@
     <ClCompile Include="src\netcustomplayerserver.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
-    <ClCompile Include="src\roomsloggingcallback.cpp">
-      <Filter>features\lobby</Filter>
-    </ClCompile>
     <ClCompile Include="src\menuphasehooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
@@ -2510,9 +2507,6 @@
       <Filter>game</Filter>
     </ClInclude>
     <ClInclude Include="include\netcustomplayerserver.h">
-      <Filter>features\lobby</Filter>
-    </ClInclude>
-    <ClInclude Include="include\roomsloggingcallback.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
     <ClInclude Include="include\menuphasehooks.h">
