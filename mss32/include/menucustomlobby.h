@@ -160,8 +160,9 @@ private:
     std::vector<RoomInfo> rooms;
     RoomListCallbacks roomsCallbacks;
     game::NetMsgEntryData** netMsgEntryData;
-    SLNet::RoomID joiningRoomId;
     CRoomPasswordInterf* roomPasswordDialog;
+    SLNet::RoomID joiningRoomId;
+    std::string joiningRoomPassword;
 };
 
 assert_offset(CMenuCustomLobby, vftable, 0);

@@ -279,9 +279,9 @@ void __fastcall CMenuCustomLobby::joinRoomBtnHandler(CMenuCustomLobby* thisptr, 
         getNetService()->joinRoom(room->id);
         thisptr->showWaitDialog();
     } else {
-        // TODO: stop refresh timer or preserve whole room info (or pass the room info into the
-        // dialog ctor)
+        // Store selected room info because the room list can be updated while the dialog is shown
         thisptr->joiningRoomId = room->id;
+        thisptr->joiningRoomPassword = room->password;
         thisptr->showRoomPasswordDialog();
     }
 }
@@ -904,10 +904,8 @@ void __fastcall CMenuCustomLobby::CRoomPasswordInterf::okBtnHandler(CRoomPasswor
         password = passwordEdit->data->editBoxData.inputString.string;
     }
 
-    // TODO: getSelectedRoom ? we need to stop refresh timer then or add joiningRoomPassword (or
-    // copy whole room info?)
     auto menu = thisptr->m_menu;
-    if (menu->getSelectedRoom()->password == password) {
+    if (menu->joiningRoomPassword == password) {
         getNetService()->joinRoom(menu->joiningRoomId);
         menu->hideRoomPasswordDialog();
         menu->showWaitDialog();
