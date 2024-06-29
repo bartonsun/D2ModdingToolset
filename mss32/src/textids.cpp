@@ -120,6 +120,7 @@ void readLobbyTextIds(const sol::table& table, TextIds::Lobby& value)
     value.unableToRegister = lobby.get_or("unableToRegister", std::string());
     value.createRoomRequestFailed = lobby.get_or("createRoomRequestFailed", std::string());
     value.createRoomFailed = lobby.get_or("createRoomFailed", std::string());
+    value.selectedRoomNoLongerExists = lobby.get_or("selectedRoomNoLongerExists", std::string());
 }
 
 void readGeneratorTextIds(const sol::table& table, TextIds::ScenarioGenerator& value)

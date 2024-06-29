@@ -117,6 +117,7 @@ struct TextIds
         std::string unableToRegister;
         std::string createRoomRequestFailed;
         std::string createRoomFailed;
+        std::string selectedRoomNoLongerExists;
     } lobby;
 
     struct ScenarioGenerator

@@ -275,8 +275,10 @@ textids = {
 		-- The text must contain keyword "%ERROR%".
 		-- Fallback text "Could not create a room.\n%ERROR%"
 		createRoomFailed = "",
+		-- Fallback text "The selected room no longer exists."
+		selectedRoomNoLongerExists = "",
 	},
-    
+
     generator = {
         -- Description text for randomly generated scenarios
         -- Fallback text "Random scenario based on template '%TMPL%'. Seed: %SEED%. Starting gold: %GOLD%. Roads: %ROADS%%. Forest: %FOREST%%."

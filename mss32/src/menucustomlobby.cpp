@@ -726,7 +726,8 @@ void CMenuCustomLobby::RoomListCallbacks::JoinByFilter_Callback(
 {
     menuLobby->hideWaitDialog();
 
-    if (callResult->resultCode == SLNet::REC_SUCCESS) {
+    switch (auto resultCode = callResult->resultCode) {
+    case SLNet::REC_SUCCESS: {
         auto& room = callResult->joinedRoomResult.roomDescriptor;
         auto roomName = room.GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c;
 
@@ -752,15 +753,34 @@ void CMenuCustomLobby::RoomListCallbacks::JoinByFilter_Callback(
         SLNet::RakNetGUID serverGuid{};
         if (!serverGuid.FromString(guidString)) {
             menuLobby->processJoinError("Could not get player server GUID");
-            return;
+            break;
         }
 
         menuLobby->processJoin(roomName, serverGuid);
-        return;
+        break;
     }
 
-    auto error = SLNet::RoomsErrorCodeDescription::ToEnglish(callResult->resultCode);
-    menuLobby->processJoinError(error);
+    case SLNet::REC_JOIN_BY_FILTER_NO_ROOMS: {
+        auto msg{getInterfaceText(textIds().lobby.selectedRoomNoLongerExists.c_str())};
+        if (msg.empty()) {
+            msg = "The selected room no longer exists.";
+        }
+        showMessageBox(msg);
+        break;
+    }
+
+    case SLNet::REC_JOIN_BY_FILTER_NO_SLOTS: {
+        // Could not join game. Host did not report any available race.
+        showMessageBox(getInterfaceText("X005TA0886"));
+        break;
+    }
+
+    default: {
+        auto error = SLNet::RoomsErrorCodeDescription::ToEnglish(callResult->resultCode);
+        menuLobby->processJoinError(error);
+        break;
+    }
+    }
 }
 
 void CMenuCustomLobby::RoomListCallbacks::SearchByFilter_Callback(
