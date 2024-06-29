@@ -833,9 +833,6 @@
     <ClCompile Include="src\menuload.cpp">
       <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="src\roompasswordinterf.cpp">
-      <Filter>features\lobby</Filter>
-    </ClCompile>
     <ClCompile Include="src\cursorhandle.cpp">
       <Filter>game</Filter>
     </ClCompile>
@@ -2538,9 +2535,6 @@
     </ClInclude>
     <ClInclude Include="include\menuload.h">
       <Filter>game</Filter>
-    </ClInclude>
-    <ClInclude Include="include\roompasswordinterf.h">
-      <Filter>features\lobby</Filter>
     </ClInclude>
     <ClInclude Include="include\batnotify.h">
       <Filter>game</Filter>

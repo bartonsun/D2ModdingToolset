@@ -62,7 +62,6 @@ CMenuCustomProtocol ::~CMenuCustomProtocol()
 {
     using namespace game;
 
-    hideWaitDialog();
     hideLoginDialog();
     hideRegisterDialog();
 

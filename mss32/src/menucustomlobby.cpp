@@ -40,7 +40,6 @@
 #include "netmsgmapentry.h"
 #include "originalfunctions.h"
 #include "racelist.h"
-#include "roompasswordinterf.h"
 #include "textboxinterf.h"
 #include "textids.h"
 #include "uimanager.h"
@@ -55,6 +54,7 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     : CMenuCustomBase(this)
     , roomsCallbacks(this)
     , netMsgEntryData(nullptr)
+    , roomPasswordDialog(nullptr)
 {
     using namespace game;
 
@@ -122,7 +122,7 @@ CMenuCustomLobby ::~CMenuCustomLobby()
 {
     using namespace game;
 
-    hideWaitDialog();
+    hideRoomPasswordDialog();
 
     if (netMsgEntryData) {
         logDebug("transitions.log", "Delete custom lobby menu netMsgEntryData");
@@ -165,6 +165,29 @@ void __fastcall CMenuCustomLobby::destructor(CMenuCustomLobby* thisptr, int /*%e
     if (flags & 1) {
         logDebug("transitions.log", "Free CMenuCustomLobby memory");
         game::Memory::get().freeNonZero(thisptr);
+    }
+}
+
+void CMenuCustomLobby::showRoomPasswordDialog()
+{
+    using namespace game;
+
+    if (roomPasswordDialog) {
+        logDebug("lobby.log", "Error showing room-password dialog that is already shown");
+        return;
+    }
+
+    roomPasswordDialog = (CRoomPasswordInterf*)game::Memory::get().allocate(
+        sizeof(CRoomPasswordInterf));
+    showInterface(new (roomPasswordDialog) CRoomPasswordInterf(this));
+}
+
+void CMenuCustomLobby::hideRoomPasswordDialog()
+{
+    if (roomPasswordDialog) {
+        hideInterface(roomPasswordDialog);
+        roomPasswordDialog->vftable->destructor(roomPasswordDialog, 1);
+        roomPasswordDialog = nullptr;
     }
 }
 
@@ -225,22 +248,6 @@ const CMenuCustomLobby::RoomInfo* CMenuCustomLobby::getSelectedRoom()
     return index < rooms.size() ? &rooms[index] : nullptr;
 }
 
-void CMenuCustomLobby::onRoomPasswordCorrect(CMenuCustomLobby* menu)
-{
-    logDebug("transitions.log", "Room password correct, trying to join a room");
-
-    getNetService()->joinRoom(menu->joiningRoomId);
-    menu->showWaitDialog();
-}
-
-void CMenuCustomLobby::onRoomPasswordCancel(CMenuCustomLobby* menu)
-{ }
-
-bool CMenuCustomLobby::onRoomPasswordEnter(CMenuCustomLobby* menu, const char* password)
-{
-    return menu->getSelectedRoom()->password == password;
-}
-
 void __fastcall CMenuCustomLobby::joinRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
 {
     using namespace game;
@@ -272,10 +279,10 @@ void __fastcall CMenuCustomLobby::joinRoomBtnHandler(CMenuCustomLobby* thisptr, 
         getNetService()->joinRoom(room->id);
         thisptr->showWaitDialog();
     } else {
-        // Save room id because the rooms list can be changed by timer while the dialog is shown
+        // TODO: stop refresh timer or preserve whole room info (or pass the room info into the
+        // dialog ctor)
         thisptr->joiningRoomId = room->id;
-        showRoomPasswordDialog(thisptr, onRoomPasswordCorrect, onRoomPasswordCancel,
-                               onRoomPasswordEnter);
+        thisptr->showRoomPasswordDialog();
     }
 }
 
@@ -740,7 +747,8 @@ void CMenuCustomLobby::RoomListCallbacks::JoinByFilter_Callback(
 
         // TODO: use guid of member with moderator role from room.roomMemberList, remove
         // serverGuidColumn
-        // TODO: check if password can be transmitted using native RakNet instead of custom column
+        // TODO: check if password can be transmitted using native RakNet instead of custom
+        // column
         SLNet::RakNetGUID serverGuid{};
         if (!serverGuid.FromString(guidString)) {
             menuLobby->processJoinError("Could not get player server GUID");
@@ -866,6 +874,58 @@ void __fastcall CMenuCustomLobby::CConfirmBackMsgBoxButtonHandler::handler(
         auto menuPhase = thisptr->menuLobby->menuBaseData->menuPhase;
         getOriginalFunctions().menuPhaseBackToMainOrCloseGame(menuPhase, true);
     }
+}
+
+CMenuCustomLobby::CRoomPasswordInterf::CRoomPasswordInterf(CMenuCustomLobby* menu,
+                                                           const char* dialogName)
+    : CPopupDialogCustomBase{this, dialogName}
+    , m_menu{menu}
+{
+    using namespace game;
+
+    CPopupDialogInterfApi::get().constructor(this, dialogName, nullptr);
+
+    assignButtonHandler("BTN_CANCEL", (CMenuBaseApi::Api::ButtonCallback)cancelBtnHandler);
+    assignButtonHandler("BTN_OK", (CMenuBaseApi::Api::ButtonCallback)okBtnHandler);
+
+    // Using EditFilter::Names for consistency with other game menus like CMenuNewSkirmishMulti
+    setEditFilterAndLength("EDIT_PASSWORD", EditFilter::Names, 16, false);
+}
+
+void __fastcall CMenuCustomLobby::CRoomPasswordInterf::okBtnHandler(CRoomPasswordInterf* thisptr,
+                                                                    int /*%edx*/)
+{
+    using namespace game;
+
+    // TODO: generic getEditText for menus and dialogs
+    const char* password = nullptr;
+    auto passwordEdit = CDialogInterfApi::get().findEditBox(*thisptr->dialog, "EDIT_PASSWORD");
+    if (passwordEdit) {
+        password = passwordEdit->data->editBoxData.inputString.string;
+    }
+
+    // TODO: getSelectedRoom ? we need to stop refresh timer then or add joiningRoomPassword (or
+    // copy whole room info?)
+    auto menu = thisptr->m_menu;
+    if (menu->getSelectedRoom()->password == password) {
+        getNetService()->joinRoom(menu->joiningRoomId);
+        menu->hideRoomPasswordDialog();
+        menu->showWaitDialog();
+    } else {
+        auto msg{getInterfaceText(textIds().lobby.wrongRoomPassword.c_str())};
+        if (msg.empty()) {
+            msg = "Wrong room password";
+        }
+        showMessageBox(msg);
+    }
+}
+
+void __fastcall CMenuCustomLobby::CRoomPasswordInterf::cancelBtnHandler(
+    CRoomPasswordInterf* thisptr,
+    int /*%edx*/)
+{
+    logDebug("lobby.log", "User canceled register account");
+    thisptr->m_menu->hideRoomPasswordDialog();
 }
 
 } // namespace hooks

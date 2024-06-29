@@ -23,6 +23,7 @@
 #include "menubase.h"
 #include "menucustombase.h"
 #include "midmsgboxbuttonhandler.h"
+#include "popupdialoginterf.h"
 #include "uievent.h"
 #include <Lobby2Message.h>
 #include <RoomsPlugin.h>
@@ -54,6 +55,9 @@ protected:
     // CInterface
     static void __fastcall destructor(CMenuCustomLobby* thisptr, int /*%edx*/, char flags);
 
+    void showRoomPasswordDialog();
+    void hideRoomPasswordDialog();
+
     static void __fastcall registerAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/);
     static void __fastcall loginAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/);
     static void __fastcall logoutAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/);
@@ -77,11 +81,6 @@ protected:
                                                  std::uint32_t idFrom);
     static void __fastcall backBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
 
-    static void onRoomPasswordCorrect(CMenuCustomLobby* menu);
-    static void onRoomPasswordCancel(CMenuCustomLobby* menu);
-    static bool onRoomPasswordEnter(CMenuCustomLobby* menu, const char* password);
-
-private:
     class RoomListCallbacks : public SLNet::RoomsCallback
     {
     public:
@@ -120,6 +119,21 @@ private:
     };
     assert_offset(CConfirmBackMsgBoxButtonHandler, vftable, 0);
 
+    struct CRoomPasswordInterf
+        : public game::CPopupDialogInterf
+        , public CPopupDialogCustomBase
+    {
+        CRoomPasswordInterf(CMenuCustomLobby* menu, const char* dialogName = "DLG_ROOM_PASSWORD");
+
+    protected:
+        static void __fastcall okBtnHandler(CRoomPasswordInterf* thisptr, int /*%edx*/);
+        static void __fastcall cancelBtnHandler(CRoomPasswordInterf* thisptr, int /*%edx*/);
+
+    private:
+        CMenuCustomLobby* m_menu;
+    };
+    assert_offset(CRoomPasswordInterf, vftable, 0);
+
     struct RoomInfo
     {
         SLNet::RoomID id;
@@ -141,11 +155,13 @@ private:
     void processJoinError(const char* message);
     void registerClientPlayerAndJoin();
 
+private:
     game::UiEvent roomsListEvent;
     std::vector<RoomInfo> rooms;
     RoomListCallbacks roomsCallbacks;
     game::NetMsgEntryData** netMsgEntryData;
     SLNet::RoomID joiningRoomId;
+    CRoomPasswordInterf* roomPasswordDialog;
 };
 
 assert_offset(CMenuCustomLobby, vftable, 0);
