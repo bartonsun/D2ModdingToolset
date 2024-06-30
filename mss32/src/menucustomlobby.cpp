@@ -441,6 +441,49 @@ void __fastcall CMenuCustomLobby::backBtnHandler(CMenuCustomLobby* thisptr, int 
     showMessageBox(message, handler, true);
 }
 
+CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* roomDescriptor)
+{
+    // Add 1 to used and total slots because they are not counting room moderator
+    auto* moderator = getRoomModerator(roomDescriptor->roomMemberList);
+    return {roomDescriptor->lobbyRoomId,
+            roomDescriptor->GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c,
+            moderator->guid,
+            moderator->name,
+            roomDescriptor->GetProperty(CNetCustomService::passwordColumnName)->c,
+            roomDescriptor->GetProperty(CNetCustomService::filesHashColumnName)->c,
+            (int)roomDescriptor->GetProperty(DefaultRoomColumns::TC_USED_PUBLIC_SLOTS)->i + 1,
+            (int)roomDescriptor->GetProperty(DefaultRoomColumns::TC_TOTAL_PUBLIC_SLOTS)->i + 1};
+}
+
+SLNet::RoomMemberDescriptor* CMenuCustomLobby::getRoomModerator(
+    DataStructures::List<SLNet::RoomMemberDescriptor>& roomMembers)
+{
+    for (std::uint32_t i = 0; i < roomMembers.Size(); ++i) {
+        auto& member = roomMembers[i];
+        if (member.roomMemberMode == RMM_MODERATOR) {
+            return &member;
+        }
+    }
+
+    return nullptr;
+}
+
+void CMenuCustomLobby::updateRooms(DataStructures::List<SLNet::RoomDescriptor*>& roomDescriptors)
+{
+    using namespace game;
+
+    rooms.clear();
+    rooms.reserve(roomDescriptors.Size());
+    for (std::uint32_t i = 0; i < roomDescriptors.Size(); ++i) {
+        rooms.push_back(getRoomInfo(roomDescriptors[i]));
+    }
+
+    // TODO: preserve selected room
+    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
+    auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
+    CListBoxInterfApi::get().setElementsTotal(listBox, (int)rooms.size());
+}
+
 const CMenuCustomLobby::RoomInfo* CMenuCustomLobby::getSelectedRoom()
 {
     using namespace game;
@@ -589,20 +632,6 @@ void CMenuCustomLobby::processJoin(const char* roomName, const SLNet::RakNetGUID
     registerClientPlayerAndJoin();
 }
 
-void CMenuCustomLobby::setRoomsInfo(std::vector<RoomInfo>&& value)
-{
-    using namespace game;
-
-    auto& menuBase = CMenuBaseApi::get();
-    auto& dialogApi = CDialogInterfApi::get();
-    auto dialog = menuBase.getDialogInterface(this);
-    auto listBox = dialogApi.findListBox(dialog, "LBOX_ROOMS");
-    auto& listBoxApi = CListBoxInterfApi::get();
-
-    rooms = std::move(value);
-    listBoxApi.setElementsTotal(listBox, (int)rooms.size());
-}
-
 void CMenuCustomLobby::RoomListCallbacks::JoinByFilter_Callback(
     const SLNet::SystemAddress&,
     SLNet::JoinByFilter_Func* callResult)
@@ -612,34 +641,9 @@ void CMenuCustomLobby::RoomListCallbacks::JoinByFilter_Callback(
     switch (auto resultCode = callResult->resultCode) {
     case SLNet::REC_SUCCESS: {
         auto& room = callResult->joinedRoomResult.roomDescriptor;
-        auto roomName = room.GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c;
-
-        logDebug("roomsCallbacks.log",
-                 fmt::format("{:s} joined room",
-                             callResult->joinedRoomResult.joiningMemberName.C_String()));
-
-        const char* guidString{nullptr};
-
-        auto& table = room.roomProperties;
-        auto index = table.ColumnIndex(serverGuidColumnName);
-        if (index != std::numeric_limits<unsigned int>::max()) {
-            auto row = table.GetRowByIndex(0, nullptr);
-            if (row) {
-                guidString = row->cells[index]->c;
-            }
-        }
-
-        // TODO: use guid of member with moderator role from room.roomMemberList, remove
-        // serverGuidColumn
-        // TODO: check if password can be transmitted using native RakNet instead of custom
-        // column
-        SLNet::RakNetGUID serverGuid{};
-        if (!serverGuid.FromString(guidString)) {
-            showMessageBox("Could not get player server GUID"); // TODO: localized message
-            break;
-        }
-
-        menuLobby->processJoin(roomName, serverGuid);
+        const char* roomName = room.GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c;
+        logDebug("lobby.log", fmt::format("Joined a room {:s}", roomName));
+        menuLobby->processJoin(roomName, getRoomModerator(room.roomMemberList)->guid);
         break;
     }
 
@@ -670,75 +674,24 @@ void CMenuCustomLobby::RoomListCallbacks::SearchByFilter_Callback(
     const SLNet::SystemAddress&,
     SLNet::SearchByFilter_Func* callResult)
 {
-    if (callResult->resultCode != SLNet::REC_SUCCESS) {
+    switch (auto resultCode = callResult->resultCode) {
+    case SLNet::REC_SUCCESS: {
+        menuLobby->updateRooms(callResult->roomsOutput);
+        break;
+    }
+
+    default: {
         if (!getNetService()->loggedIn()) {
-            // The error is expected, just silently remove the search event.
+            // The error is expected, just silently remove the search event
             game::UiEventApi::get().destructor(&menuLobby->roomsListEvent);
-            return;
+            break;
         }
 
         showMessageBox(SLNet::RoomsErrorCodeDescription::ToEnglish(
             callResult->resultCode)); // TODO: localized message
-        return;
+        break;
     }
-
-    // TODO: refactor the following mess
-
-    auto& rooms = callResult->roomsOutput;
-    const auto total{rooms.Size()};
-
-    std::vector<RoomInfo> roomsInfo;
-    roomsInfo.reserve(total);
-
-    for (std::uint32_t i = 0; i < total; ++i) {
-        auto room = rooms[i];
-
-        auto name = room->GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c;
-        SLNet::RakNetGUID hostGuid;
-        const char* hostName{nullptr};
-
-        // TODO: room->GetModerator
-        auto& members = room->roomMemberList;
-        for (std::uint32_t j = 0; members.Size(); ++j) {
-            auto& member = members[j];
-
-            if (member.roomMemberMode == RMM_MODERATOR) {
-                hostGuid = member.guid;
-                hostName = member.name.C_String();
-                break;
-            }
-        }
-
-        auto totalSlots = (int)room->GetProperty(DefaultRoomColumns::TC_TOTAL_PUBLIC_SLOTS)->i;
-        auto usedSlots = (int)room->GetProperty(DefaultRoomColumns::TC_USED_PUBLIC_SLOTS)->i;
-
-        const char* password{nullptr};
-
-        auto& table = room->roomProperties;
-        auto index = table.ColumnIndex(passwordColumnName);
-        if (index != std::numeric_limits<unsigned int>::max()) {
-            auto row = table.GetRowByIndex(0, nullptr);
-            if (row) {
-                password = row->cells[index]->c;
-            }
-        }
-
-        const char* hash{nullptr};
-        auto hashIdx = table.ColumnIndex(filesHashColumnName);
-        if (hashIdx != std::numeric_limits<unsigned int>::max()) {
-            auto row = table.GetRowByIndex(0, nullptr);
-            if (row) {
-                hash = row->cells[hashIdx]->c;
-            }
-        }
-
-        // Add 1 to used and total slots because they are not counting room moderator
-        roomsInfo.push_back(RoomInfo{room->lobbyRoomId, std::string(name), hostGuid,
-                                     hostName ? hostName : "Unknown", password ? password : "",
-                                     hash ? hash : "", totalSlots + 1, usedSlots + 1});
     }
-
-    menuLobby->setRoomsInfo(std::move(roomsInfo));
 }
 
 CMenuCustomLobby::CConfirmBackMsgBoxButtonHandler::CConfirmBackMsgBoxButtonHandler(

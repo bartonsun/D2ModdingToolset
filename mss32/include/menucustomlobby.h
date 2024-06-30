@@ -25,6 +25,7 @@
 #include "midmsgboxbuttonhandler.h"
 #include "popupdialoginterf.h"
 #include "uievent.h"
+#include <DS_List.h>
 #include <Lobby2Message.h>
 #include <RoomsPlugin.h>
 #include <string>
@@ -139,15 +140,19 @@ protected:
         std::string hostName;
         std::string password;
         std::string gameFilesHash;
-        int totalSlots;
         int usedSlots;
+        int totalSlots;
     };
 
+    static RoomInfo getRoomInfo(SLNet::RoomDescriptor* roomDescriptor);
+    static SLNet::RoomMemberDescriptor* getRoomModerator(
+        DataStructures::List<SLNet::RoomMemberDescriptor>& roomMembers);
+
+    void updateRooms(DataStructures::List<SLNet::RoomDescriptor*>& roomDescriptors);
     const RoomInfo* getSelectedRoom();
     void updateAccountText(const char* accountName);
     void fillNetMsgEntries();
     void processJoin(const char* roomName, const SLNet::RakNetGUID& serverGuid);
-    void setRoomsInfo(std::vector<RoomInfo>&& value);
     void registerClientPlayerAndJoin();
 
 private:

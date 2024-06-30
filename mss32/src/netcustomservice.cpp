@@ -41,10 +41,6 @@ static const char titleName[]{"Disciples2 Motlin"};
 static const char titleSecretKey[]{"Disciples2 Key"};
 #endif
 
-const char* serverGuidColumnName{"ServerGuid"};
-const char* filesHashColumnName{"FilesHash"};
-const char* passwordColumnName{"Password"};
-
 game::IMqNetServiceVftable CNetCustomService::m_vftable = {
     (game::IMqNetServiceVftable::Destructor)destructor,
     (game::IMqNetServiceVftable::HasSessions)hasSessions,
@@ -230,15 +226,23 @@ void CNetCustomService::logoutAccount()
 
 bool CNetCustomService::createRoom(const char* name, const char* password)
 {
+    logDebug("lobby.log",
+             fmt::format("Trying to create a room with name {:s}, password {:s}", name, password));
+
     if (!strlen(name)) {
         logDebug("lobby.log", "Could not create a room: no room name provided");
         return false;
     }
 
+    const auto& filesHash = getGameFilesHash();
+    if (filesHash.empty()) {
+        logDebug("lobby.log", "Could not create a room: the game files hash is empty");
+        return false;
+    }
+
     SLNet::CreateRoom_Func room{};
-    room.gameIdentifier = titleName;
     room.userName = m_accountName.c_str();
-    room.resultCode = SLNet::REC_SUCCESS;
+    room.gameIdentifier = titleName;
 
     auto& params = room.networkedRoomCreationParameters;
     params.destroyOnModeratorLeave = true;
@@ -247,60 +251,14 @@ bool CNetCustomService::createRoom(const char* name, const char* password)
     params.slots.reservedSlots = 0;
     params.slots.spectatorSlots = 0;
 
-    auto serverGuid = m_peer->GetMyGUID().ToString();
-    logDebug("lobby.log",
-             fmt::format("Account {:s} is trying to create and enter a room "
-                         "with serverGuid {:s}, password {:s}",
-                         room.userName.C_String(), serverGuid, (password ? password : "")));
-
     auto& properties = room.initialRoomProperties;
-
-    const auto guidColumn{
-        properties.AddColumn(serverGuidColumnName, DataStructures::Table::STRING)};
-    constexpr auto invalidColumn{std::numeric_limits<unsigned int>::max()};
-    if (guidColumn == invalidColumn) {
-        logDebug("lobby.log",
-                 fmt::format("Could not add server guid column to room properties table"));
-        return false;
-    }
-
-    const auto hashColumn{properties.AddColumn(filesHashColumnName, DataStructures::Table::STRING)};
-    if (hashColumn == invalidColumn) {
-        logDebug("lobby.log",
-                 fmt::format("Could not add files hash column to room properties table"));
-        return false;
-    }
-
-    unsigned int passwordColumn{invalidColumn};
-    if (password && strlen(password)) {
-        passwordColumn = properties.AddColumn(passwordColumnName, DataStructures::Table::STRING);
-        if (passwordColumn == invalidColumn) {
-            logDebug("lobby.log",
-                     fmt::format("Could not add password column to room properties table"));
-            return false;
-        }
-    }
+    auto hashColumn{properties.AddColumn(filesHashColumnName, DataStructures::Table::STRING)};
+    auto passwordColumn{properties.AddColumn(passwordColumnName, DataStructures::Table::STRING)};
 
     auto row = properties.AddRow(0);
-    if (!row) {
-        logDebug("lobby.log", "Could not add row to room properties table");
-        return false;
-    }
+    row->UpdateCell(hashColumn, filesHash.c_str());
+    row->UpdateCell(passwordColumn, password);
 
-    const auto& hash = getGameFilesHash();
-    if (hash.empty()) {
-        logDebug("lobby.log", "Could not create a room because the game files hash is empty");
-        return false;
-    }
-
-    row->UpdateCell(guidColumn, serverGuid);
-    row->UpdateCell(hashColumn, hash.c_str());
-    if (password && strlen(password)) {
-        row->UpdateCell(passwordColumn, password);
-    }
-
-    logDebug("lobby.log", fmt::format("Account {:s} is trying to create and enter a room {:s}",
-                                      room.userName.C_String(), params.roomName.C_String()));
     m_roomsClient.ExecuteFunc(&room);
     return true;
 }

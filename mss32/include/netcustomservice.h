@@ -38,10 +38,6 @@ struct NetMessageHeader;
 
 namespace hooks {
 
-extern const char* serverGuidColumnName;
-extern const char* filesHashColumnName;
-extern const char* passwordColumnName;
-
 // Should not exceed the size of SLNet::MessageID
 enum ClientMessages
 {
@@ -66,6 +62,8 @@ class CNetCustomService : public game::IMqNetService
 public:
     static constexpr std::uint32_t peerShutdownTimeout{100};
     static constexpr std::uint32_t peerProcessInterval{100};
+    static constexpr char passwordColumnName[] = "Password";
+    static constexpr char filesHashColumnName[] = "FilesHash";
 
     static bool isCustom(const game::IMqNetService* service);
 
