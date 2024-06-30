@@ -20,6 +20,7 @@
 #ifndef INTERFACEUTILS_H
 #define INTERFACEUTILS_H
 
+#include "menubase.h"
 #include <string>
 
 namespace game {
@@ -37,6 +38,7 @@ struct CBorderedImg;
 enum class AttackSourceId : int;
 enum class AttackClassId : int;
 enum class BorderType : int;
+enum class EditFilter : int;
 } // namespace game
 
 namespace hooks {
@@ -72,6 +74,17 @@ void addDynUpgradeTextToField(std::string& text, const char* field, int upgrade1
 
 void setCenteredImage(game::CPictureInterf* picture, game::IMqImage2* image);
 game::CBorderedImg* createBorderedImage(game::IMqImage2* image, game::BorderType borderType);
+// callback is void* for convenience, should correspond to game::CMenuBaseApi::Api::ButtonCallback
+void setButtonCallback(game::CDialogInterf* dialog,
+                       const char* buttonName,
+                       void* callback,
+                       void* callbackParam);
+void setEditBoxData(game::CDialogInterf* dialog,
+                    const char* editName,
+                    game::EditFilter filter,
+                    int length,
+                    bool password);
+const char* getEditBoxText(game::CDialogInterf* dialog, const char* editName);
 
 } // namespace hooks
 

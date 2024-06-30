@@ -21,8 +21,11 @@
 #include "attackclasscat.h"
 #include "attacksourcecat.h"
 #include "borderedimg.h"
+#include "button.h"
 #include "categorylist.h"
 #include "customattacks.h"
+#include "dialoginterf.h"
+#include "editboxinterf.h"
 #include "encunitdescriptor.h"
 #include "leaderunitdescriptor.h"
 #include "mempool.h"
@@ -424,6 +427,45 @@ game::CBorderedImg* createBorderedImage(game::IMqImage2* image, game::BorderType
     borderedImgApi.addImage(result, image);
 
     return result;
+}
+
+void setButtonCallback(game::CDialogInterf* dialog,
+                       const char* buttonName,
+                       void* callback,
+                       void* callbackParam)
+{
+    using namespace game;
+
+    SmartPointer functor;
+    CMenuBaseApi::get().createButtonFunctor(&functor, 0, (CMenuBase*)callbackParam,
+                                            (game::CMenuBaseApi::Api::ButtonCallback*)&callback);
+    CButtonInterfApi::get().assignFunctor(dialog, buttonName, dialog->data->dialogName, &functor,
+                                          0);
+    SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
+}
+
+void setEditBoxData(game::CDialogInterf* dialog,
+                    const char* editName,
+                    game::EditFilter filter,
+                    int length,
+                    bool password)
+{
+    using namespace game;
+
+    auto editBox = CEditBoxInterfApi::get().setFilterAndLength(dialog, editName,
+                                                               dialog->data->dialogName, filter,
+                                                               length);
+    if (editBox) {
+        editBox->data->editBoxData.patched.isPassword = password;
+    }
+}
+
+const char* getEditBoxText(game::CDialogInterf* dialog, const char* editName)
+{
+    using namespace game;
+
+    auto edit = CDialogInterfApi::get().findEditBox(dialog, editName);
+    return edit ? edit->data->editBoxData.inputString.string : nullptr;
 }
 
 } // namespace hooks
