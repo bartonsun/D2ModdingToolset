@@ -149,10 +149,9 @@ protected:
     const RoomInfo* getSelectedRoom();
     void updateAccountText(const char* accountName);
     void initializeButtonsHandlers();
-    void showError(const char* message);
+    void fillNetMsgEntries();
     void processJoin(const char* roomName, const SLNet::RakNetGUID& serverGuid);
     void setRoomsInfo(std::vector<RoomInfo>&& value);
-    void processJoinError(const char* message);
     void registerClientPlayerAndJoin();
 
 private:

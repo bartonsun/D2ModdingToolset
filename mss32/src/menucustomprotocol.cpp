@@ -20,6 +20,7 @@
 #include "menucustomprotocol.h"
 #include "dialoginterf.h"
 #include "editboxinterf.h"
+#include "interfaceutils.h"
 #include "listbox.h"
 #include "log.h"
 #include "mempool.h"
@@ -296,13 +297,13 @@ CMenuCustomProtocol::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomProtoco
 
     CPopupDialogInterfApi::get().constructor(this, dialogName, nullptr);
 
-    assignButtonHandler("BTN_CANCEL", (CMenuBaseApi::Api::ButtonCallback)cancelBtnHandler);
-    assignButtonHandler("BTN_OK", (CMenuBaseApi::Api::ButtonCallback)okBtnHandler);
-    assignButtonHandler("BTN_REGISTER", (CMenuBaseApi::Api::ButtonCallback)registerBtnHandler);
+    setButtonCallback(*dialog, "BTN_CANCEL", cancelBtnHandler, this);
+    setButtonCallback(*dialog, "BTN_OK", okBtnHandler, this);
+    setButtonCallback(*dialog, "BTN_REGISTER", registerBtnHandler, this);
 
     // Using EditFilter::Names for consistency with other game menus like CMenuNewSkirmishMulti
-    setEditFilterAndLength("EDIT_ACCOUNT_NAME", EditFilter::Names, 16, false);
-    setEditFilterAndLength("EDIT_PASSWORD", EditFilter::Names, 16, true);
+    setEditBoxData(*dialog, "EDIT_ACCOUNT_NAME", EditFilter::Names, 16, false);
+    setEditBoxData(*dialog, "EDIT_PASSWORD", EditFilter::Names, 16, true);
 }
 
 void __fastcall CMenuCustomProtocol::CLoginAccountInterf::okBtnHandler(CLoginAccountInterf* thisptr,
@@ -363,13 +364,13 @@ CMenuCustomProtocol::CRegisterAccountInterf::CRegisterAccountInterf(CMenuCustomP
 
     CPopupDialogInterfApi::get().constructor(this, dialogName, nullptr);
 
-    assignButtonHandler("BTN_CANCEL", (CMenuBaseApi::Api::ButtonCallback)cancelBtnHandler);
-    assignButtonHandler("BTN_OK", (CMenuBaseApi::Api::ButtonCallback)okBtnHandler);
+    setButtonCallback(*dialog, "BTN_CANCEL", cancelBtnHandler, this);
+    setButtonCallback(*dialog, "BTN_OK", okBtnHandler, this);
 
     // Using EditFilter::Names for consistency with other game menus like CMenuNewSkirmishMulti
-    setEditFilterAndLength("EDIT_ACCOUNT_NAME", EditFilter::Names, 16, false);
+    setEditBoxData(*dialog, "EDIT_ACCOUNT_NAME", EditFilter::Names, 16, false);
     // TODO: add repeat-password edit, mask both edits with asterisks
-    setEditFilterAndLength("EDIT_PASSWORD", EditFilter::Names, 16, false);
+    setEditBoxData(*dialog, "EDIT_PASSWORD", EditFilter::Names, 16, false);
 }
 
 void __fastcall CMenuCustomProtocol::CRegisterAccountInterf::okBtnHandler(

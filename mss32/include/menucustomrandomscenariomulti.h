@@ -38,7 +38,7 @@ public:
 protected:
     static game::RttiInfo<game::CMenuBaseVftable> rttiInfo;
 
-    static void createRoomAndServer(CMenuRandomScenario* menu);
+    static void createRoomAndServer(CMenuCustomRandomScenarioMulti* menu);
 
     // CInterface
     static void __fastcall destructor(CMenuCustomRandomScenarioMulti* thisptr,

@@ -49,8 +49,7 @@ CMenuCustomLoadSkirmishMulti::CMenuCustomLoadSkirmishMulti(game::CMenuPhase* men
     }
     this->CMenuBase::vftable = &rttiInfo.vftable;
 
-    auto service = getNetService();
-    service->addRoomsCallback(&m_roomsCallback);
+    getNetService()->addRoomsCallback(&m_roomsCallback);
 }
 
 CMenuCustomLoadSkirmishMulti::~CMenuCustomLoadSkirmishMulti()

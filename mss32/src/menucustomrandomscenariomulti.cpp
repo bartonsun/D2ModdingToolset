@@ -18,6 +18,7 @@
  */
 
 #include "menucustomrandomscenariomulti.h"
+#include "interfaceutils.h"
 #include "log.h"
 #include "mempool.h"
 #include "originalfunctions.h"
@@ -42,10 +43,9 @@ CMenuCustomRandomScenarioMulti::CMenuCustomRandomScenarioMulti(game::CMenuPhase*
     }
     this->vftable = &rttiInfo.vftable;
 
-    startScenario = createRoomAndServer;
+    startScenario = (StartScenario)createRoomAndServer;
 
-    auto service = getNetService();
-    service->addRoomsCallback(&m_roomsCallback);
+    getNetService()->addRoomsCallback(&m_roomsCallback);
 }
 
 CMenuCustomRandomScenarioMulti::~CMenuCustomRandomScenarioMulti()
@@ -58,13 +58,15 @@ CMenuCustomRandomScenarioMulti::~CMenuCustomRandomScenarioMulti()
     }
 }
 
-void CMenuCustomRandomScenarioMulti::createRoomAndServer(CMenuRandomScenario* menu)
+void CMenuCustomRandomScenarioMulti::createRoomAndServer(CMenuCustomRandomScenarioMulti* menu)
 {
+    using namespace game;
+
     prepareToStartRandomScenario(menu, true);
 
-    auto customMenu = (CMenuCustomRandomScenarioMulti*)menu;
-    if (!getNetService()->createRoom(customMenu->getEditText("EDIT_GAME"),
-                                     customMenu->getEditText("EDIT_PASSWORD"))) {
+    auto dialog = CMenuBaseApi::get().getDialogInterface(menu);
+    if (!getNetService()->createRoom(getEditBoxText(dialog, "EDIT_GAME"),
+                                     getEditBoxText(dialog, "EDIT_PASSWORD"))) {
         logDebug("lobby.log", "Failed to request room creation");
         auto msg{getInterfaceText(textIds().lobby.createRoomRequestFailed.c_str())};
         if (msg.empty()) {
@@ -74,7 +76,7 @@ void CMenuCustomRandomScenarioMulti::createRoomAndServer(CMenuRandomScenario* me
         return;
     }
 
-    customMenu->showWaitDialog();
+    menu->showWaitDialog();
 }
 
 void __fastcall CMenuCustomRandomScenarioMulti::destructor(CMenuCustomRandomScenarioMulti* thisptr,

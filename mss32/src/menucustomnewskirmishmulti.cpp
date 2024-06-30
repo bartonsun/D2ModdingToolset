@@ -22,6 +22,7 @@
 #include "dialoginterf.h"
 #include "editboxinterf.h"
 #include "game.h"
+#include "interfaceutils.h"
 #include "listbox.h"
 #include "log.h"
 #include "mempool.h"
@@ -40,8 +41,6 @@ CMenuCustomNewSkirmishMulti::CMenuCustomNewSkirmishMulti(game::CMenuPhase* menuP
 {
     using namespace game;
 
-    const auto& menuBaseApi = CMenuBaseApi::get();
-
     CMenuNewSkirmishMultiApi::get().constructor(this, menuPhase);
 
     static RttiInfo<CMenuNewSkirmishMultiVftable> rttiInfo = {};
@@ -51,15 +50,10 @@ CMenuCustomNewSkirmishMulti::CMenuCustomNewSkirmishMulti(game::CMenuPhase* menuP
     }
     this->vftable = &rttiInfo.vftable;
 
-    auto service = getNetService();
-    service->addRoomsCallback(&m_roomsCallback);
+    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
+    setButtonCallback(dialog, "BTN_LOAD", loadBtnHandler, this);
 
-    SmartPointer functor;
-    auto callback = (CMenuBaseApi::Api::ButtonCallback)loadBtnHandler;
-    menuBaseApi.createButtonFunctor(&functor, 0, this, &callback);
-    auto dialog = menuBaseApi.getDialogInterface(this);
-    CButtonInterfApi::get().assignFunctor(dialog, "BTN_LOAD", dialogName, &functor, 0);
-    SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
+    getNetService()->addRoomsCallback(&m_roomsCallback);
 }
 
 CMenuCustomNewSkirmishMulti::~CMenuCustomNewSkirmishMulti()
@@ -136,8 +130,9 @@ void __fastcall CMenuCustomNewSkirmishMulti::loadBtnHandler(CMenuCustomNewSkirmi
     menuPhaseApi.setScenarioName(menuPhase, scenario->name.string);
     menuPhaseApi.setScenarioDescription(menuPhase, scenario->description.string);
 
-    if (!getNetService()->createRoom(thisptr->getEditText("EDIT_GAME"),
-                                     thisptr->getEditText("EDIT_PASSWORD"))) {
+    auto dialog = CMenuBaseApi::get().getDialogInterface(thisptr);
+    if (!getNetService()->createRoom(getEditBoxText(dialog, "EDIT_GAME"),
+                                     getEditBoxText(dialog, "EDIT_PASSWORD"))) {
         logDebug("lobby.log", "Failed to request room creation");
         auto msg{getInterfaceText(textIds().lobby.createRoomRequestFailed.c_str())};
         if (msg.empty()) {
@@ -168,12 +163,15 @@ const game::ScenarioData* CMenuCustomNewSkirmishMulti::getSelectedScenario()
 
 bool CMenuCustomNewSkirmishMulti::isGameAndPlayerNamesValid()
 {
-    auto gameName = getEditText("EDIT_GAME");
+    using namespace game;
+
+    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
+    auto gameName = getEditBoxText(dialog, "EDIT_GAME");
     if (!gameName || !strlen(gameName)) {
         return false;
     }
 
-    auto playerName = getEditText("EDIT_NAME");
+    auto playerName = getEditBoxText(dialog, "EDIT_NAME");
     if (!playerName || !strlen(playerName)) {
         return false;
     }

@@ -62,15 +62,6 @@ game::CMenuBase* CMenuCustomBase::getMenu() const
     return m_menu;
 }
 
-const char* CMenuCustomBase::getEditText(const char* name)
-{
-    using namespace game;
-
-    auto dialog = CMenuBaseApi::get().getDialogInterface(m_menu);
-    auto edit = CDialogInterfApi::get().findEditBox(dialog, name);
-    return edit ? edit->data->editBoxData.inputString.string : nullptr;
-}
-
 void CMenuCustomBase::showWaitDialog()
 {
     using namespace game;
@@ -113,34 +104,6 @@ CMenuCustomBase::CPopupDialogCustomBase::CPopupDialogCustomBase(game::CPopupDial
     : m_dialog{dialog}
     , m_dialogName{dialogName}
 { }
-
-void CMenuCustomBase::CPopupDialogCustomBase::assignButtonHandler(
-    const char* buttonName,
-    game::CMenuBaseApi::Api::ButtonCallback handler)
-{
-    using namespace game;
-
-    SmartPointer functor;
-    CMenuBaseApi::get().createButtonFunctor(&functor, 0, (CMenuBase*)m_dialog, &handler);
-    CButtonInterfApi::get().assignFunctor(*m_dialog->dialog, buttonName, m_dialogName.c_str(),
-                                          &functor, 0);
-    SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
-}
-
-void CMenuCustomBase::CPopupDialogCustomBase::setEditFilterAndLength(const char* editName,
-                                                                     game::EditFilter filter,
-                                                                     int length,
-                                                                     bool password)
-{
-    using namespace game;
-
-    auto editBox = CEditBoxInterfApi::get().setFilterAndLength(*m_dialog->dialog, editName,
-                                                               m_dialogName.c_str(), filter,
-                                                               length);
-    if (editBox) {
-        editBox->data->editBoxData.patched.isPassword = password;
-    }
-}
 
 CMenuCustomBase::CMidMsgBoxBackToMainButtonHandler::CMidMsgBoxBackToMainButtonHandler(
     game::CMenuBase* menu)

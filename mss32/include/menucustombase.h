@@ -43,7 +43,6 @@ public:
 
 protected:
     game::CMenuBase* getMenu() const;
-    const char* getEditText(const char* name);
     void showWaitDialog();
     void hideWaitDialog();
     void onConnectionLost();
@@ -52,14 +51,6 @@ protected:
     {
     public:
         CPopupDialogCustomBase(game::CPopupDialogInterf* dialog, const char* dialogName);
-
-    protected:
-        void assignButtonHandler(const char* buttonName,
-                                 game::CMenuBaseApi::Api::ButtonCallback handler);
-        void setEditFilterAndLength(const char* editName,
-                                    game::EditFilter filter,
-                                    int length,
-                                    bool password);
 
     private:
         game::CPopupDialogInterf* m_dialog;
