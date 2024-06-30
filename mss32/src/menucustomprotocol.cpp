@@ -309,24 +309,9 @@ CMenuCustomProtocol::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomProtoco
 void __fastcall CMenuCustomProtocol::CLoginAccountInterf::okBtnHandler(CLoginAccountInterf* thisptr,
                                                                        int /*%edx*/)
 {
-    using namespace game;
-
-    auto& dialogApi = CDialogInterfApi::get();
     auto dialog = *thisptr->dialog;
-
-    const char* accountName = nullptr;
-    auto accountNameEdit = dialogApi.findEditBox(dialog, "EDIT_ACCOUNT_NAME");
-    if (accountNameEdit) {
-        accountName = accountNameEdit->data->editBoxData.inputString.string;
-    }
-
-    const char* password = nullptr;
-    auto passwordEdit = dialogApi.findEditBox(dialog, "EDIT_PASSWORD");
-    if (passwordEdit) {
-        password = passwordEdit->data->editBoxData.inputString.string;
-    }
-
-    if (!getNetService()->loginAccount(accountName, password)) {
+    if (!getNetService()->loginAccount(getEditBoxText(dialog, "EDIT_ACCOUNT_NAME"),
+                                       getEditBoxText(dialog, "EDIT_PASSWORD"))) {
         auto message{getInterfaceText(textIds().lobby.invalidAccountNameOrPassword.c_str())};
         if (message.empty()) {
             message = "Account name or password are either empty or invalid.";
@@ -377,24 +362,9 @@ void __fastcall CMenuCustomProtocol::CRegisterAccountInterf::okBtnHandler(
     CRegisterAccountInterf* thisptr,
     int /*%edx*/)
 {
-    using namespace game;
-
-    auto& dialogApi = CDialogInterfApi::get();
     auto dialog = *thisptr->dialog;
-
-    const char* accountName = nullptr;
-    auto accountNameEdit = dialogApi.findEditBox(dialog, "EDIT_ACCOUNT_NAME");
-    if (accountNameEdit) {
-        accountName = accountNameEdit->data->editBoxData.inputString.string;
-    }
-
-    const char* password = nullptr;
-    auto passwordEdit = dialogApi.findEditBox(dialog, "EDIT_PASSWORD");
-    if (passwordEdit) {
-        password = passwordEdit->data->editBoxData.inputString.string;
-    }
-
-    if (!getNetService()->createAccount(accountName, password)) {
+    if (!getNetService()->createAccount(getEditBoxText(dialog, "EDIT_ACCOUNT_NAME"),
+                                        getEditBoxText(dialog, "EDIT_PASSWORD"))) {
         auto message{getInterfaceText(textIds().lobby.invalidAccountNameOrPassword.c_str())};
         if (message.empty()) {
             message = "Account name or password are either empty or invalid.";

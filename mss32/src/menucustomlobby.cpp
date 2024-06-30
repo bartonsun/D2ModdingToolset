@@ -766,17 +766,8 @@ CMenuCustomLobby::CRoomPasswordInterf::CRoomPasswordInterf(CMenuCustomLobby* men
 void __fastcall CMenuCustomLobby::CRoomPasswordInterf::okBtnHandler(CRoomPasswordInterf* thisptr,
                                                                     int /*%edx*/)
 {
-    using namespace game;
-
-    // TODO: generic getEditText for menus and dialogs
-    const char* password = nullptr;
-    auto passwordEdit = CDialogInterfApi::get().findEditBox(*thisptr->dialog, "EDIT_PASSWORD");
-    if (passwordEdit) {
-        password = passwordEdit->data->editBoxData.inputString.string;
-    }
-
     auto menu = thisptr->m_menu;
-    if (menu->joiningRoomPassword == password) {
+    if (menu->joiningRoomPassword == getEditBoxText(*thisptr->dialog, "EDIT_PASSWORD")) {
         getNetService()->joinRoom(menu->joiningRoomId);
         menu->hideRoomPasswordDialog();
         menu->showWaitDialog();
