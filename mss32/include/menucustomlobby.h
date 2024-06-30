@@ -58,13 +58,10 @@ protected:
     void showRoomPasswordDialog();
     void hideRoomPasswordDialog();
 
-    static void __fastcall registerAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/);
-    static void __fastcall loginAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/);
-    static void __fastcall logoutAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/);
-    static void __fastcall roomsListSearchHandler(CMenuCustomLobby*, int /*%edx*/);
     static void __fastcall createRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall loadBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall joinRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
+    static void __fastcall roomsListSearchHandler(CMenuCustomLobby*, int /*%edx*/);
     static void __fastcall listBoxDisplayHandler(CMenuCustomLobby* thisptr,
                                                  int /*%edx*/,
                                                  game::ImagePointList* contents,
@@ -148,7 +145,6 @@ protected:
 
     const RoomInfo* getSelectedRoom();
     void updateAccountText(const char* accountName);
-    void initializeButtonsHandlers();
     void fillNetMsgEntries();
     void processJoin(const char* roomName, const SLNet::RakNetGUID& serverGuid);
     void setRoomsInfo(std::vector<RoomInfo>&& value);

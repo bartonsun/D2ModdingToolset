@@ -60,6 +60,7 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     using namespace game;
 
     const auto& menuBaseApi = CMenuBaseApi::get();
+    const auto& listBoxApi = CListBoxInterfApi::get();
 
     menuBaseApi.constructor(this, menuPhase);
 
@@ -76,9 +77,24 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
 
     menuBaseApi.createMenu(this, dialogName);
 
+    auto dialog = menuBaseApi.getDialogInterface(this);
+    setButtonCallback(dialog, "BTN_BACK", backBtnHandler, this);
+    setButtonCallback(dialog, "BTN_CREATE", createRoomBtnHandler, this);
+    setButtonCallback(dialog, "BTN_LOAD", loadBtnHandler, this);
+    setButtonCallback(dialog, "BTN_JOIN", joinRoomBtnHandler, this);
+
+    auto listBoxRooms = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
+    if (listBoxRooms) {
+        SmartPointer functor;
+        auto callback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxDisplayHandler;
+        menuBaseApi.createListBoxDisplayFunctor(&functor, 0, this, &callback);
+        listBoxApi.assignDisplaySurfaceFunctor(dialog, "LBOX_ROOMS", dialogName, &functor);
+        listBoxApi.setElementsTotal(listBoxRooms, 0);
+        SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
+    }
+
     auto service = getNetService();
     fillNetMsgEntries();
-    initializeButtonsHandlers();
     updateAccountText(service->getAccountName().c_str());
 
     service->addRoomsCallback(&roomsCallbacks);
@@ -108,24 +124,6 @@ CMenuCustomLobby ::~CMenuCustomLobby()
     }
 
     CMenuBaseApi::get().destructor(this);
-}
-
-void CMenuCustomLobby::updateAccountText(const char* accountName)
-{
-    using namespace game;
-
-    auto& menuBase = CMenuBaseApi::get();
-    auto& dialogApi = CDialogInterfApi::get();
-    auto dialog = menuBase.getDialogInterface(this);
-    auto textBox = dialogApi.findTextBox(dialog, "TXT_NICKNAME");
-
-    if (accountName) {
-        auto text{fmt::format("\\fLarge;\\vC;\\hC;{:s}", accountName)};
-        CTextBoxInterfApi::get().setString(textBox, text.c_str());
-        return;
-    }
-
-    CTextBoxInterfApi::get().setString(textBox, "");
 }
 
 void __fastcall CMenuCustomLobby::destructor(CMenuCustomLobby* thisptr, int /*%edx*/, char flags)
@@ -161,27 +159,6 @@ void CMenuCustomLobby::hideRoomPasswordDialog()
     }
 }
 
-void __fastcall CMenuCustomLobby::registerAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/)
-{
-    // TODO: remove
-}
-
-void __fastcall CMenuCustomLobby::loginAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/)
-{
-    // TODO: remove
-}
-
-void __fastcall CMenuCustomLobby::logoutAccountBtnHandler(CMenuCustomLobby*, int /*%edx*/)
-{
-    logDebug("lobby.log", "User logging out");
-    getNetService()->logoutAccount();
-}
-
-void __fastcall CMenuCustomLobby::roomsListSearchHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
-{
-    getNetService()->searchRooms();
-}
-
 void __fastcall CMenuCustomLobby::createRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
 {
     using namespace game;
@@ -206,16 +183,6 @@ void __fastcall CMenuCustomLobby::loadBtnHandler(CMenuCustomLobby* thisptr, int 
     logDebug("transitions.log",
              "Create room, pretend we are in CMenuMulti, transition to CMenuLoadSkirmishMulti");
     game::CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Multi2LoadSkirmish);
-}
-
-const CMenuCustomLobby::RoomInfo* CMenuCustomLobby::getSelectedRoom()
-{
-    using namespace game;
-
-    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-    auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
-    auto index = (size_t)CListBoxInterfApi::get().selectedIndex(listBox);
-    return index < rooms.size() ? &rooms[index] : nullptr;
 }
 
 void __fastcall CMenuCustomLobby::joinRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
@@ -249,6 +216,11 @@ void __fastcall CMenuCustomLobby::joinRoomBtnHandler(CMenuCustomLobby* thisptr, 
         thisptr->joiningRoomPassword = room->password;
         thisptr->showRoomPasswordDialog();
     }
+}
+
+void __fastcall CMenuCustomLobby::roomsListSearchHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
+{
+    getNetService()->searchRooms();
 }
 
 void __fastcall CMenuCustomLobby::listBoxDisplayHandler(CMenuCustomLobby* thisptr,
@@ -469,27 +441,32 @@ void __fastcall CMenuCustomLobby::backBtnHandler(CMenuCustomLobby* thisptr, int 
     showMessageBox(message, handler, true);
 }
 
-void CMenuCustomLobby::initializeButtonsHandlers()
+const CMenuCustomLobby::RoomInfo* CMenuCustomLobby::getSelectedRoom()
 {
     using namespace game;
 
-    const auto& menuBaseApi = CMenuBaseApi::get();
-    const auto& listBoxApi = CListBoxInterfApi::get();
+    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
+    auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
+    auto index = (size_t)CListBoxInterfApi::get().selectedIndex(listBox);
+    return index < rooms.size() ? &rooms[index] : nullptr;
+}
 
-    auto dialog = menuBaseApi.getDialogInterface(this);
-    setButtonCallback(dialog, "BTN_BACK", backBtnHandler, this);
-    setButtonCallback(dialog, "BTN_CREATE", createRoomBtnHandler, this);
-    setButtonCallback(dialog, "BTN_LOAD", loadBtnHandler, this);
-    setButtonCallback(dialog, "BTN_JOIN", joinRoomBtnHandler, this);
+void CMenuCustomLobby::updateAccountText(const char* accountName)
+{
+    using namespace game;
 
-    auto listBoxRooms = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
-    if (listBoxRooms) {
-        SmartPointer functor;
-        auto callback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxDisplayHandler;
-        menuBaseApi.createListBoxDisplayFunctor(&functor, 0, this, &callback);
-        listBoxApi.assignDisplaySurfaceFunctor(dialog, "LBOX_ROOMS", dialogName, &functor);
-        listBoxApi.setElementsTotal(listBoxRooms, 0);
-        SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
+    const auto& textBoxApi = CTextBoxInterfApi::get();
+
+    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
+    auto textBox = CDialogInterfApi::get().findTextBox(dialog, "TXT_NICKNAME");
+    if (!textBox) {
+        return;
+    }
+
+    if (accountName) {
+        textBoxApi.setString(textBox, fmt::format("\\fLarge;\\vC;\\hC;{:s}", accountName).c_str());
+    } else {
+        textBoxApi.setString(textBox, "");
     }
 }
 
