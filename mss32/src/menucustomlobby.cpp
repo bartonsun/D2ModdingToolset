@@ -458,7 +458,7 @@ CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* 
 SLNet::RoomMemberDescriptor* CMenuCustomLobby::getRoomModerator(
     DataStructures::List<SLNet::RoomMemberDescriptor>& roomMembers)
 {
-    for (std::uint32_t i = 0; i < roomMembers.Size(); ++i) {
+    for (unsigned int i = 0; i < roomMembers.Size(); ++i) {
         auto& member = roomMembers[i];
         if (member.roomMemberMode == RMM_MODERATOR) {
             return &member;
@@ -472,16 +472,30 @@ void CMenuCustomLobby::updateRooms(DataStructures::List<SLNet::RoomDescriptor*>&
 {
     using namespace game;
 
-    rooms.clear();
-    rooms.reserve(roomDescriptors.Size());
-    for (std::uint32_t i = 0; i < roomDescriptors.Size(); ++i) {
-        rooms.push_back(getRoomInfo(roomDescriptors[i]));
+    const auto& listBoxApi = CListBoxInterfApi::get();
+
+    SLNet::RoomID selectedRoomId = (unsigned)-1;
+    auto selectedRoom = getSelectedRoom();
+    if (selectedRoom) {
+        selectedRoomId = selectedRoom->id;
     }
 
-    // TODO: preserve selected room
+    rooms.clear();
+    rooms.reserve(roomDescriptors.Size());
+    auto selectedIndex = (unsigned)-1;
+    for (unsigned int i = 0; i < roomDescriptors.Size(); ++i) {
+        rooms.push_back(getRoomInfo(roomDescriptors[i]));
+        if (rooms.back().id == selectedRoomId) {
+            selectedIndex = i;
+        }
+    }
+
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
     auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
-    CListBoxInterfApi::get().setElementsTotal(listBox, (int)rooms.size());
+    listBoxApi.setElementsTotal(listBox, (int)rooms.size());
+    if (selectedIndex != (unsigned)-1) {
+        listBoxApi.setSelectedIndex(listBox, selectedIndex);
+    }
 }
 
 const CMenuCustomLobby::RoomInfo* CMenuCustomLobby::getSelectedRoom()
