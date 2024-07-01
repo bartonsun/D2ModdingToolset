@@ -517,11 +517,7 @@ void CMenuCustomLobby::updateAccountText(const char* accountName)
         return;
     }
 
-    if (accountName) {
-        textBoxApi.setString(textBox, fmt::format("\\fLarge;\\vC;\\hC;{:s}", accountName).c_str());
-    } else {
-        textBoxApi.setString(textBox, "");
-    }
+    textBoxApi.setString(textBox, accountName ? accountName : "");
 }
 
 void CMenuCustomLobby::fillNetMsgEntries()
