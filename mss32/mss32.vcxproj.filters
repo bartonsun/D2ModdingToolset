@@ -3289,6 +3289,9 @@
     <ClInclude Include="include\menucustomrandomscenariomulti.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
+    <ClInclude Include="include\gameversion.h">
+      <Filter>game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="mss32.rc">

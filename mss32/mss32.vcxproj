@@ -674,6 +674,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\diplomacyhooks.h" />
     <ClInclude Include="include\fonts.h" />
     <ClInclude Include="include\fontshooks.h" />
+    <ClInclude Include="include\gameversion.h" />
     <ClInclude Include="include\menucustomloadskirmishmulti.h" />
     <ClInclude Include="include\menucustomnewskirmishmulti.h" />
     <ClInclude Include="include\menucustomrandomscenariomulti.h" />

@@ -20,6 +20,7 @@
 #ifndef MIDSERVERBUILDER_H
 #define MIDSERVERBUILDER_H
 
+#include "gameversion.h"
 #include "midgardid.h"
 
 namespace game {
@@ -68,7 +69,7 @@ struct CMidServerBuilderFull : public IMidServerBuilder
     bool multiplayerGame;
     bool hotseatGame;
     int value3; /**< Always set to 3 in constructor. */
-    int gameVersion;
+    GameVersion gameVersion;
     CMidgardID id;
     CMidgardID campaignId;
     char scenarioFilePath[261];
