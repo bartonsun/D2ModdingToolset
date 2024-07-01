@@ -79,14 +79,14 @@ protected:
                                              const game::CMenusAnsInfoMsg* message,
                                              std::uint32_t idFrom);
 
-    class RoomListCallbacks : public SLNet::RoomsCallback
+    class RoomsCallback : public SLNet::RoomsCallback
     {
     public:
-        RoomListCallbacks(CMenuCustomLobby* menuLobby)
-            : menuLobby{menuLobby}
+        RoomsCallback(CMenuCustomLobby* menu)
+            : m_menu{menu}
         { }
 
-        ~RoomListCallbacks() override = default;
+        ~RoomsCallback() override = default;
 
         void JoinByFilter_Callback(const SLNet::SystemAddress& senderAddress,
                                    SLNet::JoinByFilter_Func* callResult) override;
@@ -95,13 +95,13 @@ protected:
                                      SLNet::SearchByFilter_Func* callResult) override;
 
     private:
-        CMenuCustomLobby* menuLobby;
+        CMenuCustomLobby* m_menu;
     };
 
     struct CConfirmBackMsgBoxButtonHandler : public game::CMidMsgBoxButtonHandler
     {
     public:
-        CConfirmBackMsgBoxButtonHandler(CMenuCustomLobby* menuLobby);
+        CConfirmBackMsgBoxButtonHandler(CMenuCustomLobby* menu);
 
     protected:
         static void __fastcall destructor(CConfirmBackMsgBoxButtonHandler* thisptr,
@@ -113,7 +113,7 @@ protected:
                                        bool okPressed);
 
     private:
-        CMenuCustomLobby* menuLobby;
+        CMenuCustomLobby* m_menu;
     };
     assert_offset(CConfirmBackMsgBoxButtonHandler, vftable, 0);
 
@@ -154,13 +154,13 @@ protected:
     void joinServer(SLNet::RoomDescriptor* roomDescriptor);
 
 private:
-    game::UiEvent roomsListEvent;
-    std::vector<RoomInfo> rooms;
-    RoomListCallbacks roomsCallbacks;
-    game::NetMsgEntryData** netMsgEntryData;
-    CRoomPasswordInterf* roomPasswordDialog;
-    SLNet::RoomID joiningRoomId;
-    std::string joiningRoomPassword;
+    game::UiEvent m_roomsListEvent;
+    std::vector<RoomInfo> m_rooms;
+    RoomsCallback m_roomsCallback;
+    game::NetMsgEntryData** m_netMsgEntryData;
+    CRoomPasswordInterf* m_roomPasswordDialog;
+    SLNet::RoomID m_joiningRoomId;
+    std::string m_joiningRoomPassword;
 };
 
 assert_offset(CMenuCustomLobby, vftable, 0);

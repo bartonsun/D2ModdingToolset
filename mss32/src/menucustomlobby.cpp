@@ -53,9 +53,9 @@ namespace hooks {
 
 CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     : CMenuCustomBase(this)
-    , roomsCallbacks(this)
-    , netMsgEntryData(nullptr)
-    , roomPasswordDialog(nullptr)
+    , m_roomsCallback(this)
+    , m_netMsgEntryData(nullptr)
+    , m_roomPasswordDialog(nullptr)
 {
     using namespace game;
 
@@ -97,11 +97,11 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     fillNetMsgEntries();
     updateAccountText(service->getAccountName().c_str());
 
-    service->addRoomsCallback(&roomsCallbacks);
+    service->addRoomsCallback(&m_roomsCallback);
 
     // Request rooms list as soon as possible, no need to wait for event
     service->searchRooms();
-    createTimerEvent(&roomsListEvent, this, roomsListSearchHandler, roomListUpdateInterval);
+    createTimerEvent(&m_roomsListEvent, this, roomsListSearchHandler, roomListUpdateInterval);
 }
 
 CMenuCustomLobby ::~CMenuCustomLobby()
@@ -111,16 +111,16 @@ CMenuCustomLobby ::~CMenuCustomLobby()
     hideRoomPasswordDialog();
 
     logDebug("transitions.log", "Delete rooms list event");
-    UiEventApi::get().destructor(&roomsListEvent);
+    UiEventApi::get().destructor(&m_roomsListEvent);
 
     auto service = getNetService();
     if (service) {
-        service->removeRoomsCallback(&roomsCallbacks);
+        service->removeRoomsCallback(&m_roomsCallback);
     }
 
-    if (netMsgEntryData) {
+    if (m_netMsgEntryData) {
         logDebug("transitions.log", "Delete custom lobby menu netMsgEntryData");
-        NetMsgApi::get().freeEntryData(netMsgEntryData);
+        NetMsgApi::get().freeEntryData(m_netMsgEntryData);
     }
 
     CMenuBaseApi::get().destructor(this);
@@ -140,21 +140,22 @@ void CMenuCustomLobby::showRoomPasswordDialog()
 {
     using namespace game;
 
-    if (roomPasswordDialog) {
+    if (m_roomPasswordDialog) {
         logDebug("lobby.log", "Error showing room-password dialog that is already shown");
         return;
     }
 
-    roomPasswordDialog = (CRoomPasswordInterf*)Memory::get().allocate(sizeof(CRoomPasswordInterf));
-    showInterface(new (roomPasswordDialog) CRoomPasswordInterf(this));
+    m_roomPasswordDialog = (CRoomPasswordInterf*)Memory::get().allocate(
+        sizeof(CRoomPasswordInterf));
+    showInterface(new (m_roomPasswordDialog) CRoomPasswordInterf(this));
 }
 
 void CMenuCustomLobby::hideRoomPasswordDialog()
 {
-    if (roomPasswordDialog) {
-        hideInterface(roomPasswordDialog);
-        roomPasswordDialog->vftable->destructor(roomPasswordDialog, 1);
-        roomPasswordDialog = nullptr;
+    if (m_roomPasswordDialog) {
+        hideInterface(m_roomPasswordDialog);
+        m_roomPasswordDialog->vftable->destructor(m_roomPasswordDialog, 1);
+        m_roomPasswordDialog = nullptr;
     }
 }
 
@@ -203,8 +204,8 @@ void __fastcall CMenuCustomLobby::joinBtnHandler(CMenuCustomLobby* thisptr, int 
         thisptr->showWaitDialog();
     } else {
         // Store selected room info because the room list can be updated while the dialog is shown
-        thisptr->joiningRoomId = room->id;
-        thisptr->joiningRoomPassword = room->password;
+        thisptr->m_joiningRoomId = room->id;
+        thisptr->m_joiningRoomPassword = room->password;
         thisptr->showRoomPasswordDialog();
     }
 }
@@ -237,7 +238,7 @@ void __fastcall CMenuCustomLobby::listBoxDisplayHandler(CMenuCustomLobby* thispt
                                                         int index,
                                                         bool selected)
 {
-    if (thisptr->rooms.empty()) {
+    if (thisptr->m_rooms.empty()) {
         return;
     }
 
@@ -248,7 +249,7 @@ void __fastcall CMenuCustomLobby::listBoxDisplayHandler(CMenuCustomLobby* thispt
 
     const auto width = lineArea->right - lineArea->left;
     const auto height = lineArea->bottom - lineArea->top;
-    const auto& room = thisptr->rooms[(size_t)index % thisptr->rooms.size()];
+    const auto& room = thisptr->m_rooms[(size_t)index % thisptr->m_rooms.size()];
 
     // Width of table column border image in pixels
     const int columnBorderWidth{9};
@@ -462,19 +463,19 @@ void CMenuCustomLobby::updateRooms(DataStructures::List<SLNet::RoomDescriptor*>&
         selectedRoomId = selectedRoom->id;
     }
 
-    rooms.clear();
-    rooms.reserve(roomDescriptors.Size());
+    m_rooms.clear();
+    m_rooms.reserve(roomDescriptors.Size());
     auto selectedIndex = (unsigned)-1;
     for (unsigned int i = 0; i < roomDescriptors.Size(); ++i) {
-        rooms.push_back(getRoomInfo(roomDescriptors[i]));
-        if (rooms.back().id == selectedRoomId) {
+        m_rooms.push_back(getRoomInfo(roomDescriptors[i]));
+        if (m_rooms.back().id == selectedRoomId) {
             selectedIndex = i;
         }
     }
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
     auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
-    listBoxApi.setElementsTotal(listBox, (int)rooms.size());
+    listBoxApi.setElementsTotal(listBox, (int)m_rooms.size());
     if (selectedIndex != (unsigned)-1) {
         listBoxApi.setSelectedIndex(listBox, selectedIndex);
     }
@@ -487,7 +488,7 @@ const CMenuCustomLobby::RoomInfo* CMenuCustomLobby::getSelectedRoom()
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
     auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
     auto index = (size_t)CListBoxInterfApi::get().selectedIndex(listBox);
-    return index < rooms.size() ? &rooms[index] : nullptr;
+    return index < m_rooms.size() ? &m_rooms[index] : nullptr;
 }
 
 void CMenuCustomLobby::updateAccountText(const char* accountName)
@@ -512,15 +513,15 @@ void CMenuCustomLobby::fillNetMsgEntries()
     const auto& netMsgApi = NetMsgApi::get();
     auto& netMsgMapEntryApi = CNetMsgMapEntryApi::get();
 
-    netMsgApi.allocateEntryData(this->menuBaseData->menuPhase, &this->netMsgEntryData);
+    netMsgApi.allocateEntryData(this->menuBaseData->menuPhase, &this->m_netMsgEntryData);
 
     auto infoCallback = (CNetMsgMapEntryApi::Api::MenusAnsInfoCallback)ansInfoMsgHandler;
     auto entry = netMsgMapEntryApi.allocateMenusAnsInfoEntry(this, infoCallback);
-    netMsgApi.addEntry(this->netMsgEntryData, entry);
+    netMsgApi.addEntry(this->m_netMsgEntryData, entry);
 
     auto versionCallback = (CNetMsgMapEntryApi::Api::GameVersionCallback)gameVersionMsgHandler;
     entry = netMsgMapEntryApi.allocateGameVersionEntry(this, versionCallback);
-    netMsgApi.addEntry(this->netMsgEntryData, entry);
+    netMsgApi.addEntry(this->m_netMsgEntryData, entry);
 }
 
 // See CMenuSession::JoinGameBtnCallback (Akella 0x4f0136)
@@ -564,15 +565,14 @@ void CMenuCustomLobby::joinServer(SLNet::RoomDescriptor* roomDescriptor)
     }
 }
 
-void CMenuCustomLobby::RoomListCallbacks::JoinByFilter_Callback(
-    const SLNet::SystemAddress&,
-    SLNet::JoinByFilter_Func* callResult)
+void CMenuCustomLobby::RoomsCallback::JoinByFilter_Callback(const SLNet::SystemAddress&,
+                                                            SLNet::JoinByFilter_Func* callResult)
 {
-    menuLobby->hideWaitDialog();
+    m_menu->hideWaitDialog();
 
     switch (auto resultCode = callResult->resultCode) {
     case SLNet::REC_SUCCESS: {
-        menuLobby->joinServer(&callResult->joinedRoomResult.roomDescriptor);
+        m_menu->joinServer(&callResult->joinedRoomResult.roomDescriptor);
         break;
     }
 
@@ -599,20 +599,20 @@ void CMenuCustomLobby::RoomListCallbacks::JoinByFilter_Callback(
     }
 }
 
-void CMenuCustomLobby::RoomListCallbacks::SearchByFilter_Callback(
+void CMenuCustomLobby::RoomsCallback::SearchByFilter_Callback(
     const SLNet::SystemAddress&,
     SLNet::SearchByFilter_Func* callResult)
 {
     switch (auto resultCode = callResult->resultCode) {
     case SLNet::REC_SUCCESS: {
-        menuLobby->updateRooms(callResult->roomsOutput);
+        m_menu->updateRooms(callResult->roomsOutput);
         break;
     }
 
     default: {
         if (!getNetService()->loggedIn()) {
             // The error is expected, just silently remove the search event
-            game::UiEventApi::get().destructor(&menuLobby->roomsListEvent);
+            game::UiEventApi::get().destructor(&m_menu->m_roomsListEvent);
             break;
         }
 
@@ -624,8 +624,8 @@ void CMenuCustomLobby::RoomListCallbacks::SearchByFilter_Callback(
 }
 
 CMenuCustomLobby::CConfirmBackMsgBoxButtonHandler::CConfirmBackMsgBoxButtonHandler(
-    CMenuCustomLobby* menuLobby)
-    : menuLobby{menuLobby}
+    CMenuCustomLobby* menu)
+    : m_menu{menu}
 {
     static game::CMidMsgBoxButtonHandlerVftable vftable = {
         (game::CMidMsgBoxButtonHandlerVftable::Destructor)destructor,
@@ -649,7 +649,7 @@ void __fastcall CMenuCustomLobby::CConfirmBackMsgBoxButtonHandler::handler(
 {
     using namespace game;
 
-    auto interfManager = thisptr->menuLobby->interfaceData->interfManager.data;
+    auto interfManager = thisptr->m_menu->interfaceData->interfManager.data;
     interfManager->CInterfManagerImpl::CInterfManager::vftable->hideInterface(interfManager,
                                                                               msgBox);
     if (msgBox) {
@@ -657,7 +657,7 @@ void __fastcall CMenuCustomLobby::CConfirmBackMsgBoxButtonHandler::handler(
     }
 
     if (okPressed) {
-        auto menuPhase = thisptr->menuLobby->menuBaseData->menuPhase;
+        auto menuPhase = thisptr->m_menu->menuBaseData->menuPhase;
         getOriginalFunctions().menuPhaseBackToMainOrCloseGame(menuPhase, true);
     }
 }
@@ -682,8 +682,8 @@ void __fastcall CMenuCustomLobby::CRoomPasswordInterf::okBtnHandler(CRoomPasswor
                                                                     int /*%edx*/)
 {
     auto menu = thisptr->m_menu;
-    if (menu->joiningRoomPassword == getEditBoxText(*thisptr->dialog, "EDIT_PASSWORD")) {
-        getNetService()->joinRoom(menu->joiningRoomId);
+    if (menu->m_joiningRoomPassword == getEditBoxText(*thisptr->dialog, "EDIT_PASSWORD")) {
+        getNetService()->joinRoom(menu->m_joiningRoomId);
         menu->hideRoomPasswordDialog();
         menu->showWaitDialog();
     } else {
