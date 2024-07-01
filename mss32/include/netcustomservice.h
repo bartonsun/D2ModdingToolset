@@ -223,7 +223,7 @@ private:
         void ExecuteDefaultResult(const char* callbackName,
                                   SLNet::RoomsErrorCode resultCode,
                                   SLNet::RoomID roomId,
-                                  const char* roomName) const;
+                                  SLNet::RoomDescriptor* roomDescriptor = nullptr) const;
     };
 
     static void __fastcall peerProcessEventCallback(CNetCustomService* thisptr, int /*%edx*/);
