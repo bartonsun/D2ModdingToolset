@@ -163,12 +163,8 @@ void __fastcall CMenuCustomLobby::createBtnHandler(CMenuCustomLobby* thisptr, in
     using namespace game;
 
     auto menuPhase = thisptr->menuBaseData->menuPhase;
-    menuPhase->data->currentPhase = MenuPhase::Multi;
     menuPhase->data->host = true;
-
-    logDebug("transitions.log",
-             "Create room, pretend we are in CMenuMulti, transition to CMenuNewSkirmishMulti");
-    CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Multi2NewSkirmish);
+    CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::CustomLobby2NewSkirmish);
 }
 
 void __fastcall CMenuCustomLobby::loadBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
@@ -176,12 +172,8 @@ void __fastcall CMenuCustomLobby::loadBtnHandler(CMenuCustomLobby* thisptr, int 
     using namespace game;
 
     auto menuPhase = thisptr->menuBaseData->menuPhase;
-    menuPhase->data->currentPhase = MenuPhase::Multi;
     menuPhase->data->host = true;
-
-    logDebug("transitions.log",
-             "Create room, pretend we are in CMenuMulti, transition to CMenuLoadSkirmishMulti");
-    CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Multi2LoadSkirmish);
+    CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::CustomLobby2LoadSkirmish);
 }
 
 void __fastcall CMenuCustomLobby::joinBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
@@ -429,10 +421,7 @@ bool __fastcall CMenuCustomLobby::ansInfoMsgHandler(CMenuCustomLobby* menu,
     allocateString(&phaseData->scenarioName, message->scenarioName);
     allocateString(&phaseData->scenarioDescription, message->scenarioDescription);
 
-    phaseData->currentPhase = MenuPhase::Session2LobbyJoin;
-    logDebug("transitions.log",
-             "Joining room, pretend we are in phase 15, transition to CMenuLobbyJoin");
-    game::CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Session2LobbyJoin);
+    game::CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::CustomLobby2LobbyJoin);
     return true;
 }
 

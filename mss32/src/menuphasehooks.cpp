@@ -166,6 +166,18 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
         }
         case MenuPhase::CustomLobby: {
             logDebug("transitions.log", "Current is CustomLobby");
+            if (transition == MenuTransition::CustomLobby2NewSkirmish) {
+                menuPhase.showFullScreenAnimation(thisptr, &data->currentPhase,
+                                                  &data->interfManager, &data->currentMenu,
+                                                  MenuPhase::Multi2NewSkirmish, "TRANS_MULTI2HOST");
+            } else if (transition == MenuTransition::CustomLobby2LoadSkirmish) {
+                menuPhase.showFullScreenAnimation(thisptr, &data->currentPhase,
+                                                  &data->interfManager, &data->currentMenu,
+                                                  MenuPhase::Multi2LoadSkirmish,
+                                                  "TRANS_MULTI2LOAD");
+            } else if (transition == MenuTransition::CustomLobby2LobbyJoin) {
+                menuPhase.switchToLobbyHostJoin(thisptr);
+            }
             break;
         }
         case MenuPhase::Hotseat:

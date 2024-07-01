@@ -85,6 +85,9 @@ enum class MenuTransition : int
     NewSkirmishHotseat2RandomScenarioHotseat = NewSkirmishSingle2RandomScenarioSingle,
     RandomScenarioSingle2RaceCampaign = 0,
     RandomScenarioMulti2LobbyHost = 0,
+    CustomLobby2NewSkirmish = 0,
+    CustomLobby2LoadSkirmish = 1,
+    CustomLobby2LobbyJoin = 2,
 };
 
 /**
