@@ -59,9 +59,10 @@ protected:
     void showRoomPasswordDialog();
     void hideRoomPasswordDialog();
 
-    static void __fastcall createRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
+    static void __fastcall createBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall loadBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
-    static void __fastcall joinRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
+    static void __fastcall joinBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
+    static void __fastcall backBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall roomsListSearchHandler(CMenuCustomLobby*, int /*%edx*/);
     static void __fastcall listBoxDisplayHandler(CMenuCustomLobby* thisptr,
                                                  int /*%edx*/,
@@ -69,15 +70,14 @@ protected:
                                                  const game::CMqRect* lineArea,
                                                  int index,
                                                  bool selected);
-    static bool __fastcall ansInfoMsgHandler(CMenuCustomLobby* menu,
-                                             int /*%edx*/,
-                                             const game::CMenusAnsInfoMsg* message,
-                                             std::uint32_t idFrom);
     static bool __fastcall gameVersionMsgHandler(CMenuCustomLobby* menu,
                                                  int /*%edx*/,
                                                  const game::CGameVersionMsg* message,
                                                  std::uint32_t idFrom);
-    static void __fastcall backBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
+    static bool __fastcall ansInfoMsgHandler(CMenuCustomLobby* menu,
+                                             int /*%edx*/,
+                                             const game::CMenusAnsInfoMsg* message,
+                                             std::uint32_t idFrom);
 
     class RoomListCallbacks : public SLNet::RoomsCallback
     {

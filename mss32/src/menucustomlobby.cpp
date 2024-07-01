@@ -79,9 +79,9 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
 
     auto dialog = menuBaseApi.getDialogInterface(this);
     setButtonCallback(dialog, "BTN_BACK", backBtnHandler, this);
-    setButtonCallback(dialog, "BTN_CREATE", createRoomBtnHandler, this);
+    setButtonCallback(dialog, "BTN_CREATE", createBtnHandler, this);
     setButtonCallback(dialog, "BTN_LOAD", loadBtnHandler, this);
-    setButtonCallback(dialog, "BTN_JOIN", joinRoomBtnHandler, this);
+    setButtonCallback(dialog, "BTN_JOIN", joinBtnHandler, this);
 
     auto listBoxRooms = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
     if (listBoxRooms) {
@@ -158,7 +158,7 @@ void CMenuCustomLobby::hideRoomPasswordDialog()
     }
 }
 
-void __fastcall CMenuCustomLobby::createRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
+void __fastcall CMenuCustomLobby::createBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
 {
     using namespace game;
 
@@ -184,7 +184,7 @@ void __fastcall CMenuCustomLobby::loadBtnHandler(CMenuCustomLobby* thisptr, int 
     CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Multi2LoadSkirmish);
 }
 
-void __fastcall CMenuCustomLobby::joinRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
+void __fastcall CMenuCustomLobby::joinBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
 {
     auto room = thisptr->getSelectedRoom();
     if (!room) {
@@ -215,6 +215,22 @@ void __fastcall CMenuCustomLobby::joinRoomBtnHandler(CMenuCustomLobby* thisptr, 
         thisptr->joiningRoomPassword = room->password;
         thisptr->showRoomPasswordDialog();
     }
+}
+
+void __fastcall CMenuCustomLobby::backBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
+{
+    using namespace game;
+
+    auto message = getInterfaceText(textIds().lobby.confirmBack.c_str());
+    if (message.empty()) {
+        message = "Do you really want to exit the lobby?";
+    }
+
+    auto handler = (CConfirmBackMsgBoxButtonHandler*)Memory::get().allocate(
+        sizeof(CConfirmBackMsgBoxButtonHandler));
+    new (handler) CConfirmBackMsgBoxButtonHandler(thisptr);
+
+    showMessageBox(message, handler, true);
 }
 
 void __fastcall CMenuCustomLobby::roomsListSearchHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
@@ -344,59 +360,6 @@ void __fastcall CMenuCustomLobby::listBoxDisplayHandler(CMenuCustomLobby* thispt
     }
 }
 
-bool __fastcall CMenuCustomLobby::ansInfoMsgHandler(CMenuCustomLobby* menu,
-                                                    int /*%edx*/,
-                                                    const game::CMenusAnsInfoMsg* message,
-                                                    std::uint32_t idFrom)
-{
-    logDebug("netCallbacks.log", fmt::format("CMenusAnsInfoMsg received from 0x{:x}", idFrom));
-
-    if (message->raceIds.length == 0) {
-        showMessageBox("No available races"); // TODO: localized message
-        return true;
-    }
-
-    using namespace game;
-
-    auto menuPhase = menu->menuBaseData->menuPhase;
-    auto globalData = *GlobalDataApi::get().getGlobalData();
-    auto racesTable = globalData->raceCategories;
-    auto& findRaceById = LRaceCategoryTableApi::get().findCategoryById;
-    auto& listApi = RaceCategoryListApi::get();
-
-    auto raceList = &menuPhase->data->races;
-    listApi.freeNodes(raceList);
-
-    for (auto node = message->raceIds.head->next; node != message->raceIds.head;
-         node = node->next) {
-        const int raceId = static_cast<const int>(node->data);
-
-        LRaceCategory category{};
-        findRaceById(racesTable, &category, &raceId);
-
-        listApi.add(raceList, &category);
-    }
-
-    menuPhase->data->unknown8 = false;
-    menuPhase->data->suggestedLevel = message->suggestedLevel;
-
-    allocateString(&menuPhase->data->scenarioName, message->scenarioName);
-    allocateString(&menuPhase->data->scenarioDescription, message->scenarioDescription);
-
-    logDebug("netCallbacks.log", "Switch to CMenuLobbyJoin (I hope)");
-    // Here we can set next menu transition, there is no need to hide wait message,
-    // it will be hidden from the destructor
-    // Pretend we are in transition 15, after CMenuSession, transition to CMenuLobbyJoin
-    menuPhase->data->currentPhase = MenuPhase::Session2LobbyJoin;
-    menuPhase->data->host = false;
-
-    logDebug("transitions.log",
-             "Joining room, pretend we are in phase 15, transition to CMenuLobbyJoin");
-    game::CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Session2LobbyJoin);
-
-    return true;
-}
-
 bool __fastcall CMenuCustomLobby::gameVersionMsgHandler(CMenuCustomLobby* menu,
                                                         int /*%edx*/,
                                                         const game::CGameVersionMsg* message,
@@ -404,40 +367,73 @@ bool __fastcall CMenuCustomLobby::gameVersionMsgHandler(CMenuCustomLobby* menu,
 {
     using namespace game;
 
-    if (message->gameVersion != 40) {
+    const auto& midgardApi = CMidgardApi::get();
+
+    logDebug("lobby.log", fmt::format("CGameVersionMsg received from 0x{:x}", idFrom));
+
+    if (message->gameVersion != GameVersion::RiseOfTheElves) {
         // You are trying to join a game with a newer or an older version of the game.
+        midgardApi.clearNetworkState(midgardApi.instance());
         showMessageBox(getInterfaceText("X006TA0008"));
         return true;
     }
 
-    CMenusReqInfoMsg requestInfo;
-    requestInfo.vftable = NetMessagesApi::getMenusReqInfoVftable();
-
-    auto& midgardApi = CMidgardApi::get();
-    auto midgard = midgardApi.instance();
-
-    midgardApi.sendNetMsgToServer(midgard, &requestInfo);
-
-    auto msg{fmt::format("CGameVersionMsg received from 0x{:x}", idFrom)};
-    logDebug("netCallbacks.log", msg);
-
-    return true;
+    CMenusReqInfoMsg reqInfoMsg;
+    reqInfoMsg.vftable = NetMessagesApi::getMenusReqInfoVftable();
+    return midgardApi.sendNetMsgToServer(midgardApi.instance(), &reqInfoMsg);
 }
 
-void __fastcall CMenuCustomLobby::backBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
+bool __fastcall CMenuCustomLobby::ansInfoMsgHandler(CMenuCustomLobby* menu,
+                                                    int /*%edx*/,
+                                                    const game::CMenusAnsInfoMsg* message,
+                                                    std::uint32_t idFrom)
 {
     using namespace game;
 
-    auto message = getInterfaceText(textIds().lobby.confirmBack.c_str());
-    if (message.empty()) {
-        message = "Do you really want to exit the lobby?";
+    const auto& midgardApi = CMidgardApi::get();
+    const auto& listApi = RaceCategoryListApi::get();
+
+    logDebug("lobby.log", fmt::format("CMenusAnsInfoMsg received from 0x{:x}", idFrom));
+
+    menu->hideWaitDialog();
+
+    if (message->raceIds.length == 0) {
+        // Could not join game.  Host did not report any available race.
+        midgardApi.clearNetworkState(midgardApi.instance());
+        showMessageBox(getInterfaceText("X005TA0886"));
+        return true;
     }
 
-    auto handler = (CConfirmBackMsgBoxButtonHandler*)Memory::get().allocate(
-        sizeof(CConfirmBackMsgBoxButtonHandler));
-    new (handler) CConfirmBackMsgBoxButtonHandler(thisptr);
+    auto globalData = *GlobalDataApi::get().getGlobalData();
+    auto racesTable = globalData->raceCategories;
+    auto& findRaceById = LRaceCategoryTableApi::get().findCategoryById;
 
-    showMessageBox(message, handler, true);
+    auto menuPhase = menu->menuBaseData->menuPhase;
+    auto phaseData = menuPhase->data;
+
+    auto races = &phaseData->races;
+    listApi.freeNodes(races);
+    for (auto node = message->raceIds.head->next; node != message->raceIds.head;
+         node = node->next) {
+        const int raceId = static_cast<const int>(node->data);
+
+        LRaceCategory category{};
+        findRaceById(racesTable, &category, &raceId);
+
+        listApi.add(races, &category);
+    }
+
+    phaseData->host = false;
+    phaseData->unknown8 = false;
+    phaseData->suggestedLevel = message->suggestedLevel;
+    allocateString(&phaseData->scenarioName, message->scenarioName);
+    allocateString(&phaseData->scenarioDescription, message->scenarioDescription);
+
+    phaseData->currentPhase = MenuPhase::Session2LobbyJoin;
+    logDebug("transitions.log",
+             "Joining room, pretend we are in phase 15, transition to CMenuLobbyJoin");
+    game::CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Session2LobbyJoin);
+    return true;
 }
 
 CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* roomDescriptor)
@@ -574,6 +570,7 @@ void CMenuCustomLobby::joinServer(SLNet::RoomDescriptor* roomDescriptor)
     reqVersionMsg.vftable = NetMessagesApi::getMenusReqVersionVftable();
     if (!midgardApi.sendNetMsgToServer(midgard, &reqVersionMsg)) {
         // Cannot connect to game session
+        midgardApi.clearNetworkState(midgard);
         showMessageBox(getInterfaceText("X003TA0001"));
     }
 }
