@@ -145,7 +145,7 @@ struct Api
      */
     using CreateNetClient = std::uint32_t(__thiscall*)(CMidgard* thisptr,
                                                        const char* playerName,
-                                                       bool updateIniFile);
+                                                       bool setPlayerNameAsDefault);
     CreateNetClient createNetClient;
 
     /**
