@@ -120,6 +120,8 @@ void readLobbyTextIds(const sol::table& table, TextIds::Lobby& value)
     value.unableToRegister = lobby.get_or("unableToRegister", std::string());
     value.createRoomRequestFailed = lobby.get_or("createRoomRequestFailed", std::string());
     value.createRoomFailed = lobby.get_or("createRoomFailed", std::string());
+    value.joinRoomFailed = lobby.get_or("joinRoomFailed", std::string());
+    value.searchRoomsFailed = lobby.get_or("searchRoomsFailed", std::string());
     value.selectedRoomNoLongerExists = lobby.get_or("selectedRoomNoLongerExists", std::string());
 }
 

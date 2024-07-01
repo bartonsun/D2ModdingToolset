@@ -117,6 +117,8 @@ struct TextIds
         std::string unableToRegister;
         std::string createRoomRequestFailed;
         std::string createRoomFailed;
+        std::string joinRoomFailed;
+        std::string searchRoomsFailed;
         std::string selectedRoomNoLongerExists;
     } lobby;
 

@@ -592,8 +592,12 @@ void CMenuCustomLobby::RoomsCallback::JoinByFilter_Callback(const SLNet::SystemA
     }
 
     default: {
-        auto error = SLNet::RoomsErrorCodeDescription::ToEnglish(callResult->resultCode);
-        showMessageBox(error); // TODO: localized message
+        auto msg{getInterfaceText(textIds().lobby.joinRoomFailed.c_str())};
+        if (msg.empty()) {
+            msg = "Could not join a room.\n%ERROR%";
+        }
+        replace(msg, "%ERROR%", SLNet::RoomsErrorCodeDescription::ToEnglish(resultCode));
+        showMessageBox(msg);
         break;
     }
     }
@@ -616,8 +620,12 @@ void CMenuCustomLobby::RoomsCallback::SearchByFilter_Callback(
             break;
         }
 
-        showMessageBox(SLNet::RoomsErrorCodeDescription::ToEnglish(
-            callResult->resultCode)); // TODO: localized message
+        auto msg{getInterfaceText(textIds().lobby.searchRoomsFailed.c_str())};
+        if (msg.empty()) {
+            msg = "Could not search for rooms.\n%ERROR%";
+        }
+        replace(msg, "%ERROR%", SLNet::RoomsErrorCodeDescription::ToEnglish(resultCode));
+        showMessageBox(msg);
         break;
     }
     }

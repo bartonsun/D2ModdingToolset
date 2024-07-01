@@ -275,6 +275,12 @@ textids = {
 		-- The text must contain keyword "%ERROR%".
 		-- Fallback text "Could not create a room.\n%ERROR%"
 		createRoomFailed = "",
+		-- The text must contain keyword "%ERROR%".
+		-- Fallback text "Could not join a room.\n%ERROR%"
+		joinRoomFailed = "",
+		-- The text must contain keyword "%ERROR%".
+		-- Fallback text "Could not search for rooms.\n%ERROR%"
+		searchRoomsFailed = "",
 		-- Fallback text "The selected room no longer exists."
 		selectedRoomNoLongerExists = "",
 	},
