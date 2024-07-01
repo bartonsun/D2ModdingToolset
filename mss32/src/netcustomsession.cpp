@@ -35,11 +35,9 @@ namespace hooks {
 
 CNetCustomSession::CNetCustomSession(CNetCustomService* service,
                                      const char* name,
-                                     const char* password,
                                      const SLNet::RakNetGUID& serverGuid)
     : m_service{service}
     , m_name{name}
-    , m_password{password}
     , m_clientCount{0}
     , m_maxPlayers{2}
     , m_isHost{serverGuid == service->getPeerGuid()}
@@ -94,13 +92,18 @@ bool CNetCustomSession::setMaxPlayers(int maxPlayers)
         return false;
     }
 
-    // -1 because room already have moderator
-    const auto result{m_service->changeRoomPublicSlots(maxPlayers - 1)};
-    if (result) {
-        m_maxPlayers = maxPlayers;
-    }
+    if (m_isHost) {
+        // -1 because room already have moderator
+        const auto result{m_service->changeRoomPublicSlots(maxPlayers - 1)};
+        if (result) {
+            m_maxPlayers = maxPlayers;
+        }
 
-    return result;
+        return result;
+    } else {
+        m_maxPlayers = maxPlayers;
+        return true;
+    }
 }
 
 void __fastcall CNetCustomSession::destructor(CNetCustomSession* thisptr, int /*%edx*/, char flags)

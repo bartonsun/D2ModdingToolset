@@ -145,8 +145,7 @@ void CMenuCustomLobby::showRoomPasswordDialog()
         return;
     }
 
-    roomPasswordDialog = (CRoomPasswordInterf*)game::Memory::get().allocate(
-        sizeof(CRoomPasswordInterf));
+    roomPasswordDialog = (CRoomPasswordInterf*)Memory::get().allocate(sizeof(CRoomPasswordInterf));
     showInterface(new (roomPasswordDialog) CRoomPasswordInterf(this));
 }
 
@@ -169,7 +168,7 @@ void __fastcall CMenuCustomLobby::createRoomBtnHandler(CMenuCustomLobby* thisptr
 
     logDebug("transitions.log",
              "Create room, pretend we are in CMenuMulti, transition to CMenuNewSkirmishMulti");
-    game::CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Multi2NewSkirmish);
+    CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Multi2NewSkirmish);
 }
 
 void __fastcall CMenuCustomLobby::loadBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
@@ -182,7 +181,7 @@ void __fastcall CMenuCustomLobby::loadBtnHandler(CMenuCustomLobby* thisptr, int 
 
     logDebug("transitions.log",
              "Create room, pretend we are in CMenuMulti, transition to CMenuLoadSkirmishMulti");
-    game::CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Multi2LoadSkirmish);
+    CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Multi2LoadSkirmish);
 }
 
 void __fastcall CMenuCustomLobby::joinRoomBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
@@ -406,8 +405,8 @@ bool __fastcall CMenuCustomLobby::gameVersionMsgHandler(CMenuCustomLobby* menu,
     using namespace game;
 
     if (message->gameVersion != 40) {
-        // "You are trying to join a game with a newer or an older version of the game."
-        showMessageBox(getInterfaceText("X006ta0008"));
+        // You are trying to join a game with a newer or an older version of the game.
+        showMessageBox(getInterfaceText("X006TA0008"));
         return true;
     }
 
@@ -444,11 +443,9 @@ void __fastcall CMenuCustomLobby::backBtnHandler(CMenuCustomLobby* thisptr, int 
 CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* roomDescriptor)
 {
     // Add 1 to used and total slots because they are not counting room moderator
-    auto* moderator = getRoomModerator(roomDescriptor->roomMemberList);
     return {roomDescriptor->lobbyRoomId,
             roomDescriptor->GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c,
-            moderator->guid,
-            moderator->name,
+            getRoomModerator(roomDescriptor->roomMemberList)->name,
             roomDescriptor->GetProperty(CNetCustomService::passwordColumnName)->c,
             roomDescriptor->GetProperty(CNetCustomService::filesHashColumnName)->c,
             (int)roomDescriptor->GetProperty(DefaultRoomColumns::TC_USED_PUBLIC_SLOTS)->i + 1,
@@ -545,105 +542,44 @@ void CMenuCustomLobby::fillNetMsgEntries()
     netMsgApi.addEntry(this->netMsgEntryData, entry);
 }
 
-void CMenuCustomLobby::registerClientPlayerAndJoin()
+// See CMenuSession::JoinGameBtnCallback (Akella 0x4f0136)
+void CMenuCustomLobby::joinServer(SLNet::RoomDescriptor* roomDescriptor)
 {
     using namespace game;
 
-    auto& midgardApi = CMidgardApi::get();
-    auto midgard = midgardApi.instance();
-    auto netService = getNetService();
+    const auto& midgardApi = CMidgardApi::get();
 
-    // Create player using session
-    logDebug("roomJoin.log", "Try create net client using midgard");
-    auto playerId = midgardApi.createNetClient(midgard, netService->getAccountName().c_str(),
-                                               false);
+    auto service = getNetService();
+    CNetCustomSession* session = nullptr;
+    CNetCustomSessEnum sessEnum{getRoomModerator(roomDescriptor->roomMemberList)->guid,
+                                roomDescriptor->GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c};
+    service->vftable->joinSession(service, (IMqNetSession**)&session, (IMqNetSessEnum*)&sessEnum,
+                                  nullptr);
 
-    logDebug("roomJoin.log", fmt::format("Check net client id 0x{:x}", playerId));
-    if (playerId == 0) {
-        // Network id of zero is invalid
-        logDebug("roomJoin.log", "Net client has zero id");
-        showMessageBox("Created net client has net id 0"); // TODO: localized message
-        return;
-    }
-
-    logDebug("roomJoin.log", "Set menu phase as a net client proxy");
+    // Add 1 to total slots because they are not counting room moderator
+    auto maxPlayers = (int)roomDescriptor->GetProperty(DefaultRoomColumns::TC_TOTAL_PUBLIC_SLOTS)->i
+                      + 1;
+    session->setMaxPlayers(maxPlayers);
 
     auto menuPhase = menuBaseData->menuPhase;
-    // Set menu phase as net proxy
-    midgardApi.setClientsNetProxy(midgard, menuPhase);
-
-    // Get max players from session
-    auto netSession{netService->getSession()};
-    auto maxPlayers = netSession->vftable->getMaxClients(netSession);
-
-    logDebug("roomJoin.log", fmt::format("Get max number of players in session: {:d}", maxPlayers));
-
     menuPhase->data->maxPlayers = maxPlayers;
 
-    CMenusReqVersionMsg requestVersion;
-    requestVersion.vftable = NetMessagesApi::getMenusReqVersionVftable();
-
-    logDebug("roomJoin.log", "Send version request message to server");
-    // Send CMenusReqVersionMsg to server
-    // If failed, hide wait message and show error, enable join
-    if (!midgardApi.sendNetMsgToServer(midgard, &requestVersion)) {
-        showMessageBox("Could not request game version from server"); // TODO: localized message
-        return;
-    }
-
-    // Response will be handled by CMenuCustomLobby menuGameVersionMsgHandler
-    logDebug("roomJoin.log", "Request sent, wait for callback");
-}
-
-void CMenuCustomLobby::processJoin(const char* roomName, const SLNet::RakNetGUID& serverGuid)
-{
-    using namespace game;
-
-    // Create session ourselves
-    logDebug("roomJoin.log", fmt::format("Process join to {:s}", roomName));
-
-    auto netService = getNetService();
-    logDebug("roomJoin.log", fmt::format("Get netService {:p}", (void*)netService));
-
-    if (!netService) {
-        showMessageBox("Net service is null"); // TODO: localized message
-        return;
-    }
-
-    // TODO: netService->joinSession
-    // TODO: fill in the password and use it to enter
-    // TODO: move joining process inside joinSession method
-    auto netSession = (CNetCustomSession*)game::Memory::get().allocate(sizeof(CNetCustomSession));
-    new (netSession) CNetCustomSession(netService, roomName, "", serverGuid);
-
-    logDebug("roomJoin.log", fmt::format("Created netSession {:p}", (void*)netSession));
-
-    // If failed, hide wait message and show error, enable join
-    if (!netSession) {
-        showMessageBox("Could not create net session"); // TODO: localized message
-        return;
-    }
-
-    // Set net session to midgard
-    auto& midgardApi = CMidgardApi::get();
-
     auto midgard = midgardApi.instance();
-    auto currentSession{midgard->data->netSession};
+    auto& currentSession = midgard->data->netSession;
     if (currentSession) {
         currentSession->vftable->destructor(currentSession, 1);
     }
-
-    logDebug("roomJoin.log", "Set netSession to midgard");
-    midgard->data->netSession = netSession;
-    netService->setSession(netSession);
-
-    logDebug("roomJoin.log", "Mark self as client");
-    // Mark self as client
+    currentSession = session;
     midgard->data->host = false;
+    midgardApi.createNetClient(midgard, service->getAccountName().c_str(), false);
+    midgardApi.setClientsNetProxy(midgard, menuPhase);
 
-    logDebug("roomJoin.log", "Create player client beforehand");
-
-    registerClientPlayerAndJoin();
+    CMenusReqVersionMsg reqVersionMsg;
+    reqVersionMsg.vftable = NetMessagesApi::getMenusReqVersionVftable();
+    if (!midgardApi.sendNetMsgToServer(midgard, &reqVersionMsg)) {
+        // Cannot connect to game session
+        showMessageBox(getInterfaceText("X003TA0001"));
+    }
 }
 
 void CMenuCustomLobby::RoomListCallbacks::JoinByFilter_Callback(
@@ -654,10 +590,7 @@ void CMenuCustomLobby::RoomListCallbacks::JoinByFilter_Callback(
 
     switch (auto resultCode = callResult->resultCode) {
     case SLNet::REC_SUCCESS: {
-        auto& room = callResult->joinedRoomResult.roomDescriptor;
-        const char* roomName = room.GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c;
-        logDebug("lobby.log", fmt::format("Joined a room {:s}", roomName));
-        menuLobby->processJoin(roomName, getRoomModerator(room.roomMemberList)->guid);
+        menuLobby->joinServer(&callResult->joinedRoomResult.roomDescriptor);
         break;
     }
 

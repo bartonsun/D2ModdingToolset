@@ -96,11 +96,6 @@ CNetCustomSession* CNetCustomService::getSession() const
     return m_session;
 }
 
-void CNetCustomService::setSession(CNetCustomSession* value)
-{
-    m_session = value;
-}
-
 const std::string& CNetCustomService::getAccountName() const
 {
     return m_accountName;
@@ -388,12 +383,12 @@ void __fastcall CNetCustomService::createSession(CNetCustomService* thisptr,
                                                  game::IMqNetSession** netSession,
                                                  const GUID* /* appGuid */,
                                                  const char* sessionName,
-                                                 const char* password)
+                                                 const char* /* password */)
 {
     logDebug("lobby.log",
              fmt::format("CNetCustomService createSession called. Name '{:s}'", sessionName));
     auto session = (CNetCustomSession*)game::Memory::get().allocate(sizeof(CNetCustomSession));
-    new (session) CNetCustomSession(thisptr, sessionName, password, thisptr->getPeerGuid());
+    new (session) CNetCustomSession(thisptr, sessionName, thisptr->getPeerGuid());
     thisptr->m_session = session;
     *netSession = session;
 }
@@ -401,11 +396,16 @@ void __fastcall CNetCustomService::createSession(CNetCustomService* thisptr,
 void __fastcall CNetCustomService::joinSession(CNetCustomService* thisptr,
                                                int /*%edx*/,
                                                game::IMqNetSession** netSession,
-                                               game::IMqNetSessEnum* netSessionEnum,
-                                               const char* password)
+                                               CNetCustomSessEnum* netSessionEnum,
+                                               const char* /* password */)
 {
-    logDebug("lobby.log", "CNetCustomService joinSession called");
-    // TODO: move join room logic here
+    logDebug("lobby.log", fmt::format("CNetCustomService joinSession called. Name '{:s}'",
+                                      netSessionEnum->sessionName));
+    auto session = (CNetCustomSession*)game::Memory::get().allocate(sizeof(CNetCustomSession));
+    new (session)
+        CNetCustomSession(thisptr, netSessionEnum->sessionName.c_str(), netSessionEnum->serverGuid);
+    thisptr->m_session = session;
+    *netSession = session;
 }
 
 void __fastcall CNetCustomService::peerProcessEventCallback(CNetCustomService* thisptr,

@@ -46,7 +46,6 @@ class CNetCustomSession : public game::IMqNetSession
 public:
     CNetCustomSession(CNetCustomService* service,
                       const char* name,
-                      const char* password,
                       const SLNet::RakNetGUID& serverGuid);
     ~CNetCustomSession();
 
@@ -85,7 +84,6 @@ protected:
 private:
     CNetCustomService* m_service;
     std::string m_name;
-    std::string m_password;
     int m_clientCount;
     int m_maxPlayers;
     bool m_isHost;

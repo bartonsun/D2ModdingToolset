@@ -57,6 +57,13 @@ public:
                                   const SLNet::Packet* packet) = 0;
 };
 
+// Used in CNetCustomService::joinSession instead of IMqNetSessEnum
+struct CNetCustomSessEnum
+{
+    SLNet::RakNetGUID serverGuid;
+    std::string sessionName;
+};
+
 class CNetCustomService : public game::IMqNetService
 {
 public:
@@ -71,7 +78,6 @@ public:
     ~CNetCustomService();
 
     CNetCustomSession* getSession() const;
-    void setSession(CNetCustomSession* value);
     // TODO: rename accountName to userName to correspond to RakNet naming
     const std::string& getAccountName() const;
     bool connected() const;
@@ -153,7 +159,7 @@ protected:
     static void __fastcall joinSession(CNetCustomService* thisptr,
                                        int /*%edx*/,
                                        game::IMqNetSession** netSession,
-                                       game::IMqNetSessEnum* netSessionEnum,
+                                       CNetCustomSessEnum* netSessionEnum,
                                        const char* password);
 
 private:

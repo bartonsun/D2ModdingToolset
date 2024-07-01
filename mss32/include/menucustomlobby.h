@@ -136,7 +136,6 @@ protected:
     {
         SLNet::RoomID id;
         std::string name;
-        SLNet::RakNetGUID hostGuid;
         std::string hostName;
         std::string password;
         std::string gameFilesHash;
@@ -152,8 +151,7 @@ protected:
     const RoomInfo* getSelectedRoom();
     void updateAccountText(const char* accountName);
     void fillNetMsgEntries();
-    void processJoin(const char* roomName, const SLNet::RakNetGUID& serverGuid);
-    void registerClientPlayerAndJoin();
+    void joinServer(SLNet::RoomDescriptor* roomDescriptor);
 
 private:
     game::UiEvent roomsListEvent;
