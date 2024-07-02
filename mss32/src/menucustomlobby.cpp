@@ -41,6 +41,7 @@
 #include "netmsgmapentry.h"
 #include "originalfunctions.h"
 #include "racelist.h"
+#include "restrictions.h"
 #include "textboxinterf.h"
 #include "textids.h"
 #include "uimanager.h"
@@ -683,7 +684,8 @@ CMenuCustomLobby::CRoomPasswordInterf::CRoomPasswordInterf(CMenuCustomLobby* men
     setButtonCallback(*dialog, "BTN_OK", okBtnHandler, this);
 
     // Using EditFilter::Names for consistency with other game menus like CMenuNewSkirmishMulti
-    setEditBoxData(*dialog, "EDIT_PASSWORD", EditFilter::Names, 16, false);
+    setEditBoxData(*dialog, "EDIT_PASSWORD", EditFilter::Names,
+                   gameRestrictions().passwordMaxLength, false);
 }
 
 void __fastcall CMenuCustomLobby::CRoomPasswordInterf::okBtnHandler(CRoomPasswordInterf* thisptr,

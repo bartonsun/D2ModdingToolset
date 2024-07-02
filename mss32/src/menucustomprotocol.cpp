@@ -27,6 +27,7 @@
 #include "menuflashwait.h"
 #include "menuphase.h"
 #include "midgard.h"
+#include "restrictions.h"
 #include "textids.h"
 #include "utils.h"
 #include <fmt/format.h>
@@ -295,15 +296,20 @@ CMenuCustomProtocol::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomProtoco
 {
     using namespace game;
 
+    const auto& restrictions = gameRestrictions();
+
     CPopupDialogInterfApi::get().constructor(this, dialogName, nullptr);
 
     setButtonCallback(*dialog, "BTN_CANCEL", cancelBtnHandler, this);
     setButtonCallback(*dialog, "BTN_OK", okBtnHandler, this);
     setButtonCallback(*dialog, "BTN_REGISTER", registerBtnHandler, this);
 
-    // Using EditFilter::Names for consistency with other game menus like CMenuNewSkirmishMulti
-    setEditBoxData(*dialog, "EDIT_ACCOUNT_NAME", EditFilter::Names, 16, false);
-    setEditBoxData(*dialog, "EDIT_PASSWORD", EditFilter::Names, 16, true);
+    // Using EditFilter::Names for consistency with other game menus like CMenuNewSkirmishMulti.
+    // Account name shares player name restrictions as they are interchangeable (at least for now).
+    setEditBoxData(*dialog, "EDIT_ACCOUNT_NAME", EditFilter::Names,
+                   *restrictions.playerNameMaxLength, false);
+    setEditBoxData(*dialog, "EDIT_PASSWORD", EditFilter::Names, restrictions.passwordMaxLength,
+                   true);
 }
 
 void __fastcall CMenuCustomProtocol::CLoginAccountInterf::okBtnHandler(CLoginAccountInterf* thisptr,
@@ -347,15 +353,20 @@ CMenuCustomProtocol::CRegisterAccountInterf::CRegisterAccountInterf(CMenuCustomP
 {
     using namespace game;
 
+    const auto& restrictions = gameRestrictions();
+
     CPopupDialogInterfApi::get().constructor(this, dialogName, nullptr);
 
     setButtonCallback(*dialog, "BTN_CANCEL", cancelBtnHandler, this);
     setButtonCallback(*dialog, "BTN_OK", okBtnHandler, this);
 
-    // Using EditFilter::Names for consistency with other game menus like CMenuNewSkirmishMulti
-    setEditBoxData(*dialog, "EDIT_ACCOUNT_NAME", EditFilter::Names, 16, false);
+    // Using EditFilter::Names for consistency with other game menus like CMenuNewSkirmishMulti.
+    // Account name shares player name restrictions as they are interchangeable (at least for now).
+    setEditBoxData(*dialog, "EDIT_ACCOUNT_NAME", EditFilter::Names,
+                   *restrictions.playerNameMaxLength, false);
     // TODO: add repeat-password edit, mask both edits with asterisks
-    setEditBoxData(*dialog, "EDIT_PASSWORD", EditFilter::Names, 16, false);
+    setEditBoxData(*dialog, "EDIT_PASSWORD", EditFilter::Names, restrictions.passwordMaxLength,
+                   false);
 }
 
 void __fastcall CMenuCustomProtocol::CRegisterAccountInterf::okBtnHandler(

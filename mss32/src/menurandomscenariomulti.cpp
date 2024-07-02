@@ -25,13 +25,11 @@
 #include "menunewskirmishmulti.h"
 #include "menuphase.h"
 #include "midgard.h"
+#include "restrictions.h"
 
 namespace hooks {
 
 static constexpr const char dialogName[] = "DLG_RANDOM_SCENARIO_MULTI";
-static constexpr const int gameNameMaxLength{40};
-static constexpr const int playerNameMaxLength{15};
-static constexpr const int passwordMaxLength{8};
 
 static void startScenarioNet(CMenuRandomScenario* menu)
 {
@@ -54,11 +52,13 @@ CMenuRandomScenarioMulti::CMenuRandomScenarioMulti(game::CMenuPhase* menuPhase)
     const auto& menuBase{CMenuBaseApi::get()};
     const auto& dialogApi{CDialogInterfApi::get()};
     const auto& editBoxApi{CEditBoxInterfApi::get()};
+    const auto& restrictions{gameRestrictions()};
 
     CDialogInterf* dialog{menuBase.getDialogInterface(this)};
 
     CEditBoxInterf* editName{editBoxApi.setFilterAndLength(dialog, "EDIT_NAME", dialogName,
-                                                           EditFilter::Names, playerNameMaxLength)};
+                                                           EditFilter::Names,
+                                                           *restrictions.playerNameMaxLength)};
     if (editName) {
         const CMidgard* midgard{CMidgardApi::get().instance()};
         const GameSettings* settings{*midgard->data->settings};
@@ -67,9 +67,9 @@ CMenuRandomScenarioMulti::CMenuRandomScenarioMulti(game::CMenuPhase* menuPhase)
     }
 
     editBoxApi.setFilterAndLength(dialog, "EDIT_GAME", dialogName, EditFilter::Names,
-                                  gameNameMaxLength);
+                                  restrictions.gameNameMaxLength);
     editBoxApi.setFilterAndLength(dialog, "EDIT_PASSWORD", dialogName, EditFilter::Names,
-                                  passwordMaxLength);
+                                  restrictions.passwordMaxLength);
 }
 
 game::CMenuBase* __stdcall createMenuRandomScenarioMulti(game::CMenuPhase* menuPhase)
