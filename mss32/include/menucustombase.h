@@ -46,6 +46,7 @@ protected:
     void showWaitDialog();
     void hideWaitDialog();
     void onConnectionLost();
+    void setAccountNameToEditName();
 
     class CPopupDialogCustomBase
     {
