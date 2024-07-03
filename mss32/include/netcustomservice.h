@@ -71,6 +71,8 @@ public:
     static constexpr std::uint32_t peerProcessInterval{100};
     static constexpr char passwordColumnName[] = "Password";
     static constexpr char filesHashColumnName[] = "FilesHash";
+    // See SLNet::Lobby2Message::ValidatePassword
+    static constexpr std::uint32_t passwordMaxLength{50};
 
     static bool isCustom(const game::IMqNetService* service);
 

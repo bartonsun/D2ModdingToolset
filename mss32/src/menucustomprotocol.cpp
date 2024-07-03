@@ -308,8 +308,8 @@ CMenuCustomProtocol::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomProtoco
     // Account name shares player name restrictions as they are interchangeable (at least for now).
     setEditBoxData(*dialog, "EDIT_ACCOUNT_NAME", EditFilter::Names,
                    *restrictions.playerNameMaxLength, false);
-    setEditBoxData(*dialog, "EDIT_PASSWORD", EditFilter::Names, restrictions.passwordMaxLength,
-                   true);
+    setEditBoxData(*dialog, "EDIT_PASSWORD", EditFilter::Names,
+                   CNetCustomService::passwordMaxLength, true);
 }
 
 void __fastcall CMenuCustomProtocol::CLoginAccountInterf::okBtnHandler(CLoginAccountInterf* thisptr,
@@ -365,8 +365,8 @@ CMenuCustomProtocol::CRegisterAccountInterf::CRegisterAccountInterf(CMenuCustomP
     setEditBoxData(*dialog, "EDIT_ACCOUNT_NAME", EditFilter::Names,
                    *restrictions.playerNameMaxLength, false);
     // TODO: add repeat-password edit, mask both edits with asterisks
-    setEditBoxData(*dialog, "EDIT_PASSWORD", EditFilter::Names, restrictions.passwordMaxLength,
-                   false);
+    setEditBoxData(*dialog, "EDIT_PASSWORD", EditFilter::Names,
+                   CNetCustomService::passwordMaxLength, false);
 }
 
 void __fastcall CMenuCustomProtocol::CRegisterAccountInterf::okBtnHandler(
