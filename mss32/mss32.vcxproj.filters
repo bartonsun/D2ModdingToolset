@@ -1484,6 +1484,12 @@
     <ClCompile Include="src\customnobleactioncategories.cpp">
       <Filter>features\custom noble actions</Filter>
     </ClCompile>
+    <ClCompile Include="src\globalvariables.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\globalvariableshooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3741,6 +3747,9 @@
     </ClInclude>
     <ClInclude Include="include\customnobleactioncategories.h">
       <Filter>features\custom noble actions</Filter>
+    </ClInclude>
+    <ClInclude Include="include\globalvariableshooks.h">
+      <Filter>hooks</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

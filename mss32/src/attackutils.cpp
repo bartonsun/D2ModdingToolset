@@ -98,7 +98,7 @@ int getBoostDamage(int level)
     using namespace game;
 
     const auto& global = GlobalDataApi::get();
-    const auto vars = *(*global.getGlobalData())->globalVariables;
+    const auto vars = (*global.getGlobalData())->globalVariables->data;
 
     int count = std::size(vars->battleBoostDamage);
     return (0 < level && level <= count) ? vars->battleBoostDamage[level - 1] : 0;
@@ -109,7 +109,7 @@ int getLowerDamage(int level)
     using namespace game;
 
     const auto& global = GlobalDataApi::get();
-    const auto vars = *(*global.getGlobalData())->globalVariables;
+    const auto vars = (*global.getGlobalData())->globalVariables->data;
 
     int count = std::size(vars->battleLowerDamage);
     return (0 < level && level <= count) ? vars->battleLowerDamage[level - 1] : 0;
@@ -123,7 +123,7 @@ int getLowerInitiative(int level)
         return 0;
 
     const auto& global = GlobalDataApi::get();
-    const auto vars = *(*global.getGlobalData())->globalVariables;
+    const auto vars = (*global.getGlobalData())->globalVariables->data;
 
     return vars->battleLowerIni;
 }
