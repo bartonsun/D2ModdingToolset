@@ -3748,6 +3748,9 @@
     <ClInclude Include="include\customnobleactioncategories.h">
       <Filter>features\custom noble actions</Filter>
     </ClInclude>
+    <ClInclude Include="include\eventeffectbase.h">
+      <Filter>game</Filter>
+    </ClInclude>
     <ClInclude Include="include\globalvariableshooks.h">
       <Filter>hooks</Filter>
     </ClInclude>
