@@ -1493,6 +1493,9 @@
     <ClCompile Include="src\effectstealmarket.cpp">
       <Filter>features\custom noble actions</Filter>
     </ClCompile>
+    <ClCompile Include="src\effectgiveresources.cpp">
+      <Filter>features\custom noble actions</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3758,6 +3761,9 @@
       <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\effectstealmarket.h">
+      <Filter>features\custom noble actions</Filter>
+    </ClInclude>
+    <ClInclude Include="include\effectgiveresources.h">
       <Filter>features\custom noble actions</Filter>
     </ClInclude>
   </ItemGroup>
