@@ -72,7 +72,9 @@ struct CEditBoxInterfData
 {
     SmartPtr<CEditBoxFocus> editBoxFocus;
     int textBoxChildIndex;
-    int unknown2;
+    // Differs from enabled because the control can still receive input focus
+    bool editable;
+    char padding[3];
     EditBoxData editBoxData;
     CImage2Fill* textCursor;
     CMqPoint textCursorPos;
