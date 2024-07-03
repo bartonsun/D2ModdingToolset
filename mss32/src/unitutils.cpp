@@ -374,24 +374,23 @@ static int getLordRegenBonus(const game::CMidPlayer* player)
 {
     using namespace game;
 
-    const auto& fn = gameFunctions();
-    const auto& globalApi = GlobalDataApi::get();
-
-    const auto globalData = *globalApi.getGlobalData();
-    const auto vars = *globalData->globalVariables;
-
     if (!player || player->capturedById != emptyId) {
         return 0;
     }
 
-    if (fn.isRaceCategoryUnplayable(&player->raceType->data->raceType)) {
+    if (gameFunctions().isRaceCategoryUnplayable(&player->raceType->data->raceType)) {
         return 0;
     }
+
+    const auto& globalApi = GlobalDataApi::get();
+
+    const auto globalData = *globalApi.getGlobalData();
+    const auto vars = globalData->globalVariables;
 
     const auto lords = globalData->lords;
     const auto lordType = (const TLordType*)globalApi.findById(lords, &player->lordId);
     if (lordType->data->lordCategory.id == LordCategories::get().warrior->id) {
-        return vars->fighterLeaderRegen;
+        return vars->data->fighterLeaderRegen;
     }
 
     return 0;
@@ -448,7 +447,7 @@ int getUnitRegen(const game::IMidgardObjectMap* objectMap, const game::CMidgardI
     const auto& globalApi = GlobalDataApi::get();
 
     const auto globalData = *globalApi.getGlobalData();
-    const auto vars = *globalData->globalVariables;
+    const auto vars = globalData->globalVariables;
 
     const CMidPlayer* player = nullptr;
     const CFortification* fort = nullptr;
@@ -478,7 +477,7 @@ int getUnitRegen(const game::IMidgardObjectMap* objectMap, const game::CMidgardI
         result = getFortRegen(result, objectMap, fort);
     } else if (ruin) {
         // Units in ruins have fixed regen value, no other factors apply
-        result = vars->regenRuin;
+        result = vars->data->regenRuin;
     } else {
         // Terrain bonus apply only outside
         result += getTerrainRegenBonus(objectMap, player, stack);
