@@ -247,6 +247,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\customunitencyclopedia.cpp" />
     <ClCompile Include="src\customunitencyclopediafunctions.cpp" />
     <ClCompile Include="src\dialogdescriptor.cpp" />
+    <ClCompile Include="src\customnobleactioncategories.cpp" />
     <ClCompile Include="src\ddstackgroup.cpp" />
     <ClCompile Include="src\ddstackinventorydisplay.cpp" />
     <ClCompile Include="src\diplomacyhooks.cpp" />
@@ -758,6 +759,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\custombuildingcategories.h" />
     <ClInclude Include="include\customunitencyclopedia.h" />
     <ClInclude Include="include\customunitencyclopediafunctions.h" />
+    <ClInclude Include="include\customnobleactioncategories.h" />
     <ClInclude Include="include\d2unorderedmap.h" />
     <ClInclude Include="include\ddfoldedinv.h" />
     <ClInclude Include="include\ddfoldedinvdisplay.h" />
