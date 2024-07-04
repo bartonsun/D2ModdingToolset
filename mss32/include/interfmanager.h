@@ -51,7 +51,7 @@ struct CInterfManagerVftable
 
     /** Returns topmost interface or nullptr if interfaces list is empty. */
     using GetInterface = CInterface*(__thiscall*)(CInterfManager* thisptr);
-    GetInterface getInterface;
+    GetInterface getTopmostInterface;
 
     /**
      * Returns next interface in list after specified one or nullptr.

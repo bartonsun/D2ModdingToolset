@@ -131,8 +131,13 @@ struct CInterfaceVftable
     using ShouldIgnoreScaling = bool(__thiscall*)(const CInterface* thisptr);
     ShouldIgnoreScaling shouldIgnoreScaling;
 
-    using Method11 = int(__thiscall*)(CInterface* thisptr);
-    Method11 method11;
+    /**
+     * Goes through parent chain and compares each parent against
+     * CInterfManager::getTopmostInterface.
+     * Returns true if the interface itself or one of its parents is the topmost one.
+     */
+    using IsOnTop = bool(__thiscall*)(CInterface* thisptr);
+    IsOnTop isOnTop;
 
     using GetArea = CMqRect*(__thiscall*)(const CInterface* thisptr);
     GetArea getArea;
