@@ -228,6 +228,8 @@ textids = {
 
 	-- Text ids related to custom lobby
 	lobby = {
+		-- Fallback text id is X150TA0026 ("v.3.01")
+		gameVersion = "",
 		-- Server name shown in network protocols list
 		-- Fallback text "Lobby server"
 		serverName = "",
@@ -239,7 +241,7 @@ textids = {
 		-- Client could not connect due to server being full
 		-- Fallback text "Lobby server is full"
 		serverIsFull = "",
-		-- Fallback text "Unable to join the room because the owner's game files are different."
+		-- Fallback text "Unable to join the room because the owner's game version or files are different."
 		checkFilesFailed = "",
 		-- Player entered wrong room password
 		-- Fallback text "Wrong room password"

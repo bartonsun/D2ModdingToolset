@@ -101,6 +101,7 @@ struct TextIds
 
     struct Lobby
     {
+        std::string gameVersion;
         std::string serverName;
         std::string connectStartFailed;
         std::string connectAttemptFailed;

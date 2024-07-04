@@ -25,6 +25,7 @@
 #include "netcustomsession.h"
 #include "netmsg.h"
 #include "settings.h"
+#include "textids.h"
 #include "utils.h"
 #include <MessageIdentifiers.h>
 #include <fmt/format.h>
@@ -235,6 +236,12 @@ bool CNetCustomService::createRoom(const char* name, const char* password)
         return false;
     }
 
+    auto gameVersion{getInterfaceText(textIds().lobby.gameVersion.c_str())};
+    if (gameVersion.empty()) {
+        // v.3.01
+        gameVersion = getInterfaceText("X150TA0026");
+    }
+
     SLNet::CreateRoom_Func room{};
     room.userName = m_accountName.c_str();
     room.gameIdentifier = titleName;
@@ -247,11 +254,13 @@ bool CNetCustomService::createRoom(const char* name, const char* password)
     params.slots.spectatorSlots = 0;
 
     auto& properties = room.initialRoomProperties;
-    auto hashColumn{properties.AddColumn(filesHashColumnName, DataStructures::Table::STRING)};
+    auto hashColumn{properties.AddColumn(gameFilesHashColumnName, DataStructures::Table::STRING)};
+    auto versionColumn{properties.AddColumn(gameVersionColumnName, DataStructures::Table::STRING)};
     auto passwordColumn{properties.AddColumn(passwordColumnName, DataStructures::Table::STRING)};
 
     auto row = properties.AddRow(0);
     row->UpdateCell(hashColumn, filesHash.c_str());
+    row->UpdateCell(versionColumn, gameVersion.c_str());
     row->UpdateCell(passwordColumn, password);
 
     m_roomsClient.ExecuteFunc(&room);

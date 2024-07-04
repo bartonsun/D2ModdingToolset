@@ -111,6 +111,7 @@ protected:
         std::string hostName;
         std::string password;
         std::string gameFilesHash;
+        std::string gameVersion;
         int usedSlots;
         int totalSlots;
     };

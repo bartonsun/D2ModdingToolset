@@ -69,8 +69,9 @@ class CNetCustomService : public game::IMqNetService
 public:
     static constexpr std::uint32_t peerShutdownTimeout{100};
     static constexpr std::uint32_t peerProcessInterval{100};
+    static constexpr char gameFilesHashColumnName[] = "FilesHash";
+    static constexpr char gameVersionColumnName[] = "GameVersion";
     static constexpr char passwordColumnName[] = "Password";
-    static constexpr char filesHashColumnName[] = "FilesHash";
     // See SLNet::Lobby2Message::ValidatePassword
     static constexpr std::uint32_t passwordMaxLength{50};
 

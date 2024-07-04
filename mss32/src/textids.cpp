@@ -101,6 +101,7 @@ void readLobbyTextIds(const sol::table& table, TextIds::Lobby& value)
         return;
 
     auto& lobby = lobbyTable.value();
+    value.gameVersion = lobby.get_or("gameVersion", std::string());
     value.serverName = lobby.get_or("serverName", std::string());
     value.connectStartFailed = lobby.get_or("connectStartFailed", std::string());
     value.connectAttemptFailed = lobby.get_or("connectAttemptFailed", std::string());

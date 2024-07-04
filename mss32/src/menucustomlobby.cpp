@@ -195,7 +195,8 @@ void __fastcall CMenuCustomLobby::joinBtnHandler(CMenuCustomLobby* thisptr, int 
     if (room->gameFilesHash != getNetService()->getGameFilesHash()) {
         auto message{getInterfaceText(textIds().lobby.checkFilesFailed.c_str())};
         if (message.empty()) {
-            message = "Unable to join the room because the owner's game files are different.";
+            message =
+                "Unable to join the room because the owner's game version or files are different.";
         }
         showMessageBox(message);
         return;
@@ -323,7 +324,8 @@ CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* 
             roomDescriptor->GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c,
             getRoomModerator(roomDescriptor->roomMemberList)->name,
             roomDescriptor->GetProperty(CNetCustomService::passwordColumnName)->c,
-            roomDescriptor->GetProperty(CNetCustomService::filesHashColumnName)->c,
+            roomDescriptor->GetProperty(CNetCustomService::gameFilesHashColumnName)->c,
+            roomDescriptor->GetProperty(CNetCustomService::gameVersionColumnName)->c,
             (int)roomDescriptor->GetProperty(DefaultRoomColumns::TC_USED_PUBLIC_SLOTS)->i + 1,
             (int)roomDescriptor->GetProperty(DefaultRoomColumns::TC_TOTAL_PUBLIC_SLOTS)->i + 1};
 }
@@ -409,6 +411,8 @@ void CMenuCustomLobby::updateListBoxRoomsRow(int rowIndex,
     addListBoxRoomsCellText("TXT_HOST", fmt::format("\\vC;{:s}", room.hostName).c_str(), lineArea,
                             contents);
     addListBoxRoomsCellText("TXT_DESCRIPTION", fmt::format("\\vC;{:s}", room.name).c_str(),
+                            lineArea, contents);
+    addListBoxRoomsCellText("TXT_VERSION", fmt::format("\\vC;{:s}", room.gameVersion).c_str(),
                             lineArea, contents);
     addListBoxRoomsCellText(
         "TXT_PLAYERS", fmt::format("\\vC;\\hC;{:d}/{:d}", room.usedSlots, room.totalSlots).c_str(),
