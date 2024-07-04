@@ -40,6 +40,7 @@
 #include "netmsgcallbacks.h"
 #include "netmsgmapentry.h"
 #include "originalfunctions.h"
+#include "pictureinterf.h"
 #include "racelist.h"
 #include "restrictions.h"
 #include "textboxinterf.h"
@@ -87,7 +88,7 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     auto listBoxRooms = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
     if (listBoxRooms) {
         SmartPointer functor;
-        auto callback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxDisplayHandler;
+        auto callback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxRoomsDisplayHandler;
         menuBaseApi.createListBoxDisplayFunctor(&functor, 0, this, &callback);
         listBoxApi.assignDisplaySurfaceFunctor(dialog, "LBOX_ROOMS", dialogName, &functor);
         listBoxApi.setElementsTotal(listBoxRooms, 0);
@@ -102,7 +103,7 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
 
     // Request rooms list as soon as possible, no need to wait for event
     service->searchRooms();
-    createTimerEvent(&m_roomsListEvent, this, roomsListSearchHandler, roomListUpdateInterval);
+    createTimerEvent(&m_roomsUpdateEvent, this, roomsUpdateEventCallback, roomsUpdateEventInterval);
 }
 
 CMenuCustomLobby ::~CMenuCustomLobby()
@@ -112,7 +113,7 @@ CMenuCustomLobby ::~CMenuCustomLobby()
     hideRoomPasswordDialog();
 
     logDebug("transitions.log", "Delete rooms list event");
-    UiEventApi::get().destructor(&m_roomsListEvent);
+    UiEventApi::get().destructor(&m_roomsUpdateEvent);
 
     auto service = getNetService();
     if (service) {
@@ -227,131 +228,19 @@ void __fastcall CMenuCustomLobby::backBtnHandler(CMenuCustomLobby* thisptr, int 
     showMessageBox(message, handler, true);
 }
 
-void __fastcall CMenuCustomLobby::roomsListSearchHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
+void __fastcall CMenuCustomLobby::roomsUpdateEventCallback(CMenuCustomLobby* thisptr, int /*%edx*/)
 {
     getNetService()->searchRooms();
 }
 
-void __fastcall CMenuCustomLobby::listBoxDisplayHandler(CMenuCustomLobby* thisptr,
-                                                        int /*%edx*/,
-                                                        game::ImagePointList* contents,
-                                                        const game::CMqRect* lineArea,
-                                                        int index,
-                                                        bool selected)
+void __fastcall CMenuCustomLobby::listBoxRoomsDisplayHandler(CMenuCustomLobby* thisptr,
+                                                             int /*%edx*/,
+                                                             game::ImagePointList* contents,
+                                                             const game::CMqRect* lineArea,
+                                                             int index,
+                                                             bool selected)
 {
-    if (thisptr->m_rooms.empty()) {
-        return;
-    }
-
-    using namespace game;
-
-    auto& createFreePtr = SmartPointerApi::get().createOrFree;
-    auto& imageApi = CImage2TextApi::get();
-
-    const auto width = lineArea->right - lineArea->left;
-    const auto height = lineArea->bottom - lineArea->top;
-    const auto& room = thisptr->m_rooms[(size_t)index % thisptr->m_rooms.size()];
-
-    // Width of table column border image in pixels
-    const int columnBorderWidth{9};
-    // 'Host' column with in pixels
-    const int hostTextWidth{122};
-
-    int offset = 0;
-
-    // Host name
-    {
-        auto hostText = (CImage2Text*)Memory::get().allocate(sizeof(CImage2Text));
-        imageApi.constructor(hostText, hostTextWidth, height);
-        imageApi.setText(hostText, fmt::format("\\vC;{:s}", room.hostName).c_str());
-
-        ImagePtrPointPair pair{};
-        createFreePtr((SmartPointer*)&pair.first, hostText);
-        pair.second.x = offset + 5;
-        pair.second.y = 0;
-
-        ImagePointListApi::get().add(contents, &pair);
-        createFreePtr((SmartPointer*)&pair.first, nullptr);
-
-        offset += hostTextWidth + columnBorderWidth;
-    }
-
-    // 'Description' column width in pixels
-    const int descriptionWidth{452};
-
-    // Room description
-    {
-        auto description = (CImage2Text*)Memory::get().allocate(sizeof(CImage2Text));
-        imageApi.constructor(description, descriptionWidth, height);
-        imageApi.setText(description, fmt::format("\\vC;{:s}", room.name).c_str());
-
-        ImagePtrPointPair pair{};
-        createFreePtr((SmartPointer*)&pair.first, description);
-        pair.second.x = offset + 5;
-        pair.second.y = 0;
-
-        ImagePointListApi::get().add(contents, &pair);
-        createFreePtr((SmartPointer*)&pair.first, nullptr);
-
-        offset += descriptionWidth + columnBorderWidth;
-    }
-
-    // '#' column width
-    const int playerCountWidth{44};
-
-    // Number of players in room
-    {
-        auto playerCount = (CImage2Text*)Memory::get().allocate(sizeof(CImage2Text));
-        imageApi.constructor(playerCount, playerCountWidth, height);
-        imageApi
-            .setText(playerCount,
-                     fmt::format("\\vC;\\hC;{:d}/{:d}", room.usedSlots, room.totalSlots).c_str());
-
-        ImagePtrPointPair pair{};
-        createFreePtr((SmartPointer*)&pair.first, playerCount);
-        pair.second.x = offset;
-        pair.second.y = 0;
-
-        ImagePointListApi::get().add(contents, &pair);
-        createFreePtr((SmartPointer*)&pair.first, nullptr);
-
-        offset += playerCountWidth + columnBorderWidth;
-    }
-
-    // Password protection status
-    if (!room.password.empty()) {
-        auto lockImage{AutoDialogApi::get().loadImage("ROOM_PROTECTED")};
-        ImagePtrPointPair pair{};
-        createFreePtr((SmartPointer*)&pair.first, lockImage);
-        // Adjust lock image position to match with lock image in column header
-        pair.second.x = offset + 3;
-        pair.second.y = 1;
-
-        ImagePointListApi::get().add(contents, &pair);
-        createFreePtr((SmartPointer*)&pair.first, nullptr);
-    }
-
-    // Outline for selected element
-    if (selected) {
-        auto outline = (CImage2Outline*)Memory::get().allocate(sizeof(CImage2Outline));
-
-        CMqPoint size{};
-        size.x = width;
-        size.y = height;
-
-        game::Color color{};
-        // 0x0 - transparent, 0xff - opaque
-        std::uint32_t opacity{0xff};
-        CImage2OutlineApi::get().constructor(outline, &size, &color, opacity);
-
-        ImagePtrPointPair pair{};
-        createFreePtr((SmartPointer*)&pair.first, outline);
-        pair.second.x = 0;
-        pair.second.y = 0;
-
-        ImagePointListApi::get().add(contents, &pair);
-        createFreePtr((SmartPointer*)&pair.first, nullptr);
-    }
+    thisptr->updateListBoxRoomsRow(index, selected, lineArea, contents);
 }
 
 bool __fastcall CMenuCustomLobby::gameVersionMsgHandler(CMenuCustomLobby* menu,
@@ -507,6 +396,124 @@ void CMenuCustomLobby::updateAccountText(const char* accountName)
     textBoxApi.setString(textBox, accountName ? accountName : "");
 }
 
+void CMenuCustomLobby::updateListBoxRoomsRow(int rowIndex,
+                                             bool selected,
+                                             const game::CMqRect* lineArea,
+                                             game::ImagePointList* contents)
+{
+    if ((size_t)rowIndex >= m_rooms.size()) {
+        return;
+    }
+    const auto& room = m_rooms[(size_t)rowIndex];
+
+    addListBoxRoomsCellText("TXT_HOST", fmt::format("\\vC;{:s}", room.hostName).c_str(), lineArea,
+                            contents);
+    addListBoxRoomsCellText("TXT_DESCRIPTION", fmt::format("\\vC;{:s}", room.name).c_str(),
+                            lineArea, contents);
+    addListBoxRoomsCellText(
+        "TXT_PLAYERS", fmt::format("\\vC;\\hC;{:d}/{:d}", room.usedSlots, room.totalSlots).c_str(),
+        lineArea, contents);
+
+    if (!room.password.empty()) {
+        addListBoxRoomsCellImage("IMG_PROTECTED", "ROOM_PROTECTED", lineArea, contents);
+    }
+
+    if (selected) {
+        addListBoxRoomsSelectionOutline(lineArea, contents);
+    }
+}
+
+void CMenuCustomLobby::addListBoxRoomsCellText(const char* columnName,
+                                               const char* value,
+                                               const game::CMqRect* lineArea,
+                                               game::ImagePointList* contents)
+{
+    using namespace game;
+
+    const auto& createFreePtr = SmartPointerApi::get().createOrFree;
+    const auto& image2TextApi = CImage2TextApi::get();
+
+    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
+    auto columnHeader = CDialogInterfApi::get().findTextBox(dialog, columnName);
+    if (!columnHeader) {
+        return;
+    }
+
+    auto columnHeaderRect = columnHeader->vftable->getArea(columnHeader);
+    auto cellWidth = columnHeaderRect->right - columnHeaderRect->left;
+    auto cellHeight = lineArea->bottom - lineArea->top;
+
+    auto image2Text = (CImage2Text*)Memory::get().allocate(sizeof(CImage2Text));
+    image2TextApi.constructor(image2Text, cellWidth, cellHeight);
+    image2TextApi.setText(image2Text, value);
+
+    auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
+    auto listBoxRect = listBox->vftable->getArea(listBox);
+
+    ImagePtrPointPair pair{};
+    createFreePtr((SmartPointer*)&pair.first, image2Text);
+    pair.second.x = columnHeaderRect->left - listBoxRect->left;
+    pair.second.y = 0;
+    ImagePointListApi::get().add(contents, &pair);
+    createFreePtr((SmartPointer*)&pair.first, nullptr);
+}
+
+void CMenuCustomLobby::addListBoxRoomsCellImage(const char* columnName,
+                                                const char* imageName,
+                                                const game::CMqRect* lineArea,
+                                                game::ImagePointList* contents)
+{
+    using namespace game;
+
+    const auto& createFreePtr = SmartPointerApi::get().createOrFree;
+
+    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
+    auto columnHeader = CDialogInterfApi::get().findPicture(dialog, columnName);
+    if (!columnHeader) {
+        return;
+    }
+
+    auto columnHeaderRect = columnHeader->vftable->getArea(columnHeader);
+    auto image = AutoDialogApi::get().loadImage(imageName);
+
+    // Calculate offset to center the image
+    CMqPoint imageSize{};
+    image->vftable->getSize(image, &imageSize);
+    CMqPoint imageOffset{(columnHeaderRect->right - columnHeaderRect->left - imageSize.x) / 2,
+                         (lineArea->bottom - lineArea->top - imageSize.y) / 2};
+
+    auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
+    auto listBoxRect = listBox->vftable->getArea(listBox);
+
+    ImagePtrPointPair pair{};
+    createFreePtr((SmartPointer*)&pair.first, image);
+    pair.second.x = imageOffset.x + columnHeaderRect->left - listBoxRect->left;
+    pair.second.y = imageOffset.y;
+    ImagePointListApi::get().add(contents, &pair);
+    createFreePtr((SmartPointer*)&pair.first, nullptr);
+}
+
+void CMenuCustomLobby::addListBoxRoomsSelectionOutline(const game::CMqRect* lineArea,
+                                                       game::ImagePointList* contents)
+{
+    using namespace game;
+
+    const auto& createFreePtr = SmartPointerApi::get().createOrFree;
+
+    // 0x0 - transparent, 0xff - opaque
+    game::Color color{};
+    CMqPoint size{lineArea->right - lineArea->left, lineArea->bottom - lineArea->top};
+    auto outline = (CImage2Outline*)Memory::get().allocate(sizeof(CImage2Outline));
+    CImage2OutlineApi::get().constructor(outline, &size, &color, 0xff);
+
+    ImagePtrPointPair pair{};
+    createFreePtr((SmartPointer*)&pair.first, outline);
+    pair.second.x = 0;
+    pair.second.y = 0;
+    ImagePointListApi::get().add(contents, &pair);
+    createFreePtr((SmartPointer*)&pair.first, nullptr);
+}
+
 void CMenuCustomLobby::fillNetMsgEntries()
 {
     using namespace game;
@@ -617,7 +624,7 @@ void CMenuCustomLobby::RoomsCallback::SearchByFilter_Callback(
     default: {
         if (!getNetService()->loggedIn()) {
             // The error is expected, just silently remove the search event
-            game::UiEventApi::get().destructor(&m_menu->m_roomsListEvent);
+            game::UiEventApi::get().destructor(&m_menu->m_roomsUpdateEvent);
             break;
         }
 

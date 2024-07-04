@@ -47,7 +47,7 @@ public:
     static constexpr char dialogName[] = "DLG_CUSTOM_LOBBY";
     static constexpr char transitionFromProtoName[] = "TRANS_PROTO2CUSTOMLOBBY";
     static constexpr char transitionFromBlackName[] = "TRANS_BLACK2CUSTOMLOBBY";
-    static constexpr std::uint32_t roomListUpdateInterval{5000};
+    static constexpr std::uint32_t roomsUpdateEventInterval{5000};
 
     CMenuCustomLobby(game::CMenuPhase* menuPhase);
     ~CMenuCustomLobby();
@@ -56,20 +56,45 @@ protected:
     // CInterface
     static void __fastcall destructor(CMenuCustomLobby* thisptr, int /*%edx*/, char flags);
 
+    struct RoomInfo;
+
     void showRoomPasswordDialog();
     void hideRoomPasswordDialog();
+    void updateRooms(DataStructures::List<SLNet::RoomDescriptor*>& roomDescriptors);
+    const RoomInfo* getSelectedRoom();
+    void updateAccountText(const char* accountName);
+    void updateListBoxRoomsRow(int rowIndex,
+                               bool selected,
+                               const game::CMqRect* lineArea,
+                               game::ImagePointList* contents);
+    void addListBoxRoomsCellText(const char* columnName,
+                                 const char* value,
+                                 const game::CMqRect* lineArea,
+                                 game::ImagePointList* contents);
+    void addListBoxRoomsCellImage(const char* columnName,
+                                  const char* imageName,
+                                  const game::CMqRect* lineArea,
+                                  game::ImagePointList* contents);
+    void addListBoxRoomsSelectionOutline(const game::CMqRect* lineArea,
+                                         game::ImagePointList* contents);
+    void fillNetMsgEntries();
+    void joinServer(SLNet::RoomDescriptor* roomDescriptor);
+
+    static RoomInfo getRoomInfo(SLNet::RoomDescriptor* roomDescriptor);
+    static SLNet::RoomMemberDescriptor* getRoomModerator(
+        DataStructures::List<SLNet::RoomMemberDescriptor>& roomMembers);
 
     static void __fastcall createBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall loadBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall joinBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall backBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
-    static void __fastcall roomsListSearchHandler(CMenuCustomLobby*, int /*%edx*/);
-    static void __fastcall listBoxDisplayHandler(CMenuCustomLobby* thisptr,
-                                                 int /*%edx*/,
-                                                 game::ImagePointList* contents,
-                                                 const game::CMqRect* lineArea,
-                                                 int index,
-                                                 bool selected);
+    static void __fastcall roomsUpdateEventCallback(CMenuCustomLobby*, int /*%edx*/);
+    static void __fastcall listBoxRoomsDisplayHandler(CMenuCustomLobby* thisptr,
+                                                      int /*%edx*/,
+                                                      game::ImagePointList* contents,
+                                                      const game::CMqRect* lineArea,
+                                                      int index,
+                                                      bool selected);
     static bool __fastcall gameVersionMsgHandler(CMenuCustomLobby* menu,
                                                  int /*%edx*/,
                                                  const game::CGameVersionMsg* message,
@@ -78,6 +103,17 @@ protected:
                                              int /*%edx*/,
                                              const game::CMenusAnsInfoMsg* message,
                                              std::uint32_t idFrom);
+
+    struct RoomInfo
+    {
+        SLNet::RoomID id;
+        std::string name;
+        std::string hostName;
+        std::string password;
+        std::string gameFilesHash;
+        int usedSlots;
+        int totalSlots;
+    };
 
     class RoomsCallback : public SLNet::RoomsCallback
     {
@@ -132,29 +168,8 @@ protected:
     };
     assert_offset(CRoomPasswordInterf, vftable, 0);
 
-    struct RoomInfo
-    {
-        SLNet::RoomID id;
-        std::string name;
-        std::string hostName;
-        std::string password;
-        std::string gameFilesHash;
-        int usedSlots;
-        int totalSlots;
-    };
-
-    static RoomInfo getRoomInfo(SLNet::RoomDescriptor* roomDescriptor);
-    static SLNet::RoomMemberDescriptor* getRoomModerator(
-        DataStructures::List<SLNet::RoomMemberDescriptor>& roomMembers);
-
-    void updateRooms(DataStructures::List<SLNet::RoomDescriptor*>& roomDescriptors);
-    const RoomInfo* getSelectedRoom();
-    void updateAccountText(const char* accountName);
-    void fillNetMsgEntries();
-    void joinServer(SLNet::RoomDescriptor* roomDescriptor);
-
 private:
-    game::UiEvent m_roomsListEvent;
+    game::UiEvent m_roomsUpdateEvent;
     std::vector<RoomInfo> m_rooms;
     RoomsCallback m_roomsCallback;
     game::NetMsgEntryData** m_netMsgEntryData;
