@@ -349,6 +349,14 @@ void CMenuCustomLobby::updateRooms(DataStructures::List<SLNet::RoomDescriptor*>&
 
     const auto& listBoxApi = CListBoxInterfApi::get();
 
+    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
+    auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
+    if (!listBox->vftable->isOnTop(listBox)) {
+        // If the listBox is not on top then the game will only remove its childs without rendering
+        // the new ones. This happens when any popup dialog is displayed.
+        return;
+    }
+
     SLNet::RoomID selectedRoomId = (unsigned)-1;
     auto selectedRoom = getSelectedRoom();
     if (selectedRoom) {
@@ -365,8 +373,6 @@ void CMenuCustomLobby::updateRooms(DataStructures::List<SLNet::RoomDescriptor*>&
         }
     }
 
-    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-    auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
     listBoxApi.setElementsTotal(listBox, (int)m_rooms.size());
     if (selectedIndex != (unsigned)-1) {
         listBoxApi.setSelectedIndex(listBox, selectedIndex);
