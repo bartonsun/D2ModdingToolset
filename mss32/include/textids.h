@@ -145,6 +145,11 @@ struct TextIds
         std::string exchangeDesc;
         std::string exchangeNotAvailable;
     } resourceMarket;
+
+    struct NobleActions
+    {
+        std::string stealMarketSuccess;
+    } nobleActions;
 };
 
 const TextIds& textIds();
