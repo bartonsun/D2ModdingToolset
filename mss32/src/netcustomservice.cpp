@@ -109,6 +109,7 @@ bool CNetCustomService::connected() const
 
 bool CNetCustomService::loggedIn() const
 {
+    // TODO: try using Lobby2Presence instead
     return m_connected && !m_accountName.empty();
 }
 
