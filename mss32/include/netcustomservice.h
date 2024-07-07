@@ -71,6 +71,7 @@ public:
     static constexpr std::uint32_t peerProcessInterval{100};
     static constexpr char gameFilesHashColumnName[] = "FilesHash";
     static constexpr char gameVersionColumnName[] = "GameVersion";
+    static constexpr char gameNameColumnName[] = "GameName";
     static constexpr char passwordColumnName[] = "Password";
     // See SLNet::Lobby2Message::ValidatePassword
     static constexpr std::uint32_t passwordMaxLength{50};
@@ -106,7 +107,7 @@ public:
     void logoutAccount();
 
     /** Tries to create and enter a new room. */
-    bool createRoom(const char* name, const char* password = nullptr);
+    bool createRoom(const char* gameName, const char* password = nullptr);
 
     /** Requests to leave the previously entered room. */
     void leaveRoom();

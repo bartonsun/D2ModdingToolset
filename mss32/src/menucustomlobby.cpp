@@ -321,8 +321,8 @@ CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* 
 {
     // Add 1 to used and total slots because they are not counting room moderator
     return {roomDescriptor->lobbyRoomId,
-            roomDescriptor->GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c,
             getRoomModerator(roomDescriptor->roomMemberList)->name,
+            roomDescriptor->GetProperty(CNetCustomService::gameNameColumnName)->c,
             roomDescriptor->GetProperty(CNetCustomService::passwordColumnName)->c,
             roomDescriptor->GetProperty(CNetCustomService::gameFilesHashColumnName)->c,
             roomDescriptor->GetProperty(CNetCustomService::gameVersionColumnName)->c,
@@ -416,7 +416,7 @@ void CMenuCustomLobby::updateListBoxRoomsRow(int rowIndex,
 
     addListBoxRoomsCellText("TXT_HOST", fmt::format("\\vC;{:s}", room.hostName).c_str(), lineArea,
                             contents);
-    addListBoxRoomsCellText("TXT_DESCRIPTION", fmt::format("\\vC;{:s}", room.name).c_str(),
+    addListBoxRoomsCellText("TXT_DESCRIPTION", fmt::format("\\vC;{:s}", room.gameName).c_str(),
                             lineArea, contents);
     addListBoxRoomsCellText("TXT_VERSION", fmt::format("\\vC;{:s}", room.gameVersion).c_str(),
                             lineArea, contents);

@@ -221,15 +221,10 @@ void CNetCustomService::logoutAccount()
     m_lobbyMsgFactory.Dealloc(logoff);
 }
 
-bool CNetCustomService::createRoom(const char* name, const char* password)
+bool CNetCustomService::createRoom(const char* gameName, const char* password)
 {
-    logDebug("lobby.log",
-             fmt::format("Trying to create a room with name {:s}, password {:s}", name, password));
-
-    if (!strlen(name)) {
-        logDebug("lobby.log", "Could not create a room: no room name provided");
-        return false;
-    }
+    logDebug("lobby.log", fmt::format("Trying to create a room with game name {:s}, password {:s}",
+                                      gameName, password));
 
     const auto& filesHash = getGameFilesHash();
     if (filesHash.empty()) {
@@ -249,7 +244,10 @@ bool CNetCustomService::createRoom(const char* name, const char* password)
 
     auto& params = room.networkedRoomCreationParameters;
     params.destroyOnModeratorLeave = true;
-    params.roomName = name;
+    // SLNet demands room name to be unique, so a game name is inconvenient to use for this
+    // purpose (because it defaults to scenario name, and multiple players can create rooms using
+    // the same scenario receiving the error REC_ROOM_CREATION_PARAMETERS_ROOM_NAME_IN_USE).
+    params.roomName = room.userName;
     params.slots.publicSlots = 1;
     params.slots.reservedSlots = 0;
     params.slots.spectatorSlots = 0;
@@ -257,11 +255,13 @@ bool CNetCustomService::createRoom(const char* name, const char* password)
     auto& properties = room.initialRoomProperties;
     auto hashColumn{properties.AddColumn(gameFilesHashColumnName, DataStructures::Table::STRING)};
     auto versionColumn{properties.AddColumn(gameVersionColumnName, DataStructures::Table::STRING)};
+    auto gameNameColumn{properties.AddColumn(gameNameColumnName, DataStructures::Table::STRING)};
     auto passwordColumn{properties.AddColumn(passwordColumnName, DataStructures::Table::STRING)};
 
     auto row = properties.AddRow(0);
     row->UpdateCell(hashColumn, filesHash.c_str());
     row->UpdateCell(versionColumn, gameVersion.c_str());
+    row->UpdateCell(gameNameColumn, gameName);
     row->UpdateCell(passwordColumn, password);
 
     m_roomsClient.ExecuteFunc(&room);

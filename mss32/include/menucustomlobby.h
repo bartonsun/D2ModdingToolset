@@ -107,8 +107,8 @@ protected:
     struct RoomInfo
     {
         SLNet::RoomID id;
-        std::string name;
         std::string hostName;
+        std::string gameName;
         std::string password;
         std::string gameFilesHash;
         std::string gameVersion;
