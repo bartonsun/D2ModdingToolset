@@ -62,6 +62,7 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     using namespace game;
 
     const auto& menuBaseApi = CMenuBaseApi::get();
+    const auto& dialogApi = CDialogInterfApi::get();
     const auto& listBoxApi = CListBoxInterfApi::get();
 
     menuBaseApi.constructor(this, menuPhase);
@@ -84,8 +85,12 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     setButtonCallback(dialog, "BTN_CREATE", createBtnHandler, this);
     setButtonCallback(dialog, "BTN_LOAD", loadBtnHandler, this);
     setButtonCallback(dialog, "BTN_JOIN", joinBtnHandler, this);
+    auto btnJoin = dialogApi.findButton(dialog, "BTN_JOIN");
+    if (btnJoin) {
+        btnJoin->vftable->setEnabled(btnJoin, false);
+    }
 
-    auto listBoxRooms = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
+    auto listBoxRooms = dialogApi.findListBox(dialog, "LBOX_ROOMS");
     if (listBoxRooms) {
         SmartPointer functor;
         auto callback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxRoomsDisplayHandler;
@@ -347,10 +352,11 @@ void CMenuCustomLobby::updateRooms(DataStructures::List<SLNet::RoomDescriptor*>&
 {
     using namespace game;
 
+    const auto& dialogApi = CDialogInterfApi::get();
     const auto& listBoxApi = CListBoxInterfApi::get();
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-    auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
+    auto listBox = dialogApi.findListBox(dialog, "LBOX_ROOMS");
     if (!listBox->vftable->isOnTop(listBox)) {
         // If the listBox is not on top then the game will only remove its childs without rendering
         // the new ones. This happens when any popup dialog is displayed.
@@ -376,6 +382,11 @@ void CMenuCustomLobby::updateRooms(DataStructures::List<SLNet::RoomDescriptor*>&
     listBoxApi.setElementsTotal(listBox, (int)m_rooms.size());
     if (selectedIndex != (unsigned)-1) {
         listBoxApi.setSelectedIndex(listBox, selectedIndex);
+    }
+
+    auto btnJoin = dialogApi.findButton(dialog, "BTN_JOIN");
+    if (btnJoin) {
+        btnJoin->vftable->setEnabled(btnJoin, !m_rooms.empty());
     }
 }
 
@@ -440,11 +451,12 @@ void CMenuCustomLobby::addListBoxRoomsCellText(const char* columnName,
 {
     using namespace game;
 
+    const auto& dialogApi = CDialogInterfApi::get();
     const auto& createFreePtr = SmartPointerApi::get().createOrFree;
     const auto& image2TextApi = CImage2TextApi::get();
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-    auto columnHeader = CDialogInterfApi::get().findTextBox(dialog, columnName);
+    auto columnHeader = dialogApi.findTextBox(dialog, columnName);
     if (!columnHeader) {
         return;
     }
@@ -457,7 +469,7 @@ void CMenuCustomLobby::addListBoxRoomsCellText(const char* columnName,
     image2TextApi.constructor(image2Text, cellWidth, cellHeight);
     image2TextApi.setText(image2Text, value);
 
-    auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
+    auto listBox = dialogApi.findListBox(dialog, "LBOX_ROOMS");
     auto listBoxRect = listBox->vftable->getArea(listBox);
 
     ImagePtrPointPair pair{};
@@ -475,10 +487,11 @@ void CMenuCustomLobby::addListBoxRoomsCellImage(const char* columnName,
 {
     using namespace game;
 
+    const auto& dialogApi = CDialogInterfApi::get();
     const auto& createFreePtr = SmartPointerApi::get().createOrFree;
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-    auto columnHeader = CDialogInterfApi::get().findPicture(dialog, columnName);
+    auto columnHeader = dialogApi.findPicture(dialog, columnName);
     if (!columnHeader) {
         return;
     }
@@ -492,7 +505,7 @@ void CMenuCustomLobby::addListBoxRoomsCellImage(const char* columnName,
     CMqPoint imageOffset{(columnHeaderRect->right - columnHeaderRect->left - imageSize.x) / 2,
                          (lineArea->bottom - lineArea->top - imageSize.y) / 2};
 
-    auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
+    auto listBox = dialogApi.findListBox(dialog, "LBOX_ROOMS");
     auto listBoxRect = listBox->vftable->getArea(listBox);
 
     ImagePtrPointPair pair{};
