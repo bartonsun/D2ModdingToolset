@@ -69,6 +69,8 @@ class CNetCustomService : public game::IMqNetService
 public:
     static constexpr std::uint32_t peerShutdownTimeout{100};
     static constexpr std::uint32_t peerProcessInterval{100};
+    static constexpr char titleName[] = "Disciples II: Rise of the Elves";
+    static constexpr char titleSecretKey[] = "TheVerySecretKey";
     static constexpr char gameFilesHashColumnName[] = "FilesHash";
     static constexpr char gameVersionColumnName[] = "GameVersion";
     static constexpr char gameNameColumnName[] = "GameName";
