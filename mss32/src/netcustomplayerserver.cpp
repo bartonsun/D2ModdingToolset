@@ -223,44 +223,6 @@ void CNetCustomPlayerServer::PeerCallback::onPacketReceived(DefaultMessageIDType
                                                             const SLNet::Packet* packet)
 {
     switch (type) {
-    case ID_REMOTE_DISCONNECTION_NOTIFICATION: {
-        logDebug("lobby.log", "PlayerServer: Client disconnected");
-        m_player->removeClient(packet->guid);
-        break;
-    }
-    case ID_REMOTE_CONNECTION_LOST: {
-        logDebug("lobby.log", "PlayerServer: Client lost connection");
-        m_player->removeClient(packet->guid);
-        break;
-    }
-    case ID_REMOTE_NEW_INCOMING_CONNECTION:
-        logDebug("lobby.log", "PlayerServer: Client connected");
-        break;
-    case ID_CONNECTION_REQUEST_ACCEPTED:
-        // This should never happen on server ?
-        logDebug("lobby.log", "PlayerServer: Connection request to the server was accepted");
-        break;
-    case ID_NEW_INCOMING_CONNECTION: {
-        logDebug("lobby.log", fmt::format("PlayerServer: Incoming connection, id 0x{:x}",
-                                          getClientId(packet->guid)));
-        // TODO: check and remove, no direct connection is expected
-        // m_player->addClient(packet->guid);
-        break;
-    }
-    case ID_NO_FREE_INCOMING_CONNECTIONS:
-        // This should never happen on server ?
-        logDebug("lobby.log", "PlayerServer: Server is full");
-        break;
-    case ID_DISCONNECTION_NOTIFICATION: {
-        logDebug("lobby.log", "PlayerServer: Client has disconnected from server");
-        m_player->removeClient(packet->guid);
-        break;
-    }
-    case ID_CONNECTION_LOST: {
-        logDebug("lobby.log", "PlayerServer: Client has lost connection");
-        m_player->removeClient(packet->guid);
-        break;
-    }
     case ID_GAME_MESSAGE: {
         SLNet::RakNetGUID sender(
             *reinterpret_cast<uint64_t*>(packet->data + sizeof(SLNet::MessageID)));
@@ -269,12 +231,26 @@ void CNetCustomPlayerServer::PeerCallback::onPacketReceived(DefaultMessageIDType
         m_player->addMessage(message, getClientId(sender));
         break;
     }
+
     case ID_GAME_MESSAGE_TO_HOST_SERVER: {
         auto message = reinterpret_cast<game::NetMessageHeader*>(packet->data);
         message->messageType = game::netMessageNormalType; // TODO: any better way to do this?
         m_player->addMessage(message, getClientId(packet->guid));
         break;
     }
+
+    case ID_DISCONNECTION_NOTIFICATION: {
+        logDebug("lobby.log", "PlayerServer: Server was shut down");
+        m_player->removeClient(packet->guid);
+        break;
+    }
+
+    case ID_CONNECTION_LOST: {
+        logDebug("lobby.log", "PlayerServer: Connection with server is lost");
+        m_player->removeClient(packet->guid);
+        break;
+    }
+
     default:
         logDebug("lobby.log",
                  fmt::format("PlayerServer: Packet type {:d}", static_cast<int>(packet->data[0])));

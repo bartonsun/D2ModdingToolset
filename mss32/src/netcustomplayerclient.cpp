@@ -135,45 +135,6 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
                                                             const SLNet::Packet* packet)
 {
     switch (type) {
-    case ID_REMOTE_DISCONNECTION_NOTIFICATION:
-        logDebug("playerClient.log", "Client disconnected");
-        break;
-    case ID_REMOTE_CONNECTION_LOST:
-        logDebug("playerClient.log", "Client lost connection");
-        break;
-    case ID_REMOTE_NEW_INCOMING_CONNECTION:
-        logDebug("playerClient.log", "Client connected");
-        break;
-    case ID_CONNECTION_REQUEST_ACCEPTED: {
-        logDebug("playerClient.log", "Connection request to the server was accepted");
-        auto system = m_player->getSystem();
-        if (system) {
-            system->vftable->onPlayerConnected(system, (int)getClientId(packet->guid));
-        }
-        break;
-    }
-    case ID_NEW_INCOMING_CONNECTION:
-        logDebug("playerClient.log", "Incoming connection");
-        break;
-    case ID_NO_FREE_INCOMING_CONNECTIONS:
-        logDebug("playerClient.log", "Server is full");
-        break;
-    case ID_DISCONNECTION_NOTIFICATION: {
-        logDebug("playerClient.log", "Server was shut down");
-        auto system = m_player->getSystem();
-        if (system) {
-            system->vftable->onPlayerDisconnected(system, game::serverNetPlayerId);
-        }
-        break;
-    }
-    case ID_CONNECTION_LOST: {
-        logDebug("playerClient.log", "Connection with server is lost");
-        auto system = m_player->getSystem();
-        if (system) {
-            system->vftable->onPlayerDisconnected(system, game::serverNetPlayerId);
-        }
-        break;
-    }
     case ID_GAME_MESSAGE: {
         SLNet::RakNetGUID sender(
             *reinterpret_cast<uint64_t*>(packet->data + sizeof(SLNet::MessageID)));
@@ -190,14 +151,34 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
         m_player->addMessage(message, game::serverNetPlayerId);
         break;
     }
+
     case ID_GAME_MESSAGE_TO_HOST_CLIENT: {
         auto message = reinterpret_cast<game::NetMessageHeader*>(packet->data);
         message->messageType = game::netMessageNormalType; // TODO: any better way to do this?
         m_player->addMessage(message, game::serverNetPlayerId);
         break;
     }
+
+    case ID_DISCONNECTION_NOTIFICATION: {
+        logDebug("lobby.log", "PlayerClient: Server was shut down");
+        auto system = m_player->getSystem();
+        if (system) {
+            system->vftable->onPlayerDisconnected(system, game::serverNetPlayerId);
+        }
+        break;
+    }
+
+    case ID_CONNECTION_LOST: {
+        logDebug("lobby.log", "PlayerClient: Connection with server is lost");
+        auto system = m_player->getSystem();
+        if (system) {
+            system->vftable->onPlayerDisconnected(system, game::serverNetPlayerId);
+        }
+        break;
+    }
+
     default:
-        logDebug("playerClient.log", fmt::format("Packet type {:d}", static_cast<int>(type)));
+        logDebug("lobby.log", fmt::format("Packet type {:d}", static_cast<int>(type)));
         break;
     }
 }
