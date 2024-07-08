@@ -136,18 +136,14 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
 {
     switch (type) {
     case ID_GAME_MESSAGE: {
-        SLNet::RakNetGUID sender(
-            *reinterpret_cast<uint64_t*>(packet->data + sizeof(SLNet::MessageID)));
-        auto message = reinterpret_cast<const game::NetMessageHeader*>(
-            packet->data + sizeof(SLNet::MessageID) + sizeof(uint64_t));
+        SLNet::RakNetGUID sender;
+        auto message = getMessageAndSender(packet, &sender);
         if (sender != m_player->m_serverGuid) {
-            logDebug(
-                "lobby.log",
-                fmt::format("CNetCustomPlayerClient received message from {:x}, its not a server!",
-                            getClientId(packet->guid)));
+            logDebug("lobby.log",
+                     fmt::format("PlayerClient: Received message from {:x}, its not a server!",
+                                 getClientId(packet->guid)));
             break;
         }
-
         m_player->addMessage(message, game::serverNetPlayerId);
         break;
     }
@@ -178,7 +174,8 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
     }
 
     default:
-        logDebug("lobby.log", fmt::format("Packet type {:d}", static_cast<int>(type)));
+        logDebug("lobby.log",
+                 fmt::format("PlayerClient: Packet type {:d}", static_cast<int>(type)));
         break;
     }
 }

@@ -54,6 +54,8 @@ public:
 
 protected:
     static uint32_t getClientId(const SLNet::RakNetGUID& guid);
+    static const game::NetMessageHeader* getMessageAndSender(const SLNet::Packet* packet,
+                                                             SLNet::RakNetGUID* sender);
 
     CNetCustomService* getService() const;
     CNetCustomSession* getSession() const;

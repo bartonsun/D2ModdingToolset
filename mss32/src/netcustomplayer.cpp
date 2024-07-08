@@ -77,6 +77,20 @@ uint32_t CNetCustomPlayer::getClientId(const SLNet::RakNetGUID& guid)
     return guid.ToUint32(guid);
 }
 
+const game::NetMessageHeader* CNetCustomPlayer::getMessageAndSender(const SLNet::Packet* packet,
+                                                                    SLNet::RakNetGUID* sender)
+{
+    SLNet::BitStream input{packet->data, packet->length, false};
+    input.IgnoreBytes(sizeof(SLNet::MessageID));
+    if (!input.Read(*sender)) {
+        logDebug("lobby.log", "Player: Failed to read sender guid");
+        return nullptr;
+    }
+
+    auto messageData = input.GetData() + input.GetReadOffset() / 8;
+    return reinterpret_cast<const game::NetMessageHeader*>(messageData);
+}
+
 CNetCustomService* CNetCustomPlayer::getService() const
 {
     return m_session->getService();
