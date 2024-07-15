@@ -212,6 +212,33 @@ void CNetCustomService::logoutAccount()
     m_lobbyMsgFactory.Dealloc(logoff);
 }
 
+void CNetCustomService::sendChatMessage(const char* text)
+{
+    SLNet::BitStream stream;
+    stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_CHAT_MESSAGE));
+    stream.Write(SLNet::RakString(m_accountName.c_str()));
+    stream.Write(SLNet::RakString(text));
+    send(stream, getLobbyGuid());
+}
+
+void CNetCustomService::readChatMessage(const SLNet::Packet* packet,
+                                        SLNet::RakString& sender,
+                                        SLNet::RakString& text)
+{
+    SLNet::BitStream stream{packet->data, packet->length, false};
+    stream.IgnoreBytes(sizeof(SLNet::MessageID));
+
+    if (!stream.Read(sender)) {
+        logDebug("lobby.log", "Failed to read chat message sender");
+        return;
+    }
+
+    if (!stream.Read(text)) {
+        logDebug("lobby.log", "Failed to read chat message text");
+        return;
+    }
+}
+
 bool CNetCustomService::createRoom(const char* gameName, const char* password)
 {
     logDebug("lobby.log", fmt::format("Trying to create a room with game name {:s}, password {:s}",

@@ -41,7 +41,8 @@ namespace hooks {
 // Should not exceed the size of SLNet::MessageID
 enum ClientMessages
 {
-    ID_GAME_MESSAGE_TO_HOST_SERVER = ID_USER_PACKET_ENUM + 1,
+    ID_LOBBY_CHAT_MESSAGE = ID_USER_PACKET_ENUM + 1,
+    ID_GAME_MESSAGE_TO_HOST_SERVER,
     ID_GAME_MESSAGE_TO_HOST_CLIENT,
     ID_GAME_MESSAGE = game::netMessageNormalType & 0xff,
 };
@@ -107,6 +108,11 @@ public:
 
     /** Logouts currently logged user. */
     void logoutAccount();
+
+    void sendChatMessage(const char* text);
+    void readChatMessage(const SLNet::Packet* packet,
+                         SLNet::RakString& sender,
+                         SLNet::RakString& text);
 
     /** Tries to create and enter a new room. */
     bool createRoom(const char* gameName, const char* password = nullptr);

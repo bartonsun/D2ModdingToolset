@@ -28,6 +28,7 @@
 #include <DS_List.h>
 #include <Lobby2Message.h>
 #include <RoomsPlugin.h>
+#include <deque>
 #include <string>
 #include <vector>
 
@@ -48,6 +49,10 @@ public:
     static constexpr char transitionFromProtoName[] = "TRANS_PROTO2CUSTOMLOBBY";
     static constexpr char transitionFromBlackName[] = "TRANS_BLACK2CUSTOMLOBBY";
     static constexpr std::uint32_t roomsUpdateEventInterval{5000};
+    static constexpr std::uint32_t chatMessageMaxLength{50};
+    static constexpr std::uint32_t chatMessageMaxCount{50};
+    static constexpr std::uint32_t chatMessageStockSize{3};
+    static constexpr std::uint32_t chatMessageRegenEventInterval{3000};
 
     CMenuCustomLobby(game::CMenuPhase* menuPhase);
     ~CMenuCustomLobby();
@@ -55,6 +60,7 @@ public:
 protected:
     // CInterface
     static void __fastcall destructor(CMenuCustomLobby* thisptr, int /*%edx*/, char flags);
+    static int __fastcall handleKeyboard(CMenuCustomLobby* thisptr, int /*%edx*/, int key, int a3);
 
     struct RoomInfo;
 
@@ -79,6 +85,8 @@ protected:
                                          game::ImagePointList* contents);
     void fillNetMsgEntries();
     void joinServer(SLNet::RoomDescriptor* roomDescriptor);
+    void addChatMessage(const char* sender, const char* message);
+    void sendChatMessage();
 
     static RoomInfo getRoomInfo(SLNet::RoomDescriptor* roomDescriptor);
     static SLNet::RoomMemberDescriptor* getRoomModerator(
@@ -88,13 +96,19 @@ protected:
     static void __fastcall loadBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall joinBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall backBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
-    static void __fastcall roomsUpdateEventCallback(CMenuCustomLobby*, int /*%edx*/);
+    static void __fastcall roomsUpdateEventCallback(CMenuCustomLobby* thisptr, int /*%edx*/);
+    static void __fastcall chatMessageRegenEventCallback(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall listBoxRoomsDisplayHandler(CMenuCustomLobby* thisptr,
                                                       int /*%edx*/,
                                                       game::ImagePointList* contents,
                                                       const game::CMqRect* lineArea,
                                                       int index,
                                                       bool selected);
+    static void __fastcall listBoxChatDisplayHandler(CMenuCustomLobby* thisptr,
+                                                     int /*%edx*/,
+                                                     game::String* string,
+                                                     bool,
+                                                     int selectedIndex);
     static bool __fastcall gameVersionMsgHandler(CMenuCustomLobby* menu,
                                                  int /*%edx*/,
                                                  const game::CGameVersionMsg* message,
@@ -114,6 +128,29 @@ protected:
         std::string gameVersion;
         int usedSlots;
         int totalSlots;
+    };
+
+    struct ChatMessage
+    {
+        std::string sender;
+        std::string text;
+    };
+
+    class PeerCallback : public NetPeerCallback
+    {
+    public:
+        PeerCallback(CMenuCustomLobby* menu)
+            : m_menu{menu}
+        { }
+
+        ~PeerCallback() override = default;
+
+        void onPacketReceived(DefaultMessageIDTypes type,
+                              SLNet::RakPeerInterface* peer,
+                              const SLNet::Packet* packet) override;
+
+    private:
+        CMenuCustomLobby* m_menu;
     };
 
     class RoomsCallback : public SLNet::RoomsCallback
@@ -170,13 +207,17 @@ protected:
     assert_offset(CRoomPasswordInterf, vftable, 0);
 
 private:
+    PeerCallback m_peerCallback;
+    RoomsCallback m_roomsCallback;
     game::UiEvent m_roomsUpdateEvent;
     std::vector<RoomInfo> m_rooms;
-    RoomsCallback m_roomsCallback;
     game::NetMsgEntryData** m_netMsgEntryData;
     CRoomPasswordInterf* m_roomPasswordDialog;
     SLNet::RoomID m_joiningRoomId;
     std::string m_joiningRoomPassword;
+    std::deque<ChatMessage> m_chatMessages;
+    std::uint32_t m_chatMessageStock;
+    game::UiEvent m_chatMessageRegenEvent;
 };
 
 assert_offset(CMenuCustomLobby, vftable, 0);

@@ -55,15 +55,18 @@ namespace hooks {
 
 CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     : CMenuCustomBase(this)
+    , m_peerCallback(this)
     , m_roomsCallback(this)
     , m_netMsgEntryData(nullptr)
     , m_roomPasswordDialog(nullptr)
+    , m_chatMessageStock(chatMessageStockSize)
 {
     using namespace game;
 
     const auto& menuBaseApi = CMenuBaseApi::get();
     const auto& dialogApi = CDialogInterfApi::get();
     const auto& listBoxApi = CListBoxInterfApi::get();
+    const auto& editBoxApi = CEditBoxInterfApi::get();
 
     menuBaseApi.constructor(this, menuPhase);
 
@@ -75,6 +78,7 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
         // See DestroyAnimInterface() in IDA.
         replaceRttiInfo(rttiInfo, this->vftable);
         rttiInfo.vftable.destructor = (CInterfaceVftable::Destructor)&destructor;
+        rttiInfo.vftable.handleKeyboard = (CInterfaceVftable::HandleKeyboard)&handleKeyboard;
     }
     this->vftable = &rttiInfo.vftable;
 
@@ -90,7 +94,8 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
         btnJoin->vftable->setEnabled(btnJoin, false);
     }
 
-    auto listBoxRooms = dialogApi.findListBox(dialog, "LBOX_ROOMS");
+    // Using generic findControl for optional controls to prevent error messages
+    auto listBoxRooms = (CListBoxInterf*)dialogApi.findControl(dialog, "LBOX_ROOMS");
     if (listBoxRooms) {
         SmartPointer functor;
         auto callback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxRoomsDisplayHandler;
@@ -100,29 +105,53 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
         SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
     }
 
+    auto listBoxChat = (CListBoxInterf*)dialogApi.findControl(dialog, "LBOX_CHAT");
+    if (listBoxChat) {
+        SmartPointer functor;
+        using TextCallback = CMenuBaseApi::Api::ListBoxDisplayTextCallback;
+        TextCallback callback{(TextCallback::Callback)listBoxChatDisplayHandler};
+        menuBaseApi.createListBoxDisplayTextFunctor(&functor, 0, this, &callback);
+        listBoxApi.assignDisplayTextFunctor(dialog, "LBOX_CHAT", dialogName, &functor, false);
+        SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
+    }
+
+    auto editBoxChat = (CEditBoxInterf*)dialogApi.findControl(dialog, "EDIT_CHAT");
+    if (editBoxChat) {
+        editBoxApi.setInputLength(editBoxChat, chatMessageMaxLength);
+    }
+
     auto service = getNetService();
     fillNetMsgEntries();
     updateAccountText(service->getAccountName().c_str());
 
+    service->addPeerCallback(&m_peerCallback);
     service->addRoomsCallback(&m_roomsCallback);
 
     // Request rooms list as soon as possible, no need to wait for event
     service->searchRooms();
     createTimerEvent(&m_roomsUpdateEvent, this, roomsUpdateEventCallback, roomsUpdateEventInterval);
+
+    createTimerEvent(&m_chatMessageRegenEvent, this, chatMessageRegenEventCallback,
+                     chatMessageRegenEventInterval);
 }
 
 CMenuCustomLobby ::~CMenuCustomLobby()
 {
     using namespace game;
 
+    const auto& uiEventApi = UiEventApi::get();
+
     hideRoomPasswordDialog();
 
+    uiEventApi.destructor(&m_chatMessageRegenEvent);
+
     logDebug("transitions.log", "Delete rooms list event");
-    UiEventApi::get().destructor(&m_roomsUpdateEvent);
+    uiEventApi.destructor(&m_roomsUpdateEvent);
 
     auto service = getNetService();
     if (service) {
         service->removeRoomsCallback(&m_roomsCallback);
+        service->removePeerCallback(&m_peerCallback);
     }
 
     if (m_netMsgEntryData) {
@@ -141,6 +170,21 @@ void __fastcall CMenuCustomLobby::destructor(CMenuCustomLobby* thisptr, int /*%e
         logDebug("transitions.log", "Free CMenuCustomLobby memory");
         game::Memory::get().freeNonZero(thisptr);
     }
+}
+
+// See CMenuLobbyHandleKeyboard (Akella 0x4e3a98)
+int __fastcall CMenuCustomLobby::handleKeyboard(CMenuCustomLobby* thisptr,
+                                                int /*%edx*/,
+                                                int key,
+                                                int a3)
+{
+    using namespace game;
+
+    auto result = CMenuBaseApi::vftable()->handleKeyboard((CInterface*)thisptr, key, a3);
+    if (key == VK_RETURN) {
+        thisptr->sendChatMessage();
+    }
+    return result;
 }
 
 void CMenuCustomLobby::showRoomPasswordDialog()
@@ -234,9 +278,18 @@ void __fastcall CMenuCustomLobby::backBtnHandler(CMenuCustomLobby* thisptr, int 
     showMessageBox(message, handler, true);
 }
 
-void __fastcall CMenuCustomLobby::roomsUpdateEventCallback(CMenuCustomLobby* thisptr, int /*%edx*/)
+void __fastcall CMenuCustomLobby::roomsUpdateEventCallback(CMenuCustomLobby* /*thisptr*/,
+                                                           int /*%edx*/)
 {
     getNetService()->searchRooms();
+}
+
+void __fastcall CMenuCustomLobby::chatMessageRegenEventCallback(CMenuCustomLobby* thisptr,
+                                                                int /*%edx*/)
+{
+    if (thisptr->m_chatMessageStock < chatMessageStockSize) {
+        ++thisptr->m_chatMessageStock;
+    }
 }
 
 void __fastcall CMenuCustomLobby::listBoxRoomsDisplayHandler(CMenuCustomLobby* thisptr,
@@ -247,6 +300,28 @@ void __fastcall CMenuCustomLobby::listBoxRoomsDisplayHandler(CMenuCustomLobby* t
                                                              bool selected)
 {
     thisptr->updateListBoxRoomsRow(index, selected, lineArea, contents);
+}
+
+void __fastcall CMenuCustomLobby::listBoxChatDisplayHandler(CMenuCustomLobby* thisptr,
+                                                            int /*%edx*/,
+                                                            game::String* string,
+                                                            bool,
+                                                            int selectedIndex)
+{
+    const auto& messages = thisptr->m_chatMessages;
+    if (selectedIndex < 0 || selectedIndex >= (int)messages.size()) {
+        return;
+    }
+
+    auto messageText{getInterfaceText(textIds().lobby.chatMessage.c_str())};
+    if (messageText.empty()) {
+        messageText = "%SENDER%: %MSG%";
+    }
+
+    const auto& message = messages[selectedIndex];
+    replace(messageText, "%SENDER%", message.sender);
+    replace(messageText, "%MSG%", message.text);
+    game::StringApi::get().initFromString(string, messageText.c_str());
 }
 
 bool __fastcall CMenuCustomLobby::gameVersionMsgHandler(CMenuCustomLobby* menu,
@@ -593,6 +668,75 @@ void CMenuCustomLobby::joinServer(SLNet::RoomDescriptor* roomDescriptor)
         // Cannot connect to game session
         midgardApi.clearNetworkState(midgard);
         showMessageBox(getInterfaceText("X003TA0001"));
+    }
+}
+
+void CMenuCustomLobby::addChatMessage(const char* sender, const char* message)
+{
+    using namespace game;
+
+    const auto& dialogApi = CDialogInterfApi::get();
+    const auto& listBoxApi = CListBoxInterfApi::get();
+
+    if (m_chatMessages.size() >= chatMessageMaxCount) {
+        m_chatMessages.pop_front();
+    }
+    m_chatMessages.push_back({sender, message});
+
+    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
+    auto listBoxChat = (CListBoxInterf*)dialogApi.findControl(dialog, "LBOX_CHAT");
+    if (!listBoxChat || !listBoxChat->vftable->isOnTop(listBoxChat)) {
+        // If the listBox is not on top then the game will only remove its childs without rendering
+        // the new ones. This happens when any popup dialog is displayed.
+        return;
+    }
+
+    listBoxApi.setElementsTotal(listBoxChat, (int)m_chatMessages.size());
+}
+
+void CMenuCustomLobby::sendChatMessage()
+{
+    using namespace game;
+
+    const auto& dialogApi = CDialogInterfApi::get();
+    const auto& editBoxApi = CEditBoxInterfApi::get();
+
+    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
+    auto editBoxChat = (CEditBoxInterf*)dialogApi.findControl(dialog, "EDIT_CHAT");
+    if (!editBoxChat) {
+        return;
+    }
+
+    auto message = getEditBoxText(dialog, "EDIT_CHAT");
+    if (!strlen(message)) {
+        return;
+    }
+
+    if (m_chatMessageStock == 0) {
+        auto msg{getInterfaceText(textIds().lobby.tooManyChatMessages.c_str())};
+        if (msg.empty()) {
+            msg = "Too many chat messages. Wait a couple of seconds.";
+        }
+        showMessageBox(msg);
+        return;
+    }
+
+    getNetService()->sendChatMessage(message);
+    editBoxApi.setString(editBoxChat, "");
+    --m_chatMessageStock;
+}
+
+void CMenuCustomLobby::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
+                                                      SLNet::RakPeerInterface* peer,
+                                                      const SLNet::Packet* packet)
+{
+    switch (type) {
+    case ID_LOBBY_CHAT_MESSAGE:
+        SLNet::RakString sender;
+        SLNet::RakString text;
+        getNetService()->readChatMessage(packet, sender, text);
+        m_menu->addChatMessage(sender.C_String(), text.C_String());
+        break;
     }
 }
 

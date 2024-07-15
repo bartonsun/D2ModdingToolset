@@ -285,6 +285,11 @@ textids = {
 		searchRoomsFailed = "",
 		-- Fallback text "The selected room no longer exists."
 		selectedRoomNoLongerExists = "",
+		-- The text must contain keywords "%SENDER%" and "%MSG%".
+		-- Fallback text "%SENDER%: %MSG%"
+		chatMessage = "",
+		-- Fallback text "Too many chat messages. Wait a couple of seconds."
+		tooManyChatMessages = "",
 	},
 
     generator = {

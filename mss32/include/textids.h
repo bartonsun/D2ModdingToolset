@@ -121,6 +121,8 @@ struct TextIds
         std::string joinRoomFailed;
         std::string searchRoomsFailed;
         std::string selectedRoomNoLongerExists;
+        std::string chatMessage;
+        std::string tooManyChatMessages;
     } lobby;
 
     struct ScenarioGenerator
