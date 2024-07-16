@@ -95,6 +95,8 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     }
 
     // Using generic findControl for optional controls to prevent error messages
+    // TODO: findControl first, then findListBox to prevent possible crashes in case of control type
+    // missmatch. Repeat for every occurrence.
     auto listBoxRooms = (CListBoxInterf*)dialogApi.findControl(dialog, "LBOX_ROOMS");
     if (listBoxRooms) {
         SmartPointer functor;
