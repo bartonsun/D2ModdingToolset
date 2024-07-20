@@ -42,6 +42,8 @@ namespace hooks {
 enum ClientMessages
 {
     ID_LOBBY_CHAT_MESSAGE = ID_USER_PACKET_ENUM + 1,
+    ID_LOBBY_GET_ONLINE_USERS_REQUEST,
+    ID_LOBBY_GET_ONLINE_USERS_RESPONSE,
     ID_GAME_MESSAGE_TO_HOST_SERVER,
     ID_GAME_MESSAGE_TO_HOST_CLIENT,
     ID_GAME_MESSAGE = game::netMessageNormalType & 0xff,
@@ -113,6 +115,15 @@ public:
     void readChatMessage(const SLNet::Packet* packet,
                          SLNet::RakString& sender,
                          SLNet::RakString& text);
+
+    /** Requests online user list. Handle ID_LOBBY_GET_USERS_RESPONSE in peer callback. */
+    void queryOnlineUsers();
+    struct UserInfo
+    {
+        SLNet::RakNetGUID guid;
+        SLNet::RakString name;
+    };
+    std::vector<UserInfo> readOnlineUsers(const SLNet::Packet* packet);
 
     /** Tries to create and enter a new room. */
     bool createRoom(const char* gameName, const char* password = nullptr);

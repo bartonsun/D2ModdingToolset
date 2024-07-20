@@ -20,6 +20,7 @@
 #ifndef MENUCUSTOMLOBBY_H
 #define MENUCUSTOMLOBBY_H
 
+#include "d2vector.h"
 #include "menubase.h"
 #include "menucustombase.h"
 #include "midmsgboxbuttonhandler.h"
@@ -49,9 +50,10 @@ public:
     static constexpr char transitionFromProtoName[] = "TRANS_PROTO2CUSTOMLOBBY";
     static constexpr char transitionFromBlackName[] = "TRANS_BLACK2CUSTOMLOBBY";
     static constexpr std::uint32_t roomsUpdateEventInterval{5000};
+    static constexpr std::uint32_t usersUpdateEventInterval{5000};
     static constexpr std::uint32_t chatMessageMaxLength{50};
     static constexpr std::uint32_t chatMessageMaxCount{50};
-    static constexpr std::uint32_t chatMessageStockSize{3};
+    static constexpr std::uint32_t chatMessageMaxStock{3};
     static constexpr std::uint32_t chatMessageRegenEventInterval{3000};
 
     CMenuCustomLobby(game::CMenuPhase* menuPhase);
@@ -83,10 +85,16 @@ protected:
                                   game::ImagePointList* contents);
     void addListBoxRoomsSelectionOutline(const game::CMqRect* lineArea,
                                          game::ImagePointList* contents);
+    void updateListBoxUsersRow(int rowIndex,
+                               bool selected,
+                               const game::CMqRect* lineArea,
+                               game::ImagePointList* contents);
+    game::IMqImage2* getUserImage(const CNetCustomService::UserInfo& user, bool left, bool big);
     void fillNetMsgEntries();
     void joinServer(SLNet::RoomDescriptor* roomDescriptor);
     void addChatMessage(const char* sender, const char* message);
     void sendChatMessage();
+    void updateUsers(std::vector<CNetCustomService::UserInfo> users);
 
     static RoomInfo getRoomInfo(SLNet::RoomDescriptor* roomDescriptor);
     static SLNet::RoomMemberDescriptor* getRoomModerator(
@@ -97,8 +105,15 @@ protected:
     static void __fastcall joinBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall backBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall roomsUpdateEventCallback(CMenuCustomLobby* thisptr, int /*%edx*/);
+    static void __fastcall usersUpdateEventCallback(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall chatMessageRegenEventCallback(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall listBoxRoomsDisplayHandler(CMenuCustomLobby* thisptr,
+                                                      int /*%edx*/,
+                                                      game::ImagePointList* contents,
+                                                      const game::CMqRect* lineArea,
+                                                      int index,
+                                                      bool selected);
+    static void __fastcall listBoxUsersDisplayHandler(CMenuCustomLobby* thisptr,
                                                       int /*%edx*/,
                                                       game::ImagePointList* contents,
                                                       const game::CMqRect* lineArea,
@@ -211,6 +226,10 @@ private:
     RoomsCallback m_roomsCallback;
     game::UiEvent m_roomsUpdateEvent;
     std::vector<RoomInfo> m_rooms;
+    game::UiEvent m_usersUpdateEvent;
+    std::vector<CNetCustomService::UserInfo> m_users;
+    game::Vector<game::SmartPtr<game::IMqImage2>> m_userIcons;
+    bool m_userIconsAreLeftOriented;
     game::NetMsgEntryData** m_netMsgEntryData;
     CRoomPasswordInterf* m_roomPasswordDialog;
     SLNet::RoomID m_joiningRoomId;

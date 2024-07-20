@@ -123,6 +123,7 @@ struct TextIds
         std::string selectedRoomNoLongerExists;
         std::string chatMessage;
         std::string tooManyChatMessages;
+        std::string playerNameInList;
     } lobby;
 
     struct ScenarioGenerator

@@ -239,6 +239,48 @@ void CNetCustomService::readChatMessage(const SLNet::Packet* packet,
     }
 }
 
+void CNetCustomService::queryOnlineUsers()
+{
+    SLNet::BitStream stream;
+    stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_GET_ONLINE_USERS_REQUEST));
+    send(stream, getLobbyGuid());
+}
+
+std::vector<CNetCustomService::UserInfo> CNetCustomService::readOnlineUsers(
+    const SLNet::Packet* packet)
+{
+    using namespace SLNet;
+
+    BitStream stream{packet->data, packet->length, false};
+    stream.IgnoreBytes(sizeof(MessageID));
+
+    unsigned int count;
+    if (!stream.Read(count)) {
+        logDebug("lobby.log", "Failed to read online users count");
+        return {};
+    }
+
+    std::vector<UserInfo> result;
+    result.reserve(count);
+    for (unsigned int i = 0; i < count; ++i) {
+        RakNetGUID guid;
+        if (!stream.Read(guid)) {
+            logDebug("lobby.log", "Failed to read online user guid");
+            return {};
+        }
+
+        RakString name;
+        if (!stream.Read(name)) {
+            logDebug("lobby.log", "Failed to read online user name");
+            return {};
+        }
+
+        result.push_back({guid, name});
+    }
+
+    return result;
+}
+
 bool CNetCustomService::createRoom(const char* gameName, const char* password)
 {
     logDebug("lobby.log", fmt::format("Trying to create a room with game name {:s}, password {:s}",

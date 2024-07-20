@@ -26,6 +26,7 @@
 #include "image2fill.h"
 #include "image2outline.h"
 #include "image2text.h"
+#include "imageptrvector.h"
 #include "interfaceutils.h"
 #include "interfmanager.h"
 #include "listbox.h"
@@ -59,7 +60,8 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     , m_roomsCallback(this)
     , m_netMsgEntryData(nullptr)
     , m_roomPasswordDialog(nullptr)
-    , m_chatMessageStock(chatMessageStockSize)
+    , m_chatMessageStock(chatMessageMaxStock)
+    , m_userIcons{}
 {
     using namespace game;
 
@@ -107,6 +109,25 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
         SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
     }
 
+    ImagePtrVectorApi::get().reserve(&m_userIcons, 1);
+    m_userIconsAreLeftOriented = true;
+    auto listBoxUsers = (CListBoxInterf*)dialogApi.findControl(dialog, "LBOX_LPLAYERS");
+    if (!listBoxUsers) {
+        listBoxUsers = (CListBoxInterf*)dialogApi.findControl(dialog, "LBOX_RPLAYERS");
+        m_userIconsAreLeftOriented = false;
+    }
+
+    if (listBoxUsers) {
+        SmartPointer functor;
+        auto callback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxUsersDisplayHandler;
+        menuBaseApi.createListBoxDisplayFunctor(&functor, 0, this, &callback);
+        listBoxApi.assignDisplaySurfaceFunctor(dialog,
+                                               m_userIconsAreLeftOriented ? "LBOX_LPLAYERS"
+                                                                          : "LBOX_RPLAYERS",
+                                               dialogName, &functor);
+        SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
+    }
+
     auto listBoxChat = (CListBoxInterf*)dialogApi.findControl(dialog, "LBOX_CHAT");
     if (listBoxChat) {
         SmartPointer functor;
@@ -133,6 +154,10 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     service->searchRooms();
     createTimerEvent(&m_roomsUpdateEvent, this, roomsUpdateEventCallback, roomsUpdateEventInterval);
 
+    // Request users list as soon as possible, no need to wait for event
+    service->queryOnlineUsers();
+    createTimerEvent(&m_usersUpdateEvent, this, usersUpdateEventCallback, usersUpdateEventInterval);
+
     createTimerEvent(&m_chatMessageRegenEvent, this, chatMessageRegenEventCallback,
                      chatMessageRegenEventInterval);
 }
@@ -146,9 +171,10 @@ CMenuCustomLobby ::~CMenuCustomLobby()
     hideRoomPasswordDialog();
 
     uiEventApi.destructor(&m_chatMessageRegenEvent);
-
-    logDebug("transitions.log", "Delete rooms list event");
+    uiEventApi.destructor(&m_usersUpdateEvent);
     uiEventApi.destructor(&m_roomsUpdateEvent);
+
+    ImagePtrVectorApi::get().destructor(&m_userIcons);
 
     auto service = getNetService();
     if (service) {
@@ -286,10 +312,16 @@ void __fastcall CMenuCustomLobby::roomsUpdateEventCallback(CMenuCustomLobby* /*t
     getNetService()->searchRooms();
 }
 
+void __fastcall CMenuCustomLobby::usersUpdateEventCallback(CMenuCustomLobby* /*thisptr*/,
+                                                           int /*%edx*/)
+{
+    getNetService()->queryOnlineUsers();
+}
+
 void __fastcall CMenuCustomLobby::chatMessageRegenEventCallback(CMenuCustomLobby* thisptr,
                                                                 int /*%edx*/)
 {
-    if (thisptr->m_chatMessageStock < chatMessageStockSize) {
+    if (thisptr->m_chatMessageStock < chatMessageMaxStock) {
         ++thisptr->m_chatMessageStock;
     }
 }
@@ -302,6 +334,16 @@ void __fastcall CMenuCustomLobby::listBoxRoomsDisplayHandler(CMenuCustomLobby* t
                                                              bool selected)
 {
     thisptr->updateListBoxRoomsRow(index, selected, lineArea, contents);
+}
+
+void __fastcall CMenuCustomLobby::listBoxUsersDisplayHandler(CMenuCustomLobby* thisptr,
+                                                             int /*%edx*/,
+                                                             game::ImagePointList* contents,
+                                                             const game::CMqRect* lineArea,
+                                                             int index,
+                                                             bool selected)
+{
+    thisptr->updateListBoxUsersRow(index, selected, lineArea, contents);
 }
 
 void __fastcall CMenuCustomLobby::listBoxChatDisplayHandler(CMenuCustomLobby* thisptr,
@@ -614,6 +656,89 @@ void CMenuCustomLobby::addListBoxRoomsSelectionOutline(const game::CMqRect* line
     createFreePtr((SmartPointer*)&pair.first, nullptr);
 }
 
+void CMenuCustomLobby::updateListBoxUsersRow(int rowIndex,
+                                             bool /*selected*/,
+                                             const game::CMqRect* lineArea,
+                                             game::ImagePointList* contents)
+{
+    using namespace game;
+
+    if (rowIndex < 0 || rowIndex >= (int)m_users.size()) {
+        return;
+    }
+    const auto& user = m_users[rowIndex];
+
+    if (rowIndex < 0 || rowIndex >= (int)m_userIcons.size()) {
+        logDebug(
+            "lobby.log",
+            fmt::format(
+                "Failed to update users listbox because the icon at index {:d} is out of list bounds",
+                rowIndex));
+        return;
+    }
+    const auto& icon = m_userIcons.bgn[rowIndex];
+
+    auto playerName{getInterfaceText(textIds().lobby.playerNameInList.c_str())};
+    if (playerName.empty()) {
+        playerName = "\\vC;\\hC;\\fSmall;%NAME%";
+    }
+    replace(playerName, "%NAME%", user.name.C_String());
+
+    CMqPoint iconSize;
+    icon.data->vftable->getSize(icon.data, &iconSize);
+
+    // Place text area under the icon
+    CMqRect textClientArea = {0, iconSize.y, lineArea->right - lineArea->left,
+                              lineArea->bottom - lineArea->top};
+    // Center image horizontally
+    CMqPoint iconClientPos{(lineArea->right - lineArea->left - iconSize.x) / 2, 0};
+    ImagePointListApi::get().addImageWithText(contents, lineArea, &icon, &iconClientPos,
+                                              playerName.c_str(), &textClientArea, false, 0);
+}
+
+game::IMqImage2* CMenuCustomLobby::getUserImage(const CNetCustomService::UserInfo& user,
+                                                bool left,
+                                                bool big)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+    const auto& idApi = CMidgardIDApi::get();
+
+    CMidgardID unitImplId{};
+    auto token = user.guid.g;
+    // A little bit of easter eggs is never wrong
+    if (user.name == "UnveN") {
+        idApi.fromString(&unitImplId, "G000UU0101"); /* Skeleton */
+    } else if (token % 23 == 0) {
+        idApi.fromString(&unitImplId, "G000UU5031"); /* Master Thug */
+    } else if (token % 69 == 0) {
+        idApi.fromString(&unitImplId, "G000UU6121"); /* Drega Zul */
+    } else if (token % 81 == 0) {
+        idApi.fromString(&unitImplId, "G000UU8046"); /* Shamaness */
+    } else {
+        const size_t ID_COUNT = 18;
+        const char* unitImplIds[ID_COUNT] =
+            {"G000UU0001" /* Squire */,     "G000UU0006" /* Archer */,
+             "G000UU0008" /* Apprentice */, "G000UU0011" /* Acolyte */,
+             "G000UU0036" /* Dwarf */,      "G000UU0026" /* Axe Thrower */,
+             "G000UU0033" /* Tenderfoot */, "G000UU0052" /* Possessed */,
+             "G000UU0062" /* Cultist */,    "G000UU0086" /* Fighter */,
+             "G000UU0080" /* Initiate */,   "G000UU0078" /* Ghost */,
+             "G000UU0092" /* Werewolf */,   "G000UU8014" /* Centaur Lancer */,
+             "G000UU8018" /* Scout */,      "G000UU8025" /* Adept */,
+             "G000UU8031" /* Spiritess */,  "G000UU8036" /* Ent Minor */};
+        idApi.fromString(&unitImplId, unitImplIds[token % ID_COUNT]);
+    }
+
+    auto faceImage = fn.createUnitFaceImage(&unitImplId, big);
+    faceImage->vftable->setPercentHp(faceImage, 100);
+    faceImage->vftable->setUnknown68(faceImage, 0);
+    faceImage->vftable->setLeftSide(faceImage, left);
+
+    return (IMqImage2*)faceImage;
+}
+
 void CMenuCustomLobby::fillNetMsgEntries()
 {
     using namespace game;
@@ -728,17 +853,56 @@ void CMenuCustomLobby::sendChatMessage()
     --m_chatMessageStock;
 }
 
+void CMenuCustomLobby::updateUsers(std::vector<CNetCustomService::UserInfo> users)
+{
+    using namespace game;
+
+    const auto& dialogApi = CDialogInterfApi::get();
+    const auto& listBoxApi = CListBoxInterfApi::get();
+    const auto& smartPtrApi = SmartPointerApi::get();
+    const auto& imagePtrVectorApi = ImagePtrVectorApi::get();
+
+    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
+    auto listBox = dialogApi.findListBox(dialog, m_userIconsAreLeftOriented ? "LBOX_LPLAYERS"
+                                                                            : "LBOX_RPLAYERS");
+    if (!listBox->vftable->isOnTop(listBox)) {
+        // If the listBox is not on top then the game will only remove its childs without rendering
+        // the new ones. This happens when any popup dialog is displayed.
+        return;
+    }
+
+    // See CManageStkInterfSetLeaderAbilities (Akella 0x497E5A)
+    imagePtrVectorApi.destructor(&m_userIcons);
+    imagePtrVectorApi.reserve(&m_userIcons, 1);
+    for (const auto& user : users) {
+        auto* icon = getUserImage(user, m_userIconsAreLeftOriented, false);
+        ImagePtr iconPtr{};
+        smartPtrApi.createOrFree((SmartPointer*)&iconPtr, icon);
+        imagePtrVectorApi.pushBack(&m_userIcons, &iconPtr);
+        smartPtrApi.createOrFree((SmartPointer*)&iconPtr, nullptr);
+    }
+
+    m_users = std::move(users);
+    listBoxApi.setElementsTotal(listBox, (int)m_users.size());
+}
+
 void CMenuCustomLobby::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
                                                       SLNet::RakPeerInterface* peer,
                                                       const SLNet::Packet* packet)
 {
     switch (type) {
-    case ID_LOBBY_CHAT_MESSAGE:
+    case ID_LOBBY_CHAT_MESSAGE: {
         SLNet::RakString sender;
         SLNet::RakString text;
         getNetService()->readChatMessage(packet, sender, text);
         m_menu->addChatMessage(sender.C_String(), text.C_String());
         break;
+    }
+
+    case ID_LOBBY_GET_ONLINE_USERS_RESPONSE: {
+        m_menu->updateUsers(getNetService()->readOnlineUsers(packet));
+        break;
+    }
     }
 }
 
