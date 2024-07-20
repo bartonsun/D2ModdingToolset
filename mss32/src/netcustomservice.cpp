@@ -511,6 +511,11 @@ const std::string& CNetCustomService::getGameFilesHash()
     return m_gameFilesHash;
 }
 
+CNetCustomService::UserInfo CNetCustomService::getUserInfo() const
+{
+    return {getPeerGuid(), getAccountName().c_str()};
+}
+
 void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
                                                        SLNet::RakPeerInterface* peer,
                                                        const SLNet::Packet* packet)

@@ -70,6 +70,12 @@ struct CNetCustomSessEnum
 class CNetCustomService : public game::IMqNetService
 {
 public:
+    struct UserInfo
+    {
+        SLNet::RakNetGUID guid;
+        SLNet::RakString name;
+    };
+
     static constexpr std::uint32_t peerShutdownTimeout{100};
     static constexpr std::uint32_t peerProcessInterval{100};
     static constexpr char titleName[] = "Disciples II: Rise of the Elves";
@@ -95,6 +101,7 @@ public:
     const SLNet::RakNetGUID getLobbyGuid() const;
     bool send(const SLNet::BitStream& stream, const SLNet::RakNetGUID& to) const;
     const std::string& getGameFilesHash();
+    UserInfo getUserInfo() const;
 
     /**
      * Tries to register new account using credentials provided.
@@ -118,11 +125,6 @@ public:
 
     /** Requests online user list. Handle ID_LOBBY_GET_USERS_RESPONSE in peer callback. */
     void queryOnlineUsers();
-    struct UserInfo
-    {
-        SLNet::RakNetGUID guid;
-        SLNet::RakString name;
-    };
     std::vector<UserInfo> readOnlineUsers(const SLNet::Packet* packet);
 
     /** Tries to create and enter a new room. */

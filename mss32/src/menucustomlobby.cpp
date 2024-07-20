@@ -116,7 +116,6 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
         listBoxUsers = (CListBoxInterf*)dialogApi.findControl(dialog, "LBOX_RPLAYERS");
         m_userIconsAreLeftOriented = false;
     }
-
     if (listBoxUsers) {
         SmartPointer functor;
         auto callback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxUsersDisplayHandler;
@@ -145,6 +144,19 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
 
     auto service = getNetService();
     fillNetMsgEntries();
+
+    bool playerFaceIsLeftOriented = true;
+    auto imagePlayerFace = (CPictureInterf*)dialogApi.findControl(dialog, "IMG_LPLAYER_FACE");
+    if (!imagePlayerFace) {
+        playerFaceIsLeftOriented = false;
+        imagePlayerFace = (CPictureInterf*)dialogApi.findControl(dialog, "IMG_RPLAYER_FACE");
+    }
+    if (imagePlayerFace) {
+        auto* icon = getUserImage(service->getUserInfo(), playerFaceIsLeftOriented, true);
+        CMqPoint offset{};
+        CPictureInterfApi::get().setImage(imagePlayerFace, icon, &offset);
+    }
+
     updateAccountText(service->getAccountName().c_str());
 
     service->addPeerCallback(&m_peerCallback);
