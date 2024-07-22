@@ -1262,6 +1262,9 @@
     <ClCompile Include="src\menucustomrandomscenariomulti.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
+    <ClCompile Include="src\autodialogfile.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3290,6 +3293,9 @@
       <Filter>features\lobby</Filter>
     </ClInclude>
     <ClInclude Include="include\gameversion.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\autodialogfile.h">
       <Filter>game</Filter>
     </ClInclude>
   </ItemGroup>

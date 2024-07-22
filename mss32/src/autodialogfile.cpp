@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2020 Vladimir Makeev.
+ * Copyright (C) 2024 Stanislav Egorov.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,34 +17,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "autodialog.h"
+#include "autodialogfile.h"
 #include "version.h"
 #include <array>
 
-namespace game::AutoDialogApi {
+namespace game::AutoDialogFileApi {
 
 // clang-format off
 std::array<Api, 3> functions = {{
     // Akella
     Api{
-        (Api::LoadAndParseScriptFile)0x50b44a,
-        (Api::ParseDialogFromScriptFile)0x50cc56,
-        (Api::DialogMapInsert)0x50b783,
-        (Api::LoadImage)0x5c9d20,
+        (Api::Constructor)0x50e227,
+        (Api::Destructor)0x50e375,
     },
     // Russobit
     Api{
-        (Api::LoadAndParseScriptFile)0x50b44a,
-        (Api::ParseDialogFromScriptFile)0x50cc56,
-        (Api::DialogMapInsert)0x50b783,
-        (Api::LoadImage)0x5c9d20,
+        (Api::Constructor)0x50e227,
+        (Api::Destructor)0x50e375,
     },
     // Gog
     Api{
-        (Api::LoadAndParseScriptFile)0x50a8cb,
-        (Api::ParseDialogFromScriptFile)0x50c14c,
-        (Api::DialogMapInsert)0x50ac69,
-        (Api::LoadImage)0x5c8cee,
+        (Api::Constructor)0x50d6eb,
+        (Api::Destructor)0x50d839,
     }
 }};
 // clang-format on
@@ -54,4 +48,4 @@ Api& get()
     return functions[static_cast<int>(hooks::gameVersion())];
 }
 
-} // namespace game::AutoDialogApi
+} // namespace game::AutoDialogFileApi
