@@ -381,6 +381,12 @@ static Hooks getGameHooks()
         {fn.changeUnitXpCheckUpgrade, changeUnitXpCheckUpgradeHooked},
         // Allow player to customize movement cost
         {fn.computeMovementCost, computeMovementCostHooked},
+        // Support custom lobby
+        {CMenuPhaseApi::get().backToMainOrCloseGame, menuPhaseBackToMainOrCloseGameHooked, (void**)&orig.menuPhaseBackToMainOrCloseGame},
+        {CMenuProtocolApi::get().createMenu, menuProtocolCreateMenuHooked},
+        {CMenuProtocolApi::get().continueHandler, menuProtocolContinueHandlerHooked, (void**)&orig.menuProtocolContinueHandler},
+        {CMenuProtocolApi::get().displayCallback, menuProtocolDisplayCallbackHooked, (void**)&orig.menuProtocolDisplayCallback},
+        {CMenuLoadApi::get().createServer, menuLoadCreateServerHooked, (void**)&orig.menuLoadCreateServer},
     };
     // clang-format on
 
@@ -470,18 +476,6 @@ static Hooks getGameHooks()
     if (userSettings().movementCost.show) {
         // Show movement cost
         hooks.emplace_back(HookInfo{fn.showMovementPath, showMovementPathHooked});
-    }
-
-    if (isLobbySupported()) {
-        // clang-format off
-        // Support new menu windows
-        hooks.emplace_back(HookInfo{CMenuPhaseApi::get().backToMainOrCloseGame, menuPhaseBackToMainOrCloseGameHooked, (void**)&orig.menuPhaseBackToMainOrCloseGame});
-        // Support custom lobby server
-        hooks.emplace_back(HookInfo{CMenuProtocolApi::get().createMenu, menuProtocolCreateMenuHooked});
-        hooks.emplace_back(HookInfo{CMenuProtocolApi::get().continueHandler, menuProtocolContinueHandlerHooked, (void**)&orig.menuProtocolContinueHandler});
-        hooks.emplace_back(HookInfo{CMenuProtocolApi::get().displayCallback, menuProtocolDisplayCallbackHooked, (void**)&orig.menuProtocolDisplayCallback});
-        hooks.emplace_back(HookInfo{CMenuLoadApi::get().createServer, menuLoadCreateServerHooked, (void**)&orig.menuLoadCreateServer});
-        // clang-format on
     }
 
     bool hookSendObjectsChanges = false;
