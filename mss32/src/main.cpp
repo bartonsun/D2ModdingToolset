@@ -35,7 +35,8 @@
 #include <string>
 #include <thread>
 
-static HMODULE library{};
+HMODULE library{};
+static HMODULE libraryMss23{};
 static void* registerInterface{};
 static void* unregisterInterface{};
 std::thread::id mainThreadId;
@@ -197,7 +198,7 @@ static void setupVftableHooks()
 BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
 {
     if (reason == DLL_PROCESS_DETACH) {
-        FreeLibrary(library);
+        FreeLibrary(libraryMss23);
         return TRUE;
     }
 
@@ -205,16 +206,17 @@ BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
         return TRUE;
     }
 
+    library = hDll;
     mainThreadId = std::this_thread::get_id();
 
-    library = LoadLibrary("Mss23.dll");
-    if (!library) {
+    libraryMss23 = LoadLibrary("Mss23.dll");
+    if (!libraryMss23) {
         MessageBox(NULL, "Failed to load Mss23.dll", "mss32.dll proxy", MB_OK);
         return FALSE;
     }
 
-    registerInterface = GetProcAddress(library, "RIB_register_interface");
-    unregisterInterface = GetProcAddress(library, "RIB_unregister_interface");
+    registerInterface = GetProcAddress(libraryMss23, "RIB_register_interface");
+    unregisterInterface = GetProcAddress(libraryMss23, "RIB_unregister_interface");
     if (!registerInterface || !unregisterInterface) {
         MessageBox(NULL, "Could not load Mss23.dll addresses", "mss32.dll proxy", MB_OK);
         return FALSE;

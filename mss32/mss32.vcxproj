@@ -170,6 +170,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\attackutils.cpp" />
     <ClCompile Include="src\autodialog.cpp" />
     <ClCompile Include="src\autodialogfile.cpp" />
+    <ClCompile Include="src\autodialoghooks.cpp" />
     <ClCompile Include="src\autoptr.cpp" />
     <ClCompile Include="src\batattackbestowwards.cpp" />
     <ClCompile Include="src\batattackdoppelganger.cpp" />
@@ -601,6 +602,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\attackutils.h" />
     <ClInclude Include="include\autodialog.h" />
     <ClInclude Include="include\autodialogfile.h" />
+    <ClInclude Include="include\autodialoghooks.h" />
     <ClInclude Include="include\autoptr.h" />
     <ClInclude Include="include\avoidflickerimage.h" />
     <ClInclude Include="include\batattack.h" />

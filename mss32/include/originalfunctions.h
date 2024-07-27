@@ -21,6 +21,7 @@
 #define ORIGINALFUNCTIONS_H
 
 #include "attackimpl.h"
+#include "autodialog.h"
 #include "battlemsgdata.h"
 #include "citystackinterf.h"
 #include "commandmsg.h"
@@ -146,6 +147,8 @@ struct OriginalFunctions
     game::CEditBoxInterfApi::Api::EditBoxDataCtor editBoxDataCtor;
 
     game::CMenuLoadApi::Api::CreateServer menuLoadCreateServer;
+
+    game::AutoDialogApi::Api::LoadAndParseScriptFile autoDialogLoadAndParseScriptFile;
 };
 
 OriginalFunctions& getOriginalFunctions();

@@ -24,6 +24,7 @@
 #include "attackreachcat.h"
 #include "attackutils.h"
 #include "autodialog.h"
+#include "autodialoghooks.h"
 #include "batattackbestowwards.h"
 #include "batattackdoppelganger.h"
 #include "batattackdrain.h"
@@ -387,6 +388,7 @@ static Hooks getGameHooks()
         {CMenuProtocolApi::get().continueHandler, menuProtocolContinueHandlerHooked, (void**)&orig.menuProtocolContinueHandler},
         {CMenuProtocolApi::get().displayCallback, menuProtocolDisplayCallbackHooked, (void**)&orig.menuProtocolDisplayCallback},
         {CMenuLoadApi::get().createServer, menuLoadCreateServerHooked, (void**)&orig.menuLoadCreateServer},
+        {AutoDialogApi::get().loadAndParseScriptFile, autoDialogLoadAndParseScriptFileHooked, (void**)&orig.autoDialogLoadAndParseScriptFile},
     };
     // clang-format on
 
