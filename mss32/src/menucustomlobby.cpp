@@ -162,13 +162,19 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     service->addPeerCallback(&m_peerCallback);
     service->addRoomsCallback(&m_roomsCallback);
 
-    // Request rooms list as soon as possible, no need to wait for event
-    service->searchRooms();
-    createTimerEvent(&m_roomsUpdateEvent, this, roomsUpdateEventCallback, roomsUpdateEventInterval);
+    if (listBoxRooms) {
+        // Request rooms list as soon as possible, no need to wait for event
+        service->searchRooms();
+        createTimerEvent(&m_roomsUpdateEvent, this, roomsUpdateEventCallback,
+                         roomsUpdateEventInterval);
+    }
 
-    // Request users list as soon as possible, no need to wait for event
-    service->queryOnlineUsers();
-    createTimerEvent(&m_usersUpdateEvent, this, usersUpdateEventCallback, usersUpdateEventInterval);
+    if (listBoxUsers) {
+        // Request users list as soon as possible, no need to wait for event
+        service->queryOnlineUsers();
+        createTimerEvent(&m_usersUpdateEvent, this, usersUpdateEventCallback,
+                         usersUpdateEventInterval);
+    }
 
     createTimerEvent(&m_chatMessageRegenEvent, this, chatMessageRegenEventCallback,
                      chatMessageRegenEventInterval);
