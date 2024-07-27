@@ -1023,14 +1023,13 @@ void __fastcall CMenuCustomLobby::CConfirmBackMsgBoxButtonHandler::handler(
     }
 }
 
-CMenuCustomLobby::CRoomPasswordInterf::CRoomPasswordInterf(CMenuCustomLobby* menu,
-                                                           const char* dialogName)
-    : CPopupDialogCustomBase{this, dialogName}
+CMenuCustomLobby::CRoomPasswordInterf::CRoomPasswordInterf(CMenuCustomLobby* menu)
+    : CPopupDialogCustomBase{this, roomPasswordDialogName}
     , m_menu{menu}
 {
     using namespace game;
 
-    CPopupDialogInterfApi::get().constructor(this, dialogName, nullptr);
+    CPopupDialogInterfApi::get().constructor(this, roomPasswordDialogName, nullptr);
 
     setButtonCallback(*dialog, "BTN_CANCEL", cancelBtnHandler, this);
     setButtonCallback(*dialog, "BTN_OK", okBtnHandler, this);

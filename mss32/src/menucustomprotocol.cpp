@@ -289,16 +289,15 @@ void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_RegisterAcc
     }
 }
 
-CMenuCustomProtocol::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomProtocol* menu,
-                                                              const char* dialogName)
-    : CPopupDialogCustomBase{this, dialogName}
+CMenuCustomProtocol::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomProtocol* menu)
+    : CPopupDialogCustomBase{this, loginAccountDialogName}
     , m_menu{menu}
 {
     using namespace game;
 
     const auto& restrictions = gameRestrictions();
 
-    CPopupDialogInterfApi::get().constructor(this, dialogName, nullptr);
+    CPopupDialogInterfApi::get().constructor(this, loginAccountDialogName, nullptr);
 
     setButtonCallback(*dialog, "BTN_CANCEL", cancelBtnHandler, this);
     setButtonCallback(*dialog, "BTN_OK", okBtnHandler, this);
@@ -346,16 +345,15 @@ void __fastcall CMenuCustomProtocol::CLoginAccountInterf::registerBtnHandler(
     menu->showRegisterDialog();
 }
 
-CMenuCustomProtocol::CRegisterAccountInterf::CRegisterAccountInterf(CMenuCustomProtocol* menu,
-                                                                    const char* dialogName)
-    : CPopupDialogCustomBase{this, dialogName}
+CMenuCustomProtocol::CRegisterAccountInterf::CRegisterAccountInterf(CMenuCustomProtocol* menu)
+    : CPopupDialogCustomBase{this, registerAccountDialogName}
     , m_menu{menu}
 {
     using namespace game;
 
     const auto& restrictions = gameRestrictions();
 
-    CPopupDialogInterfApi::get().constructor(this, dialogName, nullptr);
+    CPopupDialogInterfApi::get().constructor(this, registerAccountDialogName, nullptr);
 
     setButtonCallback(*dialog, "BTN_CANCEL", cancelBtnHandler, this);
     setButtonCallback(*dialog, "BTN_OK", okBtnHandler, this);

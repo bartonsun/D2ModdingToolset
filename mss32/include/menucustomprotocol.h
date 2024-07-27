@@ -32,6 +32,9 @@ class CMenuCustomProtocol
     , public CMenuCustomBase
 {
 public:
+    static constexpr char loginAccountDialogName[] = "DLG_LOGIN_ACCOUNT";
+    static constexpr char registerAccountDialogName[] = "DLG_REGISTER_ACCOUNT";
+
     CMenuCustomProtocol(game::CMenuPhase* menuPhase);
     ~CMenuCustomProtocol();
 
@@ -83,8 +86,7 @@ protected:
         : public game::CPopupDialogInterf
         , public CPopupDialogCustomBase
     {
-        CLoginAccountInterf(CMenuCustomProtocol* menu,
-                            const char* dialogName = "DLG_LOGIN_ACCOUNT");
+        CLoginAccountInterf(CMenuCustomProtocol* menu);
 
     protected:
         static void __fastcall okBtnHandler(CLoginAccountInterf* thisptr, int /*%edx*/);
@@ -99,8 +101,7 @@ protected:
         : public game::CPopupDialogInterf
         , public CPopupDialogCustomBase
     {
-        CRegisterAccountInterf(CMenuCustomProtocol* menu,
-                               const char* dialogName = "DLG_REGISTER_ACCOUNT");
+        CRegisterAccountInterf(CMenuCustomProtocol* menu);
 
     protected:
         static void __fastcall okBtnHandler(CRegisterAccountInterf* thisptr, int /*%edx*/);

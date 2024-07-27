@@ -47,6 +47,7 @@ class CMenuCustomLobby
 {
 public:
     static constexpr char dialogName[] = "DLG_CUSTOM_LOBBY";
+    static constexpr char roomPasswordDialogName[] = "DLG_ROOM_PASSWORD";
     static constexpr char transitionFromProtoName[] = "TRANS_PROTO2CUSTOMLOBBY";
     static constexpr char transitionFromBlackName[] = "TRANS_BLACK2CUSTOMLOBBY";
     static constexpr std::uint32_t roomsUpdateEventInterval{5000};
@@ -210,7 +211,7 @@ protected:
         : public game::CPopupDialogInterf
         , public CPopupDialogCustomBase
     {
-        CRoomPasswordInterf(CMenuCustomLobby* menu, const char* dialogName = "DLG_ROOM_PASSWORD");
+        CRoomPasswordInterf(CMenuCustomLobby* menu);
 
     protected:
         static void __fastcall okBtnHandler(CRoomPasswordInterf* thisptr, int /*%edx*/);
