@@ -6,6 +6,7 @@
 #define DLG_ROOM_PASSWORD 102
 #define DLG_REGISTER_ACCOUNT 103
 #define DLG_LOGIN_ACCOUNT 104
+#define FF_CUSTOM_LOBBY 105
 
 // Next default values for new objects
 //

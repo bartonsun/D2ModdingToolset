@@ -56,6 +56,9 @@ const std::filesystem::path& templatesFolder();
 /** Returns full path to the exports folder. */
 const std::filesystem::path& exportsFolder();
 
+/** Returns full path to the interf folder. */
+const std::filesystem::path& interfFolder();
+
 /** Returns full path to the executable that is currently running. */
 const std::filesystem::path& exePath();
 

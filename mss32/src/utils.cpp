@@ -89,6 +89,12 @@ const std::filesystem::path& exportsFolder()
     return folder;
 }
 
+const std::filesystem::path& interfFolder()
+{
+    static const std::filesystem::path folder{gameFolder() / "Interf"};
+    return folder;
+}
+
 const std::filesystem::path& exePath()
 {
     static std::filesystem::path exe{};

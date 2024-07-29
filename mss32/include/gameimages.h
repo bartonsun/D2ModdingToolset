@@ -77,7 +77,7 @@ struct Api
     using GetGameImages = GameImagesPtr*(__stdcall*)(GameImagesPtr* images);
     GetGameImages getGameImages;
 
-    using GetImage = IMqImage2*(__stdcall*)(const void* storage,
+    using GetImage = IMqImage2*(__stdcall*)(GameImageDataWrapper* imagesData,
                                             const char* imageName,
                                             int a3,
                                             bool randomStartingFrame,

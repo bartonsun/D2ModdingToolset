@@ -1271,6 +1271,12 @@
     <ClCompile Include="src\midautodlgimages.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\midautodlgimageshooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gameimagedata.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3312,6 +3318,9 @@
     </ClInclude>
     <ClInclude Include="include\logfile.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midautodlgimageshooks.h">
+      <Filter>hooks</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

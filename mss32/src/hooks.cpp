@@ -120,6 +120,8 @@
 #include "menunewskirmishsinglehooks.h"
 #include "menuphasehooks.h"
 #include "menuprotocolhooks.h"
+#include "midautodlgimages.h"
+#include "midautodlgimageshooks.h"
 #include "middatacache.h"
 #include "midevconditionhooks.h"
 #include "mideveffecthooks.h"
@@ -389,6 +391,7 @@ static Hooks getGameHooks()
         {CMenuProtocolApi::get().displayCallback, menuProtocolDisplayCallbackHooked, (void**)&orig.menuProtocolDisplayCallback},
         {CMenuLoadApi::get().createServer, menuLoadCreateServerHooked, (void**)&orig.menuLoadCreateServer},
         {AutoDialogApi::get().loadAndParseScriptFile, autoDialogLoadAndParseScriptFileHooked, (void**)&orig.autoDialogLoadAndParseScriptFile},
+        {MidAutoDlgImagesApi::vftable()->loadImage, midAutoDlgImagesLoadImageHooked},
     };
     // clang-format on
 
