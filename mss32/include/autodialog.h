@@ -31,6 +31,7 @@ namespace game {
 
 struct CAutoDialog;
 struct IMqImage2;
+struct CMqPoint;
 struct CMidAutoDlgImages;
 struct CMidAutoDlgLog;
 struct CMidAutoDlgTextLoader;
@@ -73,10 +74,29 @@ assert_size(CAutoDialogData, 60);
 /** Holds necessary data to create CInterface objects from .dlg files. */
 struct CAutoDialog
 {
+    struct IImageLoaderVftable;
+    struct IImageLoader
+    {
+        IImageLoaderVftable* vftable;
+    };
+
     CAutoDialogData* data;
 };
 
 assert_size(CAutoDialog, 4);
+
+struct CAutoDialog::IImageLoaderVftable
+{
+    using Destructor = void(__thiscall*)(IImageLoader* thisptr, char flags);
+    Destructor destructor;
+
+    using LoadImage = IMqImage2*(__thiscall*)(IImageLoader* thisptr,
+                                              const char* imageName,
+                                              const CMqPoint* imageSize);
+    LoadImage loadImage;
+};
+
+assert_vftable_size(CAutoDialog::IImageLoaderVftable, 2);
 
 namespace AutoDialogApi {
 
