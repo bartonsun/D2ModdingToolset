@@ -175,6 +175,12 @@ struct Rtti
     TypeDescriptor* IUsNobleType;
     TypeDescriptor* IUsSummonType;
     TypeDescriptor* IItemExPotionBoostType;
+    TypeDescriptor* CInterfaceType;
+    TypeDescriptor* CPictureInterfType;
+    TypeDescriptor* CButtonInterfType;
+    TypeDescriptor* CTextBoxInterfType;
+    TypeDescriptor* CEditBoxInterfType;
+    TypeDescriptor* CListBoxInterfType;
 };
 
 const Rtti& rtti();

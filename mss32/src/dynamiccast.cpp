@@ -105,6 +105,12 @@ static const std::array<Rtti, 4> types = {{
         (TypeDescriptor*)0x793d90, // IUsNobleType
         (TypeDescriptor*)0x7974b8, // IUsSummonType
         (TypeDescriptor*)0x7afcf8, // IItemExPotionBoostType
+        (TypeDescriptor*)0x78e8d0, // CInterfaceType
+        (TypeDescriptor*)0x7a6970, // CPictureInterfType
+        (TypeDescriptor*)0x79e9a0, // CButtonInterfType
+        (TypeDescriptor*)0x79c060, // CTextBoxInterfType
+        (TypeDescriptor*)0x7a6930, // CEditBoxInterfType
+        (TypeDescriptor*)0x7a6950, // CListBoxInterfType
     },
     // Russobit
     Rtti{
@@ -155,6 +161,12 @@ static const std::array<Rtti, 4> types = {{
         (TypeDescriptor*)0x793d90, // IUsNobleType
         (TypeDescriptor*)0x7974b8, // IUsSummonType
         (TypeDescriptor*)0x7afcf8, // IItemExPotionBoostType
+        (TypeDescriptor*)0x78e8d0, // CInterfaceType
+        (TypeDescriptor*)0x7a6970, // CPictureInterfType
+        (TypeDescriptor*)0x79e9a0, // CButtonInterfType
+        (TypeDescriptor*)0x79c060, // CTextBoxInterfType
+        (TypeDescriptor*)0x7a6930, // CEditBoxInterfType
+        (TypeDescriptor*)0x7a6950, // CListBoxInterfType
     },
     // Gog
     Rtti{
@@ -205,6 +217,12 @@ static const std::array<Rtti, 4> types = {{
         (TypeDescriptor*)0x791d38, // IUsNobleType
         (TypeDescriptor*)0x795460, // IUsSummonType
         (TypeDescriptor*)0x7adcb0, // IItemExPotionBoostType
+        (TypeDescriptor*)0x78c878, // CInterfaceType
+        (TypeDescriptor*)0x7a4910, // CPictureInterfType
+        (TypeDescriptor*)0x79c948, // CButtonInterfType
+        (TypeDescriptor*)0x79a008, // CTextBoxInterfType
+        (TypeDescriptor*)0x7a48d0, // CEditBoxInterfType
+        (TypeDescriptor*)0x7a48f0, // CListBoxInterfType
     },
     // Scenario Editor
     Rtti{
@@ -255,6 +273,12 @@ static const std::array<Rtti, 4> types = {{
         (TypeDescriptor*)0x64c3d0, // IUsNobleType
         (TypeDescriptor*)0x64f068, // IUsSummonType
         (TypeDescriptor*)0x656e28, // IItemExPotionBoostType
+        (TypeDescriptor*)0x649cf0, // CInterfaceType
+        (TypeDescriptor*)0x653d48, // CPictureInterfType
+        (TypeDescriptor*)0x653ce0, // CButtonInterfType
+        (TypeDescriptor*)0x653b28, // CTextBoxInterfType
+        (TypeDescriptor*)0x653c20, // CEditBoxInterfType
+        (TypeDescriptor*)0x6537f8, // CListBoxInterfType
     },
 }};
 // clang-format on
