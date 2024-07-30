@@ -67,11 +67,15 @@ protected:
 
     struct RoomInfo;
 
+    void initializeNetMsgEntries();
+    void initializeChatControls();
+    void initializeUserControls();
+    void initializeUsersControls();
+    void initializeRoomsControls();
     void showRoomPasswordDialog();
     void hideRoomPasswordDialog();
     void updateRooms(DataStructures::List<SLNet::RoomDescriptor*>& roomDescriptors);
     const RoomInfo* getSelectedRoom();
-    void updateAccountText(const char* accountName);
     void updateListBoxRoomsRow(int rowIndex,
                                bool selected,
                                const game::CMqRect* lineArea,
@@ -91,7 +95,6 @@ protected:
                                const game::CMqRect* lineArea,
                                game::ImagePointList* contents);
     game::IMqImage2* getUserImage(const CNetCustomService::UserInfo& user, bool left, bool big);
-    void fillNetMsgEntries();
     void joinServer(SLNet::RoomDescriptor* roomDescriptor);
     void addChatMessage(const char* sender, const char* message);
     void sendChatMessage();
@@ -105,6 +108,7 @@ protected:
     static void __fastcall loadBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall joinBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall backBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
+    static void __fastcall sendBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall roomsUpdateEventCallback(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall usersUpdateEventCallback(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall chatMessageRegenEventCallback(CMenuCustomLobby* thisptr, int /*%edx*/);
@@ -120,11 +124,16 @@ protected:
                                                       const game::CMqRect* lineArea,
                                                       int index,
                                                       bool selected);
+    static void __fastcall listBoxUsersDisplayTextHandler(CMenuCustomLobby* thisptr,
+                                                          int /*%edx*/,
+                                                          game::String* string,
+                                                          bool,
+                                                          int index);
     static void __fastcall listBoxChatDisplayHandler(CMenuCustomLobby* thisptr,
                                                      int /*%edx*/,
                                                      game::String* string,
                                                      bool,
-                                                     int selectedIndex);
+                                                     int index);
     static bool __fastcall gameVersionMsgHandler(CMenuCustomLobby* menu,
                                                  int /*%edx*/,
                                                  const game::CGameVersionMsg* message,
@@ -230,7 +239,7 @@ private:
     game::UiEvent m_usersUpdateEvent;
     std::vector<CNetCustomService::UserInfo> m_users;
     game::Vector<game::SmartPtr<game::IMqImage2>> m_userIcons;
-    bool m_userIconsAreLeftOriented;
+    const char* m_usersListBoxName;
     game::NetMsgEntryData** m_netMsgEntryData;
     CRoomPasswordInterf* m_roomPasswordDialog;
     SLNet::RoomID m_joiningRoomId;

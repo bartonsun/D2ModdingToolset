@@ -62,13 +62,11 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     , m_roomPasswordDialog(nullptr)
     , m_chatMessageStock(chatMessageMaxStock)
     , m_userIcons{}
+    , m_usersListBoxName{nullptr}
 {
     using namespace game;
 
     const auto& menuBaseApi = CMenuBaseApi::get();
-    const auto& dialogApi = CDialogInterfApi::get();
-    const auto& listBoxApi = CListBoxInterfApi::get();
-    const auto& editBoxApi = CEditBoxInterfApi::get();
 
     menuBaseApi.constructor(this, menuPhase);
 
@@ -86,98 +84,15 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
 
     menuBaseApi.createMenu(this, dialogName);
 
-    auto dialog = menuBaseApi.getDialogInterface(this);
-    setButtonCallback(dialog, "BTN_BACK", backBtnHandler, this);
-    setButtonCallback(dialog, "BTN_CREATE", createBtnHandler, this);
-    setButtonCallback(dialog, "BTN_LOAD", loadBtnHandler, this);
-    setButtonCallback(dialog, "BTN_JOIN", joinBtnHandler, this);
-    auto btnJoin = dialogApi.findButton(dialog, "BTN_JOIN");
-    if (btnJoin) {
-        btnJoin->vftable->setEnabled(btnJoin, false);
-    }
-
-    // Using generic findControl for optional controls to prevent error messages
-    // TODO: findControl first, then findListBox to prevent possible crashes in case of control type
-    // missmatch. Repeat for every occurrence.
-    auto listBoxRooms = (CListBoxInterf*)dialogApi.findControl(dialog, "LBOX_ROOMS");
-    if (listBoxRooms) {
-        SmartPointer functor;
-        auto callback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxRoomsDisplayHandler;
-        menuBaseApi.createListBoxDisplayFunctor(&functor, 0, this, &callback);
-        listBoxApi.assignDisplaySurfaceFunctor(dialog, "LBOX_ROOMS", dialogName, &functor);
-        listBoxApi.setElementsTotal(listBoxRooms, 0);
-        SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
-    }
-
-    ImagePtrVectorApi::get().reserve(&m_userIcons, 1);
-    m_userIconsAreLeftOriented = true;
-    auto listBoxUsers = (CListBoxInterf*)dialogApi.findControl(dialog, "LBOX_LPLAYERS");
-    if (!listBoxUsers) {
-        listBoxUsers = (CListBoxInterf*)dialogApi.findControl(dialog, "LBOX_RPLAYERS");
-        m_userIconsAreLeftOriented = false;
-    }
-    if (listBoxUsers) {
-        SmartPointer functor;
-        auto callback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxUsersDisplayHandler;
-        menuBaseApi.createListBoxDisplayFunctor(&functor, 0, this, &callback);
-        listBoxApi.assignDisplaySurfaceFunctor(dialog,
-                                               m_userIconsAreLeftOriented ? "LBOX_LPLAYERS"
-                                                                          : "LBOX_RPLAYERS",
-                                               dialogName, &functor);
-        SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
-    }
-
-    auto listBoxChat = (CListBoxInterf*)dialogApi.findControl(dialog, "LBOX_CHAT");
-    if (listBoxChat) {
-        SmartPointer functor;
-        using TextCallback = CMenuBaseApi::Api::ListBoxDisplayTextCallback;
-        TextCallback callback{(TextCallback::Callback)listBoxChatDisplayHandler};
-        menuBaseApi.createListBoxDisplayTextFunctor(&functor, 0, this, &callback);
-        listBoxApi.assignDisplayTextFunctor(dialog, "LBOX_CHAT", dialogName, &functor, false);
-        SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
-    }
-
-    auto editBoxChat = (CEditBoxInterf*)dialogApi.findControl(dialog, "EDIT_CHAT");
-    if (editBoxChat) {
-        editBoxApi.setInputLength(editBoxChat, chatMessageMaxLength);
-    }
-
     auto service = getNetService();
-    fillNetMsgEntries();
-
-    bool playerFaceIsLeftOriented = true;
-    auto imagePlayerFace = (CPictureInterf*)dialogApi.findControl(dialog, "IMG_LPLAYER_FACE");
-    if (!imagePlayerFace) {
-        playerFaceIsLeftOriented = false;
-        imagePlayerFace = (CPictureInterf*)dialogApi.findControl(dialog, "IMG_RPLAYER_FACE");
-    }
-    if (imagePlayerFace) {
-        auto* icon = getUserImage(service->getUserInfo(), playerFaceIsLeftOriented, true);
-        CMqPoint offset{};
-        CPictureInterfApi::get().setImage(imagePlayerFace, icon, &offset);
-    }
-
-    updateAccountText(service->getAccountName().c_str());
-
+    initializeNetMsgEntries();
     service->addPeerCallback(&m_peerCallback);
     service->addRoomsCallback(&m_roomsCallback);
 
-    if (listBoxRooms) {
-        // Request rooms list as soon as possible, no need to wait for event
-        service->searchRooms();
-        createTimerEvent(&m_roomsUpdateEvent, this, roomsUpdateEventCallback,
-                         roomsUpdateEventInterval);
-    }
-
-    if (listBoxUsers) {
-        // Request users list as soon as possible, no need to wait for event
-        service->queryOnlineUsers();
-        createTimerEvent(&m_usersUpdateEvent, this, usersUpdateEventCallback,
-                         usersUpdateEventInterval);
-    }
-
-    createTimerEvent(&m_chatMessageRegenEvent, this, chatMessageRegenEventCallback,
-                     chatMessageRegenEventInterval);
+    initializeChatControls();
+    initializeUserControls();
+    initializeUsersControls();
+    initializeRoomsControls();
 }
 
 CMenuCustomLobby ::~CMenuCustomLobby()
@@ -231,6 +146,200 @@ int __fastcall CMenuCustomLobby::handleKeyboard(CMenuCustomLobby* thisptr,
         thisptr->sendChatMessage();
     }
     return result;
+}
+
+void CMenuCustomLobby::initializeNetMsgEntries()
+{
+    using namespace game;
+
+    const auto& netMsgApi = NetMsgApi::get();
+    auto& netMsgMapEntryApi = CNetMsgMapEntryApi::get();
+
+    netMsgApi.allocateEntryData(this->menuBaseData->menuPhase, &this->m_netMsgEntryData);
+
+    auto infoCallback = (CNetMsgMapEntryApi::Api::MenusAnsInfoCallback)ansInfoMsgHandler;
+    auto entry = netMsgMapEntryApi.allocateMenusAnsInfoEntry(this, infoCallback);
+    netMsgApi.addEntry(this->m_netMsgEntryData, entry);
+
+    auto versionCallback = (CNetMsgMapEntryApi::Api::GameVersionCallback)gameVersionMsgHandler;
+    entry = netMsgMapEntryApi.allocateGameVersionEntry(this, versionCallback);
+    netMsgApi.addEntry(this->m_netMsgEntryData, entry);
+}
+
+void CMenuCustomLobby::initializeChatControls()
+{
+    using namespace game;
+
+    const auto& rtti = RttiApi::rtti();
+    const auto& smartPtrApi = SmartPointerApi::get();
+    const auto& menuBaseApi = CMenuBaseApi::get();
+    const auto& listBoxApi = CListBoxInterfApi::get();
+    const auto& editBoxApi = CEditBoxInterfApi::get();
+
+    auto dialog = menuBaseApi.getDialogInterface(this);
+
+    auto listBoxChat = (CListBoxInterf*)findOptionalControl("LBOX_CHAT", rtti.CListBoxInterfType);
+    if (listBoxChat) {
+        using TextCallback = CMenuBaseApi::Api::ListBoxDisplayTextCallback;
+        TextCallback callback{(TextCallback::Callback)listBoxChatDisplayHandler};
+
+        SmartPointer functor;
+        menuBaseApi.createListBoxDisplayTextFunctor(&functor, 0, this, &callback);
+        listBoxApi.assignDisplayTextFunctor(dialog, "LBOX_CHAT", dialogName, &functor, false);
+        smartPtrApi.createOrFreeNoDtor(&functor, nullptr);
+    }
+
+    auto editBoxChat = (CEditBoxInterf*)findOptionalControl("EDIT_CHAT", rtti.CEditBoxInterfType);
+    if (editBoxChat) {
+        editBoxApi.setInputLength(editBoxChat, chatMessageMaxLength);
+    }
+
+    auto btnSend = (CButtonInterf*)findOptionalControl("BTN_SEND", rtti.CButtonInterfType);
+    if (btnSend) {
+        setButtonCallback(dialog, "BTN_SEND", sendBtnHandler, this);
+    }
+
+    createTimerEvent(&m_chatMessageRegenEvent, this, chatMessageRegenEventCallback,
+                     chatMessageRegenEventInterval);
+}
+
+void CMenuCustomLobby::initializeUserControls()
+{
+    using namespace game;
+
+    const auto& rtti = RttiApi::rtti();
+    const auto& textBoxApi = CTextBoxInterfApi::get();
+    const auto& pictureApi = CPictureInterfApi::get();
+
+    auto service = getNetService();
+    auto userInfo = service->getUserInfo();
+
+    auto txtNickname = (CTextBoxInterf*)findOptionalControl("TXT_NICKNAME",
+                                                            rtti.CTextBoxInterfType);
+    if (txtNickname) {
+        textBoxApi.setString(txtNickname, userInfo.name.C_String());
+    }
+
+    auto imgPlayerLFace = (CPictureInterf*)findOptionalControl("IMG_PLAYER_LFACE",
+                                                               rtti.CPictureInterfType);
+    if (imgPlayerLFace) {
+        CMqPoint offset{};
+        pictureApi.setImage(imgPlayerLFace, getUserImage(userInfo, true, false), &offset);
+    }
+
+    auto imgPlayerRFace = (CPictureInterf*)findOptionalControl("IMG_PLAYER_RFACE",
+                                                               rtti.CPictureInterfType);
+    if (imgPlayerRFace) {
+        CMqPoint offset{};
+        pictureApi.setImage(imgPlayerRFace, getUserImage(userInfo, false, false), &offset);
+    }
+
+    auto imgPlayerLBigFace = (CPictureInterf*)findOptionalControl("IMG_PLAYER_LBIGFACE",
+                                                                  rtti.CPictureInterfType);
+    if (imgPlayerLBigFace) {
+        CMqPoint offset{};
+        pictureApi.setImage(imgPlayerLBigFace, getUserImage(userInfo, true, true), &offset);
+    }
+
+    auto imgPlayerRBigFace = (CPictureInterf*)findOptionalControl("IMG_PLAYER_RBIGFACE",
+                                                                  rtti.CPictureInterfType);
+    if (imgPlayerRBigFace) {
+        CMqPoint offset{};
+        pictureApi.setImage(imgPlayerLBigFace, getUserImage(userInfo, false, true), &offset);
+    }
+}
+
+void CMenuCustomLobby::initializeUsersControls()
+{
+    using namespace game;
+
+    const auto& rtti = RttiApi::rtti();
+    const auto& smartPtrApi = SmartPointerApi::get();
+    const auto& menuBaseApi = CMenuBaseApi::get();
+    const auto& listBoxApi = CListBoxInterfApi::get();
+
+    auto dialog = menuBaseApi.getDialogInterface(this);
+
+    const char* usersListBoxName = "LBOX_LPLAYERS";
+    auto listBoxUsers = (CListBoxInterf*)findOptionalControl(usersListBoxName,
+                                                             rtti.CListBoxInterfType);
+    if (!listBoxUsers) {
+        usersListBoxName = "LBOX_RPLAYERS";
+        listBoxUsers = (CListBoxInterf*)findOptionalControl(usersListBoxName,
+                                                            rtti.CListBoxInterfType);
+    }
+
+    if (listBoxUsers) {
+        auto callback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxUsersDisplayHandler;
+
+        SmartPointer functor;
+        menuBaseApi.createListBoxDisplayFunctor(&functor, 0, this, &callback);
+        listBoxApi.assignDisplaySurfaceFunctor(dialog, usersListBoxName, dialogName, &functor);
+        smartPtrApi.createOrFreeNoDtor(&functor, nullptr);
+    } else {
+        usersListBoxName = "TLBOX_PLAYERS";
+        listBoxUsers = (CListBoxInterf*)findOptionalControl(usersListBoxName,
+                                                            rtti.CListBoxInterfType);
+        if (listBoxUsers) {
+            using TextCallback = CMenuBaseApi::Api::ListBoxDisplayTextCallback;
+            TextCallback callback{(TextCallback::Callback)listBoxUsersDisplayTextHandler};
+
+            SmartPointer functor;
+            menuBaseApi.createListBoxDisplayTextFunctor(&functor, 0, this, &callback);
+            listBoxApi.assignDisplayTextFunctor(dialog, usersListBoxName, dialogName, &functor,
+                                                false);
+            smartPtrApi.createOrFreeNoDtor(&functor, nullptr);
+        }
+    }
+
+    if (listBoxUsers) {
+        ImagePtrVectorApi::get().reserve(&m_userIcons, 1);
+        m_usersListBoxName = usersListBoxName;
+
+        // Request users list as soon as possible, no need to wait for event
+        getNetService()->queryOnlineUsers();
+        createTimerEvent(&m_usersUpdateEvent, this, usersUpdateEventCallback,
+                         usersUpdateEventInterval);
+    }
+}
+
+void CMenuCustomLobby::initializeRoomsControls()
+{
+    using namespace game;
+
+    const auto& rtti = RttiApi::rtti();
+    const auto& smartPtrApi = SmartPointerApi::get();
+    const auto& dialogApi = CDialogInterfApi::get();
+    const auto& menuBaseApi = CMenuBaseApi::get();
+    const auto& listBoxApi = CListBoxInterfApi::get();
+
+    auto dialog = menuBaseApi.getDialogInterface(this);
+
+    setButtonCallback(dialog, "BTN_BACK", backBtnHandler, this);
+    setButtonCallback(dialog, "BTN_CREATE", createBtnHandler, this);
+    setButtonCallback(dialog, "BTN_LOAD", loadBtnHandler, this);
+    setButtonCallback(dialog, "BTN_JOIN", joinBtnHandler, this);
+    auto btnJoin = dialogApi.findButton(dialog, "BTN_JOIN");
+    if (btnJoin) {
+        btnJoin->vftable->setEnabled(btnJoin, false);
+    }
+
+    auto listBoxRooms = (CListBoxInterf*)findOptionalControl("LBOX_ROOMS", rtti.CListBoxInterfType);
+    if (listBoxRooms) {
+        auto callback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxRoomsDisplayHandler;
+
+        SmartPointer functor;
+        menuBaseApi.createListBoxDisplayFunctor(&functor, 0, this, &callback);
+        listBoxApi.assignDisplaySurfaceFunctor(dialog, "LBOX_ROOMS", dialogName, &functor);
+        smartPtrApi.createOrFreeNoDtor(&functor, nullptr);
+
+        listBoxApi.setElementsTotal(listBoxRooms, 0);
+
+        // Request rooms list as soon as possible, no need to wait for event
+        getNetService()->searchRooms();
+        createTimerEvent(&m_roomsUpdateEvent, this, roomsUpdateEventCallback,
+                         roomsUpdateEventInterval);
+    }
 }
 
 void CMenuCustomLobby::showRoomPasswordDialog()
@@ -324,6 +433,11 @@ void __fastcall CMenuCustomLobby::backBtnHandler(CMenuCustomLobby* thisptr, int 
     showMessageBox(message, handler, true);
 }
 
+void __fastcall CMenuCustomLobby::sendBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
+{
+    thisptr->sendChatMessage();
+}
+
 void __fastcall CMenuCustomLobby::roomsUpdateEventCallback(CMenuCustomLobby* /*thisptr*/,
                                                            int /*%edx*/)
 {
@@ -364,14 +478,30 @@ void __fastcall CMenuCustomLobby::listBoxUsersDisplayHandler(CMenuCustomLobby* t
     thisptr->updateListBoxUsersRow(index, selected, lineArea, contents);
 }
 
+void __fastcall CMenuCustomLobby::listBoxUsersDisplayTextHandler(CMenuCustomLobby* thisptr,
+                                                                 int /*%edx*/,
+                                                                 game::String* string,
+                                                                 bool,
+                                                                 int index)
+{
+    using namespace game;
+
+    if (index < 0 || index >= (int)thisptr->m_users.size()) {
+        return;
+    }
+    const auto& user = thisptr->m_users[index];
+
+    game::StringApi::get().initFromString(string, user.name.C_String());
+}
+
 void __fastcall CMenuCustomLobby::listBoxChatDisplayHandler(CMenuCustomLobby* thisptr,
                                                             int /*%edx*/,
                                                             game::String* string,
                                                             bool,
-                                                            int selectedIndex)
+                                                            int index)
 {
     const auto& messages = thisptr->m_chatMessages;
-    if (selectedIndex < 0 || selectedIndex >= (int)messages.size()) {
+    if (index < 0 || index >= (int)messages.size()) {
         return;
     }
 
@@ -380,7 +510,7 @@ void __fastcall CMenuCustomLobby::listBoxChatDisplayHandler(CMenuCustomLobby* th
         messageText = "%SENDER%: %MSG%";
     }
 
-    const auto& message = messages[selectedIndex];
+    const auto& message = messages[index];
     replace(messageText, "%SENDER%", message.sender);
     replace(messageText, "%MSG%", message.text);
     game::StringApi::get().initFromString(string, messageText.c_str());
@@ -535,21 +665,6 @@ const CMenuCustomLobby::RoomInfo* CMenuCustomLobby::getSelectedRoom()
     auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
     auto index = (size_t)CListBoxInterfApi::get().selectedIndex(listBox);
     return index < m_rooms.size() ? &m_rooms[index] : nullptr;
-}
-
-void CMenuCustomLobby::updateAccountText(const char* accountName)
-{
-    using namespace game;
-
-    const auto& textBoxApi = CTextBoxInterfApi::get();
-
-    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-    auto textBox = CDialogInterfApi::get().findTextBox(dialog, "TXT_NICKNAME");
-    if (!textBox) {
-        return;
-    }
-
-    textBoxApi.setString(textBox, accountName ? accountName : "");
 }
 
 void CMenuCustomLobby::updateListBoxRoomsRow(int rowIndex,
@@ -757,24 +872,6 @@ game::IMqImage2* CMenuCustomLobby::getUserImage(const CNetCustomService::UserInf
     return (IMqImage2*)faceImage;
 }
 
-void CMenuCustomLobby::fillNetMsgEntries()
-{
-    using namespace game;
-
-    const auto& netMsgApi = NetMsgApi::get();
-    auto& netMsgMapEntryApi = CNetMsgMapEntryApi::get();
-
-    netMsgApi.allocateEntryData(this->menuBaseData->menuPhase, &this->m_netMsgEntryData);
-
-    auto infoCallback = (CNetMsgMapEntryApi::Api::MenusAnsInfoCallback)ansInfoMsgHandler;
-    auto entry = netMsgMapEntryApi.allocateMenusAnsInfoEntry(this, infoCallback);
-    netMsgApi.addEntry(this->m_netMsgEntryData, entry);
-
-    auto versionCallback = (CNetMsgMapEntryApi::Api::GameVersionCallback)gameVersionMsgHandler;
-    entry = netMsgMapEntryApi.allocateGameVersionEntry(this, versionCallback);
-    netMsgApi.addEntry(this->m_netMsgEntryData, entry);
-}
-
 // See CMenuSession::JoinGameBtnCallback (Akella 0x4f0136)
 void CMenuCustomLobby::joinServer(SLNet::RoomDescriptor* roomDescriptor)
 {
@@ -881,23 +978,26 @@ void CMenuCustomLobby::updateUsers(std::vector<CNetCustomService::UserInfo> user
     const auto& imagePtrVectorApi = ImagePtrVectorApi::get();
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-    auto listBox = dialogApi.findListBox(dialog, m_userIconsAreLeftOriented ? "LBOX_LPLAYERS"
-                                                                            : "LBOX_RPLAYERS");
+    auto listBox = dialogApi.findListBox(dialog, m_usersListBoxName);
     if (!listBox->vftable->isOnTop(listBox)) {
         // If the listBox is not on top then the game will only remove its childs without rendering
         // the new ones. This happens when any popup dialog is displayed.
         return;
     }
 
-    // See CManageStkInterfSetLeaderAbilities (Akella 0x497E5A)
-    imagePtrVectorApi.destructor(&m_userIcons);
-    imagePtrVectorApi.reserve(&m_userIcons, 1);
-    for (const auto& user : users) {
-        auto* icon = getUserImage(user, m_userIconsAreLeftOriented, false);
-        ImagePtr iconPtr{};
-        smartPtrApi.createOrFree((SmartPointer*)&iconPtr, icon);
-        imagePtrVectorApi.pushBack(&m_userIcons, &iconPtr);
-        smartPtrApi.createOrFree((SmartPointer*)&iconPtr, nullptr);
+    bool isLeftIcons = m_usersListBoxName == "LBOX_LPLAYERS";
+    bool isRightIcons = m_usersListBoxName == "LBOX_RPLAYERS";
+    if (isLeftIcons || isRightIcons) {
+        // See CManageStkInterfSetLeaderAbilities (Akella 0x497E5A)
+        imagePtrVectorApi.destructor(&m_userIcons);
+        imagePtrVectorApi.reserve(&m_userIcons, 1);
+        for (const auto& user : users) {
+            auto* icon = getUserImage(user, isLeftIcons, false);
+            ImagePtr iconPtr{};
+            smartPtrApi.createOrFree((SmartPointer*)&iconPtr, icon);
+            imagePtrVectorApi.pushBack(&m_userIcons, &iconPtr);
+            smartPtrApi.createOrFree((SmartPointer*)&iconPtr, nullptr);
+        }
     }
 
     m_users = std::move(users);
