@@ -20,6 +20,7 @@
 #include "menucustombase.h"
 #include "button.h"
 #include "dialoginterf.h"
+#include "dynamiccast.h"
 #include "editboxinterf.h"
 #include "interfmanager.h"
 #include "log.h"
@@ -60,6 +61,20 @@ CMenuCustomBase::~CMenuCustomBase()
 game::CMenuBase* CMenuCustomBase::getMenu() const
 {
     return m_menu;
+}
+
+game::CInterface* CMenuCustomBase::findOptionalControl(
+    const char* controlName,
+    const game::TypeDescriptor* controlType) const
+{
+    using namespace game;
+
+    // Using generic findControl for optional controls to prevent error messages and dynamic_cast to
+    // ensure correct control type
+    auto dialog = CMenuBaseApi::get().getDialogInterface(getMenu());
+    auto control = CDialogInterfApi::get().findControl(dialog, controlName);
+    return (CInterface*)RttiApi::get().dynamicCast(control, 0, RttiApi::rtti().CInterfaceType,
+                                                   controlType, 0);
 }
 
 void CMenuCustomBase::showWaitDialog()

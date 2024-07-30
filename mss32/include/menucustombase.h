@@ -29,6 +29,7 @@
 namespace game {
 struct CPopupDialogInterf;
 struct CMenuFlashWait;
+struct TypeDescriptor;
 
 enum class EditFilter : int;
 } // namespace game
@@ -43,6 +44,8 @@ public:
 
 protected:
     game::CMenuBase* getMenu() const;
+    game::CInterface* findOptionalControl(const char* controlName,
+                                          const game::TypeDescriptor* controlType) const;
     void showWaitDialog();
     void hideWaitDialog();
     void onConnectionLost();
