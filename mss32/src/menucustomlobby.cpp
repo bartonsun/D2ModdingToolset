@@ -712,7 +712,7 @@ void CMenuCustomLobby::updateTxtRoomInfo(int roomIndex)
     auto text{getInterfaceText(textIds().lobby.roomInfo.c_str())};
     if (text.empty()) {
         text =
-            "Version: %VERSION%\n"
+            "\\hC;Version: %VERSION%\n"
             "Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%PLAYERS_SEP%%PLAYERS%\n"
             "\\fMedBold;%SCEN_NAME%\\fNormal;\n"
             "%SCEN_DESC%";
