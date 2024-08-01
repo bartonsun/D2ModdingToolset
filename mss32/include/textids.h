@@ -124,6 +124,7 @@ struct TextIds
         std::string chatMessage;
         std::string tooManyChatMessages;
         std::string playerNameInList;
+        std::string roomInfo;
     } lobby;
 
     struct ScenarioGenerator

@@ -281,7 +281,10 @@ std::vector<CNetCustomService::UserInfo> CNetCustomService::readOnlineUsers(
     return result;
 }
 
-bool CNetCustomService::createRoom(const char* gameName, const char* password)
+bool CNetCustomService::createRoom(const char* gameName,
+                                   const char* scenarioName,
+                                   const char* scenarioDescription,
+                                   const char* password)
 {
     logDebug("lobby.log", fmt::format("Trying to create a room with game name {:s}, password {:s}",
                                       gameName, password));
@@ -317,12 +320,18 @@ bool CNetCustomService::createRoom(const char* gameName, const char* password)
     auto versionColumn{properties.AddColumn(gameVersionColumnName, DataStructures::Table::STRING)};
     auto gameNameColumn{properties.AddColumn(gameNameColumnName, DataStructures::Table::STRING)};
     auto passwordColumn{properties.AddColumn(passwordColumnName, DataStructures::Table::STRING)};
+    auto scenNameColumn{
+        properties.AddColumn(scenarioNameColumnName, DataStructures::Table::STRING)};
+    auto scenDescColumn{
+        properties.AddColumn(scenarioDescriptionColumnName, DataStructures::Table::STRING)};
 
     auto row = properties.AddRow(0);
     row->UpdateCell(hashColumn, filesHash.c_str());
     row->UpdateCell(versionColumn, gameVersion.c_str());
     row->UpdateCell(gameNameColumn, gameName);
     row->UpdateCell(passwordColumn, password);
+    row->UpdateCell(scenNameColumn, scenarioName);
+    row->UpdateCell(scenDescColumn, scenarioDescription);
 
     m_roomsClient.ExecuteFunc(&room);
     return true;

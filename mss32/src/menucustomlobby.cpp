@@ -340,6 +340,17 @@ void CMenuCustomLobby::initializeRoomsControls()
         createTimerEvent(&m_roomsUpdateEvent, this, roomsUpdateEventCallback,
                          roomsUpdateEventInterval);
     }
+
+    auto txtRoomInfo = (CTextBoxInterf*)findOptionalControl("TXT_ROOM_INFO",
+                                                            rtti.CTextBoxInterfType);
+    if (txtRoomInfo) {
+        auto callback = (CMenuBaseApi::Api::ListBoxCallback)listBoxRoomsUpdateHandler;
+
+        SmartPointer functor;
+        menuBaseApi.createListBoxFunctor(&functor, 0, this, &callback);
+        listBoxApi.assignFunctor(dialog, "LBOX_ROOMS", dialogName, &functor);
+        smartPtrApi.createOrFreeNoDtor(&functor, nullptr);
+    }
 }
 
 void CMenuCustomLobby::showRoomPasswordDialog()
@@ -456,6 +467,13 @@ void __fastcall CMenuCustomLobby::chatMessageRegenEventCallback(CMenuCustomLobby
     if (thisptr->m_chatMessageStock < chatMessageMaxStock) {
         ++thisptr->m_chatMessageStock;
     }
+}
+
+void __fastcall CMenuCustomLobby::listBoxRoomsUpdateHandler(CMenuCustomLobby* thisptr,
+                                                            int /*%edx*/,
+                                                            int selectedIndex)
+{
+    thisptr->updateTxtRoomInfo(selectedIndex);
 }
 
 void __fastcall CMenuCustomLobby::listBoxRoomsDisplayHandler(CMenuCustomLobby* thisptr,
@@ -591,6 +609,15 @@ bool __fastcall CMenuCustomLobby::ansInfoMsgHandler(CMenuCustomLobby* menu,
 
 CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* roomDescriptor)
 {
+    std::vector<std::string> clientNames;
+    const auto& roomMembers = roomDescriptor->roomMemberList;
+    for (unsigned int i = 0; i < roomMembers.Size(); ++i) {
+        const auto& member = roomMembers[i];
+        if (member.roomMemberMode != RMM_MODERATOR) {
+            clientNames.push_back(member.name.C_String());
+        }
+    }
+
     // Add 1 to used and total slots because they are not counting room moderator
     return {roomDescriptor->lobbyRoomId,
             getRoomModerator(roomDescriptor->roomMemberList)->name,
@@ -598,6 +625,9 @@ CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* 
             roomDescriptor->GetProperty(CNetCustomService::passwordColumnName)->c,
             roomDescriptor->GetProperty(CNetCustomService::gameFilesHashColumnName)->c,
             roomDescriptor->GetProperty(CNetCustomService::gameVersionColumnName)->c,
+            roomDescriptor->GetProperty(CNetCustomService::scenarioNameColumnName)->c,
+            roomDescriptor->GetProperty(CNetCustomService::scenarioDescriptionColumnName)->c,
+            std::move(clientNames),
             (int)roomDescriptor->GetProperty(DefaultRoomColumns::TC_USED_PUBLIC_SLOTS)->i + 1,
             (int)roomDescriptor->GetProperty(DefaultRoomColumns::TC_TOTAL_PUBLIC_SLOTS)->i + 1};
 }
@@ -665,6 +695,53 @@ const CMenuCustomLobby::RoomInfo* CMenuCustomLobby::getSelectedRoom()
     auto listBox = CDialogInterfApi::get().findListBox(dialog, "LBOX_ROOMS");
     auto index = (size_t)CListBoxInterfApi::get().selectedIndex(listBox);
     return index < m_rooms.size() ? &m_rooms[index] : nullptr;
+}
+
+void CMenuCustomLobby::updateTxtRoomInfo(int roomIndex)
+{
+    using namespace game;
+
+    const auto& rtti = RttiApi::rtti();
+    const auto& textBoxApi = CTextBoxInterfApi::get();
+
+    if ((size_t)roomIndex >= m_rooms.size()) {
+        return;
+    }
+    const auto& room = m_rooms[(size_t)roomIndex];
+
+    auto text{getInterfaceText(textIds().lobby.roomInfo.c_str())};
+    if (text.empty()) {
+        text =
+            "\\fNormal;Version: %VERSION%\n"
+            "\\fNormal;Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%PLAYERS_SEP%%PLAYERS%\n"
+            "\\fMedBold;%SCEN_NAME%\n"
+            "\\fNormal;%SCEN_DESC%\n";
+    }
+
+    std::string players;
+    for (const auto& clientName : room.clientNames) {
+        if (players.length()) {
+            players += ", ";
+        }
+        players += clientName;
+    }
+
+    replace(text, "%VERSION%", room.gameVersion);
+    replace(text, "%PLAYERS_NUM%", fmt::format("{:d}", room.usedSlots));
+    replace(text, "%PLAYERS_MAX%", fmt::format("{:d}", room.totalSlots));
+    replace(text, "%HOST%", room.hostName);
+    if (players.length()) {
+        replace(text, "%PLAYERS_SEP%", ", ");
+    }
+    replace(text, "%PLAYERS%", players);
+    replace(text, "%SCEN_NAME%", room.scenarioName);
+    replace(text, "%SCEN_DESC%", room.scenarioDescription);
+
+    auto txtRoomInfo = (CTextBoxInterf*)findOptionalControl("TXT_ROOM_INFO",
+                                                            rtti.CTextBoxInterfType);
+    if (txtRoomInfo) {
+        textBoxApi.setString(txtRoomInfo, text.c_str());
+    }
 }
 
 void CMenuCustomLobby::updateListBoxRoomsRow(int rowIndex,

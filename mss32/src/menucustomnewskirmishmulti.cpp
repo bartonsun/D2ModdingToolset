@@ -132,7 +132,8 @@ void __fastcall CMenuCustomNewSkirmishMulti::loadBtnHandler(CMenuCustomNewSkirmi
     menuPhaseApi.setScenarioDescription(menuPhase, scenario->description.string);
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(thisptr);
-    if (!getNetService()->createRoom(getEditBoxText(dialog, "EDIT_GAME"),
+    if (!getNetService()->createRoom(getEditBoxText(dialog, "EDIT_GAME"), scenario->name.string,
+                                     scenario->description.string,
                                      getEditBoxText(dialog, "EDIT_PASSWORD"))) {
         logDebug("lobby.log", "Failed to request room creation");
         auto msg{getInterfaceText(textIds().lobby.createRoomRequestFailed.c_str())};

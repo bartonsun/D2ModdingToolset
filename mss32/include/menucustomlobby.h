@@ -76,6 +76,7 @@ protected:
     void hideRoomPasswordDialog();
     void updateRooms(DataStructures::List<SLNet::RoomDescriptor*>& roomDescriptors);
     const RoomInfo* getSelectedRoom();
+    void updateTxtRoomInfo(int roomIndex);
     void updateListBoxRoomsRow(int rowIndex,
                                bool selected,
                                const game::CMqRect* lineArea,
@@ -112,6 +113,9 @@ protected:
     static void __fastcall roomsUpdateEventCallback(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall usersUpdateEventCallback(CMenuCustomLobby* thisptr, int /*%edx*/);
     static void __fastcall chatMessageRegenEventCallback(CMenuCustomLobby* thisptr, int /*%edx*/);
+    static void __fastcall listBoxRoomsUpdateHandler(CMenuCustomLobby* thisptr,
+                                                     int /*%edx*/,
+                                                     int selectedIndex);
     static void __fastcall listBoxRoomsDisplayHandler(CMenuCustomLobby* thisptr,
                                                       int /*%edx*/,
                                                       game::ImagePointList* contents,
@@ -151,6 +155,9 @@ protected:
         std::string password;
         std::string gameFilesHash;
         std::string gameVersion;
+        std::string scenarioName;
+        std::string scenarioDescription;
+        std::vector<std::string> clientNames;
         int usedSlots;
         int totalSlots;
     };

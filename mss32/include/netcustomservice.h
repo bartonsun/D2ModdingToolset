@@ -84,6 +84,8 @@ public:
     static constexpr char gameVersionColumnName[] = "GameVersion";
     static constexpr char gameNameColumnName[] = "GameName";
     static constexpr char passwordColumnName[] = "Password";
+    static constexpr char scenarioNameColumnName[] = "ScenarioName";
+    static constexpr char scenarioDescriptionColumnName[] = "ScenarioDescription";
     // See SLNet::Lobby2Message::ValidatePassword
     static constexpr std::uint32_t passwordMaxLength{50};
 
@@ -128,7 +130,10 @@ public:
     std::vector<UserInfo> readOnlineUsers(const SLNet::Packet* packet);
 
     /** Tries to create and enter a new room. */
-    bool createRoom(const char* gameName, const char* password = nullptr);
+    bool createRoom(const char* gameName,
+                    const char* scenarioName,
+                    const char* scenarioDescription,
+                    const char* password = nullptr);
 
     /** Requests to leave the previously entered room. */
     void leaveRoom();

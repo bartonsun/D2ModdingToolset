@@ -293,6 +293,9 @@ textids = {
 		-- The text must contain keyword "%NAME%".
 		-- Fallback text "\\vC;\\hC;\\fSmall;%NAME%"
 		playerNameInList = "",
+		-- The text must contain keywords "%VERSION%", "%HOST%", "%PLAYERS_SEP%", "%PLAYERS%", "%PLAYERS_NUM%", "%PLAYERS_MAX%", "%SCEN_NAME%", "%SCEN_DESC%".
+		-- Fallback text "\\fNormal;Version: %VERSION%\n\\fNormal;Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%PLAYERS_SEP%%PLAYERS%\n\\fMedBold;%SCEN_NAME%\n\\fNormal;%SCEN_DESC%\n"
+		roomInfo = "",
 	},
 
     generator = {

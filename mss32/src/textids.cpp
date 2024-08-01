@@ -127,6 +127,7 @@ void readLobbyTextIds(const sol::table& table, TextIds::Lobby& value)
     value.chatMessage = lobby.get_or("chatMessage", std::string());
     value.tooManyChatMessages = lobby.get_or("tooManyChatMessages", std::string());
     value.playerNameInList = lobby.get_or("playerNameInList", std::string());
+    value.roomInfo = lobby.get_or("roomInfo", std::string());
 }
 
 void readGeneratorTextIds(const sol::table& table, TextIds::ScenarioGenerator& value)
