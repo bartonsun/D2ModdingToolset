@@ -712,10 +712,10 @@ void CMenuCustomLobby::updateTxtRoomInfo(int roomIndex)
     auto text{getInterfaceText(textIds().lobby.roomInfo.c_str())};
     if (text.empty()) {
         text =
-            "\\fNormal;Version: %VERSION%\n"
-            "\\fNormal;Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%PLAYERS_SEP%%PLAYERS%\n"
-            "\\fMedBold;%SCEN_NAME%\n"
-            "\\fNormal;%SCEN_DESC%\n";
+            "Version: %VERSION%\n"
+            "Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%PLAYERS_SEP%%PLAYERS%\n"
+            "\\fMedBold;%SCEN_NAME%\\fNormal;\n"
+            "%SCEN_DESC%";
     }
 
     std::string players;
@@ -749,6 +749,67 @@ void CMenuCustomLobby::updateListBoxRoomsRow(int rowIndex,
                                              const game::CMqRect* lineArea,
                                              game::ImagePointList* contents)
 {
+    using namespace game;
+
+    const auto& rtti = RttiApi::rtti();
+
+    // If TXT_DESCRIPTION is present then we assume that a legacy (Motlin's) table layout is used
+    if (findOptionalControl("TXT_DESCRIPTION", rtti.CTextBoxInterfType)) {
+        updateListBoxRoomsTableRow(rowIndex, selected, lineArea, contents);
+    } else {
+        updateListBoxRoomsListRow(rowIndex, selected, lineArea, contents);
+    }
+}
+
+void CMenuCustomLobby::updateListBoxRoomsListRow(int rowIndex,
+                                                 bool selected,
+                                                 const game::CMqRect* lineArea,
+                                                 game::ImagePointList* contents)
+{
+    if ((size_t)rowIndex >= m_rooms.size()) {
+        return;
+    }
+    const auto& room = m_rooms[(size_t)rowIndex];
+
+    auto text{getInterfaceText(textIds().lobby.roomInfoInList.c_str())};
+    if (text.empty()) {
+        text =
+            "\\fMedBold;%NAME%\\fNormal;\n"
+            "Version: %VERSION%\n"
+            "Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%PLAYERS_SEP%%PLAYERS%";
+    }
+
+    std::string players;
+    for (const auto& clientName : room.clientNames) {
+        if (players.length()) {
+            players += ", ";
+        }
+        players += clientName;
+    }
+
+    replace(text, "%NAME%", room.gameName);
+    replace(text, "%VERSION%", room.gameVersion);
+    replace(text, "%PLAYERS_NUM%", fmt::format("{:d}", room.usedSlots));
+    replace(text, "%PLAYERS_MAX%", fmt::format("{:d}", room.totalSlots));
+    replace(text, "%HOST%", room.hostName);
+    if (players.length()) {
+        replace(text, "%PLAYERS_SEP%", ", ");
+    }
+    replace(text, "%PLAYERS%", players);
+
+    addListBoxRoomsItemContent(text.c_str(), "ROOM_PROTECTED", !room.password.empty(), lineArea,
+                               contents);
+
+    if (selected) {
+        addListBoxRoomsSelectionOutline(lineArea, contents);
+    }
+}
+
+void CMenuCustomLobby::updateListBoxRoomsTableRow(int rowIndex,
+                                                  bool selected,
+                                                  const game::CMqRect* lineArea,
+                                                  game::ImagePointList* contents)
+{
     if ((size_t)rowIndex >= m_rooms.size()) {
         return;
     }
@@ -770,6 +831,54 @@ void CMenuCustomLobby::updateListBoxRoomsRow(int rowIndex,
 
     if (selected) {
         addListBoxRoomsSelectionOutline(lineArea, contents);
+    }
+}
+
+void CMenuCustomLobby::addListBoxRoomsItemContent(const char* text,
+                                                  const char* imageName,
+                                                  bool showImage,
+                                                  const game::CMqRect* lineArea,
+                                                  game::ImagePointList* contents)
+{
+    using namespace game;
+
+    const auto& createFreePtr = SmartPointerApi::get().createOrFree;
+    const auto& image2TextApi = CImage2TextApi::get();
+    const auto& dialogApi = CDialogInterfApi::get();
+    const auto& autoDialogApi = AutoDialogApi::get();
+    const auto& menuBaseApi = CMenuBaseApi::get();
+
+    auto dialog = menuBaseApi.getDialogInterface(this);
+    auto image = autoDialogApi.loadImage(imageName);
+
+    CMqPoint imageSize{};
+    image->vftable->getSize(image, &imageSize);
+
+    const int IMAGE_PADDING = 8;
+    CMqPoint textSize{lineArea->right - lineArea->left, lineArea->bottom - lineArea->top};
+    textSize.x -= imageSize.x + IMAGE_PADDING;
+
+    auto image2Text = (CImage2Text*)Memory::get().allocate(sizeof(CImage2Text));
+    image2TextApi.constructor(image2Text, textSize.x, textSize.y);
+    image2TextApi.setText(image2Text, text);
+
+    auto listBox = dialogApi.findListBox(dialog, "LBOX_ROOMS");
+    auto listBoxRect = listBox->vftable->getArea(listBox);
+
+    ImagePtrPointPair pair{};
+    createFreePtr((SmartPointer*)&pair.first, image2Text);
+    ImagePointListApi::get().add(contents, &pair);
+    createFreePtr((SmartPointer*)&pair.first, nullptr);
+
+    if (showImage) {
+        ImagePtrPointPair pair{};
+        createFreePtr((SmartPointer*)&pair.first, image);
+        pair.second.x = textSize.x + IMAGE_PADDING;
+        pair.second.y = (lineArea->bottom - lineArea->top - imageSize.y) / 2;
+        ImagePointListApi::get().add(contents, &pair);
+        createFreePtr((SmartPointer*)&pair.first, nullptr);
+    } else {
+        image->vftable->destructor(image, 1);
     }
 }
 

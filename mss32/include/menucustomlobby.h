@@ -81,6 +81,19 @@ protected:
                                bool selected,
                                const game::CMqRect* lineArea,
                                game::ImagePointList* contents);
+    void updateListBoxRoomsListRow(int rowIndex,
+                                   bool selected,
+                                   const game::CMqRect* lineArea,
+                                   game::ImagePointList* contents);
+    void updateListBoxRoomsTableRow(int rowIndex,
+                                    bool selected,
+                                    const game::CMqRect* lineArea,
+                                    game::ImagePointList* contents);
+    void addListBoxRoomsItemContent(const char* text,
+                                    const char* imageName,
+                                    bool showImage,
+                                    const game::CMqRect* lineArea,
+                                    game::ImagePointList* contents);
     void addListBoxRoomsCellText(const char* columnName,
                                  const char* value,
                                  const game::CMqRect* lineArea,
