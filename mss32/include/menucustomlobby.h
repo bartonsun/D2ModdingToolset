@@ -109,6 +109,9 @@ protected:
                                const game::CMqRect* lineArea,
                                game::ImagePointList* contents);
     game::IMqImage2* getUserImage(const CNetCustomService::UserInfo& user, bool left, bool big);
+    std::string getShortenedUserNameInList(const char* name,
+                                           const char* shortenedMark,
+                                           int textAreaWidth);
     void joinServer(SLNet::RoomDescriptor* roomDescriptor);
     void addChatMessage(const char* sender, const char* message);
     void sendChatMessage();

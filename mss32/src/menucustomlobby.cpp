@@ -22,6 +22,7 @@
 #include "button.h"
 #include "dialoginterf.h"
 #include "dynamiccast.h"
+#include "formattedtext.h"
 #include "globaldata.h"
 #include "image2fill.h"
 #include "image2outline.h"
@@ -997,20 +998,19 @@ void CMenuCustomLobby::updateListBoxUsersRow(int rowIndex,
     }
     const auto& icon = m_userIcons.bgn[rowIndex];
 
-    auto playerName{getInterfaceText(textIds().lobby.playerNameInList.c_str())};
-    if (playerName.empty()) {
-        playerName = "\\vC;\\hC;\\fSmall;%NAME%";
-    }
-    replace(playerName, "%NAME%", user.name.C_String());
-
     CMqPoint iconSize;
     icon.data->vftable->getSize(icon.data, &iconSize);
+
+    // Center image horizontally
+    CMqPoint iconClientPos{(lineArea->right - lineArea->left - iconSize.x) / 2, 0};
 
     // Place text area under the icon
     CMqRect textClientArea = {0, iconSize.y, lineArea->right - lineArea->left,
                               lineArea->bottom - lineArea->top};
-    // Center image horizontally
-    CMqPoint iconClientPos{(lineArea->right - lineArea->left - iconSize.x) / 2, 0};
+
+    auto playerName = getShortenedUserNameInList(user.name.C_String(), "...",
+                                                 textClientArea.right - textClientArea.left);
+
     ImagePointListApi::get().addImageWithText(contents, lineArea, &icon, &iconClientPos,
                                               playerName.c_str(), &textClientArea, false, 0);
 }
@@ -1056,6 +1056,43 @@ game::IMqImage2* CMenuCustomLobby::getUserImage(const CNetCustomService::UserInf
     faceImage->vftable->setLeftSide(faceImage, left);
 
     return (IMqImage2*)faceImage;
+}
+
+std::string CMenuCustomLobby::getShortenedUserNameInList(const char* name,
+                                                         const char* shortenedMark,
+                                                         int textAreaWidth)
+{
+    using namespace game;
+
+    auto format{getInterfaceText(textIds().lobby.playerNameInList.c_str())};
+    if (format.empty()) {
+        format = "\\vC;\\hC;\\fSmall;%NAME%";
+    }
+
+    std::string result = format;
+    replace(result, "%NAME%", name);
+
+    std::string shortenedName = name;
+    auto markLength = shortenedMark ? strlen(shortenedMark) : 0;
+
+    FormattedTextPtr ptr;
+    IFormattedTextApi::get().getFormattedText(&ptr);
+    while (ptr.data->vftable->getTextWidth(ptr.data, result.c_str()) >= textAreaWidth) {
+        if (shortenedName.length() <= markLength) {
+            break;
+        }
+        shortenedName.pop_back();
+
+        result = format;
+        if (shortenedMark) {
+            replace(result, "%NAME%", std::string(shortenedName).append(shortenedMark));
+        } else {
+            replace(result, "%NAME%", shortenedName);
+        }
+    }
+    SmartPointerApi::get().createOrFree((SmartPointer*)&ptr, nullptr);
+
+    return result;
 }
 
 // See CMenuSession::JoinGameBtnCallback (Akella 0x4f0136)
