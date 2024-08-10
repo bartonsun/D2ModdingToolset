@@ -683,6 +683,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\fontshooks.h" />
     <ClInclude Include="include\functordispatchmemfunc3.h" />
     <ClInclude Include="include\gameversion.h" />
+    <ClInclude Include="include\image2dupweak.h" />
     <ClInclude Include="include\logfile.h" />
     <ClInclude Include="include\menucustomloadskirmishmulti.h" />
     <ClInclude Include="include\menucustomnewskirmishmulti.h" />

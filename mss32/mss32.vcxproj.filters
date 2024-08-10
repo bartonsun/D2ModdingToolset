@@ -3325,6 +3325,9 @@
     <ClInclude Include="include\functordispatchmemfunc3.h">
       <Filter>game</Filter>
     </ClInclude>
+    <ClInclude Include="include\image2dupweak.h">
+      <Filter>game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="mss32.rc">
