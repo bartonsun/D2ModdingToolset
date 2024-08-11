@@ -52,7 +52,7 @@ public:
     static constexpr char transitionFromBlackName[] = "TRANS_BLACK2CUSTOMLOBBY";
     static constexpr std::uint32_t roomsUpdateEventInterval{5000};
     static constexpr std::uint32_t usersUpdateEventInterval{5000};
-    static constexpr std::uint32_t chatMessageMaxLength{50};
+    static constexpr std::uint32_t chatMessageMaxLength{40};
     static constexpr std::uint32_t chatMessageMaxCount{50};
     static constexpr std::uint32_t chatMessageMaxStock{3};
     static constexpr std::uint32_t chatMessageRegenEventInterval{3000};

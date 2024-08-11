@@ -186,7 +186,7 @@ void CMenuCustomLobby::initializeChatControls()
 
         SmartPointer functor;
         menuBaseApi.createListBoxDisplayTextFunctor(&functor, 0, this, &callback);
-        listBoxApi.assignDisplayTextFunctor(dialog, "LBOX_CHAT", dialogName, &functor, false);
+        listBoxApi.assignDisplayTextFunctor(dialog, "LBOX_CHAT", dialogName, &functor, true);
         smartPtrApi.createOrFreeNoDtor(&functor, nullptr);
     }
 
@@ -528,7 +528,7 @@ void __fastcall CMenuCustomLobby::listBoxChatDisplayHandler(CMenuCustomLobby* th
 
     auto messageText{getInterfaceText(textIds().lobby.chatMessage.c_str())};
     if (messageText.empty()) {
-        messageText = "%SENDER%: %MSG%";
+        messageText = "\\fMedBold;%SENDER%:\\fNormal; %MSG%";
     }
 
     const auto& message = messages[index];
@@ -1157,7 +1157,9 @@ void CMenuCustomLobby::addChatMessage(const char* sender, const char* message)
         return;
     }
 
-    listBoxApi.setElementsTotal(listBoxChat, (int)m_chatMessages.size());
+    auto count = m_chatMessages.size();
+    listBoxApi.setElementsTotal(listBoxChat, (int)count);
+    listBoxApi.setSelectedIndex(listBoxChat, (int)count - 1);
 }
 
 void CMenuCustomLobby::sendChatMessage()
@@ -1181,7 +1183,7 @@ void CMenuCustomLobby::sendChatMessage()
     if (m_chatMessageStock == 0) {
         auto msg{getInterfaceText(textIds().lobby.tooManyChatMessages.c_str())};
         if (msg.empty()) {
-            msg = "Too many chat messages. Wait a couple of seconds.";
+            msg = "Too many chat messages.\nWait a couple of seconds.";
         }
         showMessageBox(msg);
         return;

@@ -286,9 +286,9 @@ textids = {
 		-- Fallback text "The selected room no longer exists."
 		selectedRoomNoLongerExists = "",
 		-- The text must contain keywords "%SENDER%" and "%MSG%".
-		-- Fallback text "%SENDER%: %MSG%"
+		-- Fallback text "\\fMedBold;%SENDER%:\\fNormal; %MSG%"
 		chatMessage = "",
-		-- Fallback text "Too many chat messages. Wait a couple of seconds."
+		-- Fallback text "Too many chat messages.\nWait a couple of seconds."
 		tooManyChatMessages = "",
 		-- The text must contain keyword "%PLAYERS_NUM%".
 		-- Fallback text "Players online: %PLAYERS_NUM%"
