@@ -293,11 +293,11 @@ textids = {
 		-- The text must contain keyword "%NAME%".
 		-- Fallback text "\\vC;\\hC;\\fSmall;%NAME%"
 		playerNameInList = "",
-		-- The text must contain keywords "%VERSION%", "%HOST%", "%PLAYERS_SEP%", "%PLAYERS%", "%PLAYERS_NUM%", "%PLAYERS_MAX%", "%SCEN_NAME%", "%SCEN_DESC%".
-		-- Fallback text "\\hC;Version: %VERSION%\nPlayers (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%PLAYERS_SEP%%PLAYERS%\n\\fMedBold;%SCEN_NAME%\\fNormal;\n%SCEN_DESC%"
+		-- The text can contain optional keywords "%VERSION%", "%HOST%", "%CLIENTS_SEPARATOR%", "%CLIENTS%", "%PLAYERS_NUM%", "%PLAYERS_MAX%", "%SCEN_NAME%", "%SCEN_DESC%".
+		-- Fallback text "\\hC;Version: %VERSION%\nPlayers (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%\n\\fMedBold;%SCEN_NAME%\\fNormal;\n%SCEN_DESC%"
 		roomInfo = "",
-		-- The text must contain keywords "%NAME%", "%HOST%", "%PLAYERS_SEP%", "%PLAYERS%", "%PLAYERS_NUM%", "%PLAYERS_MAX%".
-		-- Fallback text "\\fMedBold;%NAME%\\fNormal;\nVersion: %VERSION%\nPlayers (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%PLAYERS_SEP%%PLAYERS%"
+		-- The text can contain optional keywords "%NAME%", "%HOST%", "%CLIENTS_SEPARATOR%", "%CLIENTS%", "%PLAYERS_NUM%", "%PLAYERS_MAX%".
+		-- Fallback text "\\fMedBold;%NAME%\\fNormal;\nVersion: %VERSION%\nPlayers (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%"
 		roomInfoInList = "",
 	},
 

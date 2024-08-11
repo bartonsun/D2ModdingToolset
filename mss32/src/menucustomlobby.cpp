@@ -714,27 +714,25 @@ void CMenuCustomLobby::updateTxtRoomInfo(int roomIndex)
     if (text.empty()) {
         text =
             "\\hC;Version: %VERSION%\n"
-            "Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%PLAYERS_SEP%%PLAYERS%\n"
+            "Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%\n"
             "\\fMedBold;%SCEN_NAME%\\fNormal;\n"
             "%SCEN_DESC%";
     }
 
-    std::string players;
+    std::string clients;
     for (const auto& clientName : room.clientNames) {
-        if (players.length()) {
-            players += ", ";
+        if (clients.length()) {
+            clients += ", ";
         }
-        players += clientName;
+        clients += clientName;
     }
 
     replace(text, "%VERSION%", room.gameVersion);
     replace(text, "%PLAYERS_NUM%", fmt::format("{:d}", room.usedSlots));
     replace(text, "%PLAYERS_MAX%", fmt::format("{:d}", room.totalSlots));
     replace(text, "%HOST%", room.hostName);
-    if (players.length()) {
-        replace(text, "%PLAYERS_SEP%", ", ");
-    }
-    replace(text, "%PLAYERS%", players);
+    replace(text, "%CLIENTS_SEPARATOR%", clients.length() ? ", " : "");
+    replace(text, "%CLIENTS%", clients);
     replace(text, "%SCEN_NAME%", room.scenarioName);
     replace(text, "%SCEN_DESC%", room.scenarioDescription);
 
@@ -777,15 +775,15 @@ void CMenuCustomLobby::updateListBoxRoomsListRow(int rowIndex,
         text =
             "\\fMedBold;%NAME%\\fNormal;\n"
             "Version: %VERSION%\n"
-            "Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%PLAYERS_SEP%%PLAYERS%";
+            "Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%";
     }
 
-    std::string players;
+    std::string clients;
     for (const auto& clientName : room.clientNames) {
-        if (players.length()) {
-            players += ", ";
+        if (clients.length()) {
+            clients += ", ";
         }
-        players += clientName;
+        clients += clientName;
     }
 
     replace(text, "%NAME%", room.gameName);
@@ -793,10 +791,8 @@ void CMenuCustomLobby::updateListBoxRoomsListRow(int rowIndex,
     replace(text, "%PLAYERS_NUM%", fmt::format("{:d}", room.usedSlots));
     replace(text, "%PLAYERS_MAX%", fmt::format("{:d}", room.totalSlots));
     replace(text, "%HOST%", room.hostName);
-    if (players.length()) {
-        replace(text, "%PLAYERS_SEP%", ", ");
-    }
-    replace(text, "%PLAYERS%", players);
+    replace(text, "%CLIENTS_SEPARATOR%", clients.length() ? ", " : "");
+    replace(text, "%CLIENTS%", clients);
 
     addListBoxRoomsItemContent(text.c_str(), "ROOM_PROTECTED", !room.password.empty(), lineArea,
                                contents);
