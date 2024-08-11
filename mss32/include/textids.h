@@ -123,6 +123,7 @@ struct TextIds
         std::string selectedRoomNoLongerExists;
         std::string chatMessage;
         std::string tooManyChatMessages;
+        std::string playersTotal;
         std::string playerNameInList;
         std::string roomInfo;
         std::string roomInfoInList;

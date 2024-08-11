@@ -290,6 +290,9 @@ textids = {
 		chatMessage = "",
 		-- Fallback text "Too many chat messages. Wait a couple of seconds."
 		tooManyChatMessages = "",
+		-- The text must contain keyword "%PLAYERS_NUM%".
+		-- Fallback text "Players online: %PLAYERS_NUM%"
+		playersTotal = "",
 		-- The text must contain keyword "%NAME%".
 		-- Fallback text "\\vC;\\hC;\\fSmall;%NAME%"
 		playerNameInList = "",

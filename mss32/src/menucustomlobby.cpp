@@ -293,7 +293,9 @@ void CMenuCustomLobby::initializeUsersControls()
         }
     }
 
-    if (listBoxUsers) {
+    auto txtPlayersTotal = (CTextBoxInterf*)findOptionalControl("TXT_PLAYERS_TOTAL",
+                                                                rtti.CTextBoxInterfType);
+    if (listBoxUsers || txtPlayersTotal) {
         ImagePtrVectorApi::get().reserve(&m_userIcons, 1);
         m_usersListBoxName = usersListBoxName;
 
@@ -1194,14 +1196,29 @@ void CMenuCustomLobby::updateUsers(std::vector<CNetCustomService::UserInfo> user
 {
     using namespace game;
 
+    const auto& rtti = RttiApi::rtti();
     const auto& dialogApi = CDialogInterfApi::get();
+    const auto& textBoxApi = CTextBoxInterfApi::get();
     const auto& listBoxApi = CListBoxInterfApi::get();
     const auto& smartPtrApi = SmartPointerApi::get();
     const auto& imagePtrVectorApi = ImagePtrVectorApi::get();
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-    auto listBox = dialogApi.findListBox(dialog, m_usersListBoxName);
-    if (!listBox->vftable->isOnTop(listBox)) {
+    auto txtPlayersTotal = (CTextBoxInterf*)findOptionalControl("TXT_PLAYERS_TOTAL",
+                                                                rtti.CTextBoxInterfType);
+    if (txtPlayersTotal) {
+        auto text{getInterfaceText(textIds().lobby.playersTotal.c_str())};
+        if (text.empty()) {
+            text = "Players online: %PLAYERS_NUM%";
+        }
+        replace(text, "%PLAYERS_NUM%", fmt::format("{:d}", users.size()));
+
+        textBoxApi.setString(txtPlayersTotal, text.c_str());
+    }
+
+    auto listBox = (CListBoxInterf*)findOptionalControl(m_usersListBoxName,
+                                                        rtti.CListBoxInterfType);
+    if (!listBox || !listBox->vftable->isOnTop(listBox)) {
         // If the listBox is not on top then the game will only remove its childs without rendering
         // the new ones. This happens when any popup dialog is displayed.
         return;
