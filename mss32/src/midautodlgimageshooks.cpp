@@ -77,8 +77,8 @@ game::GameImageDataWrapper* CDefaultCustomLobbyImages::get()
                 write(file);
             }
             ::CloseHandle(file);
-            game::GameImageDataApi::get().loadFromFile(&ptr, path.string().c_str(), 1);
         }
+        game::GameImageDataApi::get().loadFromFile(&ptr, path.string().c_str(), 1);
     }
 
     return ptr;
