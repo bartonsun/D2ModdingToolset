@@ -849,20 +849,21 @@ void CMenuCustomLobby::addListBoxRoomsItemContent(const char* text,
     const auto& autoDialogApi = AutoDialogApi::get();
     const auto& menuBaseApi = CMenuBaseApi::get();
 
-    auto dialog = menuBaseApi.getDialogInterface(this);
-    auto image = autoDialogApi.loadImage(imageName);
-
-    CMqPoint imageSize{};
-    image->vftable->getSize(image, &imageSize);
-
-    const int IMAGE_PADDING = 8;
     CMqPoint textSize{lineArea->right - lineArea->left, lineArea->bottom - lineArea->top};
-    textSize.x -= imageSize.x + IMAGE_PADDING;
+
+    const int IMAGE_PADDING_X = 8;
+    CMqPoint imageSize{};
+    auto image = autoDialogApi.loadImage(imageName);
+    if (image) {
+        image->vftable->getSize(image, &imageSize);
+        textSize.x -= imageSize.x + IMAGE_PADDING_X * 2;
+    }
 
     auto image2Text = (CImage2Text*)Memory::get().allocate(sizeof(CImage2Text));
     image2TextApi.constructor(image2Text, textSize.x, textSize.y);
     image2TextApi.setText(image2Text, text);
 
+    auto dialog = menuBaseApi.getDialogInterface(this);
     auto listBox = dialogApi.findListBox(dialog, "LBOX_ROOMS");
     auto listBoxRect = listBox->vftable->getArea(listBox);
 
@@ -871,15 +872,17 @@ void CMenuCustomLobby::addListBoxRoomsItemContent(const char* text,
     ImagePointListApi::get().add(contents, &pair);
     createFreePtr((SmartPointer*)&pair.first, nullptr);
 
-    if (showImage) {
-        ImagePtrPointPair pair{};
-        createFreePtr((SmartPointer*)&pair.first, image);
-        pair.second.x = textSize.x + IMAGE_PADDING;
-        pair.second.y = (lineArea->bottom - lineArea->top - imageSize.y) / 2;
-        ImagePointListApi::get().add(contents, &pair);
-        createFreePtr((SmartPointer*)&pair.first, nullptr);
-    } else {
-        image->vftable->destructor(image, 1);
+    if (image) {
+        if (showImage) {
+            ImagePtrPointPair pair{};
+            createFreePtr((SmartPointer*)&pair.first, image);
+            pair.second.x = textSize.x + IMAGE_PADDING_X;
+            pair.second.y = (lineArea->bottom - lineArea->top - imageSize.y) / 2;
+            ImagePointListApi::get().add(contents, &pair);
+            createFreePtr((SmartPointer*)&pair.first, nullptr);
+        } else {
+            image->vftable->destructor(image, 1);
+        }
     }
 }
 
