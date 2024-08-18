@@ -306,6 +306,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\menucustomrandomscenariomulti.cpp" />
     <ClCompile Include="src\menuloadhooks.cpp" />
     <ClCompile Include="src\menuloadskirmishmulti.cpp" />
+    <ClCompile Include="src\menumain.cpp" />
     <ClCompile Include="src\midautodlgimages.cpp" />
     <ClCompile Include="src\midautodlgimageshooks.cpp" />
     <ClCompile Include="src\middiplomacy.cpp" />
@@ -692,6 +693,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\menucustomrandomscenariomulti.h" />
     <ClInclude Include="include\menuloadhooks.h" />
     <ClInclude Include="include\menuloadskirmishmulti.h" />
+    <ClInclude Include="include\menumain.h" />
     <ClInclude Include="include\midautodlgimages.h" />
     <ClInclude Include="include\midautodlgimageshooks.h" />
     <ClInclude Include="include\middiplomacy.h" />
