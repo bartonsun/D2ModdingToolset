@@ -230,6 +230,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\chatinterf.cpp" />
     <ClCompile Include="src\citystackinterfhooks.cpp" />
     <ClCompile Include="src\custombuildingcategories.cpp" />
+    <ClCompile Include="src\dialogdescriptor.cpp" />
     <ClCompile Include="src\diplomacyhooks.cpp" />
     <ClCompile Include="src\displayd3d.cpp" />
     <ClCompile Include="src\displayddraw.cpp" />
@@ -678,6 +679,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\d2unorderedmap.h" />
     <ClInclude Include="include\ddstackgroup.h" />
     <ClInclude Include="include\ddunitgroup.h" />
+    <ClInclude Include="include\dialogdescriptor.h" />
     <ClInclude Include="include\diplomacyhooks.h" />
     <ClInclude Include="include\fonts.h" />
     <ClInclude Include="include\fontshooks.h" />

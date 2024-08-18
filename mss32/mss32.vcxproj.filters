@@ -1277,6 +1277,9 @@
     <ClCompile Include="src\gameimagedata.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\dialogdescriptor.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3326,6 +3329,9 @@
       <Filter>game</Filter>
     </ClInclude>
     <ClInclude Include="include\image2dupweak.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\dialogdescriptor.h">
       <Filter>game</Filter>
     </ClInclude>
   </ItemGroup>

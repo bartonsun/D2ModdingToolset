@@ -38,24 +38,6 @@ struct CMidAutoDlgTextLoader;
 struct DialogDescriptor;
 struct CAutoDialogFile;
 
-struct DialogDescriptor
-{
-    CAutoDialog* autoDialog;
-    char name[48];
-    CMqRect rect;
-    CMqRect clipRect;
-    char backgroundName[48];
-    bool isAutoBackground;
-    char padding[3];
-    int cursorType;
-    int unknown140; // Always 0
-    char cursorName[48];
-    char childs[36]; // Unknown key-value container
-};
-
-assert_size(DialogDescriptor, 228);
-assert_offset(DialogDescriptor, unknown140, 140);
-
 using DialogMap = Map<char[48], DialogDescriptor*>;
 using DialogMapIterator = MapIterator<char[48], DialogDescriptor*>;
 using DialogMapValue = Pair<char[48], DialogDescriptor*>;
