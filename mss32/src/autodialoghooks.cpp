@@ -21,129 +21,52 @@
 #include "..\resource.h"
 #include "autodialog.h"
 #include "autodialogfile.h"
-#include "d2string.h"
-#include "menucustomlobby.h"
-#include "menucustomprotocol.h"
+#include "dialogdescriptor.h"
+#include "mempool.h"
 #include "originalfunctions.h"
-#include "stringarray.h"
-
-extern HMODULE library;
+#include "utils.h"
 
 namespace hooks {
-
-bool addDefaultDialog(game::CAutoDialog* autoDialog, int resourceId)
-{
-    using namespace game;
-
-    const auto& stringApi = StringApi::get();
-    const auto& stringArrayApi = StringArrayApi::get();
-    const auto& autoDialogApi = AutoDialogApi::get();
-    const auto& autoDialogFileApi = AutoDialogFileApi::get();
-
-    HRSRC resourceInfo = ::FindResource(library, MAKEINTRESOURCE(resourceId), "TEXT");
-    if (resourceInfo == NULL) {
-        return false;
-    }
-
-    DWORD resourceSize = ::SizeofResource(library, resourceInfo);
-    if (resourceSize == 0) {
-        return false;
-    }
-
-    HGLOBAL resource = ::LoadResource(library, resourceInfo);
-    if (resource == NULL) {
-        return false;
-    }
-
-    CAutoDialogFile file{};
-    file.readMode = true;
-    auto data = reinterpret_cast<const char*>(::LockResource(resource));
-    auto begin = data;
-    for (DWORD i = 0; i < resourceSize; ++i) {
-        auto ptr = data + i;
-        if (*ptr != '\n') {
-            continue;
-        }
-
-        size_t length = ptr - begin;
-        if (length && *(ptr - 1) == '\r') {
-            --length;
-        }
-
-        if (length) {
-            String text{};
-            stringApi.initFromStringN(&text, begin, length);
-            stringArrayApi.pushBack(&file.lines, &text);
-            stringApi.free(&text);
-        }
-
-        begin = ptr + 1;
-    }
-
-    DialogDescriptor* descriptor = nullptr;
-    if (!autoDialogApi.parseDialogFromScriptFile(&descriptor, autoDialog, &file)) {
-        autoDialogFileApi.destructor(&file);
-        return false;
-    }
-
-    Pair<DialogMapIterator, bool> result{};
-    DialogMapValue entry = {};
-    strncpy(entry.first, descriptor->name, sizeof(entry.first));
-    entry.second = descriptor;
-    if (!autoDialogApi.dialogMapInsert(&autoDialog->data->dialogs, &result, &entry)->second) {
-        autoDialogFileApi.destructor(&file);
-        return false;
-    }
-
-    autoDialogFileApi.destructor(&file);
-    return true;
-}
 
 bool __fastcall autoDialogLoadAndParseScriptFileHooked(game::CAutoDialog* thisptr,
                                                        int /*%edx*/,
                                                        const char* filePath)
 {
+    using namespace game;
+
+    const auto& autoDialogApi = AutoDialogApi::get();
+    const auto& autoDialogFileApi = AutoDialogFileApi::get();
+    const auto& dialogDescriptorApi = DialogDescriptorApi::get();
+
     bool result = getOriginalFunctions().autoDialogLoadAndParseScriptFile(thisptr, filePath);
     if (!result) {
         return false;
     }
 
-    bool isCustomLobbyFound = false;
-    bool isRoomPasswordFound = false;
-    bool isLoginAccountFound = false;
-    bool isRegisterAccountFound = false;
-    auto& dialogs = thisptr->data->dialogs;
-    for (const auto& dialog : dialogs) {
-        if (!isCustomLobbyFound && !strcmp(dialog.first, CMenuCustomLobby::dialogName)) {
-            isCustomLobbyFound = true;
-        } else if (!isRoomPasswordFound
-                   && !strcmp(dialog.first, CMenuCustomLobby::roomPasswordDialogName)) {
-            isRoomPasswordFound = true;
-        } else if (!isLoginAccountFound
-                   && !strcmp(dialog.first, CMenuCustomProtocol::loginAccountDialogName)) {
-            isLoginAccountFound = true;
-        } else if (!isRegisterAccountFound
-                   && !strcmp(dialog.first, CMenuCustomProtocol::registerAccountDialogName)) {
-            isRegisterAccountFound = true;
+    const auto path{interfFolder() / "CustomLobby.dlg"};
+    if (!writeResourceToFile(path, DLG_CUSTOM_LOBBY, false)) {
+        return true;
+    }
+
+    CAutoDialogFile file{};
+    autoDialogFileApi.constructor(&file, path.string().c_str(), 0);
+    while (file.currentLineIdx < (int)file.lines.size()) {
+        DialogDescriptor* descriptor = nullptr;
+        if (!autoDialogApi.parseDialogFromScriptFile(&descriptor, thisptr, &file)) {
+            break;
+        }
+
+        Pair<DialogMapIterator, bool> result{};
+        DialogMapValue entry = {};
+        strncpy(entry.first, descriptor->name, sizeof(entry.first));
+        entry.second = descriptor;
+        if (!autoDialogApi.dialogMapInsert(&thisptr->data->dialogs, &result, &entry)->second) {
+            dialogDescriptorApi.destructor(descriptor);
+            Memory::get().freeNonZero(descriptor);
         }
     }
 
-    if (!isCustomLobbyFound && !addDefaultDialog(thisptr, DLG_CUSTOM_LOBBY)) {
-        return false;
-    }
-
-    if (!isRoomPasswordFound && !addDefaultDialog(thisptr, DLG_ROOM_PASSWORD)) {
-        return false;
-    }
-
-    if (!isLoginAccountFound && !addDefaultDialog(thisptr, DLG_LOGIN_ACCOUNT)) {
-        return false;
-    }
-
-    if (!isRegisterAccountFound && !addDefaultDialog(thisptr, DLG_REGISTER_ACCOUNT)) {
-        return false;
-    }
-
+    autoDialogFileApi.destructor(&file);
     return true;
 }
 

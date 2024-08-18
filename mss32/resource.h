@@ -3,10 +3,7 @@
 // Used by mss32.rc
 //
 #define DLG_CUSTOM_LOBBY 101
-#define DLG_ROOM_PASSWORD 102
-#define DLG_REGISTER_ACCOUNT 103
-#define DLG_LOGIN_ACCOUNT 104
-#define FF_CUSTOM_LOBBY 105
+#define FF_CUSTOM_LOBBY 102
 
 // Next default values for new objects
 //
