@@ -26,12 +26,6 @@
 #include "midautodlgimages.h"
 #include "mqdb.h"
 #include "utils.h"
-#include <Windows.h>
-#include <stdio.h>
-#include <string.h>
-#include <string>
-
-extern HMODULE library;
 
 namespace hooks {
 
@@ -43,8 +37,6 @@ public:
     game::GameImageDataWrapper* get();
 
 private:
-    bool write(HANDLE file);
-
     bool initialized;
     game::GameImageDataWrapper* ptr;
 };
@@ -70,44 +62,12 @@ game::GameImageDataWrapper* CDefaultCustomLobbyImages::get()
         initialized = true;
 
         const auto path{interfFolder() / "CustomLobby.ff"};
-        auto file = ::CreateFile(path.string().c_str(), GENERIC_WRITE, 0, NULL, OPEN_ALWAYS,
-                                 FILE_ATTRIBUTE_NORMAL, NULL);
-        if (file != INVALID_HANDLE_VALUE) {
-            if (::GetLastError() != ERROR_ALREADY_EXISTS) {
-                write(file);
-            }
-            ::CloseHandle(file);
+        if (writeResourceToFile(path, FF_CUSTOM_LOBBY, false)) {
+            game::GameImageDataApi::get().loadFromFile(&ptr, path.string().c_str(), 1);
         }
-        game::GameImageDataApi::get().loadFromFile(&ptr, path.string().c_str(), 1);
     }
 
     return ptr;
-}
-
-bool CDefaultCustomLobbyImages::write(HANDLE file)
-{
-    HRSRC resourceInfo = ::FindResource(library, MAKEINTRESOURCE(FF_CUSTOM_LOBBY), RT_RCDATA);
-    if (resourceInfo == NULL) {
-        return false;
-    }
-
-    DWORD resourceSize = ::SizeofResource(library, resourceInfo);
-    if (resourceSize == 0) {
-        return false;
-    }
-
-    HGLOBAL resource = ::LoadResource(library, resourceInfo);
-    if (resource == NULL) {
-        return false;
-    }
-
-    DWORD written;
-    auto data = reinterpret_cast<const char*>(::LockResource(resource));
-    if (!::WriteFile(file, data, resourceSize, &written, NULL) || written != resourceSize) {
-        return false;
-    }
-
-    return true;
 }
 
 game::IMqImage2* __fastcall midAutoDlgImagesLoadImageHooked(game::CMidAutoDlgImages* thisptr,
