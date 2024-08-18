@@ -796,8 +796,8 @@ void CMenuCustomLobby::updateListBoxRoomsListRow(int rowIndex,
     replace(text, "%CLIENTS_SEPARATOR%", clients.length() ? ", " : "");
     replace(text, "%CLIENTS%", clients);
 
-    addListBoxRoomsItemContent(text.c_str(), "ROOM_PROTECTED", !room.password.empty(), lineArea,
-                               contents);
+    addListBoxRoomsItemContent(text.c_str(), "DLG_CUSTOM_LOBBY_PROTECTED_ROOM",
+                               !room.password.empty(), lineArea, contents);
 
     if (selected) {
         addListBoxRoomsSelectionOutline(lineArea, contents);
@@ -825,7 +825,8 @@ void CMenuCustomLobby::updateListBoxRoomsTableRow(int rowIndex,
         lineArea, contents);
 
     if (!room.password.empty()) {
-        addListBoxRoomsCellImage("IMG_PROTECTED", "ROOM_PROTECTED", lineArea, contents);
+        addListBoxRoomsCellImage("IMG_PROTECTED", "DLG_CUSTOM_LOBBY_PROTECTED_ROOM", lineArea,
+                                 contents);
     }
 
     if (selected) {
