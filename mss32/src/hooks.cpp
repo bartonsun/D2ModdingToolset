@@ -114,12 +114,13 @@
 #include "mempool.h"
 #include "menuload.h"
 #include "menuloadhooks.h"
+#include "menumain.h"
+#include "menumainhooks.h"
 #include "menunewskirmishhotseathooks.h"
 #include "menunewskirmishmultihooks.h"
 #include "menunewskirmishsingle.h"
 #include "menunewskirmishsinglehooks.h"
 #include "menuphasehooks.h"
-#include "menuprotocolhooks.h"
 #include "midautodlgimages.h"
 #include "midautodlgimageshooks.h"
 #include "middatacache.h"
@@ -386,9 +387,7 @@ static Hooks getGameHooks()
         {fn.computeMovementCost, computeMovementCostHooked},
         // Support custom lobby
         {CMenuPhaseApi::get().backToMainOrCloseGame, menuPhaseBackToMainOrCloseGameHooked, (void**)&orig.menuPhaseBackToMainOrCloseGame},
-        {CMenuProtocolApi::get().createMenu, menuProtocolCreateMenuHooked},
-        {CMenuProtocolApi::get().continueHandler, menuProtocolContinueHandlerHooked, (void**)&orig.menuProtocolContinueHandler},
-        {CMenuProtocolApi::get().displayCallback, menuProtocolDisplayCallbackHooked, (void**)&orig.menuProtocolDisplayCallback},
+        {CMenuMainApi::get().createMenu, menuMainCreateMenuHooked},
         {CMenuLoadApi::get().createServer, menuLoadCreateServerHooked, (void**)&orig.menuLoadCreateServer},
         {AutoDialogApi::get().loadAndParseScriptFile, autoDialogLoadAndParseScriptFileHooked, (void**)&orig.autoDialogLoadAndParseScriptFile},
         {MidAutoDlgImagesApi::vftable()->loadImage, midAutoDlgImagesLoadImageHooked},

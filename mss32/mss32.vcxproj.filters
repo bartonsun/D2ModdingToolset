@@ -746,9 +746,6 @@
     <ClCompile Include="src\menuprotocol.cpp">
       <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="src\menuprotocolhooks.cpp">
-      <Filter>hooks</Filter>
-    </ClCompile>
     <ClCompile Include="src\menucustomlobby.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
@@ -1169,7 +1166,7 @@
     <ClCompile Include="src\intintmap.cpp">
       <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="src\menucustomprotocol.cpp">
+    <ClCompile Include="src\menucustommain.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
     <ClCompile Include="src\menucustombase.cpp">
@@ -1282,6 +1279,9 @@
     </ClCompile>
     <ClCompile Include="src\menumain.cpp">
       <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menumainhooks.cpp">
+      <Filter>hooks</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -2452,9 +2452,6 @@
     <ClInclude Include="include\menuprotocol.h">
       <Filter>game</Filter>
     </ClInclude>
-    <ClInclude Include="include\menuprotocolhooks.h">
-      <Filter>hooks</Filter>
-    </ClInclude>
     <ClInclude Include="include\menucustomlobby.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
@@ -3115,7 +3112,7 @@
     <ClInclude Include="include\itemextension.h">
       <Filter>game</Filter>
     </ClInclude>
-    <ClInclude Include="include\menucustomprotocol.h">
+    <ClInclude Include="include\menucustommain.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
     <ClInclude Include="include\midmsgboxupdatehandler.h">
@@ -3339,6 +3336,9 @@
     </ClInclude>
     <ClInclude Include="include\menumain.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menumainhooks.h">
+      <Filter>hooks</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

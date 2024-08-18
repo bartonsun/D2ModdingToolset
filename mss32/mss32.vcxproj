@@ -302,11 +302,12 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\menucustombase.cpp" />
     <ClCompile Include="src\menucustomloadskirmishmulti.cpp" />
     <ClCompile Include="src\menucustomnewskirmishmulti.cpp" />
-    <ClCompile Include="src\menucustomprotocol.cpp" />
+    <ClCompile Include="src\menucustommain.cpp" />
     <ClCompile Include="src\menucustomrandomscenariomulti.cpp" />
     <ClCompile Include="src\menuloadhooks.cpp" />
     <ClCompile Include="src\menuloadskirmishmulti.cpp" />
     <ClCompile Include="src\menumain.cpp" />
+    <ClCompile Include="src\menumainhooks.cpp" />
     <ClCompile Include="src\midautodlgimages.cpp" />
     <ClCompile Include="src\midautodlgimageshooks.cpp" />
     <ClCompile Include="src\middiplomacy.cpp" />
@@ -392,7 +393,6 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\menuphase.cpp" />
     <ClCompile Include="src\menuphasehooks.cpp" />
     <ClCompile Include="src\menuprotocol.cpp" />
-    <ClCompile Include="src\menuprotocolhooks.cpp" />
     <ClCompile Include="src\menurace.cpp" />
     <ClCompile Include="src\draganddropinterf.cpp" />
     <ClCompile Include="src\midclientcore.cpp" />
@@ -694,6 +694,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\menuloadhooks.h" />
     <ClInclude Include="include\menuloadskirmishmulti.h" />
     <ClInclude Include="include\menumain.h" />
+    <ClInclude Include="include\menumainhooks.h" />
     <ClInclude Include="include\midautodlgimages.h" />
     <ClInclude Include="include\midautodlgimageshooks.h" />
     <ClInclude Include="include\middiplomacy.h" />
@@ -780,7 +781,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\managestkinterf.h" />
     <ClInclude Include="include\managestkinterfhooks.h" />
     <ClInclude Include="include\menucustombase.h" />
-    <ClInclude Include="include\menucustomprotocol.h" />
+    <ClInclude Include="include\menucustommain.h" />
     <ClInclude Include="include\menunewskirmishhotseat.h" />
     <ClInclude Include="include\menunewskirmishhotseathooks.h" />
     <ClInclude Include="include\menunewskirmishmultihooks.h" />
@@ -968,7 +969,6 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\menuphase.h" />
     <ClInclude Include="include\menuphasehooks.h" />
     <ClInclude Include="include\menuprotocol.h" />
-    <ClInclude Include="include\menuprotocolhooks.h" />
     <ClInclude Include="include\menurace.h" />
     <ClInclude Include="include\midbag.h" />
     <ClInclude Include="include\midcampaign.h" />

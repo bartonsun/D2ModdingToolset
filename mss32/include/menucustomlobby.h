@@ -48,7 +48,7 @@ class CMenuCustomLobby
 public:
     static constexpr char dialogName[] = "DLG_CUSTOM_LOBBY";
     static constexpr char roomPasswordDialogName[] = "DLG_ROOM_PASSWORD";
-    static constexpr char transitionFromProtoName[] = "TRANS_PROTO2CUSTOMLOBBY";
+    static constexpr char transitionFromMainName[] = "TRANS_MAIN2CUSTOMLOBBY";
     static constexpr char transitionFromBlackName[] = "TRANS_BLACK2CUSTOMLOBBY";
     static constexpr std::uint32_t roomsUpdateEventInterval{5000};
     static constexpr std::uint32_t usersUpdateEventInterval{5000};

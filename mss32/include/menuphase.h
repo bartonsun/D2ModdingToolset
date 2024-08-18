@@ -49,6 +49,7 @@ enum class MenuTransition : int
     Main2Protocol = 1,
     Main2Intro = 2,
     Main2Credits = 3,
+    Main2CustomLobby = 4,
     Single2RaceCampaign = 0,
     Single2LoadCampaign = 1,
     Single2NewSkirmish = 2,
@@ -57,7 +58,6 @@ enum class MenuTransition : int
     Single2LoadCustomCampaign = 5,
     Protocol2Hotseat = 0,
     Protocol2Multi = 1,
-    Protocol2CustomLobby = 2,
     Hotseat2NewSkirmishHotseat = 0,
     Hotseat2LoadSkirmishHotseat = 1,
     Multi2NewSkirmish = 0,
@@ -101,6 +101,7 @@ enum class MenuPhase : int
     Main2Credits = 18,
     Main2Single = 22,
     Main2Proto = 23,
+    Main2CustomLobby = 35,
 
     Single = 1,
     Single2RaceCampaign = 26,
@@ -113,7 +114,6 @@ enum class MenuPhase : int
     Protocol = 2,
     Protocol2Hotseat = 24,
     Protocol2Multi = 25,
-    Protocol2CustomLobby = 35,
 
     Hotseat = 3,
     Hotseat2NewSkirmishHotseat = 9,
@@ -239,7 +239,7 @@ assert_enum_value(MenuPhase, RaceCampaign2Lord, 31);
 assert_enum_value(MenuPhase, Single2LoadCustomCampaign, 32);
 assert_enum_value(MenuPhase, Single2LoadSkirmish, 33);
 assert_enum_value(MenuPhase, Single2LoadCampaign, 34);
-assert_enum_value(MenuPhase, Protocol2CustomLobby, 35);
+assert_enum_value(MenuPhase, Main2CustomLobby, 35);
 assert_enum_value(MenuPhase, CustomLobby, 36);
 assert_enum_value(MenuPhase, Back2CustomLobby, 37);
 assert_enum_value(MenuPhase, NewSkirmishSingle2RandomScenarioSingle, 38);

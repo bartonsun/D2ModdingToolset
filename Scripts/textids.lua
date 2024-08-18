@@ -230,8 +230,8 @@ textids = {
 	lobby = {
 		-- Fallback text id is X150TA0026 ("v.3.01")
 		gameVersion = "",
-		-- Server name shown in network protocols list
-		-- Fallback text "Lobby server"
+		-- Server name shown on main menu's button
+		-- Fallback text "ONLINE LOBBY"
 		serverName = "",
 		-- Fallback text "Connection start failed"
 		connectStartFailed = "",

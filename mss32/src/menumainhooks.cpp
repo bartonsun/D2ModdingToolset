@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2021 Vladimir Makeev.
+ * Copyright (C) 2024 Stanislav Egorov.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,29 +17,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MENUPROTOCOLHOOKS_H
-#define MENUPROTOCOLHOOKS_H
-
-namespace game {
-struct CMenuProtocol;
-struct CMenuPhase;
-struct String;
-} // namespace game
+#include "menumainhooks.h"
+#include "mempool.h"
+#include "menucustommain.h"
 
 namespace hooks {
 
-class CMenuCustomProtocol;
+game::CMenuMain* __stdcall menuMainCreateMenuHooked(game::CMenuPhase* menuPhase)
+{
+    using namespace game;
 
-void __fastcall menuProtocolDisplayCallbackHooked(game::CMenuProtocol* thisptr,
-                                                  int /*%edx*/,
-                                                  game::String* string,
-                                                  bool a3,
-                                                  int selectedIndex);
+    auto menu = (CMenuCustomMain*)Memory::get().allocate(sizeof(CMenuCustomMain));
+    new (menu) CMenuCustomMain(menuPhase);
 
-void __fastcall menuProtocolContinueHandlerHooked(CMenuCustomProtocol* thisptr, int /*%edx*/);
-
-game::CMenuProtocol* __stdcall menuProtocolCreateMenuHooked(game::CMenuPhase* menuPhase);
+    return menu;
+}
 
 } // namespace hooks
-
-#endif // MENUPROTOCOLHOOKS_H

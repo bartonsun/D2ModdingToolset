@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2021 Vladimir Makeev.
+ * Copyright (C) 2024 Stanislav Egorov.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "menucustomprotocol.h"
+#include "menucustommain.h"
 #include "dialoginterf.h"
 #include "editboxinterf.h"
 #include "interfaceutils.h"
@@ -28,13 +28,14 @@
 #include "menuphase.h"
 #include "midgard.h"
 #include "restrictions.h"
+#include "textboxinterf.h"
 #include "textids.h"
 #include "utils.h"
 #include <fmt/format.h>
 
 namespace hooks {
 
-CMenuCustomProtocol::CMenuCustomProtocol(game::CMenuPhase* menuPhase)
+CMenuCustomMain::CMenuCustomMain(game::CMenuPhase* menuPhase)
     : CMenuCustomBase{this}
     , m_peerCallback{this}
     , m_lobbyCallback{this}
@@ -43,7 +44,7 @@ CMenuCustomProtocol::CMenuCustomProtocol(game::CMenuPhase* menuPhase)
 {
     using namespace game;
 
-    CMenuProtocolApi::get().constructor(this, menuPhase);
+    CMenuMainApi::get().constructor(this, menuPhase);
 
     static RttiInfo<CMenuBaseVftable> rttiInfo = {};
     if (rttiInfo.locator == nullptr) {
@@ -53,14 +54,20 @@ CMenuCustomProtocol::CMenuCustomProtocol(game::CMenuPhase* menuPhase)
     this->vftable = &rttiInfo.vftable;
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-    auto listBox = CDialogInterfApi::get().findListBox(dialog, "TLBOX_PROTOCOL");
-    if (listBox) {
-        // One more entry for our custom protocol
-        CListBoxInterfApi::get().setElementsTotal(listBox, listBox->listBoxData->elementsTotal + 1);
+    auto txtTutorial = CDialogInterfApi::get().findTextBox(dialog, "TXT_TUTORIAL");
+    if (txtTutorial) {
+        auto text{getInterfaceText(textIds().lobby.serverName.c_str())};
+        if (text.empty()) {
+            text = "ONLINE LOBBY";
+        }
+        CTextBoxInterfApi::get().setString(txtTutorial, text.c_str());
     }
+
+    // Since original button does not work anyway, this is the ideal spot
+    setButtonCallback(dialog, "BTN_TUTORIAL", tutorialBtnHandler, this);
 }
 
-CMenuCustomProtocol ::~CMenuCustomProtocol()
+CMenuCustomMain ::~CMenuCustomMain()
 {
     using namespace game;
 
@@ -73,22 +80,20 @@ CMenuCustomProtocol ::~CMenuCustomProtocol()
         service->removePeerCallback(&m_peerCallback);
     }
 
-    CMenuProtocolApi::get().destructor(this);
+    CMenuMainApi::get().destructor(this);
 }
 
-void __fastcall CMenuCustomProtocol::destructor(CMenuCustomProtocol* thisptr,
-                                                int /*%edx*/,
-                                                char flags)
+void __fastcall CMenuCustomMain::destructor(CMenuCustomMain* thisptr, int /*%edx*/, char flags)
 {
-    thisptr->~CMenuCustomProtocol();
+    thisptr->~CMenuCustomMain();
 
     if (flags & 1) {
-        logDebug("transitions.log", "Free CMenuCustomProtocol memory");
+        logDebug("transitions.log", "Free CMenuCustomMain memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
 
-void CMenuCustomProtocol::createNetCustomServiceStartWaitingConnection()
+void __fastcall CMenuCustomMain::tutorialBtnHandler(CMenuCustomMain* thisptr, int /*%edx*/)
 {
     using namespace game;
 
@@ -102,14 +107,14 @@ void CMenuCustomProtocol::createNetCustomServiceStartWaitingConnection()
         }
         return;
     }
-    service->addPeerCallback(&m_peerCallback);
-    service->addLobbyCallback(&m_lobbyCallback);
+    service->addPeerCallback(&thisptr->m_peerCallback);
+    service->addLobbyCallback(&thisptr->m_lobbyCallback);
     midgardApi.setNetService(midgardApi.instance(), service, true, false);
 
-    showWaitDialog();
+    thisptr->showWaitDialog();
 }
 
-void CMenuCustomProtocol::showLoginDialog()
+void CMenuCustomMain::showLoginDialog()
 {
     using namespace game;
 
@@ -122,7 +127,7 @@ void CMenuCustomProtocol::showLoginDialog()
     showInterface(new (m_loginDialog) CLoginAccountInterf(this));
 }
 
-void CMenuCustomProtocol::hideLoginDialog()
+void CMenuCustomMain::hideLoginDialog()
 {
     if (m_loginDialog) {
         hideInterface(m_loginDialog);
@@ -131,7 +136,7 @@ void CMenuCustomProtocol::hideLoginDialog()
     }
 }
 
-void CMenuCustomProtocol::showRegisterDialog()
+void CMenuCustomMain::showRegisterDialog()
 {
     using namespace game;
 
@@ -145,7 +150,7 @@ void CMenuCustomProtocol::showRegisterDialog()
     showInterface(new (m_registerDialog) CRegisterAccountInterf(this));
 }
 
-void CMenuCustomProtocol::hideRegisterDialog()
+void CMenuCustomMain::hideRegisterDialog()
 {
     if (m_registerDialog) {
         hideInterface(m_registerDialog);
@@ -154,9 +159,9 @@ void CMenuCustomProtocol::hideRegisterDialog()
     }
 }
 
-void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
-                                                         SLNet::RakPeerInterface* peer,
-                                                         const SLNet::Packet* packet)
+void CMenuCustomMain::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
+                                                     SLNet::RakPeerInterface* peer,
+                                                     const SLNet::Packet* packet)
 {
     using namespace game;
 
@@ -197,7 +202,7 @@ void CMenuCustomProtocol::PeerCallback::onPacketReceived(DefaultMessageIDTypes t
     }
 }
 
-void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_Login* message)
+void CMenuCustomMain::LobbyCallback::MessageResult(SLNet::Client_Login* message)
 {
     using namespace game;
 
@@ -208,7 +213,7 @@ void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_Login* mess
         m_menu->hideLoginDialog();
 
         CMenuPhase* menuPhase = m_menu->menuBaseData->menuPhase;
-        CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Protocol2CustomLobby);
+        CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::Main2CustomLobby);
         break;
     }
 
@@ -243,7 +248,7 @@ void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_Login* mess
     }
 }
 
-void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_RegisterAccount* message)
+void CMenuCustomMain::LobbyCallback::MessageResult(SLNet::Client_RegisterAccount* message)
 {
     using namespace game;
 
@@ -289,7 +294,7 @@ void CMenuCustomProtocol::LobbyCallback::MessageResult(SLNet::Client_RegisterAcc
     }
 }
 
-CMenuCustomProtocol::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomProtocol* menu)
+CMenuCustomMain::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomMain* menu)
     : CPopupDialogCustomBase{this, loginAccountDialogName}
     , m_menu{menu}
 {
@@ -311,8 +316,8 @@ CMenuCustomProtocol::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomProtoco
                    CNetCustomService::passwordMaxLength, true);
 }
 
-void __fastcall CMenuCustomProtocol::CLoginAccountInterf::okBtnHandler(CLoginAccountInterf* thisptr,
-                                                                       int /*%edx*/)
+void __fastcall CMenuCustomMain::CLoginAccountInterf::okBtnHandler(CLoginAccountInterf* thisptr,
+                                                                   int /*%edx*/)
 {
     auto dialog = *thisptr->dialog;
     if (!getNetService()->loginAccount(getEditBoxText(dialog, "EDIT_ACCOUNT_NAME"),
@@ -328,15 +333,21 @@ void __fastcall CMenuCustomProtocol::CLoginAccountInterf::okBtnHandler(CLoginAcc
     thisptr->m_menu->showWaitDialog();
 }
 
-void __fastcall CMenuCustomProtocol::CLoginAccountInterf::cancelBtnHandler(
-    CLoginAccountInterf* thisptr,
-    int /*%edx*/)
+void __fastcall CMenuCustomMain::CLoginAccountInterf::cancelBtnHandler(CLoginAccountInterf* thisptr,
+                                                                       int /*%edx*/)
 {
+    using namespace game;
+
+    const auto& midgardApi = CMidgardApi::get();
+
     logDebug("lobby.log", "User canceled logging in");
     thisptr->m_menu->hideLoginDialog();
+
+    // Drop connection to the lobby server
+    midgardApi.clearNetworkStateAndService(midgardApi.instance());
 }
 
-void __fastcall CMenuCustomProtocol::CLoginAccountInterf::registerBtnHandler(
+void __fastcall CMenuCustomMain::CLoginAccountInterf::registerBtnHandler(
     CLoginAccountInterf* thisptr,
     int /*%edx*/)
 {
@@ -345,7 +356,7 @@ void __fastcall CMenuCustomProtocol::CLoginAccountInterf::registerBtnHandler(
     menu->showRegisterDialog();
 }
 
-CMenuCustomProtocol::CRegisterAccountInterf::CRegisterAccountInterf(CMenuCustomProtocol* menu)
+CMenuCustomMain::CRegisterAccountInterf::CRegisterAccountInterf(CMenuCustomMain* menu)
     : CPopupDialogCustomBase{this, registerAccountDialogName}
     , m_menu{menu}
 {
@@ -367,7 +378,7 @@ CMenuCustomProtocol::CRegisterAccountInterf::CRegisterAccountInterf(CMenuCustomP
                    CNetCustomService::passwordMaxLength, false);
 }
 
-void __fastcall CMenuCustomProtocol::CRegisterAccountInterf::okBtnHandler(
+void __fastcall CMenuCustomMain::CRegisterAccountInterf::okBtnHandler(
     CRegisterAccountInterf* thisptr,
     int /*%edx*/)
 {
@@ -385,12 +396,19 @@ void __fastcall CMenuCustomProtocol::CRegisterAccountInterf::okBtnHandler(
     thisptr->m_menu->showWaitDialog();
 }
 
-void __fastcall CMenuCustomProtocol::CRegisterAccountInterf::cancelBtnHandler(
+void __fastcall CMenuCustomMain::CRegisterAccountInterf::cancelBtnHandler(
     CRegisterAccountInterf* thisptr,
     int /*%edx*/)
 {
+    using namespace game;
+
+    const auto& midgardApi = CMidgardApi::get();
+
     logDebug("lobby.log", "User canceled register account");
     thisptr->m_menu->hideRegisterDialog();
+
+    // Drop connection to the lobby server
+    midgardApi.clearNetworkStateAndService(midgardApi.instance());
 }
 
 } // namespace hooks

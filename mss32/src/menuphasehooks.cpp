@@ -130,7 +130,15 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             break;
         case MenuPhase::Main:
             logDebug("transitions.log", "Current is Main");
-            menuPhase.transitionFromMain(thisptr, transition);
+            if (transition == MenuTransition::Main2CustomLobby) {
+                logDebug("transitions.log", "Show Main2CustomLobby");
+                menuPhase.showFullScreenAnimation(thisptr, &data->currentPhase,
+                                                  &data->interfManager, &data->currentMenu,
+                                                  MenuPhase::Main2CustomLobby,
+                                                  CMenuCustomLobby::transitionFromMainName);
+            } else {
+                menuPhase.transitionFromMain(thisptr, transition);
+            }
             break;
         case MenuPhase::Main2Single:
             logDebug("transitions.log", "Current is Main2Single");
@@ -142,21 +150,13 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             break;
         case MenuPhase::Protocol: {
             logDebug("transitions.log", "Current is Protocol");
-            if (transition == MenuTransition::Protocol2CustomLobby) {
-                logDebug("transitions.log", "Show Protocol2CustomLobby");
-                auto data = thisptr->data;
-                menuPhase.showFullScreenAnimation(thisptr, &data->currentPhase,
-                                                  &data->interfManager, &data->currentMenu,
-                                                  MenuPhase::Protocol2CustomLobby,
-                                                  CMenuCustomLobby::transitionFromProtoName);
-            } else {
-                menuPhase.transitionFromProto(thisptr, transition);
-            }
+            menuPhase.transitionFromProto(thisptr, transition);
             break;
         }
-        case MenuPhase::Protocol2CustomLobby:
+        case MenuPhase::Main2CustomLobby:
         case MenuPhase::Back2CustomLobby: {
             logDebug("transitions.log", "Show CustomLobby");
+            data->networkGame = true;
             CMenuPhaseApi::Api::CreateMenuCallback tmp = createMenuCustomLobbyCallback;
             auto* callback = &tmp;
             menuPhase.showMenu(thisptr, &data->currentPhase, &data->interfManager,

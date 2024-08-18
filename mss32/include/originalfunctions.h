@@ -45,7 +45,6 @@
 #include "menunewskirmishmulti.h"
 #include "menunewskirmishsingle.h"
 #include "menuphase.h"
-#include "menuprotocol.h"
 #include "midevcondition.h"
 #include "mideveffect.h"
 #include "midevent.h"
@@ -113,8 +112,6 @@ struct OriginalFunctions
     game::CMenuPhaseApi::Api::Constructor menuPhaseCtor;
     game::IMqNetSystemVftable::Destructor menuPhaseDtor;
     game::CMenuPhaseApi::Api::BackToMainOrCloseGame menuPhaseBackToMainOrCloseGame;
-    game::CMenuProtocolApi::Api::DisplayCallback menuProtocolDisplayCallback;
-    game::CMenuProtocolApi::Api::ButtonHandler menuProtocolContinueHandler;
 
     game::GameImagesApi::Api::GetCityPreviewLargeImageNames getCityPreviewLargeImageNames;
     game::GameImagesApi::Api::GetCityIconImageNames getCityIconImageNames;
