@@ -137,6 +137,8 @@ static inline void replaceRttiInfo(game::RttiInfo<T>& dst, const T* src, bool co
 
 void allocateString(char** dest, const char* src);
 
+bool writeResourceToFile(const std::filesystem::path& path, int resourceId, bool rewriteExisting);
+
 } // namespace hooks
 
 #endif // UTILS_H

@@ -34,6 +34,8 @@
 #include <random>
 #include <wincrypt.h>
 
+extern HMODULE library;
+
 namespace hooks {
 
 std::string trimSpaces(const std::string& str)
@@ -460,6 +462,52 @@ void allocateString(char** dest, const char* src)
         std::strncpy(*dest, src, length);
         (*dest)[length] = 0;
     }
+}
+
+bool writeResourceToFile(HANDLE file, int resourceId)
+{
+    HRSRC resourceInfo = ::FindResource(library, MAKEINTRESOURCE(resourceId), RT_RCDATA);
+    if (resourceInfo == NULL) {
+        return false;
+    }
+
+    DWORD resourceSize = ::SizeofResource(library, resourceInfo);
+    if (resourceSize == 0) {
+        return false;
+    }
+
+    HGLOBAL resource = ::LoadResource(library, resourceInfo);
+    if (resource == NULL) {
+        return false;
+    }
+
+    DWORD written;
+    auto data = reinterpret_cast<const char*>(::LockResource(resource));
+    if (!::WriteFile(file, data, resourceSize, &written, NULL) || written != resourceSize) {
+        return false;
+    }
+
+    return true;
+}
+
+bool writeResourceToFile(const std::filesystem::path& path, int resourceId, bool rewriteExisting)
+{
+    if (!rewriteExisting) {
+        auto attr = GetFileAttributes(path.string().c_str());
+        if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+            return true;
+        }
+    }
+
+    auto file = ::CreateFile(path.string().c_str(), GENERIC_WRITE, 0, NULL, OPEN_ALWAYS,
+                             FILE_ATTRIBUTE_NORMAL, NULL);
+    if (file == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    bool result = writeResourceToFile(file, resourceId);
+    ::CloseHandle(file);
+    return result;
 }
 
 } // namespace hooks
