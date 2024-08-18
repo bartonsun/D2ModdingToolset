@@ -1241,8 +1241,10 @@ void CMenuCustomLobby::updateUsers(std::vector<CNetCustomService::UserInfo> user
         }
     }
 
+    auto selectedIndex = listBoxApi.selectedIndex(listBox);
     m_users = std::move(users);
     listBoxApi.setElementsTotal(listBox, (int)m_users.size());
+    listBoxApi.setSelectedIndex(listBox, std::min(selectedIndex, (int)m_users.size() - 1));
 }
 
 void CMenuCustomLobby::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
