@@ -238,10 +238,9 @@ void CMenuCustomMain::LobbyCallback::MessageResult(SLNet::Client_Login* message)
     default: {
         auto msg{getInterfaceText(textIds().lobby.unableToLogin.c_str())};
         if (msg.empty()) {
-            msg = "An unexpected error during login.\nError code: %CODE%.";
+            msg = "An unexpected error during login.\n%ERROR%";
         }
-        // TODO: Lobby2ResultCodeDescription::ToEnglish
-        replace(msg, "%CODE%", fmt::format("{:d}", message->resultCode));
+        replace(msg, "%ERROR%", SLNet::Lobby2ResultCodeDescription::ToEnglish(message->resultCode));
         showMessageBox(msg);
         break;
     }
@@ -284,10 +283,9 @@ void CMenuCustomMain::LobbyCallback::MessageResult(SLNet::Client_RegisterAccount
     default: {
         auto msg{getInterfaceText(textIds().lobby.unableToRegister.c_str())};
         if (msg.empty()) {
-            msg = "An unexpected error during account registration.\nError code: %CODE%.";
+            msg = "An unexpected error during account registration.\n%ERROR%";
         }
-        // TODO: Lobby2ResultCodeDescription::ToEnglish
-        replace(msg, "%CODE%", fmt::format("{:d}", message->resultCode));
+        replace(msg, "%ERROR%", SLNet::Lobby2ResultCodeDescription::ToEnglish(message->resultCode));
         showMessageBox(msg);
         break;
     }

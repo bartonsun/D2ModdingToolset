@@ -262,15 +262,15 @@ textids = {
 		-- Fallback text "The account name already exists."
 		accountNameAlreadyInUse = "",
 		-- Player tried to login but received an unexpected error.
-		-- The text must contain keyword "%CODE%".
-		-- Fallback text "An unexpected error during login.\nError code: %CODE%."
+		-- The text must contain keyword "%ERROR%".
+		-- Fallback text "An unexpected error during login.\n%ERROR%"
 		unableToLogin = "",
 		-- Player successfully registered but received an unexpected error trying to login.
 		-- Fallback text "An unexpected error trying to login after successful registration."
 		unableToLoginAfterRegistration = "",
 		-- Player tried to register an account but received an unexpected error.
-		-- The text must contain keyword "%CODE%".
-		-- Fallback text "An unexpected error during account registration.\nError code: %CODE%."
+		-- The text must contain keyword "%ERROR%".
+		-- Fallback text "An unexpected error during account registration.\n%ERROR%"
 		unableToRegister = "",
 		-- Fallback text "Could not request to create a room from the lobby server."
 		createRoomRequestFailed = "",
