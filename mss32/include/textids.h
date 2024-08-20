@@ -125,6 +125,7 @@ struct TextIds
         std::string tooManyChatMessages;
         std::string playersTotal;
         std::string playerNameInList;
+        std::string roomsTotal;
         std::string roomInfo;
         std::string roomInfoInList;
     } lobby;

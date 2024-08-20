@@ -653,7 +653,9 @@ void CMenuCustomLobby::updateRooms(DataStructures::List<SLNet::RoomDescriptor*>&
 {
     using namespace game;
 
+    const auto& rtti = RttiApi::rtti();
     const auto& dialogApi = CDialogInterfApi::get();
+    const auto& textBoxApi = CTextBoxInterfApi::get();
     const auto& listBoxApi = CListBoxInterfApi::get();
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
@@ -688,6 +690,18 @@ void CMenuCustomLobby::updateRooms(DataStructures::List<SLNet::RoomDescriptor*>&
     auto btnJoin = dialogApi.findButton(dialog, "BTN_JOIN");
     if (btnJoin) {
         btnJoin->vftable->setEnabled(btnJoin, !m_rooms.empty());
+    }
+
+    auto txtRoomsTotal = (CTextBoxInterf*)findOptionalControl("TXT_ROOMS_TOTAL",
+                                                              rtti.CTextBoxInterfType);
+    if (txtRoomsTotal) {
+        auto text{getInterfaceText(textIds().lobby.roomsTotal.c_str())};
+        if (text.empty()) {
+            text = "Games available: %ROOMS_NUM%";
+        }
+        replace(text, "%ROOMS_NUM%", fmt::format("{:d}", m_rooms.size()));
+
+        textBoxApi.setString(txtRoomsTotal, text.c_str());
     }
 }
 

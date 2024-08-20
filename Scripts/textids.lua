@@ -296,6 +296,9 @@ textids = {
 		-- The text must contain keyword "%NAME%".
 		-- Fallback text "\\vC;\\hC;\\fSmall;%NAME%"
 		playerNameInList = "",
+		-- The text must contain keyword "%ROOMS_NUM%".
+		-- Fallback text "Games available: %ROOMS_NUM%"
+		roomsTotal = "",
 		-- The text can contain optional keywords "%VERSION%", "%HOST%", "%CLIENTS_SEPARATOR%", "%CLIENTS%", "%PLAYERS_NUM%", "%PLAYERS_MAX%", "%SCEN_NAME%", "%SCEN_DESC%".
 		-- Fallback text "\\hC;Version: %VERSION%\nPlayers (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%\n\\fMedBold;%SCEN_NAME%\\fNormal;\n%SCEN_DESC%"
 		roomInfo = "",
