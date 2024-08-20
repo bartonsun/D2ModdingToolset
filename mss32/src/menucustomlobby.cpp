@@ -79,7 +79,8 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
         // See DestroyAnimInterface() in IDA.
         replaceRttiInfo(rttiInfo, this->vftable);
         rttiInfo.vftable.destructor = (CInterfaceVftable::Destructor)&destructor;
-        rttiInfo.vftable.handleKeyboard = (CInterfaceVftable::HandleKeyboard)&handleKeyboard;
+        // BTN_SEND is enough, no need for explicit handling
+        // rttiInfo.vftable.handleKeyboard = (CInterfaceVftable::HandleKeyboard)&handleKeyboard;
     }
     this->vftable = &rttiInfo.vftable;
 
