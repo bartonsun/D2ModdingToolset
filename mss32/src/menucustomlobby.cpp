@@ -674,7 +674,7 @@ void CMenuCustomLobby::updateRooms(DataStructures::List<SLNet::RoomDescriptor*>&
 
     m_rooms.clear();
     m_rooms.reserve(roomDescriptors.Size());
-    auto selectedIndex = (unsigned)-1;
+    auto selectedIndex = roomDescriptors.Size() ? 0 : (unsigned)-1;
     for (unsigned int i = 0; i < roomDescriptors.Size(); ++i) {
         m_rooms.push_back(getRoomInfo(roomDescriptors[i]));
         if (m_rooms.back().id == selectedRoomId) {
@@ -703,6 +703,8 @@ void CMenuCustomLobby::updateRooms(DataStructures::List<SLNet::RoomDescriptor*>&
 
         textBoxApi.setString(txtRoomsTotal, text.c_str());
     }
+
+    updateTxtRoomInfo(selectedIndex);
 }
 
 const CMenuCustomLobby::RoomInfo* CMenuCustomLobby::getSelectedRoom()
@@ -722,7 +724,14 @@ void CMenuCustomLobby::updateTxtRoomInfo(int roomIndex)
     const auto& rtti = RttiApi::rtti();
     const auto& textBoxApi = CTextBoxInterfApi::get();
 
+    auto txtRoomInfo = (CTextBoxInterf*)findOptionalControl("TXT_ROOM_INFO",
+                                                            rtti.CTextBoxInterfType);
+    if (!txtRoomInfo) {
+        return;
+    }
+
     if ((size_t)roomIndex >= m_rooms.size()) {
+        textBoxApi.setString(txtRoomInfo, "");
         return;
     }
     const auto& room = m_rooms[(size_t)roomIndex];
@@ -753,11 +762,7 @@ void CMenuCustomLobby::updateTxtRoomInfo(int roomIndex)
     replace(text, "%SCEN_NAME%", room.scenarioName);
     replace(text, "%SCEN_DESC%", room.scenarioDescription);
 
-    auto txtRoomInfo = (CTextBoxInterf*)findOptionalControl("TXT_ROOM_INFO",
-                                                            rtti.CTextBoxInterfType);
-    if (txtRoomInfo) {
-        textBoxApi.setString(txtRoomInfo, text.c_str());
-    }
+    textBoxApi.setString(txtRoomInfo, text.c_str());
 }
 
 void CMenuCustomLobby::updateListBoxRoomsRow(int rowIndex,
