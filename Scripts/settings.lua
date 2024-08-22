@@ -255,7 +255,4 @@ settings = {
 		-- Fallback action for AI controlled units in case of script errors
 		fallbackAction = BattleAction.Defend,
 	},
-
-	-- Create mss32 proxy dll log files with debug info
-	debugHooks = false,
 }

@@ -26,6 +26,7 @@
 #include <fmt/format.h>
 #include <limits>
 #include <string>
+#include <Windows.h>
 
 namespace hooks {
 
@@ -342,7 +343,8 @@ static void readSettings(const sol::table& table, Settings& settings)
     settings.freeTransformSelfAttack = readSetting(table, "freeTransformSelfAttack", defaultSettings().freeTransformSelfAttack);
     settings.freeTransformSelfAttackInfinite = readSetting(table, "freeTransformSelfAttackInfinite", defaultSettings().freeTransformSelfAttackInfinite);
     settings.fixEffectiveHpFormula = readSetting(table, "fixEffectiveHpFormula", defaultSettings().fixEffectiveHpFormula);
-    settings.debugMode = readSetting(table, "debugHooks", defaultSettings().debugMode);
+    // People keep forgetting to turn this off in release packages
+    //settings.debugMode = readSetting(table, "debugHooks", defaultSettings().debugMode);
     // clang-format on
 
     readAiAttackPowerSettings(table, settings.aiAttackPowerBonus);
@@ -355,6 +357,24 @@ static void readSettings(const sol::table& table, Settings& settings)
     readEngineSettings(table, settings.engine);
     readBattleSettings(table, settings.battle);
     readAdditionalLordIncomeSettings(table, settings.additionalLordIncome);
+}
+
+static void readDebugMode(Settings& settings)
+{
+#ifdef _DEBUG
+    settings.debugMode = true;
+    return;
+#endif
+
+    settings.debugMode = defaultSettings().debugMode;
+
+    char commandLine[256];
+    strncpy(commandLine, GetCommandLine(), 256);
+    commandLine[255] = 0;
+    // Similar to built-in -GAMESPY and -NOCRASH
+    if (strstr(commandLine, "-DEBUG")) {
+        settings.debugMode = true;
+    }
 }
 
 const Settings& baseSettings()
@@ -469,11 +489,12 @@ void initializeUserSettings(Settings& value)
     const auto path{scriptsFolder() / "settings.lua"};
     try {
         const auto env{executeScriptFile(path)};
-        if (!env)
-            return;
+        if (env) {
+            const sol::table& table = (*env)["settings"];
+            readSettings(table, value);
+        }
 
-        const sol::table& table = (*env)["settings"];
-        readSettings(table, value);
+        readDebugMode(value);
     } catch (const std::exception& e) {
         showErrorMessageBox(fmt::format("Failed to read script '{:s}'.\n"
                                         "Reason: '{:s}'",
