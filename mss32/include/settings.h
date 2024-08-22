@@ -152,7 +152,7 @@ struct Settings
     {
         struct Server
         {
-            std::string ip{"127.0.0.1"};
+            std::string ip{"104.248.139.25"};
             std::uint16_t port{61111};
         } server;
 

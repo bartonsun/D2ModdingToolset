@@ -164,14 +164,14 @@ settings = {
 	lobby = {
 		-- Lobby server public IP and port
 		server = {
-			ip = "68.183.215.87",
-			port = 61111
+			ip = "104.248.139.25",
+			port = 61111,
 		},
 
 		client = {
-			-- Lobby client port
-			port = 0
-		}
+			-- Lobby client port (0 means auto-assign by OS)
+			port = 0,
+		},
 	},
 
 	-- If true, switches attacks miss check to a single random value roll
