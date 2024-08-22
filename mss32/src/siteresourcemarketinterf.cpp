@@ -119,7 +119,7 @@ static void __fastcall siteResMarketInterfResetStackExtDtor(game::IResetStackExt
     CSiteResourceMarketInterf* interf{resetStackExtToSiteInterf(thisptr)};
 
     if (interf->paperdoll) {
-        CInterface* marketInterface = interf;
+        CInterface* marketInterface = (CInterface*)interf;
         int index = -1;
         marketInterface->vftable->getChildIndex(marketInterface, &index, interf->paperdoll);
         marketInterface->vftable->deleteChildAt(marketInterface, &index);
@@ -798,11 +798,11 @@ static void createPaperdollInterface(CSiteResourceMarketInterf* thisptr)
 
     CMidDragDropInterf* dragDrop = thisptr;
     CPaperdollChildInterfApi::get().constructor(paperdoll, dragDrop, thisptr->phaseGame,
-                                                &thisptr->visitorStackId, dragDrop,
+                                                &thisptr->visitorStackId, (CInterface*)dragDrop,
                                                 &thisptr->paperdollArea);
 
     if (thisptr->paperdoll) {
-        CInterface* interf = thisptr;
+        CInterface* interf = (CInterface*)thisptr;
         int index = -1;
         interf->vftable->getChildIndex(interf, &index, thisptr->paperdoll);
         interf->vftable->deleteChildAt(interf, &index);
@@ -823,7 +823,7 @@ static void hidePaperdoll(CSiteResourceMarketInterf* thisptr)
     using namespace game;
 
     if (thisptr->paperdoll) {
-        CInterface* interf = thisptr;
+        CInterface* interf = (CInterface*)thisptr;
         int index = -1;
         interf->vftable->getChildIndex(interf, &index, thisptr->paperdoll);
         interf->vftable->deleteChildAt(interf, &index);
@@ -1064,7 +1064,7 @@ static void __stdcall siteResMarketDraw(game::CMidDragDropInterf* thisptr,
     }
 
     if (drawInterface) {
-        drawInterface(thisptr, renderer);
+        drawInterface((CInterface*)thisptr, renderer);
     }
 }
 
@@ -1080,7 +1080,7 @@ static int __fastcall siteResMarketHandleMouse(game::CMidDragDropInterf* thisptr
     const CSiteResourceMarketInterf* interf{dragDropToSiteInterf(thisptr)};
 
     if (mouseButton != WM_RBUTTONDOWN) {
-        return handleMouse(thisptr, mouseButton, mousePosition);
+        return handleMouse((CInterface*)thisptr, mouseButton, mousePosition);
     }
 
     const auto& dialogApi{CDialogInterfApi::get()};
@@ -1090,16 +1090,16 @@ static int __fastcall siteResMarketHandleMouse(game::CMidDragDropInterf* thisptr
     const CMqRect* area{picture->vftable->getArea(picture)};
 
     if (!MqRectApi::get().ptInRect(area, mousePosition)) {
-        return handleMouse(thisptr, mouseButton, mousePosition);
+        return handleMouse((CInterface*)thisptr, mouseButton, mousePosition);
     }
 
     const auto* paperdoll{dialogApi.findToggleButton(dialog, "TOG_PAPERDOLL")};
     if (paperdoll->data->checked) {
-        return handleMouse(thisptr, mouseButton, mousePosition);
+        return handleMouse((CInterface*)thisptr, mouseButton, mousePosition);
     }
 
     if (interf->visitorStackId == emptyId) {
-        return handleMouse(thisptr, mouseButton, mousePosition);
+        return handleMouse((CInterface*)thisptr, mouseButton, mousePosition);
     }
 
     const auto& phaseApi{CPhaseApi::get()};
@@ -1108,7 +1108,7 @@ static int __fastcall siteResMarketHandleMouse(game::CMidDragDropInterf* thisptr
     CMidDataCache2* dataCache{phaseApi.getDataCache(phase)};
     const CMidStack* stack{getStack(dataCache, &interf->visitorStackId)};
     if (!stack) {
-        return handleMouse(thisptr, mouseButton, mousePosition);
+        return handleMouse((CInterface*)thisptr, mouseButton, mousePosition);
     }
 
     CEncParamIDPlayer encParam;
@@ -1159,7 +1159,7 @@ game::CInterface* createSiteResourceMarketInterf(game::ITask* task,
     }
 
     // Use our own vftables
-    interf->CInterface::vftable = &siteResMarketRttiInfo.vftable;
+    interf->CMidDragDropInterf::vftable = &siteResMarketRttiInfo.vftable;
     interf->CMidDataCache2::INotify::vftable = &siteResMarketNotifyVftable;
     interf->IResetStackExt::vftable = &siteResMarketStackExtVftable;
 
@@ -1218,7 +1218,7 @@ game::CInterface* createSiteResourceMarketInterf(game::ITask* task,
 
     playSoundEffect(SoundEffect::Entrsite);
 
-    return interf;
+    return (CInterface*)interf;
 }
 
 } // namespace hooks

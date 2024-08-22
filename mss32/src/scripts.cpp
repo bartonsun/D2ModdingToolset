@@ -318,7 +318,7 @@ static void bindApi(sol::state& lua)
         "UnitGlobal", IdType::UnitGlobal,
         "UnitGenerated", IdType::UnitGenerated,
         "UnitModifier", IdType::UnitModifier,
-        "Attack", IdType::Attack,
+        "Attack", IdType::AttackGlobal,
         "TextGlobal", IdType::TextGlobal,
         "LandmarkGlobal", IdType::LandmarkGlobal,
         "ItemGlobal", IdType::ItemGlobal,
