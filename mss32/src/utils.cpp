@@ -381,6 +381,9 @@ std::string computeHash(const std::vector<std::filesystem::path>& folders)
 
     std::vector<std::filesystem::path> filenames;
     for (const auto& folder : folders) {
+        if (!std::filesystem::is_directory(folder)) {
+            continue;
+        }
         for (const auto& entry : std::filesystem::recursive_directory_iterator(folder)) {
             if (entry.is_regular_file()) {
                 filenames.push_back(entry.path());
