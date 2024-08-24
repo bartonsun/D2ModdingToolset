@@ -112,7 +112,8 @@ bool __stdcall getPossibleNobleActionsHooked(const game::IMidgardObjectMap* obje
         }
     }
 
-    return getOriginalFunctions().getSiteNobleActions(objectMap, playerId, objectId, nobleActions);
+    return getOriginalFunctions().getPossibleNobleActions(objectMap, playerId, objectId,
+                                                          nobleActions);
 }
 
 game::String* __stdcall getNobleActionResultDescriptionHooked(
