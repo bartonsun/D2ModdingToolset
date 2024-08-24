@@ -28,14 +28,23 @@
 
 namespace game {
 
+struct CInterfaceData;
 struct CInterfaceVftable;
 struct CInterfManagerImpl;
-struct CInterface;
 struct IMqRenderer2;
 struct CMqPoint;
 struct Tooltip;
 struct CursorHandle;
 
+/** Base class for all ui elements. */
+template <typename T>
+struct CInterfaceT
+{
+    T* vftable;
+    CInterfaceData* interfaceData;
+};
+
+using CInterface = CInterfaceT<CInterfaceVftable>;
 using CursorHandlePtr = SmartPtr<CursorHandle>;
 using TooltipPtr = SmartPtr<Tooltip>;
 
@@ -51,17 +60,6 @@ struct CInterfaceData
 
 assert_size(CInterfaceData, 64);
 assert_offset(CInterfaceData, childs, 28);
-
-template <typename T>
-struct CInterfaceT
-{
-    T* vftable;
-    CInterfaceData* interfaceData;
-};
-
-/** Base class for all ui elements. */
-struct CInterface : public CInterfaceT<CInterfaceVftable>
-{ };
 
 struct CInterfaceVftable
 {

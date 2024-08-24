@@ -27,9 +27,13 @@ namespace game {
 struct CMidClient;
 struct CMidDataCache2;
 struct CMidgardID;
-struct CInterface;
 struct CMidCommandQueue2;
 struct CEncParamBase;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 
 struct CPhaseData
 {

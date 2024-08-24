@@ -33,11 +33,15 @@
 namespace game {
 
 struct CMidgard;
-struct CInterface;
 struct CInterfManagerImpl;
 struct ScenarioDataArrayWrapped;
 struct IMqImage2;
 struct CMenuBase;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 
 /**
  * Used by CMenuPhase::SwitchPhase as phase transition command.

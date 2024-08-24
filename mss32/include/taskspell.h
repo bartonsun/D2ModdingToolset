@@ -31,9 +31,13 @@ namespace game {
 struct CPhaseGame;
 struct TStrategicSpell;
 struct CursorHandle;
-struct CInterface;
 struct IMqImage2;
 struct ObjectSelectionData;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 
 struct CTaskSpellData
 {

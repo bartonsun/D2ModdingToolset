@@ -21,10 +21,14 @@
 #define SITERESOURCEMARKETINTERF_H
 
 namespace game {
-struct CInterface;
 struct ITask;
 struct CPhaseGame;
 struct CMidgardID;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 } // namespace game
 
 namespace hooks {

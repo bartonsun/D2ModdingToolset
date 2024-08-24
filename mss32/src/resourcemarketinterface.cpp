@@ -69,7 +69,7 @@ static void __fastcall resMarketInterfDtor(CResourceMarketInterf* thisptr, int /
     IntVectorApi::get().destructor(&thisptr->imageIndices);
 
     if (dragDropDtor) {
-        dragDropDtor((CInterface*)thisptr, flags);
+        dragDropDtor(thisptr, flags);
     }
 }
 
@@ -482,7 +482,7 @@ game::CInterface* createResourceMarketInterface(game::editor::CTaskObjProp* task
 
     setupUi(interf);
 
-    return (CInterface*)interf;
+    return interf;
 }
 
 } // namespace hooks

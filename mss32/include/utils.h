@@ -31,7 +31,12 @@ namespace game {
 struct CMidMsgBoxButtonHandler;
 struct IMidgardObjectMap;
 struct UiEvent;
-struct CInterface;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
+
 enum class SoundEffect : int;
 } // namespace game
 

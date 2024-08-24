@@ -45,7 +45,6 @@ struct CBatAttackShatter;
 struct BattleAttackInfo;
 struct CMidPlayer;
 struct CEncLayoutSpell;
-struct CInterface;
 struct CEncParamBase;
 struct CDDCarryOverItems;
 struct IMidDropManager;
@@ -71,6 +70,11 @@ struct CScenarioVisitor;
 struct LSiteCategory;
 struct CMidSite;
 struct CTextBoxInterf;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 
 enum class BuildingBranchNumber : int;
 enum class CanApplyPotionResult : int;

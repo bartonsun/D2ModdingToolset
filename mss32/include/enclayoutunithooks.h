@@ -24,11 +24,15 @@ namespace game {
 struct CMqRect;
 struct CMidgardID;
 struct IMidgardObjectMap;
-struct CInterface;
 struct IEncUnitDescriptor;
 struct CEncParamBase;
 struct CEncLayoutUnit;
 struct CEncLayoutUnitData;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 } // namespace game
 
 namespace hooks {

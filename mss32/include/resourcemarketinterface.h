@@ -21,7 +21,10 @@
 #define RESOURCEMARKETINTERFACE_H
 
 namespace game {
-struct CInterface;
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 
 namespace editor {
 struct CTaskObjProp;

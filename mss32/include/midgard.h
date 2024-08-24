@@ -42,7 +42,6 @@ struct CAutoDialog;
 struct CUIManager;
 struct CInterfManagerImpl;
 struct CMqFps;
-struct CInterface;
 struct IMqNetPlayerClient;
 struct IMqNetSystem;
 struct CMidgardMsgBox;
@@ -50,6 +49,11 @@ struct NetMsgCallbacks;
 struct CNetMsg;
 struct GameImageDataWrapper;
 struct MQDBDataWrapper;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 
 using NetClientPtrIdPair = Pair<SmartPtr<IMqNetPlayerClient>, CMidgardID>;
 

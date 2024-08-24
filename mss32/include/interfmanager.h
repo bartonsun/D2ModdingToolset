@@ -31,10 +31,14 @@
 namespace game {
 
 struct CInterfManager;
-struct CInterface;
 struct CTooltipImpl;
 struct CCursorImpl;
 struct IInterfBorderDisplay;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 
 using GlobalKeyPressDispatch = CBFunctorDispatch2wRet<unsigned short, unsigned short, bool>;
 using GlobalKeyPressDispatchPtr = SmartPtr<GlobalKeyPressDispatch>;

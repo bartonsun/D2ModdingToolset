@@ -24,9 +24,13 @@ namespace game {
 
 struct CEncLayoutSpell;
 struct IMidgardObjectMap;
-struct CInterface;
 struct CMidgardID;
 struct CEncParamBase;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 
 namespace CEncLayoutSpellApi {
 
