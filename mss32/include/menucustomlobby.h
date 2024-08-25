@@ -113,9 +113,11 @@ protected:
                                            const char* shortenedMark,
                                            int textAreaWidth);
     void joinServer(SLNet::RoomDescriptor* roomDescriptor);
-    void addChatMessage(const char* sender, const char* message);
+    void addChatMessage(CNetCustomService::ChatMessage message);
     void sendChatMessage();
     void updateUsers(std::vector<CNetCustomService::UserInfo> users);
+    void updateChat(std::vector<CNetCustomService::ChatMessage> messages);
+    void updateListBoxChat();
 
     static RoomInfo getRoomInfo(SLNet::RoomDescriptor* roomDescriptor);
     static SLNet::RoomMemberDescriptor* getRoomModerator(
@@ -176,12 +178,6 @@ protected:
         std::vector<std::string> clientNames;
         int usedSlots;
         int totalSlots;
-    };
-
-    struct ChatMessage
-    {
-        std::string sender;
-        std::string text;
     };
 
     class PeerCallback : public NetPeerCallback
@@ -267,7 +263,7 @@ private:
     CRoomPasswordInterf* m_roomPasswordDialog;
     SLNet::RoomID m_joiningRoomId;
     std::string m_joiningRoomPassword;
-    std::deque<ChatMessage> m_chatMessages;
+    std::deque<CNetCustomService::ChatMessage> m_chatMessages;
     std::uint32_t m_chatMessageStock;
     game::UiEvent m_chatMessageRegenEvent;
 };

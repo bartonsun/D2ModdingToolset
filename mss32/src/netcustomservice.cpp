@@ -221,22 +221,26 @@ void CNetCustomService::sendChatMessage(const char* text)
     send(stream, getLobbyGuid());
 }
 
-void CNetCustomService::readChatMessage(const SLNet::Packet* packet,
-                                        SLNet::RakString& sender,
-                                        SLNet::RakString& text)
+CNetCustomService::ChatMessage CNetCustomService::readChatMessage(const SLNet::Packet* packet)
 {
-    SLNet::BitStream stream{packet->data, packet->length, false};
-    stream.IgnoreBytes(sizeof(SLNet::MessageID));
+    using namespace SLNet;
 
+    BitStream stream{packet->data, packet->length, false};
+    stream.IgnoreBytes(sizeof(MessageID));
+
+    RakString sender;
     if (!stream.Read(sender)) {
         logDebug("lobby.log", "Failed to read chat message sender");
-        return;
+        return {};
     }
 
+    RakString text;
     if (!stream.Read(text)) {
         logDebug("lobby.log", "Failed to read chat message text");
-        return;
+        return {};
     }
+
+    return {sender, text};
 }
 
 void CNetCustomService::queryOnlineUsers()
@@ -276,6 +280,48 @@ std::vector<CNetCustomService::UserInfo> CNetCustomService::readOnlineUsers(
         }
 
         result.push_back({guid, name});
+    }
+
+    return result;
+}
+
+void CNetCustomService::queryChatMessages()
+{
+    SLNet::BitStream stream;
+    stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_GET_CHAT_MESSAGES_REQUEST));
+    send(stream, getLobbyGuid());
+}
+
+std::vector<CNetCustomService::ChatMessage> CNetCustomService::readChatMessages(
+    const SLNet::Packet* packet)
+{
+    using namespace SLNet;
+
+    BitStream stream{packet->data, packet->length, false};
+    stream.IgnoreBytes(sizeof(MessageID));
+
+    unsigned int count;
+    if (!stream.Read(count)) {
+        logDebug("lobby.log", "Failed to read chat message count");
+        return {};
+    }
+
+    std::vector<ChatMessage> result;
+    result.reserve(count);
+    for (unsigned int i = 0; i < count; ++i) {
+        RakString sender;
+        if (!stream.Read(sender)) {
+            logDebug("lobby.log", "Failed to read chat message sender");
+            return {};
+        }
+
+        RakString text;
+        if (!stream.Read(text)) {
+            logDebug("lobby.log", "Failed to read chat message text");
+            return {};
+        }
+
+        result.push_back({sender, text});
     }
 
     return result;

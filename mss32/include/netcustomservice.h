@@ -44,6 +44,8 @@ enum ClientMessages
     ID_LOBBY_CHAT_MESSAGE = ID_USER_PACKET_ENUM + 1,
     ID_LOBBY_GET_ONLINE_USERS_REQUEST,
     ID_LOBBY_GET_ONLINE_USERS_RESPONSE,
+    ID_LOBBY_GET_CHAT_MESSAGES_REQUEST,
+    ID_LOBBY_GET_CHAT_MESSAGES_RESPONSE,
     ID_GAME_MESSAGE_TO_HOST_SERVER,
     ID_GAME_MESSAGE_TO_HOST_CLIENT,
     ID_GAME_MESSAGE = game::netMessageNormalType & 0xff,
@@ -74,6 +76,12 @@ public:
     {
         SLNet::RakNetGUID guid;
         SLNet::RakString name;
+    };
+
+    struct ChatMessage
+    {
+        SLNet::RakString sender;
+        SLNet::RakString text;
     };
 
     static constexpr std::uint32_t peerShutdownTimeout{100};
@@ -121,13 +129,16 @@ public:
     void logoutAccount();
 
     void sendChatMessage(const char* text);
-    void readChatMessage(const SLNet::Packet* packet,
-                         SLNet::RakString& sender,
-                         SLNet::RakString& text);
+    ChatMessage readChatMessage(const SLNet::Packet* packet);
 
-    /** Requests online user list. Handle ID_LOBBY_GET_USERS_RESPONSE in peer callback. */
+    /** Requests online user list. Handle ID_LOBBY_GET_ONLINE_USERS_RESPONSE in peer callback. */
     void queryOnlineUsers();
     std::vector<UserInfo> readOnlineUsers(const SLNet::Packet* packet);
+
+    /** Requests saved chat messages. Handle ID_LOBBY_GET_CHAT_MESSAGES_RESPONSE in peer callback.
+     */
+    void queryChatMessages();
+    std::vector<ChatMessage> readChatMessages(const SLNet::Packet* packet);
 
     /** Tries to create and enter a new room. */
     bool createRoom(const char* gameName,

@@ -192,20 +192,23 @@ void CMenuCustomLobby::initializeChatControls()
         menuBaseApi.createListBoxDisplayTextFunctor(&functor, 0, this, &callback);
         listBoxApi.assignDisplayTextFunctor(dialog, "LBOX_CHAT", dialogName, &functor, true);
         smartPtrApi.createOrFreeNoDtor(&functor, nullptr);
+
+        // Request saved chat messages
+        getNetService()->queryChatMessages();
     }
 
     auto editBoxChat = (CEditBoxInterf*)findOptionalControl("EDIT_CHAT", rtti.CEditBoxInterfType);
     if (editBoxChat) {
         editBoxApi.setInputLength(editBoxChat, chatMessageMaxLength);
+
+        createTimerEvent(&m_chatMessageRegenEvent, this, chatMessageRegenEventCallback,
+                         chatMessageRegenEventInterval);
     }
 
     auto btnSend = (CButtonInterf*)findOptionalControl("BTN_SEND", rtti.CButtonInterfType);
     if (btnSend) {
         setButtonCallback(dialog, "BTN_SEND", sendBtnHandler, this);
     }
-
-    createTimerEvent(&m_chatMessageRegenEvent, this, chatMessageRegenEventCallback,
-                     chatMessageRegenEventInterval);
 }
 
 void CMenuCustomLobby::initializeUserControls()
@@ -547,8 +550,8 @@ void __fastcall CMenuCustomLobby::listBoxChatDisplayHandler(CMenuCustomLobby* th
     }
 
     const auto& message = messages[index];
-    replace(messageText, "%SENDER%", message.sender);
-    replace(messageText, "%MSG%", message.text);
+    replace(messageText, "%SENDER%", message.sender.C_String());
+    replace(messageText, "%MSG%", message.text.C_String());
     game::StringApi::get().initFromString(string, messageText.c_str());
 }
 
@@ -1174,29 +1177,14 @@ void CMenuCustomLobby::joinServer(SLNet::RoomDescriptor* roomDescriptor)
     }
 }
 
-void CMenuCustomLobby::addChatMessage(const char* sender, const char* message)
+void CMenuCustomLobby::addChatMessage(CNetCustomService::ChatMessage message)
 {
-    using namespace game;
-
-    const auto& rtti = RttiApi::rtti();
-    const auto& dialogApi = CDialogInterfApi::get();
-    const auto& listBoxApi = CListBoxInterfApi::get();
-
     if (m_chatMessages.size() >= chatMessageMaxCount) {
         m_chatMessages.pop_front();
     }
-    m_chatMessages.push_back({sender, message});
+    m_chatMessages.push_back(std::move(message));
 
-    auto listBoxChat = (CListBoxInterf*)findOptionalControl("LBOX_CHAT", rtti.CListBoxInterfType);
-    if (!listBoxChat || !listBoxChat->vftable->isOnTop(listBoxChat)) {
-        // If the listBox is not on top then the game will only remove its childs without rendering
-        // the new ones. This happens when any popup dialog is displayed.
-        return;
-    }
-
-    auto count = m_chatMessages.size();
-    listBoxApi.setElementsTotal(listBoxChat, (int)count);
-    listBoxApi.setSelectedIndex(listBoxChat, (int)count - 1);
+    updateListBoxChat();
 }
 
 void CMenuCustomLobby::sendChatMessage()
@@ -1284,21 +1272,57 @@ void CMenuCustomLobby::updateUsers(std::vector<CNetCustomService::UserInfo> user
     listBoxApi.setSelectedIndex(listBox, std::min(selectedIndex, (int)m_users.size() - 1));
 }
 
+void CMenuCustomLobby::updateChat(std::vector<CNetCustomService::ChatMessage> messages)
+{
+    m_chatMessages.clear();
+    while (messages.size()) {
+        if (m_chatMessages.size() >= chatMessageMaxCount) {
+            break;
+        }
+        m_chatMessages.push_front(std::move(messages.back()));
+        messages.pop_back();
+    }
+
+    updateListBoxChat();
+}
+
+void CMenuCustomLobby::updateListBoxChat()
+{
+    using namespace game;
+
+    const auto& rtti = RttiApi::rtti();
+    const auto& dialogApi = CDialogInterfApi::get();
+    const auto& listBoxApi = CListBoxInterfApi::get();
+
+    auto listBoxChat = (CListBoxInterf*)findOptionalControl("LBOX_CHAT", rtti.CListBoxInterfType);
+    if (!listBoxChat || !listBoxChat->vftable->isOnTop(listBoxChat)) {
+        // If the listBox is not on top then the game will only remove its childs without rendering
+        // the new ones. This happens when any popup dialog is displayed.
+        return;
+    }
+
+    auto count = m_chatMessages.size();
+    listBoxApi.setElementsTotal(listBoxChat, (int)count);
+    listBoxApi.setSelectedIndex(listBoxChat, (int)count - 1);
+}
+
 void CMenuCustomLobby::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
                                                       SLNet::RakPeerInterface* peer,
                                                       const SLNet::Packet* packet)
 {
     switch (type) {
     case ID_LOBBY_CHAT_MESSAGE: {
-        SLNet::RakString sender;
-        SLNet::RakString text;
-        getNetService()->readChatMessage(packet, sender, text);
-        m_menu->addChatMessage(sender.C_String(), text.C_String());
+        m_menu->addChatMessage(getNetService()->readChatMessage(packet));
         break;
     }
 
     case ID_LOBBY_GET_ONLINE_USERS_RESPONSE: {
         m_menu->updateUsers(getNetService()->readOnlineUsers(packet));
+        break;
+    }
+
+    case ID_LOBBY_GET_CHAT_MESSAGES_RESPONSE: {
+        m_menu->updateChat(getNetService()->readChatMessages(packet));
         break;
     }
     }
