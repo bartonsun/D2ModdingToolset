@@ -53,7 +53,7 @@ public:
     static constexpr std::uint32_t roomsUpdateEventInterval{5000};
     static constexpr std::uint32_t usersUpdateEventInterval{5000};
     static constexpr std::uint32_t chatMessageMaxLength{40};
-    static constexpr std::uint32_t chatMessageMaxCount{50};
+    static constexpr std::uint32_t chatMessageMaxCount{100};
     static constexpr std::uint32_t chatMessageMaxStock{3};
     static constexpr std::uint32_t chatMessageRegenEventInterval{3000};
 
