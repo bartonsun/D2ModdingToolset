@@ -64,6 +64,9 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     , m_chatMessageStock(chatMessageMaxStock)
     , m_userIcons{}
     , m_usersListBoxName{nullptr}
+    , m_roomsUpdateEvent{}
+    , m_usersUpdateEvent{}
+    , m_chatMessageRegenEvent{}
 {
     using namespace game;
 
