@@ -34,6 +34,7 @@ struct CMidUnit;
 struct IUsUnit;
 struct TUsUnitImpl;
 struct CPictureInterf;
+struct CButtonInterf;
 struct IMqImage2;
 struct CBorderedImg;
 
@@ -85,6 +86,7 @@ void setButtonCallback(game::CDialogInterf* dialog,
                        const char* buttonName,
                        void* callback,
                        void* callbackParam);
+void setButtonCallback(game::CButtonInterf* button, void* callback, void* callbackParam);
 void setEditBoxData(game::CDialogInterf* dialog,
                     const char* editName,
                     game::EditFilter filter,

@@ -467,6 +467,17 @@ void setButtonCallback(game::CDialogInterf* dialog,
     SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
 }
 
+void setButtonCallback(game::CButtonInterf* button, void* callback, void* callbackParam)
+{
+    using namespace game;
+
+    SmartPointer functor;
+    CMenuBaseApi::get().createButtonFunctor(&functor, 0, (CMenuBase*)callbackParam,
+                                            (game::CMenuBaseApi::Api::ButtonCallback*)&callback);
+    button->vftable->setOnClickedFunctor(button, &functor);
+    SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
+}
+
 void setEditBoxData(game::CDialogInterf* dialog,
                     const char* editName,
                     game::EditFilter filter,

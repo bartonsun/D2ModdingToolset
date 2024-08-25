@@ -320,17 +320,28 @@ void CMenuCustomLobby::initializeRoomsControls()
     const auto& menuBaseApi = CMenuBaseApi::get();
     const auto& listBoxApi = CListBoxInterfApi::get();
 
-    auto dialog = menuBaseApi.getDialogInterface(this);
+    auto btnBack = (CButtonInterf*)findOptionalControl("BTN_BACK", rtti.CButtonInterfType);
+    if (btnBack) {
+        setButtonCallback(btnBack, backBtnHandler, this);
+    }
 
-    setButtonCallback(dialog, "BTN_BACK", backBtnHandler, this);
-    setButtonCallback(dialog, "BTN_CREATE", createBtnHandler, this);
-    setButtonCallback(dialog, "BTN_LOAD", loadBtnHandler, this);
-    setButtonCallback(dialog, "BTN_JOIN", joinBtnHandler, this);
-    auto btnJoin = dialogApi.findButton(dialog, "BTN_JOIN");
+    auto btnCreate = (CButtonInterf*)findOptionalControl("BTN_CREATE", rtti.CButtonInterfType);
+    if (btnCreate) {
+        setButtonCallback(btnCreate, createBtnHandler, this);
+    }
+
+    auto btnLoad = (CButtonInterf*)findOptionalControl("BTN_LOAD", rtti.CButtonInterfType);
+    if (btnLoad) {
+        setButtonCallback(btnLoad, loadBtnHandler, this);
+    }
+
+    auto btnJoin = (CButtonInterf*)findOptionalControl("BTN_JOIN", rtti.CButtonInterfType);
     if (btnJoin) {
+        setButtonCallback(btnJoin, joinBtnHandler, this);
         btnJoin->vftable->setEnabled(btnJoin, false);
     }
 
+    auto dialog = menuBaseApi.getDialogInterface(this);
     auto listBoxRooms = (CListBoxInterf*)findOptionalControl("LBOX_ROOMS", rtti.CListBoxInterfType);
     if (listBoxRooms) {
         auto callback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxRoomsDisplayHandler;
@@ -690,7 +701,7 @@ void CMenuCustomLobby::updateRooms(DataStructures::List<SLNet::RoomDescriptor*>&
         listBoxApi.setSelectedIndex(listBox, selectedIndex);
     }
 
-    auto btnJoin = dialogApi.findButton(dialog, "BTN_JOIN");
+    auto btnJoin = (CButtonInterf*)findOptionalControl("BTN_JOIN", rtti.CButtonInterfType);
     if (btnJoin) {
         btnJoin->vftable->setEnabled(btnJoin, !m_rooms.empty());
     }
@@ -915,12 +926,12 @@ void CMenuCustomLobby::addListBoxRoomsCellText(const char* columnName,
 {
     using namespace game;
 
+    const auto& rtti = RttiApi::rtti();
     const auto& dialogApi = CDialogInterfApi::get();
     const auto& createFreePtr = SmartPointerApi::get().createOrFree;
     const auto& image2TextApi = CImage2TextApi::get();
 
-    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-    auto columnHeader = dialogApi.findTextBox(dialog, columnName);
+    auto columnHeader = (CTextBoxInterf*)findOptionalControl(columnName, rtti.CTextBoxInterfType);
     if (!columnHeader) {
         return;
     }
@@ -933,6 +944,7 @@ void CMenuCustomLobby::addListBoxRoomsCellText(const char* columnName,
     image2TextApi.constructor(image2Text, cellWidth, cellHeight);
     image2TextApi.setText(image2Text, value);
 
+    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
     auto listBox = dialogApi.findListBox(dialog, "LBOX_ROOMS");
     auto listBoxRect = listBox->vftable->getArea(listBox);
 
@@ -951,11 +963,11 @@ void CMenuCustomLobby::addListBoxRoomsCellImage(const char* columnName,
 {
     using namespace game;
 
+    const auto& rtti = RttiApi::rtti();
     const auto& dialogApi = CDialogInterfApi::get();
     const auto& createFreePtr = SmartPointerApi::get().createOrFree;
 
-    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-    auto columnHeader = dialogApi.findPicture(dialog, columnName);
+    auto columnHeader = (CPictureInterf*)findOptionalControl(columnName, rtti.CPictureInterfType);
     if (!columnHeader) {
         return;
     }
@@ -969,6 +981,7 @@ void CMenuCustomLobby::addListBoxRoomsCellImage(const char* columnName,
     CMqPoint imageOffset{(columnHeaderRect->right - columnHeaderRect->left - imageSize.x) / 2,
                          (lineArea->bottom - lineArea->top - imageSize.y) / 2};
 
+    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
     auto listBox = dialogApi.findListBox(dialog, "LBOX_ROOMS");
     auto listBoxRect = listBox->vftable->getArea(listBox);
 
@@ -1165,6 +1178,7 @@ void CMenuCustomLobby::addChatMessage(const char* sender, const char* message)
 {
     using namespace game;
 
+    const auto& rtti = RttiApi::rtti();
     const auto& dialogApi = CDialogInterfApi::get();
     const auto& listBoxApi = CListBoxInterfApi::get();
 
@@ -1173,8 +1187,7 @@ void CMenuCustomLobby::addChatMessage(const char* sender, const char* message)
     }
     m_chatMessages.push_back({sender, message});
 
-    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-    auto listBoxChat = (CListBoxInterf*)dialogApi.findControl(dialog, "LBOX_CHAT");
+    auto listBoxChat = (CListBoxInterf*)findOptionalControl("LBOX_CHAT", rtti.CListBoxInterfType);
     if (!listBoxChat || !listBoxChat->vftable->isOnTop(listBoxChat)) {
         // If the listBox is not on top then the game will only remove its childs without rendering
         // the new ones. This happens when any popup dialog is displayed.
@@ -1190,16 +1203,16 @@ void CMenuCustomLobby::sendChatMessage()
 {
     using namespace game;
 
+    const auto& rtti = RttiApi::rtti();
     const auto& dialogApi = CDialogInterfApi::get();
     const auto& editBoxApi = CEditBoxInterfApi::get();
 
-    auto dialog = CMenuBaseApi::get().getDialogInterface(this);
-    auto editBoxChat = (CEditBoxInterf*)dialogApi.findControl(dialog, "EDIT_CHAT");
+    auto editBoxChat = (CEditBoxInterf*)findOptionalControl("EDIT_CHAT", rtti.CEditBoxInterfType);
     if (!editBoxChat) {
         return;
     }
 
-    auto message = getEditBoxText(dialog, "EDIT_CHAT");
+    auto message = editBoxChat->data->editBoxData.inputString.string;
     if (!strlen(message)) {
         return;
     }
