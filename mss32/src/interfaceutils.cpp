@@ -502,4 +502,26 @@ const char* getEditBoxText(game::CDialogInterf* dialog, const char* editName)
     return edit ? edit->data->editBoxData.inputString.string : nullptr;
 }
 
+void setEditBoxText(game::CDialogInterf* dialog,
+                    const char* editName,
+                    const char* text,
+                    bool moveCursorPos)
+{
+    using namespace game;
+
+    const auto& editBoxApi = CEditBoxInterfApi::get();
+
+    auto editBox = CDialogInterfApi::get().findEditBox(dialog, editName);
+    editBoxApi.setString(editBox, text);
+
+    if (moveCursorPos) {
+        auto textLength = text ? strlen(text) : 0;
+        if (textLength) {
+            editBox->data->editBoxData.textCursorPosIdx = textLength;
+            editBoxApi.updateFocus(editBox->data->editBoxFocus.data);
+            editBoxApi.update(editBox);
+        }
+    }
+}
+
 } // namespace hooks

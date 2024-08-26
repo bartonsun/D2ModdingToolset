@@ -93,6 +93,10 @@ void setEditBoxData(game::CDialogInterf* dialog,
                     int length,
                     bool password);
 const char* getEditBoxText(game::CDialogInterf* dialog, const char* editName);
+void setEditBoxText(game::CDialogInterf* dialog,
+                    const char* editName,
+                    const char* text,
+                    bool moveCursorPos);
 
 } // namespace hooks
 
