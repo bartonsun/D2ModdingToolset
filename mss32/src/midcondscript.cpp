@@ -417,7 +417,7 @@ void __fastcall condScriptInterfPasteIdButtonHandler(CCondScriptInterf* thisptr,
 
     // Set cursor position after inserted id string
     editBox->data->editBoxData.textCursorPosIdx = cursor + idString.size();
-    editBoxApi.updateFocus(editBox->data->editBoxFocus.data);
+    editBoxApi.resetCursorBlink(editBox->data->editBoxFocus.data);
     editBoxApi.update(editBox);
 }
 

@@ -518,7 +518,7 @@ void setEditBoxText(game::CDialogInterf* dialog,
         auto textLength = text ? strlen(text) : 0;
         if (textLength) {
             editBox->data->editBoxData.textCursorPosIdx = textLength;
-            editBoxApi.updateFocus(editBox->data->editBoxFocus.data);
+            editBoxApi.resetCursorBlink(editBox->data->editBoxFocus.data);
             editBoxApi.update(editBox);
         }
     }
