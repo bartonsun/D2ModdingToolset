@@ -123,7 +123,9 @@ void CMenuCustomBase::setAccountNameToEditName()
     auto dialog = CMenuBaseApi::get().getDialogInterface(getMenu());
     auto editName = CDialogInterfApi::get().findEditBox(dialog, "EDIT_NAME");
     editBoxApi.setString(editName, getNetService()->getAccountName().c_str());
-    editBoxApi.setEditable(editName, false);
+    // editBoxApi.setEditable is bugged - it switches input focus to a next control even if the
+    // current control is not focused
+    editName->data->editable = false;
 }
 
 CMenuCustomBase::CPopupDialogCustomBase::CPopupDialogCustomBase(game::CPopupDialogInterf* dialog,
