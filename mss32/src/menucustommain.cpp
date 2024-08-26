@@ -324,6 +324,10 @@ CMenuCustomMain::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomMain* menu)
 
     setEditBoxText(*dialog, "EDIT_ACCOUNT_NAME", settings.username.c_str(), true);
     setEditBoxText(*dialog, "EDIT_PASSWORD", settings.password.c_str(), true);
+    if (!settings.username.empty()) {
+        auto editPassword = CDialogInterfApi::get().findEditBox(*dialog, "EDIT_PASSWORD");
+        CEditBoxInterfApi::get().setFocus(editPassword);
+    }
 }
 
 void __fastcall CMenuCustomMain::CLoginAccountInterf::okBtnHandler(CLoginAccountInterf* thisptr,
