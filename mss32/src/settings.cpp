@@ -22,11 +22,11 @@
 #include "log.h"
 #include "scripts.h"
 #include "utils.h"
+#include <Windows.h>
 #include <algorithm>
 #include <fmt/format.h>
 #include <limits>
 #include <string>
-#include <Windows.h>
 
 namespace hooks {
 
@@ -502,7 +502,7 @@ void initializeUserSettings(Settings& value)
     }
 }
 
-const Settings& userSettings()
+Settings& getUserSettings()
 {
     static Settings settings;
     static bool initialized = false;
@@ -513,6 +513,16 @@ const Settings& userSettings()
     }
 
     return settings;
+}
+
+const Settings& userSettings()
+{
+    return getUserSettings();
+}
+
+Settings::Lobby& lobbySettings()
+{
+    return getUserSettings().lobby;
 }
 
 } // namespace hooks

@@ -20,6 +20,7 @@
 #include "menucustommain.h"
 #include "dialoginterf.h"
 #include "editboxinterf.h"
+#include "gamesettings.h"
 #include "interfaceutils.h"
 #include "listbox.h"
 #include "log.h"
@@ -28,6 +29,7 @@
 #include "menuphase.h"
 #include "midgard.h"
 #include "restrictions.h"
+#include "settings.h"
 #include "textboxinterf.h"
 #include "textids.h"
 #include "utils.h"
@@ -312,14 +314,27 @@ CMenuCustomMain::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomMain* menu)
                    *restrictions.playerNameMaxLength, false);
     setEditBoxData(*dialog, "EDIT_PASSWORD", EditFilter::Names,
                    CNetCustomService::passwordMaxLength, true);
+
+    auto& settings = lobbySettings();
+    if (settings.username.empty()) {
+        const CMidgard* midgard{CMidgardApi::get().instance()};
+        const GameSettings* gameSettings{*midgard->data->settings};
+        settings.username = gameSettings->defaultPlayerName.string;
+    }
+
+    setEditBoxText(*dialog, "EDIT_ACCOUNT_NAME", settings.username.c_str(), true);
+    setEditBoxText(*dialog, "EDIT_PASSWORD", settings.password.c_str(), true);
 }
 
 void __fastcall CMenuCustomMain::CLoginAccountInterf::okBtnHandler(CLoginAccountInterf* thisptr,
                                                                    int /*%edx*/)
 {
     auto dialog = *thisptr->dialog;
-    if (!getNetService()->loginAccount(getEditBoxText(dialog, "EDIT_ACCOUNT_NAME"),
-                                       getEditBoxText(dialog, "EDIT_PASSWORD"))) {
+    auto& settings = lobbySettings();
+    settings.username = getEditBoxText(dialog, "EDIT_ACCOUNT_NAME");
+    settings.password = getEditBoxText(dialog, "EDIT_PASSWORD");
+
+    if (!getNetService()->loginAccount(settings.username.c_str(), settings.password.c_str())) {
         auto message{getInterfaceText(textIds().lobby.invalidAccountNameOrPassword.c_str())};
         if (message.empty()) {
             message = "Account name or password are either empty or invalid.";

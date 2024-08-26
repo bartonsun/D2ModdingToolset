@@ -161,6 +161,10 @@ struct Settings
             // 0 means auto-assign by OS
             std::uint16_t port{0};
         } client;
+
+        // Stores login information while the game is running, not getting read from settings.lua
+        std::string username;
+        std::string password;
     } lobby;
 
     // Do not expose these settings in public 'settings.lua' template so poor souls won't suffer
@@ -193,6 +197,7 @@ struct Settings
 const Settings& baseSettings();
 const Settings& defaultSettings();
 const Settings& userSettings();
+Settings::Lobby& lobbySettings();
 
 } // namespace hooks
 
