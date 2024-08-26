@@ -136,6 +136,9 @@ struct Api
 
     using GetTextCursorPosIdx = std::uint32_t(__thiscall*)(EditBoxData* thisptr);
     GetTextCursorPosIdx getTextCursorPosIdx;
+
+    using SetEditable = void(__thiscall*)(CEditBoxInterf* thisptr, bool value);
+    SetEditable setEditable;
 };
 
 Api& get();

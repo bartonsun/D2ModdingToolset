@@ -35,6 +35,7 @@ static std::array<Api, 4> functions = {{
         (Api::IsCharValid)0x538471,
         (Api::EditBoxDataCtor)0x5377aa,
         (Api::GetTextCursorPosIdx)0x5378a0,
+        (Api::SetEditable)0x539104,
     },
     // Russobit
     Api{
@@ -46,6 +47,7 @@ static std::array<Api, 4> functions = {{
         (Api::IsCharValid)0x538471,
         (Api::EditBoxDataCtor)0x5377aa,
         (Api::GetTextCursorPosIdx)0x5378a0,
+        (Api::SetEditable)0x539104,
     },
     // Gog
     Api{
@@ -57,6 +59,7 @@ static std::array<Api, 4> functions = {{
         (Api::IsCharValid)0x537a79,
         (Api::EditBoxDataCtor)0x536da5,
         (Api::GetTextCursorPosIdx)0x536e9b,
+        (Api::SetEditable)0x53870c,
     },
     // Scenario Editor
     Api{
@@ -68,6 +71,7 @@ static std::array<Api, 4> functions = {{
         (Api::IsCharValid)0x492048,
         (Api::EditBoxDataCtor)0x491340,
         (Api::GetTextCursorPosIdx)0x491436,
+        (Api::SetEditable)0x492cdb,
     },
 }};
 // clang-format on
