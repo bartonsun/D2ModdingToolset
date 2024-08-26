@@ -118,10 +118,12 @@ void CMenuCustomBase::setAccountNameToEditName()
 {
     using namespace game;
 
+    const auto& editBoxApi = CEditBoxInterfApi::get();
+
     auto dialog = CMenuBaseApi::get().getDialogInterface(getMenu());
     auto editName = CDialogInterfApi::get().findEditBox(dialog, "EDIT_NAME");
-    CEditBoxInterfApi::get().setString(editName, getNetService()->getAccountName().c_str());
-    editName->data->editable = false;
+    editBoxApi.setString(editName, getNetService()->getAccountName().c_str());
+    editBoxApi.setEditable(editName, false);
 }
 
 CMenuCustomBase::CPopupDialogCustomBase::CPopupDialogCustomBase(game::CPopupDialogInterf* dialog,
