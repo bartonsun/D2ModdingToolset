@@ -757,9 +757,9 @@ void CMenuCustomLobby::updateTxtRoomInfo(int roomIndex)
     if (text.empty()) {
         text =
             "\\hC;Version: %VERSION%\n"
-            "Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%\n"
-            "\\fMedBold;%SCEN_NAME%\\fNormal;\n"
-            "%SCEN_DESC%";
+            "\\fNormal;Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%\n"
+            "\\fMedBold;%SCEN_NAME%\n"
+            "\\fNormal;%SCEN_DESC%";
     }
 
     std::string clients;
@@ -812,9 +812,9 @@ void CMenuCustomLobby::updateListBoxRoomsListRow(int rowIndex,
     auto text{getInterfaceText(textIds().lobby.roomInfoInList.c_str())};
     if (text.empty()) {
         text =
-            "\\fMedBold;%NAME%\\fNormal;\n"
-            "Version: %VERSION%\n"
-            "Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%";
+            "\\fMedBold;%NAME%\n"
+            "\\fNormal;Version: %VERSION%\n"
+            "\\fNormal;Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%";
     }
 
     std::string clients;

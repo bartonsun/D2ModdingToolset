@@ -300,10 +300,10 @@ textids = {
 		-- Fallback text "Games available: %ROOMS_NUM%"
 		roomsTotal = "",
 		-- The text can contain optional keywords "%VERSION%", "%HOST%", "%CLIENTS_SEPARATOR%", "%CLIENTS%", "%PLAYERS_NUM%", "%PLAYERS_MAX%", "%SCEN_NAME%", "%SCEN_DESC%".
-		-- Fallback text "\\hC;Version: %VERSION%\nPlayers (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%\n\\fMedBold;%SCEN_NAME%\\fNormal;\n%SCEN_DESC%"
+		-- Fallback text "\\hC;Version: %VERSION%\n\\fNormal;Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%\n\\fMedBold;%SCEN_NAME%\\fNormal;\n\\fNormal;%SCEN_DESC%"
 		roomInfo = "",
 		-- The text can contain optional keywords "%NAME%", "%HOST%", "%CLIENTS_SEPARATOR%", "%CLIENTS%", "%PLAYERS_NUM%", "%PLAYERS_MAX%".
-		-- Fallback text "\\fMedBold;%NAME%\\fNormal;\nVersion: %VERSION%\nPlayers (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%"
+		-- Fallback text "\\fMedBold;%NAME%\\fNormal;\nVersion: %VERSION%\n\\fNormal;Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%"
 		roomInfoInList = "",
 	},
 
