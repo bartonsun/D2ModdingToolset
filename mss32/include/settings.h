@@ -163,7 +163,6 @@ struct Settings
         } client;
 
         // Stores login information while the game is running, not getting read from settings.lua
-        std::string username;
         std::string password;
     } lobby;
 

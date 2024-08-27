@@ -315,16 +315,13 @@ CMenuCustomMain::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomMain* menu)
     setEditBoxData(*dialog, "EDIT_PASSWORD", EditFilter::Names,
                    CNetCustomService::passwordMaxLength, true);
 
-    auto& settings = lobbySettings();
-    if (settings.username.empty()) {
-        const CMidgard* midgard{CMidgardApi::get().instance()};
-        const GameSettings* gameSettings{*midgard->data->settings};
-        settings.username = gameSettings->defaultPlayerName.string;
-    }
+    const CMidgard* midgard{CMidgardApi::get().instance()};
+    const GameSettings* gameSettings{*midgard->data->settings};
+    std::string username = gameSettings->defaultPlayerName.string;
 
-    setEditBoxText(*dialog, "EDIT_ACCOUNT_NAME", settings.username.c_str(), true);
-    setEditBoxText(*dialog, "EDIT_PASSWORD", settings.password.c_str(), true);
-    if (!settings.username.empty()) {
+    setEditBoxText(*dialog, "EDIT_ACCOUNT_NAME", username.c_str(), true);
+    setEditBoxText(*dialog, "EDIT_PASSWORD", lobbySettings().password.c_str(), true);
+    if (!username.empty()) {
         auto editPassword = CDialogInterfApi::get().findEditBox(*dialog, "EDIT_PASSWORD");
         CEditBoxInterfApi::get().setFocus(editPassword);
     }
@@ -333,12 +330,15 @@ CMenuCustomMain::CLoginAccountInterf::CLoginAccountInterf(CMenuCustomMain* menu)
 void __fastcall CMenuCustomMain::CLoginAccountInterf::okBtnHandler(CLoginAccountInterf* thisptr,
                                                                    int /*%edx*/)
 {
-    auto dialog = *thisptr->dialog;
-    auto& settings = lobbySettings();
-    settings.username = getEditBoxText(dialog, "EDIT_ACCOUNT_NAME");
-    settings.password = getEditBoxText(dialog, "EDIT_PASSWORD");
+    using namespace game;
 
-    if (!getNetService()->loginAccount(settings.username.c_str(), settings.password.c_str())) {
+    lobbySettings().password = getEditBoxText(*thisptr->dialog, "EDIT_PASSWORD");
+    std::string username = getEditBoxText(*thisptr->dialog, "EDIT_ACCOUNT_NAME");
+
+    const CMidgard* midgard{CMidgardApi::get().instance()};
+    GameSettingsApi::get().setDefaultPlayerName(midgard->data->settings, username.c_str());
+
+    if (!getNetService()->loginAccount(username.c_str(), lobbySettings().password.c_str())) {
         auto message{getInterfaceText(textIds().lobby.invalidAccountNameOrPassword.c_str())};
         if (message.empty()) {
             message = "Account name or password are either empty or invalid.";
