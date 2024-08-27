@@ -136,6 +136,19 @@ struct GameSettings
 
 assert_size(GameSettings, 468);
 
+namespace GameSettingsApi {
+
+struct Api
+{
+    /** Also updates 'Disciple.ini' file. */
+    using SetDefaultPlayerName = void(__thiscall*)(GameSettings** thisptr, const char* playerName);
+    SetDefaultPlayerName setDefaultPlayerName;
+};
+
+Api& get();
+
+} // namespace GameSettingsApi
+
 } // namespace game
 
 #endif // GAMESETTINGS_H

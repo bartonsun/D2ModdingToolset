@@ -272,6 +272,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\fontshooks.cpp" />
     <ClCompile Include="src\formattedtext.cpp" />
     <ClCompile Include="src\gameimagedata.cpp" />
+    <ClCompile Include="src\gamesettings.cpp" />
     <ClCompile Include="src\generationresultinterf.cpp" />
     <ClCompile Include="src\globalvariables.cpp" />
     <ClCompile Include="src\globalvariableshooks.cpp" />

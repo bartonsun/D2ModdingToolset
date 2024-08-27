@@ -1508,6 +1508,9 @@
     <ClCompile Include="src\effectgiveresources.cpp">
       <Filter>features\custom noble actions</Filter>
     </ClCompile>
+    <ClCompile Include="src\gamesettings.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
