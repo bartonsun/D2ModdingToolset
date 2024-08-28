@@ -362,6 +362,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\midsitemercs.cpp" />
     <ClCompile Include="src\midsiteresourcemarket.cpp" />
     <ClCompile Include="src\midsitetrainer.cpp" />
+    <ClCompile Include="src\midstart.cpp" />
     <ClCompile Include="src\midtaskopeninterfparamresmarket.cpp" />
     <ClCompile Include="src\midunitgroupadapter.cpp" />
     <ClCompile Include="src\mqimage2surface16.cpp" />
@@ -911,6 +912,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\midsiteresourcemarket.h" />
     <ClInclude Include="include\midsitetrainer.h" />
     <ClInclude Include="include\midstackdestroyed.h" />
+    <ClInclude Include="include\midstart.h" />
     <ClInclude Include="include\midtaskopeninterfparam.h" />
     <ClInclude Include="include\midtaskopeninterfparamresmarket.h" />
     <ClInclude Include="include\midunitext.h" />

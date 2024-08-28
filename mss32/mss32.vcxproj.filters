@@ -1511,6 +1511,9 @@
     <ClCompile Include="src\gamesettings.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\midstart.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3792,6 +3795,9 @@
     </ClInclude>
     <ClInclude Include="include\effectgiveresources.h">
       <Filter>features\custom noble actions</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midstart.h">
+      <Filter>game</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
