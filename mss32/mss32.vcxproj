@@ -352,6 +352,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\menurandomscenariomulti.cpp" />
     <ClCompile Include="src\menurandomscenariosingle.cpp" />
     <ClCompile Include="src\midfreetask.cpp" />
+    <ClCompile Include="src\midgardhooks.cpp" />
     <ClCompile Include="src\midgardmapfog.cpp" />
     <ClCompile Include="src\midgardscenariomap.cpp" />
     <ClCompile Include="src\midserver.cpp" />
@@ -800,6 +801,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\globalvariableshooks.h" />
     <ClInclude Include="include\midcrystal.h" />
     <ClInclude Include="include\middiplomacy.h" />
+    <ClInclude Include="include\midgardhooks.h" />
     <ClInclude Include="include\midgardmapfog.h" />
     <ClInclude Include="include\displayd3d.h" />
     <ClInclude Include="include\displayddraw.h" />

@@ -1511,6 +1511,9 @@
     <ClCompile Include="src\gamesettings.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\midgardhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
     <ClCompile Include="src\midstart.cpp">
       <Filter>game</Filter>
     </ClCompile>
@@ -3795,6 +3798,9 @@
     </ClInclude>
     <ClInclude Include="include\effectgiveresources.h">
       <Filter>features\custom noble actions</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midgardhooks.h">
+      <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\midstart.h">
       <Filter>game</Filter>

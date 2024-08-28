@@ -132,6 +132,8 @@
 #include "midevconditionhooks.h"
 #include "mideveffecthooks.h"
 #include "mideventhooks.h"
+#include "midgard.h"
+#include "midgardhooks.h"
 #include "midgardid.h"
 #include "midgardmsgbox.h"
 #include "midgardscenariomap.h"
@@ -415,6 +417,7 @@ static Hooks getGameHooks()
         // Allow player to customize movement cost
         {fn.computeMovementCost, computeMovementCostHooked},
         // Support custom lobby
+        {CMidgardApi::get().startMenuMessageCallback, midgardStartMenuMessageCallbackHooked},
         {CMenuPhaseApi::get().transitionToMainOrCloseGame, menuPhaseTransitionToMainOrCloseGameHooked, (void**)&orig.menuPhaseTransitionToMainOrCloseGame},
         {CMenuMainApi::get().createMenu, menuMainCreateMenuHooked},
         {CMenuLoadApi::get().createServer, menuLoadCreateServerHooked, (void**)&orig.menuLoadCreateServer},
