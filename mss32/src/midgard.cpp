@@ -34,6 +34,7 @@ static std::array<Api, 3> functions = {{
         (Api::SendNetMsgToServer)0x403b71,
         (Api::ClearNetworkState)0x402fc2,
         (Api::ClearNetworkStateAndService)0x402f24,
+        (Api::StartMenuMessageCallback)0x402abf,
     },
     // Russobit
     Api{
@@ -44,6 +45,7 @@ static std::array<Api, 3> functions = {{
         (Api::SendNetMsgToServer)0x403b71,
         (Api::ClearNetworkState)0x402fc2,
         (Api::ClearNetworkStateAndService)0x402f24,
+        (Api::StartMenuMessageCallback)0x402abf,
     },
     // Gog
     Api{
@@ -54,6 +56,7 @@ static std::array<Api, 3> functions = {{
         (Api::SendNetMsgToServer)0x4038b7,
         (Api::ClearNetworkState)0x402d08,
         (Api::ClearNetworkStateAndService)0x402c6a,
+        (Api::StartMenuMessageCallback)0x402805,
     },
 }};
 // clang-format on

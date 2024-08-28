@@ -49,6 +49,7 @@ struct NetMsgCallbacks;
 struct CNetMsg;
 struct GameImageDataWrapper;
 struct MQDBDataWrapper;
+struct CMidStart;
 
 template <typename T>
 struct CInterfaceT;
@@ -78,7 +79,7 @@ struct CMidgardData
     bool hotseatGame;     /**< Multiplayer game on the same computer. */
     bool host;            /**< True if computer hosts the game, server. */
     bool lobbySessionExists;
-    void* midStart;
+    CMidStart* midStart;
     CMenuPhase* menuPhase;
     GameSettings** settings;
     GameImageDataWrapper* interfImages;
@@ -173,6 +174,12 @@ struct Api
      */
     using ClearNetworkStateAndService = void(__thiscall*)(CMidgard* thisptr);
     ClearNetworkStateAndService clearNetworkStateAndService;
+
+    /** MID_STARTMENU (CMidgardData::startMenuMessageId) window message callback. */
+    using StartMenuMessageCallback = void(__thiscall*)(CMidgard* thisptr,
+                                                       unsigned int wParam,
+                                                       long lParam);
+    StartMenuMessageCallback startMenuMessageCallback;
 };
 
 Api& get();
