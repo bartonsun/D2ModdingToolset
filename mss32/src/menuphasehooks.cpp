@@ -405,16 +405,16 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
     }
 }
 
-void __fastcall menuPhaseBackToMainOrCloseGameHooked(game::CMenuPhase* thisptr,
-                                                     int /*%edx*/,
-                                                     bool showIntroTransition)
+void __fastcall menuPhaseTransitionToMainOrCloseGameHooked(game::CMenuPhase* thisptr,
+                                                           int /*%edx*/,
+                                                           bool showIntroTransition)
 {
     using namespace game;
 
     // Back to main if a lobby user is not logged in
     auto service = getNetService();
     if (!service || !service->loggedIn()) {
-        getOriginalFunctions().menuPhaseBackToMainOrCloseGame(thisptr, showIntroTransition);
+        getOriginalFunctions().menuPhaseTransitionToMainOrCloseGame(thisptr, showIntroTransition);
         return;
     }
 

@@ -167,7 +167,7 @@ void __fastcall CMenuCustomBase::CMidMsgBoxBackToMainButtonHandler::handler(
 
     if (okPressed) {
         auto menuPhase = thisptr->m_menu->menuBaseData->menuPhase;
-        CMenuPhaseApi::get().backToMainOrCloseGame(menuPhase, true);
+        CMenuPhaseApi::get().transitionToMainOrCloseGame(menuPhase, true);
     }
 }
 

@@ -123,7 +123,7 @@ struct OriginalFunctions
 
     game::CMenuPhaseApi::Api::Constructor menuPhaseCtor;
     game::IMqNetSystemVftable::Destructor menuPhaseDtor;
-    game::CMenuPhaseApi::Api::BackToMainOrCloseGame menuPhaseBackToMainOrCloseGame;
+    game::CMenuPhaseApi::Api::ShowTransitionToMainOrCloseGame menuPhaseTransitionToMainOrCloseGame;
 
     game::GameImagesApi::Api::GetCityPreviewLargeImageNames getCityPreviewLargeImageNames;
     game::GameImagesApi::Api::GetCityIconImageNames getCityIconImageNames;

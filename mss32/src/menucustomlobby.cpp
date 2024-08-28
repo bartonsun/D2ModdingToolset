@@ -1429,7 +1429,7 @@ void __fastcall CMenuCustomLobby::CConfirmBackMsgBoxButtonHandler::handler(
 
     if (okPressed) {
         auto menuPhase = thisptr->m_menu->menuBaseData->menuPhase;
-        getOriginalFunctions().menuPhaseBackToMainOrCloseGame(menuPhase, true);
+        getOriginalFunctions().menuPhaseTransitionToMainOrCloseGame(menuPhase, true);
     }
 }
 

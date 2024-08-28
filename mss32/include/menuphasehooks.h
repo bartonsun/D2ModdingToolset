@@ -38,9 +38,9 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
                                            int /*%edx*/,
                                            game::MenuTransition transition);
 
-void __fastcall menuPhaseBackToMainOrCloseGameHooked(game::CMenuPhase* thisptr,
-                                                     int /*%edx*/,
-                                                     bool showIntroTransition);
+void __fastcall menuPhaseTransitionToMainOrCloseGameHooked(game::CMenuPhase* thisptr,
+                                                           int /*%edx*/,
+                                                           bool showIntroTransition);
 
 } // namespace hooks
 

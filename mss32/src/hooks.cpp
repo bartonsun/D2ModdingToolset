@@ -415,7 +415,7 @@ static Hooks getGameHooks()
         // Allow player to customize movement cost
         {fn.computeMovementCost, computeMovementCostHooked},
         // Support custom lobby
-        {CMenuPhaseApi::get().backToMainOrCloseGame, menuPhaseBackToMainOrCloseGameHooked, (void**)&orig.menuPhaseBackToMainOrCloseGame},
+        {CMenuPhaseApi::get().transitionToMainOrCloseGame, menuPhaseTransitionToMainOrCloseGameHooked, (void**)&orig.menuPhaseTransitionToMainOrCloseGame},
         {CMenuMainApi::get().createMenu, menuMainCreateMenuHooked},
         {CMenuLoadApi::get().createServer, menuLoadCreateServerHooked, (void**)&orig.menuLoadCreateServer},
         {AutoDialogApi::get().loadAndParseScriptFile, autoDialogLoadAndParseScriptFileHooked, (void**)&orig.autoDialogLoadAndParseScriptFile},

@@ -414,6 +414,20 @@ struct Api
     // 16
     SwitchToMenu switchToWait;
 
+    SwitchToMenu switchToGameSpy;
+
+    SwitchToMenu switchToQuickLobby;
+
+    using SwitchToMenuQuickLoad = void(__thiscall*)(CMenuPhase* thisptr, const char* saveFilePath);
+    SwitchToMenuQuickLoad switchToQuickLoad;
+
+    using ShowTransitionToMain = void(__thiscall*)(CMenuPhase* thisptr, bool showIntroTransition);
+    ShowTransitionToMain transitionToMain;
+
+    using ShowTransitionToMainOrCloseGame = void(__thiscall*)(CMenuPhase* thisptr,
+                                                              bool showIntroTransition);
+    ShowTransitionToMainOrCloseGame transitionToMainOrCloseGame;
+
     using SetString = void(__thiscall*)(CMenuPhase* thisptr, const char* string);
     using SetId = void(__thiscall*)(CMenuPhase* thisptr, const CMidgardID* scenarioFileId);
 
@@ -422,9 +436,6 @@ struct Api
     SetString setScenarioFilePath;
     SetString setScenarioName;
     SetString setScenarioDescription;
-
-    using BackToMainOrCloseGame = void(__thiscall*)(CMenuPhase* thisptr, bool showIntroTransition);
-    BackToMainOrCloseGame backToMainOrCloseGame;
 
     /** Closes the current scenario file and, if filePath is not nullptr, tries to open a new one.
      */
