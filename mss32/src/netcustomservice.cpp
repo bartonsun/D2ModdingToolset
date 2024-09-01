@@ -718,6 +718,7 @@ void CNetCustomService::RoomsCallback::ExecuteDefaultResult(
 CNetCustomService* createNetCustomServiceStartConnection()
 {
     auto peer = SLNet::RakPeerInterface::GetInstance();
+    peer->SetTimeoutTime(CNetCustomService::peerTimeout, SLNet::UNASSIGNED_SYSTEM_ADDRESS);
 
     const auto& lobbySettings = userSettings().lobby;
     const auto& clientPort = lobbySettings.client.port;

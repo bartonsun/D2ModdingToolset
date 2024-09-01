@@ -38,6 +38,7 @@ struct NetMessageHeader;
 
 namespace hooks {
 
+// !!! Keep in sync with lobby server
 // Should not exceed the size of SLNet::MessageID
 enum ClientMessages
 {
@@ -84,6 +85,7 @@ public:
         SLNet::RakString text;
     };
 
+    static constexpr std::uint32_t peerTimeout{30000}; // !!! Keep in sync with lobby server
     static constexpr std::uint32_t peerShutdownTimeout{100};
     static constexpr std::uint32_t peerProcessInterval{10};
     static constexpr char titleName[] = "Disciples II: Rise of the Elves";
