@@ -114,10 +114,11 @@ const SLNet::RakNetGUID CNetCustomService::getLobbyGuid() const
     return m_peer->GetGuidFromSystemAddress(m_lobbyClient.GetServerAddress());
 }
 
-bool CNetCustomService::send(const SLNet::BitStream& stream, const SLNet::RakNetGUID& to) const
+bool CNetCustomService::send(const SLNet::BitStream& stream,
+                             const SLNet::RakNetGUID& to,
+                             PacketPriority priority) const
 {
-    if (!m_peer->Send(&stream, PacketPriority::HIGH_PRIORITY, PacketReliability::RELIABLE_ORDERED,
-                      0, to, false)) {
+    if (!m_peer->Send(&stream, priority, PacketReliability::RELIABLE_ORDERED, 0, to, false)) {
         logDebug("lobby.log", "CNetCustomService: send failed on bad input");
         return false;
     }
@@ -218,7 +219,7 @@ void CNetCustomService::sendChatMessage(const char* text)
     stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_CHAT_MESSAGE));
     stream.Write(SLNet::RakString(m_accountName.c_str()));
     stream.Write(SLNet::RakString(text));
-    send(stream, getLobbyGuid());
+    send(stream, getLobbyGuid(), LOW_PRIORITY);
 }
 
 CNetCustomService::ChatMessage CNetCustomService::readChatMessage(const SLNet::Packet* packet)
@@ -247,7 +248,7 @@ void CNetCustomService::queryOnlineUsers()
 {
     SLNet::BitStream stream;
     stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_GET_ONLINE_USERS_REQUEST));
-    send(stream, getLobbyGuid());
+    send(stream, getLobbyGuid(), LOW_PRIORITY);
 }
 
 std::vector<CNetCustomService::UserInfo> CNetCustomService::readOnlineUsers(
@@ -289,7 +290,7 @@ void CNetCustomService::queryChatMessages()
 {
     SLNet::BitStream stream;
     stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_GET_CHAT_MESSAGES_REQUEST));
-    send(stream, getLobbyGuid());
+    send(stream, getLobbyGuid(), LOW_PRIORITY);
 }
 
 std::vector<CNetCustomService::ChatMessage> CNetCustomService::readChatMessages(

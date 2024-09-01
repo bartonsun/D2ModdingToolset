@@ -26,6 +26,7 @@
 #include <Lobby2Client.h>
 #include <Lobby2Message.h>
 #include <MessageIdentifiers.h>
+#include <PacketPriority.h>
 #include <RakPeerInterface.h>
 #include <RoomsPlugin.h>
 #include <mutex>
@@ -111,7 +112,9 @@ public:
     bool loggedIn() const;
     const SLNet::RakNetGUID getPeerGuid() const;
     const SLNet::RakNetGUID getLobbyGuid() const;
-    bool send(const SLNet::BitStream& stream, const SLNet::RakNetGUID& to) const;
+    bool send(const SLNet::BitStream& stream,
+              const SLNet::RakNetGUID& to,
+              PacketPriority priority) const;
     const std::string& getGameFilesHash();
     UserInfo getUserInfo() const;
 

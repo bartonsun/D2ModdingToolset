@@ -147,7 +147,7 @@ bool CNetCustomPlayer::sendMessage(const game::NetMessageHeader* message,
     stream.Write(static_cast<uint32_t>(1)); // Recipient count
     stream.Write(to);
     stream.Write((const char*)message, message->length);
-    return service->send(stream, service->getLobbyGuid());
+    return service->send(stream, service->getLobbyGuid(), HIGH_PRIORITY);
 }
 
 bool CNetCustomPlayer::sendMessage(const game::NetMessageHeader* message,
@@ -176,7 +176,7 @@ bool CNetCustomPlayer::sendMessage(const game::NetMessageHeader* message,
         stream.Write(recipient);
     }
     stream.Write((const char*)message, message->length);
-    return service->send(stream, service->getLobbyGuid());
+    return service->send(stream, service->getLobbyGuid(), HIGH_PRIORITY);
 }
 
 bool CNetCustomPlayer::sendHostMessage(const game::NetMessageHeader* message) const
@@ -188,7 +188,7 @@ bool CNetCustomPlayer::sendHostMessage(const game::NetMessageHeader* message) co
 
     auto service = getService();
     SLNet::BitStream stream((unsigned char*)message, message->length, false);
-    bool result = service->send(stream, service->getPeerGuid());
+    bool result = service->send(stream, service->getPeerGuid(), HIGH_PRIORITY);
     msg->messageType = originalType;
     return result;
 }
