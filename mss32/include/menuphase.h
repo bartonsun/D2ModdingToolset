@@ -412,7 +412,7 @@ struct Api
     // 15
     SwitchToMenu switchToLobbyHostJoin;
     // 16
-    SwitchToMenu switchToWait;
+    SwitchToMenu switchToWaitAndCreateClient;
 
     SwitchToMenu switchToGameSpy;
 

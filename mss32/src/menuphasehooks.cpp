@@ -339,7 +339,7 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             break;
         case MenuPhase::WaitInterf:
             logDebug("transitions.log", "Current is WaitInterf");
-            menuPhase.switchToWait(thisptr);
+            menuPhase.switchToWaitAndCreateClient(thisptr);
             break;
         case MenuPhase::NewSkirmishSingle2RandomScenarioSingle: {
             logDebug("transitions.log", "Current is NewSkirmishSingle2RandomScenarioSingle");
