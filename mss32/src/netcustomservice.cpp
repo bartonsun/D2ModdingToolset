@@ -53,29 +53,25 @@ CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
     , m_peerCallback(this)
     , m_lobbyCallback(this)
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     vftable = &m_vftable;
 
     createTimerEvent(&m_peerProcessEvent, this, peerProcessEventCallback, peerProcessInterval);
     addPeerCallback(&m_peerCallback);
 
-    logDebug("lobby.log", "Set msg factory");
     m_lobbyClient.SetMessageFactory(&m_lobbyMsgFactory);
-
-    logDebug("lobby.log", "Set lobby callback");
     m_lobbyClient.SetCallbackInterface(&m_lobbyCallback);
 
-    logDebug("lobby.log", "Attach lobby client as a plugin");
-    m_peer->AttachPlugin(&m_lobbyClient);
-
-    m_peer->AttachPlugin(&m_roomsClient);
     m_roomsClient.SetRoomsCallback(&m_roomsCallback);
 
-    logDebug("lobby.log", "CNetCustomService is created");
+    m_peer->AttachPlugin(&m_lobbyClient);
+    m_peer->AttachPlugin(&m_roomsClient);
 }
 
 CNetCustomService::~CNetCustomService()
 {
-    logDebug("lobby.log", "CNetCustomService is destroyed");
+    logDebug("lobby.log", __FUNCTION__);
 
     game::UiEventApi::get().destructor(&m_peerProcessEvent);
 
@@ -119,7 +115,7 @@ bool CNetCustomService::send(const SLNet::BitStream& stream,
                              PacketPriority priority) const
 {
     if (!m_peer->Send(&stream, priority, PacketReliability::RELIABLE_ORDERED, 0, to, false)) {
-        logDebug("lobby.log", "CNetCustomService: send failed on bad input");
+        logDebug("lobby.log", __FUNCTION__ ": failed on bad input");
         return false;
     }
 
@@ -128,20 +124,22 @@ bool CNetCustomService::send(const SLNet::BitStream& stream,
 
 bool CNetCustomService::createAccount(const char* accountName, const char* password)
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     if (!accountName) {
-        logDebug("lobby.log", "Empty account name");
+        logDebug("lobby.log", __FUNCTION__ ": empty account name");
         return false;
     }
 
     if (!password) {
-        logDebug("lobby.log", "Empty password");
+        logDebug("lobby.log", __FUNCTION__ ": empty password");
         return false;
     }
 
     auto msg{m_lobbyMsgFactory.Alloc(SLNet::L2MID_Client_RegisterAccount)};
     auto account{static_cast<SLNet::Client_RegisterAccount*>(msg)};
     if (!account) {
-        logDebug("lobby.log", "Can not allocate account message");
+        logDebug("lobby.log", __FUNCTION__ ": failed to allocate message");
         return false;
     }
 
@@ -153,10 +151,10 @@ bool CNetCustomService::createAccount(const char* accountName, const char* passw
 
     const auto result{account->PrevalidateInput()};
     if (!result) {
-        logDebug("lobby.log", "Wrong account registration data");
+        logDebug("lobby.log", __FUNCTION__ ": input validation failed");
     } else {
         m_lobbyClient.SendMsg(account);
-        logDebug("lobby.log", "Account registration sent");
+        logDebug("lobby.log", __FUNCTION__ ": register message sent");
     }
 
     m_lobbyMsgFactory.Dealloc(account);
@@ -165,7 +163,7 @@ bool CNetCustomService::createAccount(const char* accountName, const char* passw
 
 bool CNetCustomService::loginAccount(const char* accountName, const char* password)
 {
-    logDebug("lobby.log", "User tries to log in");
+    logDebug("lobby.log", __FUNCTION__);
 
     if (!accountName) {
         return false;
@@ -178,7 +176,7 @@ bool CNetCustomService::loginAccount(const char* accountName, const char* passwo
     auto msg{m_lobbyMsgFactory.Alloc(SLNet::L2MID_Client_Login)};
     auto login{static_cast<SLNet::Client_Login*>(msg)};
     if (!login) {
-        logDebug("lobby.log", "Can not allocate login message");
+        logDebug("lobby.log", __FUNCTION__ ": failed to allocate message");
         return false;
     }
 
@@ -190,10 +188,10 @@ bool CNetCustomService::loginAccount(const char* accountName, const char* passwo
 
     const auto result{login->PrevalidateInput()};
     if (!result) {
-        logDebug("lobby.log", "Wrong account data");
+        logDebug("lobby.log", __FUNCTION__ ": input validation failed");
     } else {
         m_lobbyClient.SendMsg(login);
-        logDebug("lobby.log", "Trying to login");
+        logDebug("lobby.log", __FUNCTION__ ": login message sent");
     }
 
     m_lobbyMsgFactory.Dealloc(login);
@@ -202,15 +200,18 @@ bool CNetCustomService::loginAccount(const char* accountName, const char* passwo
 
 void CNetCustomService::logoutAccount()
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     auto msg{m_lobbyMsgFactory.Alloc(SLNet::L2MID_Client_Logoff)};
     auto logoff{static_cast<SLNet::Client_Logoff*>(msg)};
     if (!logoff) {
-        logDebug("lobby.log", "Can not allocate logoff message");
+        logDebug("lobby.log", __FUNCTION__ ": failed to allocate message");
         return;
     }
 
     m_lobbyClient.SendMsg(logoff);
     m_lobbyMsgFactory.Dealloc(logoff);
+    logDebug("lobby.log", __FUNCTION__ ": logout message sent");
 }
 
 void CNetCustomService::sendChatMessage(const char* text)
@@ -224,6 +225,8 @@ void CNetCustomService::sendChatMessage(const char* text)
 
 CNetCustomService::ChatMessage CNetCustomService::readChatMessage(const SLNet::Packet* packet)
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     using namespace SLNet;
 
     BitStream stream{packet->data, packet->length, false};
@@ -231,13 +234,13 @@ CNetCustomService::ChatMessage CNetCustomService::readChatMessage(const SLNet::P
 
     RakString sender;
     if (!stream.Read(sender)) {
-        logDebug("lobby.log", "Failed to read chat message sender");
+        logDebug("lobby.log", __FUNCTION__ ": failed to read chat message sender");
         return {};
     }
 
     RakString text;
     if (!stream.Read(text)) {
-        logDebug("lobby.log", "Failed to read chat message text");
+        logDebug("lobby.log", __FUNCTION__ ": failed to read chat message text");
         return {};
     }
 
@@ -246,6 +249,8 @@ CNetCustomService::ChatMessage CNetCustomService::readChatMessage(const SLNet::P
 
 void CNetCustomService::queryOnlineUsers()
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     SLNet::BitStream stream;
     stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_GET_ONLINE_USERS_REQUEST));
     send(stream, getLobbyGuid(), LOW_PRIORITY);
@@ -254,6 +259,8 @@ void CNetCustomService::queryOnlineUsers()
 std::vector<CNetCustomService::UserInfo> CNetCustomService::readOnlineUsers(
     const SLNet::Packet* packet)
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     using namespace SLNet;
 
     BitStream stream{packet->data, packet->length, false};
@@ -261,7 +268,7 @@ std::vector<CNetCustomService::UserInfo> CNetCustomService::readOnlineUsers(
 
     unsigned int count;
     if (!stream.Read(count)) {
-        logDebug("lobby.log", "Failed to read online users count");
+        logDebug("lobby.log", __FUNCTION__ ": failed to read online users count");
         return {};
     }
 
@@ -270,13 +277,13 @@ std::vector<CNetCustomService::UserInfo> CNetCustomService::readOnlineUsers(
     for (unsigned int i = 0; i < count; ++i) {
         RakNetGUID guid;
         if (!stream.Read(guid)) {
-            logDebug("lobby.log", "Failed to read online user guid");
+            logDebug("lobby.log", __FUNCTION__ ": failed to read online user guid");
             return {};
         }
 
         RakString name;
         if (!stream.Read(name)) {
-            logDebug("lobby.log", "Failed to read online user name");
+            logDebug("lobby.log", __FUNCTION__ ": failed to read online user name");
             return {};
         }
 
@@ -288,6 +295,8 @@ std::vector<CNetCustomService::UserInfo> CNetCustomService::readOnlineUsers(
 
 void CNetCustomService::queryChatMessages()
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     SLNet::BitStream stream;
     stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_GET_CHAT_MESSAGES_REQUEST));
     send(stream, getLobbyGuid(), LOW_PRIORITY);
@@ -296,6 +305,8 @@ void CNetCustomService::queryChatMessages()
 std::vector<CNetCustomService::ChatMessage> CNetCustomService::readChatMessages(
     const SLNet::Packet* packet)
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     using namespace SLNet;
 
     BitStream stream{packet->data, packet->length, false};
@@ -303,7 +314,7 @@ std::vector<CNetCustomService::ChatMessage> CNetCustomService::readChatMessages(
 
     unsigned int count;
     if (!stream.Read(count)) {
-        logDebug("lobby.log", "Failed to read chat message count");
+        logDebug("lobby.log", __FUNCTION__ ": failed to read chat message count");
         return {};
     }
 
@@ -312,13 +323,13 @@ std::vector<CNetCustomService::ChatMessage> CNetCustomService::readChatMessages(
     for (unsigned int i = 0; i < count; ++i) {
         RakString sender;
         if (!stream.Read(sender)) {
-            logDebug("lobby.log", "Failed to read chat message sender");
+            logDebug("lobby.log", __FUNCTION__ ": failed to read chat message sender");
             return {};
         }
 
         RakString text;
         if (!stream.Read(text)) {
-            logDebug("lobby.log", "Failed to read chat message text");
+            logDebug("lobby.log", __FUNCTION__ ": failed to read chat message text");
             return {};
         }
 
@@ -333,12 +344,12 @@ bool CNetCustomService::createRoom(const char* gameName,
                                    const char* scenarioDescription,
                                    const char* password)
 {
-    logDebug("lobby.log", fmt::format("Trying to create a room with game name {:s}, password {:s}",
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": game name = '{:s}', password = '{:s}'",
                                       gameName, password));
 
     const auto& filesHash = getGameFilesHash();
     if (filesHash.empty()) {
-        logDebug("lobby.log", "Could not create a room: the game files hash is empty");
+        logDebug("lobby.log", __FUNCTION__ ": failed because the game files hash is empty");
         return false;
     }
 
@@ -386,6 +397,8 @@ bool CNetCustomService::createRoom(const char* gameName,
 
 void CNetCustomService::leaveRoom()
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     SLNet::LeaveRoom_Func func{};
     func.userName = m_accountName.c_str();
     m_roomsClient.ExecuteFunc(&func);
@@ -393,50 +406,49 @@ void CNetCustomService::leaveRoom()
 
 void CNetCustomService::searchRooms()
 {
-    SLNet::SearchByFilter_Func search;
-    search.gameIdentifier = titleName;
-    search.userName = m_accountName.c_str();
+    logDebug("lobby.log", __FUNCTION__);
 
-    logDebug("lobby.log",
-             fmt::format("Account {:s} is trying to search rooms", search.userName.C_String()));
-    m_roomsClient.ExecuteFunc(&search);
+    SLNet::SearchByFilter_Func func{};
+    func.gameIdentifier = titleName;
+    func.userName = m_accountName.c_str();
+    func.onlyJoinable = true;
+    m_roomsClient.ExecuteFunc(&func);
 }
 
 void CNetCustomService::joinRoom(SLNet::RoomID id)
 {
-    SLNet::JoinByFilter_Func join;
-    join.gameIdentifier = titleName;
-    join.userName = m_accountName.c_str();
-    join.query.AddQuery_NUMERIC(DefaultRoomColumns::GetColumnName(DefaultRoomColumns::TC_ROOM_ID),
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": room id = {:d}", id));
+
+    SLNet::JoinByFilter_Func func{};
+    func.gameIdentifier = titleName;
+    func.userName = m_accountName.c_str();
+    func.query.AddQuery_NUMERIC(DefaultRoomColumns::GetColumnName(DefaultRoomColumns::TC_ROOM_ID),
                                 id);
-    join.roomMemberMode = RMM_PUBLIC;
-
-    logDebug("lobby.log",
-             fmt::format("Account {:s} is trying to join room {:d}", join.userName.C_String(), id));
-
-    m_roomsClient.ExecuteFunc(&join);
+    func.roomMemberMode = RMM_PUBLIC;
+    m_roomsClient.ExecuteFunc(&func);
 }
 
 bool CNetCustomService::changeRoomPublicSlots(unsigned int publicSlots)
 {
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": public slots = {:d}", publicSlots));
+
     if (publicSlots < 1) {
-        logDebug("lobby.log", "Could not set number of room public slots lesser than 1");
+        logDebug("lobby.log",
+                 __FUNCTION__ ": could not set number of room public slots lesser than 1");
         return false;
     }
 
-    SLNet::ChangeSlotCounts_Func slotCounts;
-    slotCounts.userName = m_accountName.c_str();
-    slotCounts.slots.publicSlots = publicSlots;
-
-    logDebug("lobby.log", fmt::format("Account {:s} is trying to change room public slots to {:d}",
-                                      slotCounts.userName.C_String(), publicSlots));
-
-    m_roomsClient.ExecuteFunc(&slotCounts);
+    SLNet::ChangeSlotCounts_Func func{};
+    func.userName = m_accountName.c_str();
+    func.slots.publicSlots = publicSlots;
+    m_roomsClient.ExecuteFunc(&func);
     return true;
 }
 
 void CNetCustomService::addPeerCallback(NetPeerCallback* callback)
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     std::lock_guard lock(m_peerCallbacksMutex);
     if (std::find(m_peerCallbacks.begin(), m_peerCallbacks.end(), callback)
         == m_peerCallbacks.end()) {
@@ -446,6 +458,8 @@ void CNetCustomService::addPeerCallback(NetPeerCallback* callback)
 
 void CNetCustomService::removePeerCallback(NetPeerCallback* callback)
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     std::lock_guard lock(m_peerCallbacksMutex);
     m_peerCallbacks.erase(std::remove(m_peerCallbacks.begin(), m_peerCallbacks.end(), callback),
                           m_peerCallbacks.end());
@@ -453,41 +467,46 @@ void CNetCustomService::removePeerCallback(NetPeerCallback* callback)
 
 void CNetCustomService::addLobbyCallback(SLNet::Lobby2Callbacks* callback)
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     m_lobbyClient.AddCallbackInterface(callback);
 }
 
 void CNetCustomService::removeLobbyCallback(SLNet::Lobby2Callbacks* callback)
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     m_lobbyClient.RemoveCallbackInterface(callback);
 }
 
 void CNetCustomService::addRoomsCallback(SLNet::RoomsCallback* callback)
 {
-    logDebug("lobby.log", fmt::format("Adding room callback {:p}", (void*)callback));
+    logDebug("lobby.log", __FUNCTION__);
+
     m_roomsClient.AddRoomsCallback(callback);
 }
 
 void CNetCustomService::removeRoomsCallback(SLNet::RoomsCallback* callback)
 {
-    logDebug("lobby.log", fmt::format("Removing room callback {:p}", (void*)callback));
+    logDebug("lobby.log", __FUNCTION__);
+
     m_roomsClient.RemoveRoomsCallback(callback);
 }
 
 void __fastcall CNetCustomService::destructor(CNetCustomService* thisptr, int /*%edx*/, char flags)
 {
-    logDebug("lobby.log", "CNetCustomService d-tor called");
-
     thisptr->~CNetCustomService();
 
     if (flags & 1) {
-        logDebug("lobby.log", "CNetCustomService d-tor frees memory");
+        logDebug("lobby.log", __FUNCTION__ ": freeing memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
 
 bool __fastcall CNetCustomService::hasSessions(CNetCustomService* thisptr, int /*%edx*/)
 {
-    logDebug("lobby.log", "CNetCustomService hasSessions called");
+    logDebug("lobby.log", __FUNCTION__);
+
     return false;
 }
 
@@ -501,7 +520,7 @@ void __fastcall CNetCustomService::getSessions(CNetCustomService* thisptr,
 {
     // This method used by vanilla interface.
     // Since we have our custom one, we can ignore it and there is no need to implement.
-    logDebug("lobby.log", "CNetCustomService getSessions called");
+    logDebug("lobby.log", __FUNCTION__);
 }
 
 void __fastcall CNetCustomService::createSession(CNetCustomService* thisptr,
@@ -511,8 +530,8 @@ void __fastcall CNetCustomService::createSession(CNetCustomService* thisptr,
                                                  const char* sessionName,
                                                  const char* /* password */)
 {
-    logDebug("lobby.log",
-             fmt::format("CNetCustomService createSession called. Name '{:s}'", sessionName));
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": session name = {:s}", sessionName));
+
     auto session = (CNetCustomSession*)game::Memory::get().allocate(sizeof(CNetCustomSession));
     new (session) CNetCustomSession(thisptr, sessionName, thisptr->getPeerGuid());
     thisptr->m_session = session;
@@ -525,8 +544,9 @@ void __fastcall CNetCustomService::joinSession(CNetCustomService* thisptr,
                                                CNetCustomSessEnum* netSessionEnum,
                                                const char* /* password */)
 {
-    logDebug("lobby.log", fmt::format("CNetCustomService joinSession called. Name '{:s}'",
-                                      netSessionEnum->sessionName));
+    logDebug("lobby.log",
+             fmt::format(__FUNCTION__ ": session name = {:s}", netSessionEnum->sessionName));
+
     auto session = (CNetCustomSession*)game::Memory::get().allocate(sizeof(CNetCustomSession));
     new (session)
         CNetCustomSession(thisptr, netSessionEnum->sessionName.c_str(), netSessionEnum->serverGuid);
@@ -560,7 +580,7 @@ const std::string& CNetCustomService::getGameFilesHash()
     if (m_gameFilesHash.empty()) {
         m_gameFilesHash = computeHash({globalsFolder(), scriptsFolder()});
         if (m_gameFilesHash.empty()) {
-            logDebug("lobby.log", "Failed to compute hash of game files");
+            logDebug("lobby.log", __FUNCTION__ ": failed to compute hash of game files");
         }
     }
 
@@ -578,7 +598,7 @@ void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes typ
 {
     switch (type) {
     case ID_CONNECTION_REQUEST_ACCEPTED: {
-        logDebug("lobby.log", "Connection request accepted, set server address");
+        logDebug("lobby.log", __FUNCTION__ ": connection request accepted, set server address");
         // Make sure plugins know about the server
         m_service->m_lobbyClient.SetServerAddress(packet->systemAddress);
         m_service->m_roomsClient.SetServerAddress(packet->systemAddress);
@@ -586,27 +606,31 @@ void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes typ
         break;
     }
     case ID_CONNECTION_ATTEMPT_FAILED:
-        logDebug("lobby.log", "Connection attempt failed");
+        logDebug("lobby.log", __FUNCTION__ ": connection attempt failed");
         break;
     case ID_ALREADY_CONNECTED:
-        logDebug("lobby.log", "Error connecting - already connected. This should never happen");
+        logDebug("lobby.log", __FUNCTION__ ": already connected (should never happen)");
         break;
     case ID_NO_FREE_INCOMING_CONNECTIONS:
-        logDebug("lobby.log", "Server is full");
+        logDebug("lobby.log", __FUNCTION__ ": server is full");
         break;
     case ID_DISCONNECTION_NOTIFICATION:
-        logDebug("lobby.log", "Server was shut down");
+        logDebug("lobby.log", __FUNCTION__ ": server was shut down");
         m_service->m_connected = false;
         break;
     case ID_CONNECTION_LOST:
-        logDebug("lobby.log", "Connection with server is lost");
+        logDebug("lobby.log", __FUNCTION__ ": connection with server is lost");
         m_service->m_connected = false;
         break;
     case ID_LOBBY2_SERVER_ERROR:
-        logDebug("lobby.log", "Lobby server error");
+        logDebug("lobby.log", __FUNCTION__ ": lobby server error");
         break;
     default:
-        logDebug("lobby.log", fmt::format("Packet type {:d}", static_cast<int>(type)));
+        // Log user messages explicitly to avoid cluttering the log
+        if (type < ID_USER_PACKET_ENUM) {
+            logDebug("lobby.log",
+                     fmt::format(__FUNCTION__ ": packet type {:d}", static_cast<int>(type)));
+        }
         break;
     }
 }

@@ -61,6 +61,7 @@ protected:
     CNetCustomSession* getSession() const;
     game::IMqNetSystem* getSystem() const;
     game::IMqNetReception* getReception() const;
+    const std::string& getName() const;
     void setName(const char* value);
     void addMessage(const game::NetMessageHeader* message, std::uint32_t idFrom);
     bool sendMessage(const game::NetMessageHeader* message, const SLNet::RakNetGUID& to) const;
@@ -74,7 +75,7 @@ protected:
     using GetSession = game::IMqNetSession*(__fastcall*)(CNetCustomPlayer* thisptr, int /*%edx*/);
     using SendNetMessage = bool(__fastcall*)(CNetCustomPlayer* thisptr,
                                              int /*%edx*/,
-                                             int idTo,
+                                             std::uint32_t idTo,
                                              const game::NetMessageHeader* message);
     static void __fastcall destructor(CNetCustomPlayer* thisptr, int /*%edx*/, char flags);
     static game::String* __fastcall getName(CNetCustomPlayer* thisptr,
@@ -83,13 +84,9 @@ protected:
     static int __fastcall getNetId(CNetCustomPlayer* thisptr, int /*%edx*/);
     static game::IMqNetSession* __fastcall getSession(CNetCustomPlayer* thisptr, int /*%edx*/);
     static int __fastcall getMessageCount(CNetCustomPlayer* thisptr, int /*%edx*/);
-    static bool __fastcall sendMessage(CNetCustomPlayer* thisptr,
-                                       int /*%edx*/,
-                                       int idTo,
-                                       const game::NetMessageHeader* message);
     static game::ReceiveMessageResult __fastcall receiveMessage(CNetCustomPlayer* thisptr,
                                                                 int /*%edx*/,
-                                                                int* idFrom,
+                                                                std::uint32_t* idFrom,
                                                                 game::NetMessageHeader* buffer);
     static void __fastcall setNetSystem(CNetCustomPlayer* thisptr,
                                         int /*%edx*/,

@@ -30,9 +30,6 @@ namespace hooks {
 class CNetCustomPlayerServer : public CNetCustomPlayer
 {
 public:
-    static CNetCustomPlayerServer* create(CNetCustomSession* session,
-                                          game::IMqNetSystem* system,
-                                          game::IMqNetReception* reception);
     CNetCustomPlayerServer(CNetCustomSession* session,
                            game::IMqNetSystem* system,
                            game::IMqNetReception* reception);

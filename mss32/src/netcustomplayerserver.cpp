@@ -34,17 +34,6 @@
 
 namespace hooks {
 
-CNetCustomPlayerServer* CNetCustomPlayerServer::create(CNetCustomSession* session,
-                                                       game::IMqNetSystem* system,
-                                                       game::IMqNetReception* reception)
-{
-    logDebug("lobby.log", "Creating CNetCustomPlayerServer");
-    auto server = (CNetCustomPlayerServer*)game::Memory::get().allocate(
-        sizeof(CNetCustomPlayerServer));
-    new (server) CNetCustomPlayerServer(session, system, reception);
-    return server;
-}
-
 CNetCustomPlayerServer::CNetCustomPlayerServer(CNetCustomSession* session,
                                                game::IMqNetSystem* system,
                                                game::IMqNetReception* reception)
@@ -52,6 +41,8 @@ CNetCustomPlayerServer::CNetCustomPlayerServer(CNetCustomSession* session,
     , m_peerCallback(this)
     , m_roomsCallback(this)
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     static game::IMqNetPlayerServerVftable vftable = {
         (game::IMqNetPlayerServerVftable::Destructor)destructor,
         (game::IMqNetPlayerServerVftable::GetName)(GetName)getName,
@@ -74,22 +65,24 @@ CNetCustomPlayerServer::CNetCustomPlayerServer(CNetCustomSession* session,
 
 CNetCustomPlayerServer::~CNetCustomPlayerServer()
 {
-    logDebug("lobby.log", "Destroying CNetCustomPlayerServer");
+    logDebug("lobby.log", __FUNCTION__);
     getService()->removePeerCallback(&m_peerCallback);
     getService()->removeRoomsCallback(&m_roomsCallback);
 }
 
 bool CNetCustomPlayerServer::addClient(const SLNet::RakNetGUID& guid, const SLNet::RakString& name)
 {
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": id = 0x{:x}, name = {:s}", getClientId(guid),
+                                      name.C_String()));
+
     {
         std::lock_guard lock(m_clientsMutex);
         auto result = m_clients.insert({guid, name});
         if (!result.second) {
-            logDebug(
-                "lobby.log",
-                fmt::format(
-                    "CNetCustomPlayerServer::addClient failed because the guid already exists, guid = {:d}, name = {:s}",
-                    guid.ToUint32(guid), name.C_String()));
+            logDebug("lobby.log",
+                     fmt::format(
+                         __FUNCTION__ ": failed because the id 0x{:x} already exists, name = {:s}",
+                         getClientId(guid), name.C_String()));
             return false;
         }
     }
@@ -105,11 +98,9 @@ bool CNetCustomPlayerServer::removeClient(const SLNet::RakNetGUID& guid)
         std::lock_guard lock(m_clientsMutex);
         size_t result = m_clients.erase(guid);
         if (!result) {
-            logDebug(
-                "lobby.log",
-                fmt::format(
-                    "CNetCustomPlayerServer::removeClient failed because the guid does not exist, guid = {:d}",
-                    guid.ToUint32(guid)));
+            logDebug("lobby.log",
+                     fmt::format(__FUNCTION__ ": failed because the id 0x{:x} does not exist",
+                                 getClientId(guid)));
             return false;
         }
     }
@@ -134,11 +125,9 @@ bool CNetCustomPlayerServer::removeClient(const SLNet::RakString& name)
     }
 
     if (guid == SLNet::UNASSIGNED_RAKNET_GUID) {
-        logDebug(
-            "lobby.log",
-            fmt::format(
-                "CNetCustomPlayerServer::removeClient failed because the name does not exist, name = {:s}",
-                name.C_String()));
+        logDebug("lobby.log",
+                 fmt::format(__FUNCTION__ ": failed because there is no client with name '{:s}'",
+                             name.C_String()));
         return false;
     }
 
@@ -151,12 +140,10 @@ void __fastcall CNetCustomPlayerServer::destructor(CNetCustomPlayerServer* thisp
                                                    int /*%edx*/,
                                                    char flags)
 {
-    logDebug("lobby.log", "CNetCustomPlayerServer d-tor");
-
     thisptr->~CNetCustomPlayerServer();
 
     if (flags & 1) {
-        logDebug("lobby.log", "CNetCustomPlayerServer d-tor frees memory");
+        logDebug("lobby.log", __FUNCTION__ ": freeing memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
@@ -175,7 +162,6 @@ bool __fastcall CNetCustomPlayerServer::sendMessage(CNetCustomPlayerServer* this
     }
 
     if (idTo == game::broadcastNetPlayerId) {
-        logDebug("lobby.log", "CNetCustomPlayerServer sendMessage broadcast");
         return thisptr->sendMessage(message, std::move(clients));
     }
 
@@ -183,10 +169,9 @@ bool __fastcall CNetCustomPlayerServer::sendMessage(CNetCustomPlayerServer* this
         return static_cast<int>(getClientId(guid)) == idTo;
     });
     if (it == clients.end()) {
-        logDebug(
-            "lobby.log",
-            fmt::format("CNetCustomPlayerServer could not send message. No client with id 0x{:x}",
-                        uint32_t(idTo)));
+        logDebug("lobby.log",
+                 fmt::format(__FUNCTION__ ": failed because there is no client with id 0x{:x}",
+                             uint32_t(idTo)));
         return false;
     }
 
@@ -197,7 +182,7 @@ bool __fastcall CNetCustomPlayerServer::destroyPlayer(CNetCustomPlayerServer* th
                                                       int /*%edx*/,
                                                       int playerId)
 {
-    logDebug("lobby.log", "CNetCustomPlayerServer destroyPlayer");
+    logDebug("lobby.log", __FUNCTION__);
     return false;
 }
 
@@ -205,7 +190,7 @@ bool __fastcall CNetCustomPlayerServer::setMaxPlayers(CNetCustomPlayerServer* th
                                                       int /*%edx*/,
                                                       int maxPlayers)
 {
-    logDebug("lobby.log", fmt::format("CNetCustomPlayerServer setMaxPlayers {:d}", maxPlayers));
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": max players = {:d}", maxPlayers));
     return thisptr->getSession()->setMaxPlayers(maxPlayers);
 }
 
@@ -214,7 +199,7 @@ bool __fastcall CNetCustomPlayerServer::setAllowJoin(CNetCustomPlayerServer* thi
                                                      bool allowJoin)
 {
     // Ignore this since its only called during server creation and eventually being allowed
-    logDebug("lobby.log", fmt::format("CNetCustomPlayerServer setAllowJoin {:d}", (int)allowJoin));
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": allow join = {:d}", (int)allowJoin));
     return true;
 }
 
@@ -238,21 +223,16 @@ void CNetCustomPlayerServer::PeerCallback::onPacketReceived(DefaultMessageIDType
     }
 
     case ID_DISCONNECTION_NOTIFICATION: {
-        logDebug("lobby.log", "PlayerServer: Server was shut down");
+        logDebug("lobby.log", __FUNCTION__ ": server was shut down");
         m_player->removeClient(packet->guid);
         break;
     }
 
     case ID_CONNECTION_LOST: {
-        logDebug("lobby.log", "PlayerServer: Connection with server is lost");
+        logDebug("lobby.log", __FUNCTION__ ": connection with server is lost");
         m_player->removeClient(packet->guid);
         break;
     }
-
-    default:
-        logDebug("lobby.log",
-                 fmt::format("PlayerServer: Packet type {:d}", static_cast<int>(type)));
-        break;
     }
 }
 
@@ -261,7 +241,7 @@ void CNetCustomPlayerServer::RoomsCallback::RoomMemberLeftRoom_Callback(
     SLNet::RoomMemberLeftRoom_Notification* notification)
 {
     // TODO: make sure that the notification only arrives for our room, otherwise check roomId
-    logDebug("lobby.log", fmt::format("CNetCustomPlayerServer RoomMemberLeftRoom {:s}",
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": member name = '{:s}'",
                                       notification->roomMember.C_String()));
     m_player->removeClient(notification->roomMember);
 }
@@ -272,7 +252,7 @@ void CNetCustomPlayerServer::RoomsCallback::RoomMemberJoinedRoom_Callback(
 {
     // TODO: make sure that the notification only arrives for our room, otherwise check roomId
     const auto result = notification->joinedRoomResult;
-    logDebug("lobby.log", fmt::format("CNetCustomPlayerServer RoomMemberJoinedRoom {:s}",
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": member name = '{:s}'",
                                       result->joiningMemberName.C_String()));
     m_player->addClient(result->joiningMemberGuid, result->joiningMemberName);
 }

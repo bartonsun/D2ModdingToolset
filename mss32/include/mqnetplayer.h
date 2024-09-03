@@ -21,6 +21,7 @@
 #define MQNETPLAYER_H
 
 #include "d2assert.h"
+#include <cstdint>
 
 namespace game {
 
@@ -81,7 +82,7 @@ struct IMqNetPlayerVftable
      * @returns true if the message was sent successfully.
      */
     using SendNetMessage = bool(__thiscall*)(IMqNetPlayer* thisptr,
-                                             int idTo,
+                                             std::uint32_t idTo,
                                              const NetMessageHeader* message);
     SendNetMessage sendMessage;
 
@@ -92,7 +93,7 @@ struct IMqNetPlayerVftable
      * @param[inout] buffer buffer to receive messages. Must be at least 512Kb.
      */
     using ReceiveMessage = ReceiveMessageResult(__thiscall*)(IMqNetPlayer* thisptr,
-                                                             int* idFrom,
+                                                             std::uint32_t* idFrom,
                                                              NetMessageHeader* buffer);
     ReceiveMessage receiveMessage;
 

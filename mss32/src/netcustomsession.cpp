@@ -44,8 +44,8 @@ CNetCustomSession::CNetCustomSession(CNetCustomService* service,
     , m_server(nullptr)
     , m_serverGuid(serverGuid)
 {
-    logDebug("lobby.log", fmt::format("Creating CNetCustomSession with server: {:x}, host: {:d}",
-                                      m_serverGuid.g, m_isHost));
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": server = 0x{:x}, is host = {:d}",
+                                      m_serverGuid.ToUint32(m_serverGuid), (int)m_isHost));
 
     static game::IMqNetSessionVftable vftable = {
         (game::IMqNetSessionVftable::Destructor)destructor,
@@ -62,6 +62,7 @@ CNetCustomSession::CNetCustomSession(CNetCustomService* service,
 
 CNetCustomSession ::~CNetCustomSession()
 {
+    logDebug("lobby.log", __FUNCTION__);
     m_service->leaveRoom();
 }
 
@@ -82,8 +83,8 @@ bool CNetCustomSession::isHost() const
 
 void CNetCustomSession::addClient(CNetCustomPlayerClient* value)
 {
-    logDebug("lobby.log", "CNetCustomSession addPlayer called");
     ++m_clientCount;
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": new client count = {:d}", m_clientCount));
 }
 
 bool CNetCustomSession::setMaxPlayers(int maxPlayers)
@@ -108,12 +109,10 @@ bool CNetCustomSession::setMaxPlayers(int maxPlayers)
 
 void __fastcall CNetCustomSession::destructor(CNetCustomSession* thisptr, int /*%edx*/, char flags)
 {
-    logDebug("lobby.log", "CNetCustomSession d-tor called");
-
     thisptr->~CNetCustomSession();
 
     if (flags & 1) {
-        logDebug("lobby.log", "CNetCustomSession d-tor frees memory");
+        logDebug("lobby.log", __FUNCTION__ ": freeing memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
@@ -122,22 +121,21 @@ game::String* __fastcall CNetCustomSession::getName(CNetCustomSession* thisptr,
                                                     int /*%edx*/,
                                                     game::String* sessionName)
 {
-    logDebug("lobby.log", "CNetCustomSession getName called");
-
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": name = {:s}", thisptr->m_name));
     game::StringApi::get().initFromString(sessionName, thisptr->m_name.c_str());
     return sessionName;
 }
 
 int __fastcall CNetCustomSession::getClientCount(CNetCustomSession* thisptr, int /*%edx*/)
 {
-    logDebug("lobby.log", "CNetCustomSession getClientCount called");
+    logDebug("lobby.log",
+             fmt::format(__FUNCTION__ ": client count = {:d}", thisptr->m_clientCount));
     return thisptr->m_clientCount;
 }
 
 int __fastcall CNetCustomSession::getMaxClients(CNetCustomSession* thisptr, int /*%edx*/)
 {
-    logDebug("lobby.log", fmt::format("CNetCustomSession getMaxClients called. Max clients: {:d}",
-                                      thisptr->m_maxPlayers));
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": max clients = {:d}", thisptr->m_maxPlayers));
     return thisptr->m_maxPlayers;
 }
 
@@ -145,7 +143,7 @@ void __fastcall CNetCustomSession::getPlayers(CNetCustomSession* thisptr,
                                               int /*%edx*/,
                                               game::List<game::IMqNetPlayerEnum*>* players)
 {
-    logDebug("lobby.log", "CNetCustomSession getPlayers called");
+    logDebug("lobby.log", __FUNCTION__ ": should not be called, returning nothing");
 }
 
 void __fastcall CNetCustomSession::createClient(CNetCustomSession* thisptr,
@@ -155,11 +153,13 @@ void __fastcall CNetCustomSession::createClient(CNetCustomSession* thisptr,
                                                 game::IMqNetReception* reception,
                                                 const char* clientName)
 {
-    logDebug("lobby.log", fmt::format("CNetCustomSession createClient '{:s}' called", clientName));
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": client name = {:s}", clientName));
 
-    *client = (game::IMqNetPlayerClient*)CNetCustomPlayerClient::create(thisptr, netSystem,
-                                                                        reception, clientName,
-                                                                        thisptr->m_serverGuid);
+    auto result = (CNetCustomPlayerClient*)game::Memory::get().allocate(
+        sizeof(CNetCustomPlayerClient));
+    new (result)
+        CNetCustomPlayerClient(thisptr, netSystem, reception, clientName, thisptr->m_serverGuid);
+    *client = (game::IMqNetPlayerClient*)result;
     ++thisptr->m_clientCount;
 
     // TODO: do it inside rooms callback of server player?
@@ -175,9 +175,11 @@ void __fastcall CNetCustomSession::createServer(CNetCustomSession* thisptr,
                                                 game::IMqNetSystem* netSystem,
                                                 game::IMqNetReception* reception)
 {
-    logDebug("lobby.log", "CNetCustomSession createServer called");
+    logDebug("lobby.log", __FUNCTION__);
 
-    thisptr->m_server = CNetCustomPlayerServer::create(thisptr, netSystem, reception);
+    thisptr->m_server = (CNetCustomPlayerServer*)game::Memory::get().allocate(
+        sizeof(CNetCustomPlayerServer));
+    new (thisptr->m_server) CNetCustomPlayerServer(thisptr, netSystem, reception);
     *server = (game::IMqNetPlayerServer*)thisptr->m_server;
 }
 

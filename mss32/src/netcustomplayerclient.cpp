@@ -33,20 +33,6 @@
 
 namespace hooks {
 
-CNetCustomPlayerClient* CNetCustomPlayerClient::create(CNetCustomSession* session,
-                                                       game::IMqNetSystem* system,
-                                                       game::IMqNetReception* reception,
-                                                       const char* name,
-                                                       const SLNet::RakNetGUID& serverGuid)
-{
-    logDebug("lobby.log", "Creating CNetCustomPlayerClient");
-
-    auto client = (CNetCustomPlayerClient*)game::Memory::get().allocate(
-        sizeof(CNetCustomPlayerClient));
-    new (client) CNetCustomPlayerClient(session, system, reception, name, serverGuid);
-    return client;
-}
-
 CNetCustomPlayerClient::CNetCustomPlayerClient(CNetCustomSession* session,
                                                game::IMqNetSystem* system,
                                                game::IMqNetReception* reception,
@@ -58,6 +44,8 @@ CNetCustomPlayerClient::CNetCustomPlayerClient(CNetCustomSession* session,
     , m_roomsCallback(this)
     , m_serverGuid{serverGuid}
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     static game::IMqNetPlayerClientVftable vftable = {
         (game::IMqNetPlayerClientVftable::Destructor)destructor,
         (game::IMqNetPlayerClientVftable::GetName)(GetName)getName,
@@ -80,7 +68,7 @@ CNetCustomPlayerClient::CNetCustomPlayerClient(CNetCustomSession* session,
 
 CNetCustomPlayerClient ::~CNetCustomPlayerClient()
 {
-    logDebug("lobby.log", "Destroying CNetCustomPlayerClient");
+    logDebug("lobby.log", __FUNCTION__);
     auto service = getService();
     service->removeRoomsCallback(&m_roomsCallback);
     service->removePeerCallback(&m_peerCallback);
@@ -90,12 +78,10 @@ void __fastcall CNetCustomPlayerClient::destructor(CNetCustomPlayerClient* thisp
                                                    int /*%edx*/,
                                                    char flags)
 {
-    logDebug("lobby.log", "CNetCustomPlayerClient d-tor");
-
     thisptr->~CNetCustomPlayerClient();
 
     if (flags & 1) {
-        logDebug("lobby.log", "CNetCustomPlayerClient d-tor frees memory");
+        logDebug("lobby.log", __FUNCTION__ ": freeing memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
@@ -106,8 +92,8 @@ bool __fastcall CNetCustomPlayerClient::sendMessage(CNetCustomPlayerClient* this
                                                     const game::NetMessageHeader* message)
 {
     if (idTo != game::serverNetPlayerId) {
-        // Only send messages to server
-        logDebug("lobby.log", "CNetCustomPlayerClient should send messages only to server ???");
+        logDebug("lobby.log",
+                 __FUNCTION__ ": denying sending message to a player other than the server");
         return false;
     }
 
@@ -118,16 +104,16 @@ bool __fastcall CNetCustomPlayerClient::setName(CNetCustomPlayerClient* thisptr,
                                                 int /*%edx*/,
                                                 const char* name)
 {
-    logDebug("lobby.log", "CNetCustomPlayerClient setName");
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": name = '{:s}'", name));
     thisptr->setName(name);
     return true;
 }
 
 bool __fastcall CNetCustomPlayerClient::isHost(CNetCustomPlayerClient* thisptr, int /*%edx*/)
 {
-    bool isHost = thisptr->getSession()->isHost();
-    logDebug("lobby.log", fmt::format("CNetCustomPlayerClient isHost {:d}", isHost));
-    return isHost;
+    bool result = thisptr->getSession()->isHost();
+    logDebug("lobby.log", fmt::format(__FUNCTION__ ": is host = {:d}", (int)result));
+    return result;
 }
 
 void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
@@ -140,8 +126,8 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
         auto message = getMessageAndSender(packet, &sender);
         if (sender != m_player->m_serverGuid) {
             logDebug("lobby.log",
-                     fmt::format("PlayerClient: Received message from {:x}, its not a server!",
-                                 getClientId(packet->guid)));
+                     fmt::format(__FUNCTION__ ": '{:s}' from 0x{:x}, its not a server!",
+                                 message->messageClassName, getClientId(packet->guid)));
             break;
         }
         m_player->addMessage(message, game::serverNetPlayerId);
@@ -156,7 +142,7 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
     }
 
     case ID_DISCONNECTION_NOTIFICATION: {
-        logDebug("lobby.log", "PlayerClient: Server was shut down");
+        logDebug("lobby.log", __FUNCTION__ ": server was shut down");
         auto system = m_player->getSystem();
         if (system) {
             system->vftable->onPlayerDisconnected(system, game::serverNetPlayerId);
@@ -165,18 +151,13 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
     }
 
     case ID_CONNECTION_LOST: {
-        logDebug("lobby.log", "PlayerClient: Connection with server is lost");
+        logDebug("lobby.log", __FUNCTION__ ": connection with server is lost");
         auto system = m_player->getSystem();
         if (system) {
             system->vftable->onPlayerDisconnected(system, game::serverNetPlayerId);
         }
         break;
     }
-
-    default:
-        logDebug("lobby.log",
-                 fmt::format("PlayerClient: Packet type {:d}", static_cast<int>(type)));
-        break;
     }
 }
 
@@ -185,7 +166,7 @@ void CNetCustomPlayerClient::RoomsCallback::RoomDestroyedOnModeratorLeft_Callbac
     SLNet::RoomDestroyedOnModeratorLeft_Notification* notification)
 {
     // TODO: make sure that the notification only arrives for our room, otherwise check roomId
-    logDebug("playerClient.log", "Server left a room");
+    logDebug("lobby.log", __FUNCTION__);
     auto system = m_player->getSystem();
     if (system) {
         system->vftable->onPlayerDisconnected(system, game::serverNetPlayerId);
