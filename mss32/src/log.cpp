@@ -28,22 +28,22 @@
 #include <sstream>
 #include <thread>
 
+extern std::thread::id mainThreadId;
+
 namespace hooks {
 
 static void logAction(std::string_view logFile, std::string_view message)
 {
-    using namespace std::chrono;
-
-    const auto path{hooks::gameFolder() / logFile};
+    // TODO: replace this shit with multithreaded spdlog
+    auto path{hooks::gameFolder() / logFile};
+    if (std::this_thread::get_id() != mainThreadId) {
+        path.replace_extension(".server.log");
+    }
 
     std::ofstream file(path.c_str(), std::ios_base::app);
     const std::time_t time{std::time(nullptr)};
     const std::tm tm = *std::localtime(&time);
-    const auto tid = std::this_thread::get_id();
-
-    std::stringstream msg;
-    msg << "[" << std::put_time(&tm, "%c") << "]\t" << tid << "\t" << message << "\n";
-    file << msg.str();
+    file << "[" << std::put_time(&tm, "%c") << "]\t" << message << "\n";
 }
 
 void logDebug(std::string_view logFile, std::string_view message)
