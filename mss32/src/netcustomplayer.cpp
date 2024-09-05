@@ -111,7 +111,13 @@ void CNetCustomPlayer::setName(const char* value)
     m_name = value;
 }
 
-void CNetCustomPlayer::addMessage(const game::NetMessageHeader* message, std::uint32_t idFrom)
+uint32_t CNetCustomPlayer::getId() const
+{
+    return m_id;
+}
+
+void CNetCustomPlayer::postMessageToReceive(const game::NetMessageHeader* message,
+                                            std::uint32_t idFrom)
 {
     logDebug("lobby.log",
              fmt::format(__FUNCTION__ ": '{:s}' from 0x{:x}", message->messageClassName, idFrom));
@@ -126,56 +132,49 @@ void CNetCustomPlayer::addMessage(const game::NetMessageHeader* message, std::ui
     m_reception->vftable->notify(m_reception);
 }
 
-bool CNetCustomPlayer::sendMessage(const game::NetMessageHeader* message,
-                                   const SLNet::RakNetGUID& to) const
+bool CNetCustomPlayer::sendRemoteMessage(const game::NetMessageHeader* message,
+                                         const SLNet::RakNetGUID& to) const
 {
     logDebug("lobby.log", fmt::format(__FUNCTION__ ": '{:s}' to 0x{:x}", message->messageClassName,
                                       getClientId(to)));
-
-    auto service = getService();
-    if (to == service->getPeerGuid()) {
-        return sendHostMessage(message);
-    }
 
     SLNet::BitStream stream;
     stream.Write(static_cast<SLNet::MessageID>(ID_GAME_MESSAGE));
     stream.Write(static_cast<uint32_t>(1)); // Recipient count
     stream.Write(to);
     stream.Write((const char*)message, message->length);
+
+    auto service = getService();
     return service->send(stream, service->getLobbyGuid(), HIGH_PRIORITY);
 }
 
-bool CNetCustomPlayer::sendMessage(const game::NetMessageHeader* message,
-                                   std::set<SLNet::RakNetGUID> to) const
+bool CNetCustomPlayer::sendRemoteMessage(const game::NetMessageHeader* message,
+                                         const RemoteClients& to) const
 {
     logDebug("lobby.log", fmt::format(__FUNCTION__ ": '{:s}' to {:d} recipient(s)",
                                       message->messageClassName, to.size()));
 
-    auto service = getService();
-    auto host = to.find(service->getPeerGuid());
-    if (host != to.end()) {
-        if (!sendHostMessage(message)) {
-            return false;
-        }
-        to.erase(host);
-    }
-
-    if (to.size() == 0) {
-        return true;
+    if (to.empty()) {
+        return false;
     }
 
     SLNet::BitStream stream;
     stream.Write(static_cast<SLNet::MessageID>(ID_GAME_MESSAGE));
     stream.Write(static_cast<uint32_t>(to.size()));
     for (const auto& recipient : to) {
-        stream.Write(recipient);
+        stream.Write(recipient.first);
     }
     stream.Write((const char*)message, message->length);
+
+    auto service = getService();
     return service->send(stream, service->getLobbyGuid(), HIGH_PRIORITY);
 }
 
 bool CNetCustomPlayer::sendHostMessage(const game::NetMessageHeader* message) const
 {
+    logDebug("lobby.log",
+             fmt::format(__FUNCTION__ ": '{:s}' to 0x{:x}", message->messageClassName, m_id));
+
     auto msg = const_cast<game::NetMessageHeader*>(message);
     auto originalType = msg->messageType;
     msg->messageType = m_id == game::serverNetPlayerId ? ID_GAME_MESSAGE_TO_HOST_CLIENT
@@ -243,16 +242,17 @@ game::ReceiveMessageResult __fastcall CNetCustomPlayer::receiveMessage(
 
     if (message->messageType != game::netMessageNormalType) {
         logDebug("lobby.log",
-                 fmt::format(__FUNCTION__ ": received message with unexpected type 0x{:x}",
-                             message->messageType));
+                 fmt::format(__FUNCTION__ ": message from 0x{:x} with unexpected type 0x{:x}",
+                             *idFrom, message->messageType));
         return game::ReceiveMessageResult::Failure;
     }
 
     if (message->length >= game::netMessageMaxLength) {
-        logDebug("lobby.log",
-                 fmt::format(
-                     __FUNCTION__ ": received message with length {:d} that exeeds maximum of {:d}",
-                     message->length, game::netMessageMaxLength));
+        logDebug(
+            "lobby.log",
+            fmt::format(
+                __FUNCTION__ ": message from 0x{:x} with length {:d} that exeeds maximum of {:d}",
+                *idFrom, message->length, game::netMessageMaxLength));
         return game::ReceiveMessageResult::Failure;
     }
 
@@ -262,9 +262,8 @@ game::ReceiveMessageResult __fastcall CNetCustomPlayer::receiveMessage(
 
     logDebug(
         "lobby.log",
-        fmt::format(
-            __FUNCTION__ ": received '{:s}' with length {:d} from 0x{:x}, messages remain = {:d}",
-            buffer->messageClassName, buffer->length, *idFrom, thisptr->m_messages.size()));
+        fmt::format(__FUNCTION__ ": '{:s}' from 0x{:x} with length {:d}, messages remain = {:d}",
+                    buffer->messageClassName, *idFrom, buffer->length, thisptr->m_messages.size()));
     return game::ReceiveMessageResult::Success;
 }
 

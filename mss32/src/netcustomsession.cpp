@@ -41,7 +41,6 @@ CNetCustomSession::CNetCustomSession(CNetCustomService* service,
     , m_clientCount{0}
     , m_maxPlayers{2}
     , m_isHost{serverGuid == service->getPeerGuid()}
-    , m_server(nullptr)
     , m_serverGuid(serverGuid)
 {
     logDebug("lobby.log", fmt::format(__FUNCTION__ ": server = 0x{:x}, is host = {:d}",
@@ -79,12 +78,6 @@ const std::string& CNetCustomSession::getName() const
 bool CNetCustomSession::isHost() const
 {
     return m_isHost;
-}
-
-void CNetCustomSession::addClient(CNetCustomPlayerClient* value)
-{
-    ++m_clientCount;
-    logDebug("lobby.log", fmt::format(__FUNCTION__ ": new client count = {:d}", m_clientCount));
 }
 
 bool CNetCustomSession::setMaxPlayers(int maxPlayers)
@@ -161,12 +154,6 @@ void __fastcall CNetCustomSession::createClient(CNetCustomSession* thisptr,
         CNetCustomPlayerClient(thisptr, netSystem, reception, clientName, thisptr->m_serverGuid);
     *client = (game::IMqNetPlayerClient*)result;
     ++thisptr->m_clientCount;
-
-    // TODO: do it inside rooms callback of server player?
-    if (thisptr->m_server) {
-        auto service = thisptr->getService();
-        thisptr->m_server->addClient(service->getPeerGuid(), service->getAccountName().c_str());
-    }
 }
 
 void __fastcall CNetCustomSession::createServer(CNetCustomSession* thisptr,
@@ -177,10 +164,10 @@ void __fastcall CNetCustomSession::createServer(CNetCustomSession* thisptr,
 {
     logDebug("lobby.log", __FUNCTION__);
 
-    thisptr->m_server = (CNetCustomPlayerServer*)game::Memory::get().allocate(
+    auto result = (CNetCustomPlayerServer*)game::Memory::get().allocate(
         sizeof(CNetCustomPlayerServer));
-    new (thisptr->m_server) CNetCustomPlayerServer(thisptr, netSystem, reception);
-    *server = (game::IMqNetPlayerServer*)thisptr->m_server;
+    new (result) CNetCustomPlayerServer(thisptr, netSystem, reception);
+    *server = (game::IMqNetPlayerServer*)result;
 }
 
 } // namespace hooks

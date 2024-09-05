@@ -52,7 +52,7 @@ CNetCustomPlayerClient::CNetCustomPlayerClient(CNetCustomSession* session,
         (game::IMqNetPlayerClientVftable::GetNetId)getNetId,
         (game::IMqNetPlayerClientVftable::GetSession)(GetSession)getSession,
         (game::IMqNetPlayerClientVftable::GetMessageCount)getMessageCount,
-        (game::IMqNetPlayerClientVftable::SendNetMessage)(SendNetMessage)sendMessage,
+        (game::IMqNetPlayerClientVftable::SendNetMessage)sendMessage,
         (game::IMqNetPlayerClientVftable::ReceiveMessage)receiveMessage,
         (game::IMqNetPlayerClientVftable::SetNetSystem)setNetSystem,
         (game::IMqNetPlayerClientVftable::Method8)method8,
@@ -88,7 +88,7 @@ void __fastcall CNetCustomPlayerClient::destructor(CNetCustomPlayerClient* thisp
 
 bool __fastcall CNetCustomPlayerClient::sendMessage(CNetCustomPlayerClient* thisptr,
                                                     int /*%edx*/,
-                                                    int idTo,
+                                                    std::uint32_t idTo,
                                                     const game::NetMessageHeader* message)
 {
     if (idTo != game::serverNetPlayerId) {
@@ -97,7 +97,11 @@ bool __fastcall CNetCustomPlayerClient::sendMessage(CNetCustomPlayerClient* this
         return false;
     }
 
-    return thisptr->sendMessage(message, thisptr->m_serverGuid);
+    if (thisptr->getSession()->isHost()) {
+        return thisptr->sendHostMessage(message);
+    } else {
+        return thisptr->sendRemoteMessage(message, thisptr->m_serverGuid);
+    }
 }
 
 bool __fastcall CNetCustomPlayerClient::setName(CNetCustomPlayerClient* thisptr,
@@ -125,19 +129,21 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
         SLNet::RakNetGUID sender;
         auto message = getMessageAndSender(packet, &sender);
         if (sender != m_player->m_serverGuid) {
+            // Should only be a message to the server if we are hosting
+            // (since both server and client players share the same peer)
             logDebug("lobby.log",
-                     fmt::format(__FUNCTION__ ": '{:s}' from 0x{:x}, its not a server!",
-                                 message->messageClassName, getClientId(packet->guid)));
+                     fmt::format(__FUNCTION__ ": skipping '{:s}' from 0x{:x} (not a server)",
+                                 message->messageClassName, getClientId(sender)));
             break;
         }
-        m_player->addMessage(message, game::serverNetPlayerId);
+        m_player->postMessageToReceive(message, game::serverNetPlayerId);
         break;
     }
 
     case ID_GAME_MESSAGE_TO_HOST_CLIENT: {
         auto message = reinterpret_cast<game::NetMessageHeader*>(packet->data);
         message->messageType = game::netMessageNormalType; // TODO: any better way to do this?
-        m_player->addMessage(message, game::serverNetPlayerId);
+        m_player->postMessageToReceive(message, game::serverNetPlayerId);
         break;
     }
 

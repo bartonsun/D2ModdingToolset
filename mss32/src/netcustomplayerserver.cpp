@@ -49,7 +49,7 @@ CNetCustomPlayerServer::CNetCustomPlayerServer(CNetCustomSession* session,
         (game::IMqNetPlayerServerVftable::GetNetId)getNetId,
         (game::IMqNetPlayerServerVftable::GetSession)(GetSession)getSession,
         (game::IMqNetPlayerServerVftable::GetMessageCount)getMessageCount,
-        (game::IMqNetPlayerServerVftable::SendNetMessage)(SendNetMessage)sendMessage,
+        (game::IMqNetPlayerServerVftable::SendNetMessage)sendMessage,
         (game::IMqNetPlayerServerVftable::ReceiveMessage)receiveMessage,
         (game::IMqNetPlayerServerVftable::SetNetSystem)setNetSystem,
         (game::IMqNetPlayerServerVftable::Method8)method8,
@@ -76,8 +76,8 @@ bool CNetCustomPlayerServer::addClient(const SLNet::RakNetGUID& guid, const SLNe
                                       name.C_String()));
 
     {
-        std::lock_guard lock(m_clientsMutex);
-        auto result = m_clients.insert({guid, name});
+        std::lock_guard lock(m_remoteClientsMutex);
+        auto result = m_remoteClients.insert({guid, name});
         if (!result.second) {
             logDebug("lobby.log",
                      fmt::format(
@@ -95,8 +95,8 @@ bool CNetCustomPlayerServer::addClient(const SLNet::RakNetGUID& guid, const SLNe
 bool CNetCustomPlayerServer::removeClient(const SLNet::RakNetGUID& guid)
 {
     {
-        std::lock_guard lock(m_clientsMutex);
-        size_t result = m_clients.erase(guid);
+        std::lock_guard lock(m_remoteClientsMutex);
+        size_t result = m_remoteClients.erase(guid);
         if (!result) {
             logDebug("lobby.log",
                      fmt::format(__FUNCTION__ ": failed because the id 0x{:x} does not exist",
@@ -114,11 +114,11 @@ bool CNetCustomPlayerServer::removeClient(const SLNet::RakString& name)
 {
     SLNet::RakNetGUID guid = SLNet::UNASSIGNED_RAKNET_GUID;
     {
-        std::lock_guard lock(m_clientsMutex);
-        for (auto it = m_clients.begin(); it != m_clients.end(); ++it) {
+        std::lock_guard lock(m_remoteClientsMutex);
+        for (auto it = m_remoteClients.begin(); it != m_remoteClients.end(); ++it) {
             if (it->second == name) {
                 guid = it->first;
-                m_clients.erase(guid);
+                m_remoteClients.erase(guid);
                 break;
             }
         }
@@ -150,32 +150,24 @@ void __fastcall CNetCustomPlayerServer::destructor(CNetCustomPlayerServer* thisp
 
 bool __fastcall CNetCustomPlayerServer::sendMessage(CNetCustomPlayerServer* thisptr,
                                                     int /*%edx*/,
-                                                    int idTo,
+                                                    std::uint32_t idTo,
                                                     const game::NetMessageHeader* message)
 {
-    std::set<SLNet::RakNetGUID> clients;
-    {
-        std::lock_guard lock(thisptr->m_clientsMutex);
-        for (const auto& client : thisptr->m_clients) {
-            clients.insert(client.first);
+    if (idTo == getClientId(thisptr->getService()->getPeerGuid())) {
+        return thisptr->sendHostMessage(message);
+    } else if (idTo == game::broadcastNetPlayerId) {
+        if (!thisptr->sendHostMessage(message)) {
+            return false;
         }
-    }
 
-    if (idTo == game::broadcastNetPlayerId) {
-        return thisptr->sendMessage(message, std::move(clients));
+        auto clients = thisptr->getRemoteClients();
+        if (clients.empty()) {
+            return true;
+        }
+        return thisptr->sendRemoteMessage(message, clients);
+    } else {
+        return thisptr->sendRemoteMessage(message, thisptr->getRemoteClientGuid(idTo));
     }
-
-    auto it = std::find_if(clients.begin(), clients.end(), [idTo](const auto& guid) {
-        return static_cast<int>(getClientId(guid)) == idTo;
-    });
-    if (it == clients.end()) {
-        logDebug("lobby.log",
-                 fmt::format(__FUNCTION__ ": failed because there is no client with id 0x{:x}",
-                             uint32_t(idTo)));
-        return false;
-    }
-
-    return thisptr->sendMessage(message, *it);
 }
 
 bool __fastcall CNetCustomPlayerServer::destroyPlayer(CNetCustomPlayerServer* thisptr,
@@ -203,6 +195,24 @@ bool __fastcall CNetCustomPlayerServer::setAllowJoin(CNetCustomPlayerServer* thi
     return true;
 }
 
+CNetCustomPlayerServer::RemoteClients CNetCustomPlayerServer::getRemoteClients() const
+{
+    std::lock_guard lock(m_remoteClientsMutex);
+    return m_remoteClients;
+}
+
+SLNet::RakNetGUID CNetCustomPlayerServer::getRemoteClientGuid(std::uint32_t id) const
+{
+    std::lock_guard lock(m_remoteClientsMutex);
+    auto it = std::find_if(m_remoteClients.begin(), m_remoteClients.end(),
+                           [id](const auto& client) { return getClientId(client.first) == id; });
+    if (it == m_remoteClients.end()) {
+        logDebug("lobby.log", fmt::format(__FUNCTION__ ": there is no client with id 0x{:x}", id));
+        return {};
+    }
+    return it->first;
+}
+
 void CNetCustomPlayerServer::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
                                                             SLNet::RakPeerInterface* peer,
                                                             const SLNet::Packet* packet)
@@ -211,14 +221,14 @@ void CNetCustomPlayerServer::PeerCallback::onPacketReceived(DefaultMessageIDType
     case ID_GAME_MESSAGE: {
         SLNet::RakNetGUID sender;
         auto message = getMessageAndSender(packet, &sender);
-        m_player->addMessage(message, getClientId(sender));
+        m_player->postMessageToReceive(message, getClientId(sender));
         break;
     }
 
     case ID_GAME_MESSAGE_TO_HOST_SERVER: {
         auto message = reinterpret_cast<game::NetMessageHeader*>(packet->data);
         message->messageType = game::netMessageNormalType; // TODO: any better way to do this?
-        m_player->addMessage(message, getClientId(packet->guid));
+        m_player->postMessageToReceive(message, getClientId(packet->guid));
         break;
     }
 

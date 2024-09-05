@@ -22,9 +22,9 @@
 
 #include "mqnetplayer.h"
 #include <cstdint>
+#include <map>
 #include <mutex>
 #include <queue>
-#include <set>
 #include <string>
 
 namespace game {
@@ -35,6 +35,7 @@ struct IMqNetReception;
 namespace SLNet {
 struct RakNetGUID;
 struct Packet;
+class RakString;
 }; // namespace SLNet
 
 namespace hooks {
@@ -53,6 +54,8 @@ public:
     ~CNetCustomPlayer();
 
 protected:
+    using RemoteClients = std::map<SLNet::RakNetGUID, SLNet::RakString>;
+
     static uint32_t getClientId(const SLNet::RakNetGUID& guid);
     static const game::NetMessageHeader* getMessageAndSender(const SLNet::Packet* packet,
                                                              SLNet::RakNetGUID* sender);
@@ -63,9 +66,11 @@ protected:
     game::IMqNetReception* getReception() const;
     const std::string& getName() const;
     void setName(const char* value);
-    void addMessage(const game::NetMessageHeader* message, std::uint32_t idFrom);
-    bool sendMessage(const game::NetMessageHeader* message, const SLNet::RakNetGUID& to) const;
-    bool sendMessage(const game::NetMessageHeader* message, std::set<SLNet::RakNetGUID> to) const;
+    uint32_t getId() const;
+    void postMessageToReceive(const game::NetMessageHeader* message, std::uint32_t idFrom);
+    bool sendRemoteMessage(const game::NetMessageHeader* message,
+                           const SLNet::RakNetGUID& to) const;
+    bool sendRemoteMessage(const game::NetMessageHeader* message, const RemoteClients& to) const;
     bool sendHostMessage(const game::NetMessageHeader* message) const;
 
     // IMqNetPlayer

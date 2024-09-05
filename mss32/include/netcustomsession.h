@@ -53,7 +53,6 @@ public:
     const std::string& getName() const;
     bool isHost() const;
     bool setMaxPlayers(int maxPlayers);
-    void addClient(CNetCustomPlayerClient* value);
 
 protected:
     // IMqNetSession
@@ -87,7 +86,6 @@ private:
     int m_clientCount;
     int m_maxPlayers;
     bool m_isHost;
-    CNetCustomPlayerServer* m_server;
     SLNet::RakNetGUID m_serverGuid;
 };
 

@@ -23,7 +23,6 @@
 #include "mqnetplayerserver.h"
 #include "netcustomplayer.h"
 #include "netcustomservice.h"
-#include <map>
 
 namespace hooks {
 
@@ -40,17 +39,11 @@ public:
     bool removeClient(const SLNet::RakString& name);
 
 protected:
-    using CNetCustomPlayer::sendMessage;
-
     // IMqNetPlayerClient
-    using SendNetMessage = bool(__fastcall*)(CNetCustomPlayerServer* thisptr,
-                                             int /*%edx*/,
-                                             int idTo,
-                                             const game::NetMessageHeader* message);
     static void __fastcall destructor(CNetCustomPlayerServer* thisptr, int /*%edx*/, char flags);
     static bool __fastcall sendMessage(CNetCustomPlayerServer* thisptr,
                                        int /*%edx*/,
-                                       int idTo,
+                                       std::uint32_t idTo,
                                        const game::NetMessageHeader* message);
     static bool __fastcall destroyPlayer(CNetCustomPlayerServer* thisptr,
                                          int /*%edx*/,
@@ -63,6 +56,9 @@ protected:
                                         bool allowJoin);
 
 private:
+    RemoteClients getRemoteClients() const;
+    SLNet::RakNetGUID getRemoteClientGuid(std::uint32_t id) const;
+
     class PeerCallback : public NetPeerCallback
     {
     public:
@@ -99,8 +95,8 @@ private:
 
     PeerCallback m_peerCallback;
     RoomsCallback m_roomsCallback;
-    std::map<SLNet::RakNetGUID, SLNet::RakString> m_clients;
-    mutable std::mutex m_clientsMutex;
+    RemoteClients m_remoteClients;
+    mutable std::mutex m_remoteClientsMutex;
 };
 
 assert_offset(CNetCustomPlayerServer, vftable, 0);

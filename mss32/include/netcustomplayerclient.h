@@ -37,21 +37,16 @@ public:
     ~CNetCustomPlayerClient();
 
 protected:
-    using CNetCustomPlayer::sendMessage;
     using CNetCustomPlayer::setName;
 
     // IMqNetPlayerClient
-    using SendNetMessage = bool(__fastcall*)(CNetCustomPlayerClient* thisptr,
-                                             int /*%edx*/,
-                                             int idTo,
-                                             const game::NetMessageHeader* message);
     using SetName = bool(__fastcall*)(CNetCustomPlayerClient* thisptr,
                                       int /*%edx*/,
                                       const char* name);
     static void __fastcall destructor(CNetCustomPlayerClient* thisptr, int /*%edx*/, char flags);
     static bool __fastcall sendMessage(CNetCustomPlayerClient* thisptr,
                                        int /*%edx*/,
-                                       int idTo,
+                                       std::uint32_t idTo,
                                        const game::NetMessageHeader* message);
     static bool __fastcall setName(CNetCustomPlayerClient* thisptr, int /*%edx*/, const char* name);
     static bool __fastcall isHost(CNetCustomPlayerClient* thisptr, int /*%edx*/);
