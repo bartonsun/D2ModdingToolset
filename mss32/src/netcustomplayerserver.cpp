@@ -87,8 +87,9 @@ bool CNetCustomPlayerServer::addClient(const SLNet::RakNetGUID& guid, const SLNe
         }
     }
 
+    // TODO: this should be called from the server's thread (from ReceiveMessage method)
     auto system = getSystem();
-    system->vftable->onPlayerConnected(system, (int)getClientId(guid));
+    system->vftable->onPlayerConnected(system, getClientId(guid));
     return true;
 }
 
@@ -105,8 +106,9 @@ bool CNetCustomPlayerServer::removeClient(const SLNet::RakNetGUID& guid)
         }
     }
 
+    // TODO: this should be called from the server's thread (from ReceiveMessage method)
     auto system = getSystem();
-    system->vftable->onPlayerDisconnected(system, (int)getClientId(guid));
+    system->vftable->onPlayerDisconnected(system, getClientId(guid));
     return true;
 }
 
@@ -131,8 +133,9 @@ bool CNetCustomPlayerServer::removeClient(const SLNet::RakString& name)
         return false;
     }
 
+    // TODO: this should be called from the server's thread (from ReceiveMessage method)
     auto system = getSystem();
-    system->vftable->onPlayerDisconnected(system, (int)getClientId(guid));
+    system->vftable->onPlayerDisconnected(system, getClientId(guid));
     return true;
 }
 
@@ -192,6 +195,15 @@ bool __fastcall CNetCustomPlayerServer::setAllowJoin(CNetCustomPlayerServer* thi
 {
     // Ignore this since its only called during server creation and eventually being allowed
     logDebug("lobby.log", fmt::format(__FUNCTION__ ": allow join = {:d}", (int)allowJoin));
+
+    if (allowJoin) {
+        // This means that the server finished initialization and ready to accept clients
+        // TODO: this should be called from ReceiveMessage method
+        auto system = thisptr->getSystem();
+        system->vftable->onPlayerConnected(system,
+                                           getClientId(thisptr->getService()->getPeerGuid()));
+    }
+
     return true;
 }
 
