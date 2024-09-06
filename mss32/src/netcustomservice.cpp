@@ -84,9 +84,9 @@ CNetCustomSession* CNetCustomService::getSession() const
     return m_session;
 }
 
-const std::string& CNetCustomService::getAccountName() const
+const std::string& CNetCustomService::getUserName() const
 {
-    return m_accountName;
+    return m_userName;
 }
 
 bool CNetCustomService::connected() const
@@ -97,7 +97,7 @@ bool CNetCustomService::connected() const
 bool CNetCustomService::loggedIn() const
 {
     // TODO: try using Lobby2Presence instead
-    return m_connected && !m_accountName.empty();
+    return m_connected && !m_userName.empty();
 }
 
 const SLNet::RakNetGUID CNetCustomService::getPeerGuid() const
@@ -122,11 +122,11 @@ bool CNetCustomService::send(const SLNet::BitStream& stream,
     return true;
 }
 
-bool CNetCustomService::createAccount(const char* accountName, const char* password)
+bool CNetCustomService::registerAccount(const char* userName, const char* password)
 {
     logDebug("lobby.log", __FUNCTION__);
 
-    if (!accountName) {
+    if (!userName) {
         logDebug("lobby.log", __FUNCTION__ ": empty account name");
         return false;
     }
@@ -143,7 +143,7 @@ bool CNetCustomService::createAccount(const char* accountName, const char* passw
         return false;
     }
 
-    account->userName = accountName;
+    account->userName = userName;
     account->titleName = titleName;
 
     auto& params = account->createAccountParameters;
@@ -161,11 +161,11 @@ bool CNetCustomService::createAccount(const char* accountName, const char* passw
     return result;
 }
 
-bool CNetCustomService::loginAccount(const char* accountName, const char* password)
+bool CNetCustomService::login(const char* userName, const char* password)
 {
     logDebug("lobby.log", __FUNCTION__);
 
-    if (!accountName) {
+    if (!userName) {
         return false;
     }
 
@@ -180,7 +180,7 @@ bool CNetCustomService::loginAccount(const char* accountName, const char* passwo
         return false;
     }
 
-    login->userName = accountName;
+    login->userName = userName;
     login->userPassword = password;
 
     login->titleName = titleName;
@@ -198,7 +198,7 @@ bool CNetCustomService::loginAccount(const char* accountName, const char* passwo
     return result;
 }
 
-void CNetCustomService::logoutAccount()
+void CNetCustomService::logoff()
 {
     logDebug("lobby.log", __FUNCTION__);
 
@@ -211,14 +211,14 @@ void CNetCustomService::logoutAccount()
 
     m_lobbyClient.SendMsg(logoff);
     m_lobbyMsgFactory.Dealloc(logoff);
-    logDebug("lobby.log", __FUNCTION__ ": logout message sent");
+    logDebug("lobby.log", __FUNCTION__ ": logoff message sent");
 }
 
 void CNetCustomService::sendChatMessage(const char* text)
 {
     SLNet::BitStream stream;
     stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_CHAT_MESSAGE));
-    stream.Write(SLNet::RakString(m_accountName.c_str()));
+    stream.Write(SLNet::RakString(m_userName.c_str()));
     stream.Write(SLNet::RakString(text));
     send(stream, getLobbyGuid(), LOW_PRIORITY);
 }
@@ -360,7 +360,7 @@ bool CNetCustomService::createRoom(const char* gameName,
     }
 
     SLNet::CreateRoom_Func room{};
-    room.userName = m_accountName.c_str();
+    room.userName = m_userName.c_str();
     room.gameIdentifier = titleName;
 
     auto& params = room.networkedRoomCreationParameters;
@@ -400,7 +400,7 @@ void CNetCustomService::leaveRoom()
     logDebug("lobby.log", __FUNCTION__);
 
     SLNet::LeaveRoom_Func func{};
-    func.userName = m_accountName.c_str();
+    func.userName = m_userName.c_str();
     m_roomsClient.ExecuteFunc(&func);
 }
 
@@ -410,7 +410,7 @@ void CNetCustomService::searchRooms()
 
     SLNet::SearchByFilter_Func func{};
     func.gameIdentifier = titleName;
-    func.userName = m_accountName.c_str();
+    func.userName = m_userName.c_str();
     func.onlyJoinable = true;
     m_roomsClient.ExecuteFunc(&func);
 }
@@ -421,7 +421,7 @@ void CNetCustomService::joinRoom(SLNet::RoomID id)
 
     SLNet::JoinByFilter_Func func{};
     func.gameIdentifier = titleName;
-    func.userName = m_accountName.c_str();
+    func.userName = m_userName.c_str();
     func.query.AddQuery_NUMERIC(DefaultRoomColumns::GetColumnName(DefaultRoomColumns::TC_ROOM_ID),
                                 id);
     func.roomMemberMode = RMM_PUBLIC;
@@ -439,7 +439,7 @@ bool CNetCustomService::changeRoomPublicSlots(unsigned int publicSlots)
     }
 
     SLNet::ChangeSlotCounts_Func func{};
-    func.userName = m_accountName.c_str();
+    func.userName = m_userName.c_str();
     func.slots.publicSlots = publicSlots;
     m_roomsClient.ExecuteFunc(&func);
     return true;
@@ -589,7 +589,7 @@ const std::string& CNetCustomService::getGameFilesHash()
 
 CNetCustomService::UserInfo CNetCustomService::getUserInfo() const
 {
-    return {getPeerGuid(), getAccountName().c_str()};
+    return {getPeerGuid(), getUserName().c_str()};
 }
 
 void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
@@ -638,7 +638,7 @@ void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes typ
 void CNetCustomService::LobbyCallback::MessageResult(SLNet::Client_Login* message)
 {
     if (message->resultCode == SLNet::L2RC_SUCCESS) {
-        m_service->m_accountName = message->userName.C_String();
+        m_service->m_userName = message->userName.C_String();
     }
 
     ExecuteDefaultResult(message);
@@ -647,7 +647,7 @@ void CNetCustomService::LobbyCallback::MessageResult(SLNet::Client_Login* messag
 void CNetCustomService::LobbyCallback::MessageResult(SLNet::Client_Logoff* message)
 {
     if (message->resultCode == SLNet::L2RC_SUCCESS) {
-        m_service->m_accountName.clear();
+        m_service->m_userName.clear();
     }
 
     ExecuteDefaultResult(message);
@@ -657,9 +657,9 @@ void CNetCustomService::LobbyCallback::MessageResult(
     SLNet::Notification_Client_RemoteLogin* message)
 {
     if (message->resultCode == SLNet::L2RC_SUCCESS) {
-        if (m_service->m_accountName == message->handle.C_String()) {
+        if (m_service->m_userName == message->handle.C_String()) {
             // The same account is remotely logged-in, means that we are now logged out
-            m_service->m_accountName.clear();
+            m_service->m_userName.clear();
         }
     }
 

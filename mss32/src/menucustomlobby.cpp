@@ -1165,7 +1165,7 @@ void CMenuCustomLobby::joinServer(SLNet::RoomDescriptor* roomDescriptor)
     }
     currentSession = session;
     midgard->data->host = false;
-    midgardApi.createNetClient(midgard, service->getAccountName().c_str(), true);
+    midgardApi.createNetClient(midgard, service->getUserName().c_str(), true);
     midgardApi.setClientsNetProxy(midgard, menuPhase);
 
     CMenusReqVersionMsg reqVersionMsg;

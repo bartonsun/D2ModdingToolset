@@ -44,7 +44,7 @@ CMenuCustomRandomScenarioMulti::CMenuCustomRandomScenarioMulti(game::CMenuPhase*
     this->vftable = &rttiInfo.vftable;
 
     startScenario = (StartScenario)createRoomAndServer;
-    setAccountNameToEditName();
+    setUserNameToEditName();
 
     getNetService()->addRoomsCallback(&m_roomsCallback);
 }

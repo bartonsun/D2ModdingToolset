@@ -52,7 +52,7 @@ CMenuCustomNewSkirmishMulti::CMenuCustomNewSkirmishMulti(game::CMenuPhase* menuP
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
     setButtonCallback(dialog, "BTN_LOAD", loadBtnHandler, this);
-    setAccountNameToEditName();
+    setUserNameToEditName();
 
     getNetService()->addRoomsCallback(&m_roomsCallback);
 }

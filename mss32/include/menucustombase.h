@@ -49,7 +49,7 @@ protected:
     void showWaitDialog();
     void hideWaitDialog();
     void onConnectionLost();
-    void setAccountNameToEditName();
+    void setUserNameToEditName();
 
     class CPopupDialogCustomBase
     {

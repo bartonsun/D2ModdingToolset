@@ -114,7 +114,7 @@ void CMenuCustomBase::onConnectionLost()
     showMessageBox(getInterfaceText("X005TA0403"), handler, false);
 }
 
-void CMenuCustomBase::setAccountNameToEditName()
+void CMenuCustomBase::setUserNameToEditName()
 {
     using namespace game;
 
@@ -122,7 +122,7 @@ void CMenuCustomBase::setAccountNameToEditName()
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(getMenu());
     auto editName = CDialogInterfApi::get().findEditBox(dialog, "EDIT_NAME");
-    editBoxApi.setString(editName, getNetService()->getAccountName().c_str());
+    editBoxApi.setString(editName, getNetService()->getUserName().c_str());
     // editBoxApi.setEditable is bugged - it switches input focus to a next control even if the
     // current control is not focused
     editName->data->editable = false;

@@ -49,7 +49,7 @@ CMenuCustomLoadSkirmishMulti::CMenuCustomLoadSkirmishMulti(game::CMenuPhase* men
     }
     this->CMenuBase::vftable = &rttiInfo.vftable;
 
-    setAccountNameToEditName();
+    setUserNameToEditName();
 
     getNetService()->addRoomsCallback(&m_roomsCallback);
 }

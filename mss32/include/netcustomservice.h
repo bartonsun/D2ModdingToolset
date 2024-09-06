@@ -106,8 +106,7 @@ public:
     ~CNetCustomService();
 
     CNetCustomSession* getSession() const;
-    // TODO: rename accountName to userName to correspond to RakNet naming
-    const std::string& getAccountName() const;
+    const std::string& getUserName() const;
     bool connected() const;
     bool loggedIn() const;
     const SLNet::RakNetGUID getPeerGuid() const;
@@ -118,20 +117,9 @@ public:
     const std::string& getGameFilesHash();
     UserInfo getUserInfo() const;
 
-    /**
-     * Tries to register new account using credentials provided.
-     * @returns true if register request message was successfully send to the server.
-     */
-    bool createAccount(const char* accountName, const char* password);
-
-    /**
-     * Tries to login user with provided credentials.
-     * @returns true if login request message was successfully send to the server.
-     */
-    bool loginAccount(const char* accountName, const char* password);
-
-    /** Logouts currently logged user. */
-    void logoutAccount();
+    bool registerAccount(const char* userName, const char* password);
+    bool login(const char* userName, const char* password);
+    void logoff();
 
     void sendChatMessage(const char* text);
     ChatMessage readChatMessage(const SLNet::Packet* packet);
@@ -278,8 +266,7 @@ private:
     bool m_connected;
     PeerCallback m_peerCallback;
     CNetCustomSession* m_session;
-    std::string m_accountName;
-    SLNet::SystemAddress m_roomOwnerAddress;
+    std::string m_userName;
     /** Interacts with lobby server. */
     SLNet::Lobby2Client m_lobbyClient;
     /** Creates network messages. */

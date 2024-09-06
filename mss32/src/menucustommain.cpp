@@ -259,7 +259,7 @@ void CMenuCustomMain::LobbyCallback::MessageResult(SLNet::Client_RegisterAccount
     case SLNet::L2RC_SUCCESS: {
         m_menu->hideRegisterDialog();
 
-        if (!getNetService()->loginAccount(message->userName,
+        if (!getNetService()->login(message->userName,
                                            message->createAccountParameters.password)) {
             auto msg{getInterfaceText(textIds().lobby.unableToLoginAfterRegistration.c_str())};
             if (msg.empty()) {
@@ -338,7 +338,7 @@ void __fastcall CMenuCustomMain::CLoginAccountInterf::okBtnHandler(CLoginAccount
     const CMidgard* midgard{CMidgardApi::get().instance()};
     GameSettingsApi::get().setDefaultPlayerName(midgard->data->settings, username.c_str());
 
-    if (!getNetService()->loginAccount(username.c_str(), lobbySettings().password.c_str())) {
+    if (!getNetService()->login(username.c_str(), lobbySettings().password.c_str())) {
         auto message{getInterfaceText(textIds().lobby.invalidAccountNameOrPassword.c_str())};
         if (message.empty()) {
             message = "Account name or password are either empty or invalid.";
@@ -400,7 +400,7 @@ void __fastcall CMenuCustomMain::CRegisterAccountInterf::okBtnHandler(
     int /*%edx*/)
 {
     auto dialog = *thisptr->dialog;
-    if (!getNetService()->createAccount(getEditBoxText(dialog, "EDIT_ACCOUNT_NAME"),
+    if (!getNetService()->registerAccount(getEditBoxText(dialog, "EDIT_ACCOUNT_NAME"),
                                         getEditBoxText(dialog, "EDIT_PASSWORD"))) {
         auto message{getInterfaceText(textIds().lobby.invalidAccountNameOrPassword.c_str())};
         if (message.empty()) {
