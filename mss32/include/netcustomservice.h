@@ -100,7 +100,10 @@ public:
     // See SLNet::Lobby2Message::ValidatePassword
     static constexpr std::uint32_t passwordMaxLength{50};
 
-    static bool isCustom(const game::IMqNetService* service);
+    /** Returns nullptr if initialization of connection to lobby server fails. */
+    static CNetCustomService* create();
+    /** Returns the service instance if it is set in CMidgard, otherwise returns nullptr. */
+    static CNetCustomService* get();
 
     CNetCustomService(SLNet::RakPeerInterface* peer);
     ~CNetCustomService();
@@ -174,7 +177,6 @@ public:
 
 protected:
     // IMqNetService
-    static game::IMqNetServiceVftable m_vftable;
     static void __fastcall destructor(CNetCustomService* thisptr, int /*%edx*/, char flags);
     static bool __fastcall hasSessions(CNetCustomService* thisptr, int /*%edx*/);
     static void __fastcall getSessions(CNetCustomService* thisptr,
@@ -197,6 +199,8 @@ protected:
                                        const char* password);
 
 private:
+    static game::IMqNetServiceVftable g_vftable;
+
     class PeerCallback : public NetPeerCallback
     {
     public:
@@ -284,11 +288,6 @@ private:
 };
 
 assert_offset(CNetCustomService, vftable, 0);
-
-CNetCustomService* createNetCustomServiceStartConnection();
-
-/** Returns net service if it is present and has type CNetCustomService. */
-CNetCustomService* getNetService();
 
 } // namespace hooks
 

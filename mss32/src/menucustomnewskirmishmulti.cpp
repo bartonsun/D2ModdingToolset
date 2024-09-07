@@ -54,14 +54,14 @@ CMenuCustomNewSkirmishMulti::CMenuCustomNewSkirmishMulti(game::CMenuPhase* menuP
     setButtonCallback(dialog, "BTN_LOAD", loadBtnHandler, this);
     setUserNameToEditName();
 
-    getNetService()->addRoomsCallback(&m_roomsCallback);
+    CNetCustomService::get()->addRoomsCallback(&m_roomsCallback);
 }
 
 CMenuCustomNewSkirmishMulti::~CMenuCustomNewSkirmishMulti()
 {
     using namespace game;
 
-    auto service = getNetService();
+    auto service = CNetCustomService::get();
     if (service) {
         service->removeRoomsCallback(&m_roomsCallback);
     }
@@ -132,9 +132,9 @@ void __fastcall CMenuCustomNewSkirmishMulti::loadBtnHandler(CMenuCustomNewSkirmi
     menuPhaseApi.setScenarioDescription(menuPhase, scenario->description.string);
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(thisptr);
-    if (!getNetService()->createRoom(getEditBoxText(dialog, "EDIT_GAME"), scenario->name.string,
-                                     scenario->description.string,
-                                     getEditBoxText(dialog, "EDIT_PASSWORD"))) {
+    if (!CNetCustomService::get()->createRoom(getEditBoxText(dialog, "EDIT_GAME"),
+                                              scenario->name.string, scenario->description.string,
+                                              getEditBoxText(dialog, "EDIT_PASSWORD"))) {
         logDebug("lobby.log", "Failed to request room creation");
         auto msg{getInterfaceText(textIds().lobby.createRoomRequestFailed.c_str())};
         if (msg.empty()) {
@@ -194,7 +194,7 @@ void CMenuCustomNewSkirmishMulti::RoomsCallback::CreateRoom_Callback(
         if (!CMenuNewSkirmishMultiApi::get().createServer(m_menu)) {
             // Should not happen at any circumstances
             logDebug("lobby.log", "Unable to create server for a new skirmish");
-            getNetService()->leaveRoom();
+            CNetCustomService::get()->leaveRoom();
             break;
         }
 

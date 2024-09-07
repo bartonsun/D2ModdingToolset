@@ -33,7 +33,7 @@
 
 namespace hooks {
 
-game::IMqNetServiceVftable CNetCustomService::m_vftable = {
+game::IMqNetServiceVftable CNetCustomService::g_vftable = {
     (game::IMqNetServiceVftable::Destructor)destructor,
     (game::IMqNetServiceVftable::HasSessions)hasSessions,
     (game::IMqNetServiceVftable::GetSessions)getSessions,
@@ -41,9 +41,47 @@ game::IMqNetServiceVftable CNetCustomService::m_vftable = {
     (game::IMqNetServiceVftable::JoinSession)joinSession,
 };
 
-bool CNetCustomService::isCustom(const game::IMqNetService* service)
+CNetCustomService* CNetCustomService::create()
 {
-    return service && service->vftable == &m_vftable;
+    auto peer = SLNet::RakPeerInterface::GetInstance();
+    peer->SetTimeoutTime(CNetCustomService::peerTimeout, SLNet::UNASSIGNED_SYSTEM_ADDRESS);
+
+    const auto& lobbySettings = userSettings().lobby;
+    const auto& clientPort = lobbySettings.client.port;
+    SLNet::SocketDescriptor socket{clientPort, nullptr};
+    logDebug("lobby.log", fmt::format("Start lobby peer on port {:d}", clientPort));
+    if (peer->Startup(1, &socket, 1) != SLNet::RAKNET_STARTED) {
+        logError("lobby.log", "Failed to start lobby client");
+        SLNet::RakPeerInterface::DestroyInstance(peer);
+        return nullptr;
+    }
+
+    const auto& serverIp = lobbySettings.server.ip;
+    const auto& serverPort = lobbySettings.server.port;
+    logDebug("lobby.log", fmt::format("Connecting to lobby server with ip '{:s}', port {:d}",
+                                      serverIp, serverPort));
+    if (peer->Connect(serverIp.c_str(), serverPort, nullptr, 0)
+        != SLNet::CONNECTION_ATTEMPT_STARTED) {
+        logError("lobby.log", "Failed to start lobby connection");
+        SLNet::RakPeerInterface::DestroyInstance(peer);
+        return nullptr;
+    }
+
+    auto service = (CNetCustomService*)game::Memory::get().allocate(sizeof(CNetCustomService));
+    new (service) CNetCustomService(peer);
+    return service;
+}
+
+CNetCustomService* CNetCustomService::get()
+{
+    auto midgard = game::CMidgardApi::get().instance();
+    auto service = midgard->data->netService;
+
+    if (service && service->vftable == &g_vftable) {
+        return static_cast<CNetCustomService*>(service);
+    }
+
+    return nullptr;
 }
 
 CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
@@ -55,7 +93,7 @@ CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
 {
     logDebug("lobby.log", __FUNCTION__);
 
-    vftable = &m_vftable;
+    vftable = &g_vftable;
 
     createTimerEvent(&m_peerProcessEvent, this, peerProcessEventCallback, peerProcessInterval);
     addPeerCallback(&m_peerCallback);
@@ -738,49 +776,6 @@ void CNetCustomService::RoomsCallback::ExecuteDefaultResult(
         break;
     }
     }
-}
-
-CNetCustomService* createNetCustomServiceStartConnection()
-{
-    auto peer = SLNet::RakPeerInterface::GetInstance();
-    peer->SetTimeoutTime(CNetCustomService::peerTimeout, SLNet::UNASSIGNED_SYSTEM_ADDRESS);
-
-    const auto& lobbySettings = userSettings().lobby;
-    const auto& clientPort = lobbySettings.client.port;
-    SLNet::SocketDescriptor socket{clientPort, nullptr};
-    logDebug("lobby.log", fmt::format("Start lobby peer on port {:d}", clientPort));
-    if (peer->Startup(1, &socket, 1) != SLNet::RAKNET_STARTED) {
-        logError("lobby.log", "Failed to start lobby client");
-        SLNet::RakPeerInterface::DestroyInstance(peer);
-        return nullptr;
-    }
-
-    const auto& serverIp = lobbySettings.server.ip;
-    const auto& serverPort = lobbySettings.server.port;
-    logDebug("lobby.log", fmt::format("Connecting to lobby server with ip '{:s}', port {:d}",
-                                      serverIp, serverPort));
-    if (peer->Connect(serverIp.c_str(), serverPort, nullptr, 0)
-        != SLNet::CONNECTION_ATTEMPT_STARTED) {
-        logError("lobby.log", "Failed to start lobby connection");
-        SLNet::RakPeerInterface::DestroyInstance(peer);
-        return nullptr;
-    }
-
-    auto service = (CNetCustomService*)game::Memory::get().allocate(sizeof(CNetCustomService));
-    new (service) CNetCustomService(peer);
-    return service;
-}
-
-CNetCustomService* getNetService()
-{
-    auto midgard = game::CMidgardApi::get().instance();
-    auto service = midgard->data->netService;
-
-    if (!CNetCustomService::isCustom(service)) {
-        return nullptr;
-    }
-
-    return static_cast<CNetCustomService*>(service);
 }
 
 } // namespace hooks

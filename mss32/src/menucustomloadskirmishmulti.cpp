@@ -51,14 +51,14 @@ CMenuCustomLoadSkirmishMulti::CMenuCustomLoadSkirmishMulti(game::CMenuPhase* men
 
     setUserNameToEditName();
 
-    getNetService()->addRoomsCallback(&m_roomsCallback);
+    CNetCustomService::get()->addRoomsCallback(&m_roomsCallback);
 }
 
 CMenuCustomLoadSkirmishMulti::~CMenuCustomLoadSkirmishMulti()
 {
     using namespace game;
 
-    auto service = getNetService();
+    auto service = CNetCustomService::get();
     if (service) {
         service->removeRoomsCallback(&m_roomsCallback);
     }
@@ -72,8 +72,9 @@ void CMenuCustomLoadSkirmishMulti::createRoomAndServer()
 
     auto vftable = (CMenuLoadVftable*)((CMenuBase*)this)->vftable;
     auto phaseData = this->menuBaseData->menuPhase->data;
-    if (!getNetService()->createRoom(vftable->getGameName(this), phaseData->scenarioName,
-                                     phaseData->scenarioDescription, vftable->getPassword(this))) {
+    if (!CNetCustomService::get()->createRoom(vftable->getGameName(this), phaseData->scenarioName,
+                                              phaseData->scenarioDescription,
+                                              vftable->getPassword(this))) {
         logDebug("lobby.log", "Failed to request room creation");
         auto msg{getInterfaceText(textIds().lobby.createRoomRequestFailed.c_str())};
         if (msg.empty()) {

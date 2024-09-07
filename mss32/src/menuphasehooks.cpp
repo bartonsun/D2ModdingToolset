@@ -202,7 +202,7 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             break;
         case MenuPhase::Single2NewSkirmish:
             logDebug("transitions.log", "Current is Single2NewSkirmish");
-            if (data->networkGame && getNetService()) {
+            if (data->networkGame && CNetCustomService::get()) {
                 logDebug("transitions.log", "Show CMenuCustomNewSkirmishMulti");
                 CMenuPhaseApi::Api::CreateMenuCallback
                     tmp = createMenuCustomNewSkirmishMultiCallback;
@@ -247,7 +247,7 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             break;
         case MenuPhase::Single2LoadSkirmish:
             logDebug("transitions.log", "Current is Single2LoadSkirmish");
-            if (data->networkGame && getNetService()) {
+            if (data->networkGame && CNetCustomService::get()) {
                 logDebug("transitions.log", "Show CMenuCustomLoadSkirmishMulti");
                 CMenuPhaseApi::Api::CreateMenuCallback
                     tmp = createMenuCustomLoadSkirmishMultiCallback;
@@ -385,8 +385,8 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
 
             // Create random scenario multi menu window during fullscreen animaation
             CMenuPhaseApi::Api::CreateMenuCallback
-                tmp = getNetService() ? createMenuCustomRandomScenarioMultiCallback
-                                      : createMenuRandomScenarioMulti;
+                tmp = CNetCustomService::get() ? createMenuCustomRandomScenarioMultiCallback
+                                               : createMenuRandomScenarioMulti;
             auto* callback = &tmp;
             logDebug("transitions.log", "Try to transition to RandomScenarioMulti");
             menuPhase.showMenu(thisptr, &data->currentPhase, &data->interfManager,
@@ -412,7 +412,7 @@ void __fastcall menuPhaseTransitionToMainOrCloseGameHooked(game::CMenuPhase* thi
     using namespace game;
 
     // Back to main if a lobby user is not logged in
-    auto service = getNetService();
+    auto service = CNetCustomService::get();
     if (!service || !service->loggedIn()) {
         getOriginalFunctions().menuPhaseTransitionToMainOrCloseGame(thisptr, showIntroTransition);
         return;

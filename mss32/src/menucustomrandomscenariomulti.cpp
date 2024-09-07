@@ -46,14 +46,14 @@ CMenuCustomRandomScenarioMulti::CMenuCustomRandomScenarioMulti(game::CMenuPhase*
     startScenario = (StartScenario)createRoomAndServer;
     setUserNameToEditName();
 
-    getNetService()->addRoomsCallback(&m_roomsCallback);
+    CNetCustomService::get()->addRoomsCallback(&m_roomsCallback);
 }
 
 CMenuCustomRandomScenarioMulti::~CMenuCustomRandomScenarioMulti()
 {
     using namespace game;
 
-    auto service = getNetService();
+    auto service = CNetCustomService::get();
     if (service) {
         service->removeRoomsCallback(&m_roomsCallback);
     }
@@ -67,9 +67,10 @@ void CMenuCustomRandomScenarioMulti::createRoomAndServer(CMenuCustomRandomScenar
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(menu);
     auto phaseData = menu->menuBaseData->menuPhase->data;
-    if (!getNetService()->createRoom(getEditBoxText(dialog, "EDIT_GAME"), phaseData->scenarioName,
-                                     phaseData->scenarioDescription,
-                                     getEditBoxText(dialog, "EDIT_PASSWORD"))) {
+    if (!CNetCustomService::get()->createRoom(getEditBoxText(dialog, "EDIT_GAME"),
+                                              phaseData->scenarioName,
+                                              phaseData->scenarioDescription,
+                                              getEditBoxText(dialog, "EDIT_PASSWORD"))) {
         logDebug("lobby.log", "Failed to request room creation");
         auto msg{getInterfaceText(textIds().lobby.createRoomRequestFailed.c_str())};
         if (msg.empty()) {

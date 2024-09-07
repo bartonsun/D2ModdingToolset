@@ -40,7 +40,7 @@ CMenuCustomBase::CMenuCustomBase(game::CMenuBase* menu)
     , m_peerCallback{this}
     , m_lobbyCallback{this}
 {
-    auto service = getNetService();
+    auto service = CNetCustomService::get();
     if (service) {
         service->addPeerCallback(&m_peerCallback);
         service->addLobbyCallback(&m_lobbyCallback);
@@ -51,7 +51,7 @@ CMenuCustomBase::~CMenuCustomBase()
 {
     hideWaitDialog();
 
-    auto service = getNetService();
+    auto service = CNetCustomService::get();
     if (service) {
         service->removeLobbyCallback(&m_lobbyCallback);
         service->removePeerCallback(&m_peerCallback);
@@ -122,7 +122,7 @@ void CMenuCustomBase::setUserNameToEditName()
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(getMenu());
     auto editName = CDialogInterfApi::get().findEditBox(dialog, "EDIT_NAME");
-    editBoxApi.setString(editName, getNetService()->getUserName().c_str());
+    editBoxApi.setString(editName, CNetCustomService::get()->getUserName().c_str());
     // editBoxApi.setEditable is bugged - it switches input focus to a next control even if the
     // current control is not focused
     editName->data->editable = false;
@@ -188,7 +188,7 @@ void CMenuCustomBase::LobbyCallback::MessageResult(SLNet::Notification_Client_Re
     if (message->resultCode == SLNet::L2RC_SUCCESS) {
         // We can possibly become logged out by a remote login of the same account.
         // TODO: find a better way (there seems to be no special notification message).
-        if (!getNetService()->loggedIn()) {
+        if (!CNetCustomService::get()->loggedIn()) {
             m_menu->onConnectionLost();
         }
     }

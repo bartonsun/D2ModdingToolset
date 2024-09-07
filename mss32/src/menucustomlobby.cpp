@@ -89,7 +89,7 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
 
     menuBaseApi.createMenu(this, dialogName);
 
-    auto service = getNetService();
+    auto service = CNetCustomService::get();
     initializeNetMsgEntries();
     service->addPeerCallback(&m_peerCallback);
     service->addRoomsCallback(&m_roomsCallback);
@@ -114,7 +114,7 @@ CMenuCustomLobby ::~CMenuCustomLobby()
 
     ImagePtrVectorApi::get().destructor(&m_userIcons);
 
-    auto service = getNetService();
+    auto service = CNetCustomService::get();
     if (service) {
         service->removeRoomsCallback(&m_roomsCallback);
         service->removePeerCallback(&m_peerCallback);
@@ -194,7 +194,7 @@ void CMenuCustomLobby::initializeChatControls()
         smartPtrApi.createOrFreeNoDtor(&functor, nullptr);
 
         // Request saved chat messages
-        getNetService()->queryChatMessages();
+        CNetCustomService::get()->queryChatMessages();
     }
 
     auto editBoxChat = (CEditBoxInterf*)findOptionalControl("EDIT_CHAT", rtti.CEditBoxInterfType);
@@ -219,7 +219,7 @@ void CMenuCustomLobby::initializeUserControls()
     const auto& textBoxApi = CTextBoxInterfApi::get();
     const auto& pictureApi = CPictureInterfApi::get();
 
-    auto service = getNetService();
+    auto service = CNetCustomService::get();
     auto userInfo = service->getUserInfo();
 
     auto txtNickname = (CTextBoxInterf*)findOptionalControl("TXT_NICKNAME",
@@ -307,7 +307,7 @@ void CMenuCustomLobby::initializeUsersControls()
         m_usersListBoxName = usersListBoxName;
 
         // Request users list as soon as possible, no need to wait for event
-        getNetService()->queryOnlineUsers();
+        CNetCustomService::get()->queryOnlineUsers();
         createTimerEvent(&m_usersUpdateEvent, this, usersUpdateEventCallback,
                          usersUpdateEventInterval);
     }
@@ -357,7 +357,7 @@ void CMenuCustomLobby::initializeRoomsControls()
         listBoxApi.setElementsTotal(listBoxRooms, 0);
 
         // Request rooms list as soon as possible, no need to wait for event
-        getNetService()->searchRooms();
+        CNetCustomService::get()->searchRooms();
         createTimerEvent(&m_roomsUpdateEvent, this, roomsUpdateEventCallback,
                          roomsUpdateEventInterval);
     }
@@ -428,7 +428,7 @@ void __fastcall CMenuCustomLobby::joinBtnHandler(CMenuCustomLobby* thisptr, int 
         return;
     }
 
-    if (room->gameFilesHash != getNetService()->getGameFilesHash()) {
+    if (room->gameFilesHash != CNetCustomService::get()->getGameFilesHash()) {
         auto message{getInterfaceText(textIds().lobby.checkFilesFailed.c_str())};
         if (message.empty()) {
             message =
@@ -439,7 +439,7 @@ void __fastcall CMenuCustomLobby::joinBtnHandler(CMenuCustomLobby* thisptr, int 
     }
 
     if (room->password.empty()) {
-        getNetService()->joinRoom(room->id);
+        CNetCustomService::get()->joinRoom(room->id);
         thisptr->showWaitDialog();
     } else {
         // Store selected room info because the room list can be updated while the dialog is shown
@@ -473,13 +473,13 @@ void __fastcall CMenuCustomLobby::sendBtnHandler(CMenuCustomLobby* thisptr, int 
 void __fastcall CMenuCustomLobby::roomsUpdateEventCallback(CMenuCustomLobby* /*thisptr*/,
                                                            int /*%edx*/)
 {
-    getNetService()->searchRooms();
+    CNetCustomService::get()->searchRooms();
 }
 
 void __fastcall CMenuCustomLobby::usersUpdateEventCallback(CMenuCustomLobby* /*thisptr*/,
                                                            int /*%edx*/)
 {
-    getNetService()->queryOnlineUsers();
+    CNetCustomService::get()->queryOnlineUsers();
 }
 
 void __fastcall CMenuCustomLobby::chatMessageRegenEventCallback(CMenuCustomLobby* thisptr,
@@ -1143,7 +1143,7 @@ void CMenuCustomLobby::joinServer(SLNet::RoomDescriptor* roomDescriptor)
 
     const auto& midgardApi = CMidgardApi::get();
 
-    auto service = getNetService();
+    auto service = CNetCustomService::get();
     CNetCustomSession* session = nullptr;
     CNetCustomSessEnum sessEnum{getRoomModerator(roomDescriptor->roomMemberList)->guid,
                                 roomDescriptor->GetProperty(DefaultRoomColumns::TC_ROOM_NAME)->c};
@@ -1214,7 +1214,7 @@ void CMenuCustomLobby::sendChatMessage()
         return;
     }
 
-    getNetService()->sendChatMessage(message);
+    CNetCustomService::get()->sendChatMessage(message);
     editBoxApi.setString(editBoxChat, "");
     --m_chatMessageStock;
 }
@@ -1312,17 +1312,17 @@ void CMenuCustomLobby::PeerCallback::onPacketReceived(DefaultMessageIDTypes type
 {
     switch (type) {
     case ID_LOBBY_CHAT_MESSAGE: {
-        m_menu->addChatMessage(getNetService()->readChatMessage(packet));
+        m_menu->addChatMessage(CNetCustomService::get()->readChatMessage(packet));
         break;
     }
 
     case ID_LOBBY_GET_ONLINE_USERS_RESPONSE: {
-        m_menu->updateUsers(getNetService()->readOnlineUsers(packet));
+        m_menu->updateUsers(CNetCustomService::get()->readOnlineUsers(packet));
         break;
     }
 
     case ID_LOBBY_GET_CHAT_MESSAGES_RESPONSE: {
-        m_menu->updateChat(getNetService()->readChatMessages(packet));
+        m_menu->updateChat(CNetCustomService::get()->readChatMessages(packet));
         break;
     }
     }
@@ -1377,7 +1377,7 @@ void CMenuCustomLobby::RoomsCallback::SearchByFilter_Callback(
     }
 
     default: {
-        if (!getNetService()->loggedIn()) {
+        if (!CNetCustomService::get()->loggedIn()) {
             // The error is expected, just silently remove the search event
             game::UiEventApi::get().destructor(&m_menu->m_roomsUpdateEvent);
             break;
@@ -1454,7 +1454,7 @@ void __fastcall CMenuCustomLobby::CRoomPasswordInterf::okBtnHandler(CRoomPasswor
 {
     auto menu = thisptr->m_menu;
     if (menu->m_joiningRoomPassword == getEditBoxText(*thisptr->dialog, "EDIT_PASSWORD")) {
-        getNetService()->joinRoom(menu->m_joiningRoomId);
+        CNetCustomService::get()->joinRoom(menu->m_joiningRoomId);
         menu->hideRoomPasswordDialog();
         menu->showWaitDialog();
     } else {

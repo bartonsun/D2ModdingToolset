@@ -39,7 +39,7 @@ void __fastcall midgardStartMenuMessageCallbackHooked(game::CMidgard* thisptr,
     const auto& midgardApi = CMidgardApi::get();
     const auto& menuPhaseApi = CMenuPhaseApi::get();
 
-    auto service = getNetService();
+    auto service = CNetCustomService::get();
     bool isLoggedInCustomLobby = service && service->loggedIn();
     if (isLoggedInCustomLobby) {
         midgardApi.clearNetworkState(thisptr);
