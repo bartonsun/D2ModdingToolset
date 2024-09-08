@@ -26,9 +26,13 @@
 
 namespace game {
 
-struct CNetMsgMapEntry;
 struct NetMsgCallbacks;
 struct CMenuPhase;
+
+template <typename T>
+struct CNetMsgMapEntryT;
+struct CNetMsgMapEntryVftable;
+using CNetMsgMapEntry = CNetMsgMapEntryT<CNetMsgMapEntryVftable>;
 
 struct NetMsgEntryNode
 {

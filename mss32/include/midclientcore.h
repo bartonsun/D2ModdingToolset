@@ -30,7 +30,11 @@ struct CMidCommandQueue2;
 struct CoreCommandUpdate;
 struct CCommandCanIgnore;
 struct CMidHotseatManager;
-struct CNetMsg;
+
+template <typename T>
+struct CNetMsgT;
+struct CNetMsgVftable;
+using CNetMsg = CNetMsgT<CNetMsgVftable>;
 
 struct CMidClientCoreData
 {

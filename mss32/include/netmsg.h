@@ -60,16 +60,13 @@ static constexpr std::uint32_t broadcastNetPlayerId{0};
 static constexpr std::uint32_t serverNetPlayerId{1};
 static constexpr std::uint32_t singleNetPlayerId{0xffffff};
 
-template <typename T = CNetMsgVftable>
+template <typename T>
 struct CNetMsgT
 {
     const T* vftable;
 };
 
-struct CNetMsg : public CNetMsgT<>
-{ };
-
-assert_size(CNetMsg, 4);
+using CNetMsg = CNetMsgT<CNetMsgVftable>;
 
 struct CNetMsgVftable
 {

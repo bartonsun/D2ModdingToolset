@@ -193,6 +193,7 @@ struct Rtti
     BaseClassDescriptor* CMidSiteDescriptor;
     BaseClassDescriptor* CNetMsgDescriptor;
     BaseClassDescriptor* CNetMsgMapEntryDescriptor;
+    BaseClassDescriptor* CCommandMsgDescriptor;
 };
 
 const Rtti& rtti();

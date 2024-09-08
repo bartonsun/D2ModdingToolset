@@ -122,6 +122,7 @@ static const std::array<Rtti, 4> types = {{
         (BaseClassDescriptor*)0x71ffb0, // CMidSiteDescriptor
         (BaseClassDescriptor*)0x6f6dd0, // CNetMsgDescriptor
         (BaseClassDescriptor*)0x6f7338, // CNetMsgMapEntryDescriptor
+        (BaseClassDescriptor*)0x6f7a68, // CCommandMsgDescriptor
     },
     // Russobit
     Rtti{
@@ -189,6 +190,7 @@ static const std::array<Rtti, 4> types = {{
         (BaseClassDescriptor*)0x71ffb0, // CMidSiteDescriptor
         (BaseClassDescriptor*)0x6f6dd0, // CNetMsgDescriptor
         (BaseClassDescriptor*)0x6f7338, // CNetMsgMapEntryDescriptor
+        (BaseClassDescriptor*)0x6f7a68, // CCommandMsgDescriptor
     },
     // Gog
     Rtti{
@@ -256,6 +258,7 @@ static const std::array<Rtti, 4> types = {{
         (BaseClassDescriptor*)0x71df18, // CMidSiteDescriptor
         (BaseClassDescriptor*)0x6f4d38, // CNetMsgDescriptor
         (BaseClassDescriptor*)0x6f52a0, // CNetMsgMapEntryDescriptor
+        (BaseClassDescriptor*)0x6f59d0, // CCommandMsgDescriptor
     },
     // Scenario Editor
     Rtti{
@@ -323,6 +326,7 @@ static const std::array<Rtti, 4> types = {{
         (BaseClassDescriptor*)0x5f6cc8, // CMidSiteDescriptor
         (BaseClassDescriptor*)nullptr,  // CNetMsgDescriptor
         (BaseClassDescriptor*)nullptr,  // CNetMsgMapEntryDescriptor
+        (BaseClassDescriptor*)nullptr, // CCommandMsgDescriptor
     },
 }};
 

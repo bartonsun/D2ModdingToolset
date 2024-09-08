@@ -26,20 +26,22 @@
 namespace game {
 
 struct NetMessageHeader;
-struct CNetMsg;
 struct CNetMsgMapEntryVftable;
 struct CMenusAnsInfoMsg;
 struct CGameVersionMsg;
 
 template <typename T>
+struct CNetMsgT;
+struct CNetMsgVftable;
+using CNetMsg = CNetMsgT<CNetMsgVftable>;
+
+/** Base class for net message map entries. */
+template <typename T>
 struct CNetMsgMapEntryT
 {
     T* vftable;
 };
-
-/** Base class for net message map entries. */
-struct CNetMsgMapEntry : public CNetMsgMapEntryT<CNetMsgMapEntryVftable>
-{ };
+using CNetMsgMapEntry = CNetMsgMapEntryT<CNetMsgMapEntryVftable>;
 
 struct CNetMsgMapEntryVftable
 {

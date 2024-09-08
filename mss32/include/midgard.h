@@ -46,10 +46,14 @@ struct IMqNetPlayerClient;
 struct IMqNetSystem;
 struct CMidgardMsgBox;
 struct NetMsgCallbacks;
-struct CNetMsg;
 struct GameImageDataWrapper;
 struct MQDBDataWrapper;
 struct CMidStart;
+
+template <typename T>
+struct CNetMsgT;
+struct CNetMsgVftable;
+using CNetMsg = CNetMsgT<CNetMsgVftable>;
 
 template <typename T>
 struct CInterfaceT;

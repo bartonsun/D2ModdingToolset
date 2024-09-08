@@ -27,19 +27,27 @@ namespace game::CCommandMsgApi {
 static std::array<Api, 4> functions = {{
     // Akella
     Api{
+        (Api::Constructor)0x47b60f,
         (Api::Destructor)0x47b64d,
+        (Api::Serialize)0x47f663,
     },
     // Russobit
     Api{
+        (Api::Constructor)0x47b60f,
         (Api::Destructor)0x47b64d,
+        (Api::Serialize)0x47f663,
     },
     // Gog
     Api{
+        (Api::Constructor)0x47b146,
         (Api::Destructor)0x47b184,
+        (Api::Serialize)0x47b1df,
     },
     // Scenario Editor
     Api{
+        (Api::Constructor)nullptr,
         (Api::Destructor)nullptr,
+        (Api::Serialize)nullptr,
     },
 }};
 // clang-format on

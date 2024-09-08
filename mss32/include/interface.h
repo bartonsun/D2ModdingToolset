@@ -43,7 +43,6 @@ struct CInterfaceT
     T* vftable;
     CInterfaceData* interfaceData;
 };
-
 using CInterface = CInterfaceT<CInterfaceVftable>;
 using CursorHandlePtr = SmartPtr<CursorHandle>;
 using TooltipPtr = SmartPtr<Tooltip>;

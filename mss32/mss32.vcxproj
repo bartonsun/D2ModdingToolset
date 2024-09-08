@@ -242,6 +242,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\buildingtype.cpp" />
     <ClCompile Include="src\chatinterf.cpp" />
     <ClCompile Include="src\citystackinterfhooks.cpp" />
+    <ClCompile Include="src\cmdmovestackendmsg.cpp" />
     <ClCompile Include="src\customaibattle.cpp" />
     <ClCompile Include="src\custombuildingcategories.cpp" />
     <ClCompile Include="src\customunitencyclopedia.cpp" />
@@ -765,6 +766,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\buildingtype.h" />
     <ClInclude Include="include\chatinterf.h" />
     <ClInclude Include="include\citystackinterfhooks.h" />
+    <ClInclude Include="include\cmdmovestackendmsg.h" />
     <ClInclude Include="include\cmdstackvisitmsg.h" />
     <ClInclude Include="include\customaibattle.h" />
     <ClInclude Include="include\custombuildingcategories.h" />
