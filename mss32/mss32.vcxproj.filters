@@ -1520,6 +1520,9 @@
     <ClCompile Include="src\cmdmovestackendmsg.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\netmsgmapentrycmdmovestackendmsg.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3812,6 +3815,9 @@
       <Filter>game</Filter>
     </ClInclude>
     <ClInclude Include="include\cmdmovestackendmsg.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\netmsgmapentrycmdmovestackendmsg.h">
       <Filter>hooks</Filter>
     </ClInclude>
   </ItemGroup>
