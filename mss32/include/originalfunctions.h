@@ -51,6 +51,7 @@
 #include "midevcondition.h"
 #include "mideveffect.h"
 #include "midevent.h"
+#include "midgard.h"
 #include "midgardscenariomap.h"
 #include "midmsgsender.h"
 #include "midserverlogic.h"
@@ -204,6 +205,8 @@ struct OriginalFunctions
     game::GetNobleActionResultDescription getNobleActionResultDescription;
 
     game::GlobalVariablesApi::Api::Constructor globalVariablesCtor;
+
+    game::CMidgardApi::Api::ClearNetworkState midgardClearNetworkState;
 };
 
 OriginalFunctions& getOriginalFunctions();

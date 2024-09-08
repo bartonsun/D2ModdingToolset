@@ -592,7 +592,7 @@ void __fastcall CNetCustomService::joinSession(CNetCustomService* thisptr,
     *netSession = session;
 }
 
-void __fastcall CNetCustomService::peerProcessEventCallback(CNetCustomService* /*thisptr*/,
+void __fastcall CNetCustomService::peerProcessEventCallback(const CNetCustomService* /*thisptr*/,
                                                             int /*%edx*/)
 {
     auto service = get();
@@ -647,6 +647,11 @@ const std::string& CNetCustomService::getGameFilesHash()
 CNetCustomService::UserInfo CNetCustomService::getUserInfo() const
 {
     return {getPeerGuid(), getUserName().c_str()};
+}
+
+void CNetCustomService::processPeerMessages() const
+{
+    peerProcessEventCallback(this, 0);
 }
 
 void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,

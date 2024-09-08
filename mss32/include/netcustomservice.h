@@ -119,6 +119,7 @@ public:
               PacketPriority priority) const;
     const std::string& getGameFilesHash();
     UserInfo getUserInfo() const;
+    void processPeerMessages() const;
 
     bool registerAccount(const char* userName, const char* password);
     bool login(const char* userName, const char* password);
@@ -264,7 +265,7 @@ private:
                                   SLNet::RoomDescriptor* roomDescriptor = nullptr) const;
     };
 
-    static void __fastcall peerProcessEventCallback(CNetCustomService* thisptr, int /*%edx*/);
+    static void __fastcall peerProcessEventCallback(const CNetCustomService* thisptr, int /*%edx*/);
     std::vector<NetPeerCallback*> getPeerCallbacks() const;
 
     bool m_connected;

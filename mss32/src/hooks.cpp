@@ -418,6 +418,7 @@ static Hooks getGameHooks()
         {fn.computeMovementCost, computeMovementCostHooked},
         // Support custom lobby
         {CMidgardApi::get().startMenuMessageCallback, midgardStartMenuMessageCallbackHooked},
+        {CMidgardApi::get().clearNetworkState, midgardClearNetworkStateHooked, (void**)&orig.midgardClearNetworkState},
         {CMenuPhaseApi::get().transitionToMainOrCloseGame, menuPhaseTransitionToMainOrCloseGameHooked, (void**)&orig.menuPhaseTransitionToMainOrCloseGame},
         {CMenuMainApi::get().createMenu, menuMainCreateMenuHooked},
         {CMenuLoadApi::get().createServer, menuLoadCreateServerHooked, (void**)&orig.menuLoadCreateServer},

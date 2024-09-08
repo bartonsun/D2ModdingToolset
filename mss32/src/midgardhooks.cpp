@@ -26,6 +26,7 @@
 #include "midgard.h"
 #include "midstart.h"
 #include "netcustomservice.h"
+#include "originalfunctions.h"
 
 namespace hooks {
 
@@ -87,6 +88,18 @@ void __fastcall midgardStartMenuMessageCallbackHooked(game::CMidgard* thisptr,
         menuPhaseApi.switchToGameSpy(menuPhase);
     } else {
         menuPhaseApi.transitionToMain(menuPhase, true);
+    }
+}
+
+void __fastcall midgardClearNetworkStateHooked(game::CMidgard* thisptr, int /*%edx*/)
+{
+    getOriginalFunctions().midgardClearNetworkState(thisptr);
+
+    // Make sure that there are no peer messages remain to process.
+    // Though it does not guarantee that a new ones will not arrive shortly after.
+    auto service = CNetCustomService::get();
+    if (service) {
+        service->processPeerMessages();
     }
 }
 
