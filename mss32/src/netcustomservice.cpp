@@ -580,7 +580,7 @@ void __fastcall CNetCustomService::joinSession(CNetCustomService* thisptr,
                                                int /*%edx*/,
                                                game::IMqNetSession** netSession,
                                                CNetCustomSessEnum* netSessionEnum,
-                                               const char* /* password */)
+                                               const char* /*password*/)
 {
     logDebug("lobby.log",
              fmt::format(__FUNCTION__ ": session name = {:s}", netSessionEnum->sessionName));
@@ -592,9 +592,19 @@ void __fastcall CNetCustomService::joinSession(CNetCustomService* thisptr,
     *netSession = session;
 }
 
-void __fastcall CNetCustomService::peerProcessEventCallback(CNetCustomService* thisptr,
+void __fastcall CNetCustomService::peerProcessEventCallback(CNetCustomService* /*thisptr*/,
                                                             int /*%edx*/)
 {
+    auto service = get();
+    if (!service) {
+        // MSDN: "The KillTimer function does not remove WM_TIMER messages already posted to the
+        // message queue." Thus we can end up crashing if WM_TIMER is processed after service
+        // destruction.
+        logDebug("lobby.log",
+                 __FUNCTION__ ": preventing processing callback after service destruction");
+        return;
+    }
+
     static bool processing = false;
     if (processing) {
         // Any callback can possibly process window messages that can contain WM_TIMER of this event
@@ -603,12 +613,12 @@ void __fastcall CNetCustomService::peerProcessEventCallback(CNetCustomService* t
     }
     processing = true;
 
-    auto peer{thisptr->m_peer};
+    auto peer{service->m_peer};
     for (auto packet = peer->Receive(); packet != nullptr;
          peer->DeallocatePacket(packet), packet = peer->Receive()) {
 
         auto type = static_cast<DefaultMessageIDTypes>(packet->data[0]);
-        auto callbacks = thisptr->getPeerCallbacks();
+        auto callbacks = service->getPeerCallbacks();
         for (auto& callback : callbacks) {
             callback->onPacketReceived(type, peer, packet);
         }
