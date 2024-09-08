@@ -53,7 +53,8 @@ struct CMidObjectLock : public CMidDataCache2::INotify
     int pendingLocalUpdates;
     /**
      * Incremented each time the client sends network message to a server.
-     * See calls of CPhaseGameIncrementNetworkUpdates
+     * See calls of CPhaseGameIncrementNetworkUpdates.
+     * Set to 0 on any call to CMidDataCache2::INotify::OnObjectChanged.
      */
     int pendingNetworkUpdates;
     /** True when CTaskAskExportLeader is in process. */
