@@ -595,6 +595,14 @@ void __fastcall CNetCustomService::joinSession(CNetCustomService* thisptr,
 void __fastcall CNetCustomService::peerProcessEventCallback(CNetCustomService* thisptr,
                                                             int /*%edx*/)
 {
+    static bool processing = false;
+    if (processing) {
+        // Any callback can possibly process window messages that can contain WM_TIMER of this event
+        logDebug("lobby.log", __FUNCTION__ ": preventing processing callback re-entry");
+        return;
+    }
+    processing = true;
+
     auto peer{thisptr->m_peer};
     for (auto packet = peer->Receive(); packet != nullptr;
          peer->DeallocatePacket(packet), packet = peer->Receive()) {
@@ -605,6 +613,7 @@ void __fastcall CNetCustomService::peerProcessEventCallback(CNetCustomService* t
             callback->onPacketReceived(type, peer, packet);
         }
     }
+    processing = false;
 }
 
 std::vector<NetPeerCallback*> CNetCustomService::getPeerCallbacks() const
