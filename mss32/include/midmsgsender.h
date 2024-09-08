@@ -45,18 +45,22 @@ struct IMidMsgSenderVftable
     SendObjectsChanges sendObjectsChanges;
 
     /** Sets player id to the message and calls 'sendMessage'. */
-    using SendPlayerMessage = int(__thiscall*)(IMidMsgSender* thisptr,
-                                               CCommandMsg* commandMsg,
-                                               const CMidgardID* playerId,
-                                               char a4);
+    using SendPlayerMessage = bool(__thiscall*)(IMidMsgSender* thisptr,
+                                                CCommandMsg* commandMsg,
+                                                const CMidgardID* playerId,
+                                                bool sendBeforeObjectsChanges);
     SendPlayerMessage sendPlayerMessage;
 
     /**
      * Sends command message.
      * CMidServerLogic checks for player info, message queue
      * and command message type before sending.
+     * Calls sendObjectsChanges before or after sending the message (depends on
+     * sendBeforeObjectsChanges parameter).
      */
-    using SendMessage = int(__thiscall*)(IMidMsgSender* thisptr, CCommandMsg* commandMsg, char a3);
+    using SendMessage = bool(__thiscall*)(IMidMsgSender* thisptr,
+                                          CCommandMsg* commandMsg,
+                                          bool sendBeforeObjectsChanges);
     SendMessage sendMessage;
 
     /** Starts battle between two unit groups. */
