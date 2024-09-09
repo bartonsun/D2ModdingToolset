@@ -30,24 +30,28 @@ static std::array<Api, 4> functions = {{
         (Api::Constructor)0x47b60f,
         (Api::Destructor)0x47b64d,
         (Api::Serialize)0x47f663,
+        (Api::Create)0x47b9ba,
     },
     // Russobit
     Api{
         (Api::Constructor)0x47b60f,
         (Api::Destructor)0x47b64d,
         (Api::Serialize)0x47f663,
+        (Api::Create)0x47b9ba,
     },
     // Gog
     Api{
         (Api::Constructor)0x47b146,
         (Api::Destructor)0x47b184,
         (Api::Serialize)0x47b1df,
+        (Api::Create)0x47b538,
     },
     // Scenario Editor
     Api{
         (Api::Constructor)nullptr,
         (Api::Destructor)nullptr,
         (Api::Serialize)nullptr,
+        (Api::Create)nullptr,
     },
 }};
 // clang-format on

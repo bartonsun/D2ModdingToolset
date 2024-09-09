@@ -148,6 +148,9 @@ struct Api
 
     using Serialize = void(__thiscall*)(CCommandMsg* thisptr, CMqStream* stream);
     Serialize serialize;
+
+    using Create = CCommandMsg*(__stdcall*)(CommandMsgId id);
+    Create create;
 };
 
 Api& get();

@@ -22,9 +22,12 @@
 #include "cmdbattleendmsg.h"
 #include "cmdbattleresultmsg.h"
 #include "cmdbattlestartmsg.h"
+#include "cmdmovestackendmsg.h"
 #include "dynamiccast.h"
+#include "mempool.h"
 #include "netmsgutils.h"
 #include "originalfunctions.h"
+#include <new>
 
 namespace hooks {
 
@@ -105,6 +108,20 @@ void __fastcall commandMsgDtorHooked(game::CCommandMsg* thisptr, int /*%edx*/)
     }
 
     getOriginalFunctions().commandMsgDtor(thisptr);
+}
+
+game::CCommandMsg* __stdcall commandMsgCreateHooked(game::CommandMsgId id)
+{
+    using namespace game;
+
+    switch (id) {
+    case CommandMsgId::MoveStackEnd: {
+        auto msg = (CCmdMoveStackEndMsg*)Memory::get().allocate(sizeof(CCmdMoveStackEndMsg));
+        return new (msg) CCmdMoveStackEndMsg();
+    }
+    default:
+        return getOriginalFunctions().commandMsgCreate(id);
+    }
 }
 
 } // namespace hooks

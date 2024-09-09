@@ -465,6 +465,7 @@ static Hooks getGameHooks()
         {fn.getNobleActionResultDescription, getNobleActionResultDescriptionHooked, (void**)&orig.getNobleActionResultDescription},
         // Fix network desync issues
         {CMidCommandQueue2Api::get().netMsgMapConstructor, netMsgMapConstructorHooked, (void**)&orig.netMsgMapConstructor},
+        {CCommandMsgApi::get().create, commandMsgCreateHooked, (void**)&orig.commandMsgCreate},
     };
     // clang-format on
 
