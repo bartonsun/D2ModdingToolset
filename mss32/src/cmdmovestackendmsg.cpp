@@ -148,9 +148,10 @@ bool __fastcall CCmdMoveStackEndMsg::canIgnore(const CCmdMoveStackEndMsg* thispt
                                                const game::IdList* playerIds,
                                                const game::CMidgardID* currentPlayerId)
 {
-    // Looks like its always false for any command message
-    // TODO: if need arises, we can check if the stack belongs to currentPlayerId (return true if
-    // not)
+    // Looks like its always false for any command message.
+    // If need arises, we can check if the stack belongs to currentPlayerId (return true if
+    // not). Note that we should get playerId from the message, not look into objectMap to see who
+    // the stack belongs (because the stack can change ownership during movement as event effect).
     return false;
 }
 
