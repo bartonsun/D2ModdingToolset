@@ -48,6 +48,7 @@
 #include "menunewskirmishmulti.h"
 #include "menunewskirmishsingle.h"
 #include "menuphase.h"
+#include "midcommandqueue2.h"
 #include "midevcondition.h"
 #include "mideveffect.h"
 #include "midevent.h"
@@ -207,6 +208,8 @@ struct OriginalFunctions
     game::GlobalVariablesApi::Api::Constructor globalVariablesCtor;
 
     game::CMidgardApi::Api::ClearNetworkState midgardClearNetworkState;
+
+    game::CMidCommandQueue2Api::Api::NMMapConstructor netMsgMapConstructor;
 };
 
 OriginalFunctions& getOriginalFunctions();

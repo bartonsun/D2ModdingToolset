@@ -1523,6 +1523,9 @@
     <ClCompile Include="src\netmsgmapentrycmdmovestackendmsg.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\midcommandqueue2hooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3818,6 +3821,9 @@
       <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\netmsgmapentrycmdmovestackendmsg.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midcommandqueue2hooks.h">
       <Filter>hooks</Filter>
     </ClInclude>
   </ItemGroup>

@@ -69,7 +69,8 @@ struct CNetMsgMapEntry_memberVftable;
  */
 struct CNetMsgMapEntry_member : public CNetMsgMapEntryT<CNetMsgMapEntry_memberVftable>
 {
-    void* data;
+    /** This can be CMidCommandQueue2::CNMMap*, CMidClient*, CMidServerLogic*, etc. */
+    void* callbackThisptr;
 
     using Callback = bool(__thiscall*)(void* thisptr, CNetMsg* netMessage, std::uint32_t idFrom);
     Callback callback;

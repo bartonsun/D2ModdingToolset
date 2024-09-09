@@ -26,7 +26,9 @@
 
 namespace hooks {
 
-CNetMsgMapEntryCmdMoveStackEndMsg::CNetMsgMapEntryCmdMoveStackEndMsg()
+CNetMsgMapEntryCmdMoveStackEndMsg::CNetMsgMapEntryCmdMoveStackEndMsg(
+    void* callbackThisptr,
+    CNetMsgMapEntry_member::Callback callback)
 {
     using namespace game;
 
@@ -41,6 +43,9 @@ CNetMsgMapEntryCmdMoveStackEndMsg::CNetMsgMapEntryCmdMoveStackEndMsg()
         rttiInfo.vftable.runCallback = (CNetMsgMapEntry_memberVftable::RunCallback)&runCallback;
     }
     this->vftable = &rttiInfo.vftable;
+
+    this->callbackThisptr = callbackThisptr;
+    this->callback = callback;
 }
 
 CNetMsgMapEntryCmdMoveStackEndMsg::~CNetMsgMapEntryCmdMoveStackEndMsg()
@@ -150,7 +155,7 @@ bool __fastcall CNetMsgMapEntryCmdMoveStackEndMsg::runCallback(
     std::uint32_t idFrom,
     std::uint32_t playerNetId)
 {
-    return thisptr->callback(thisptr->data, netMessage, idFrom);
+    return thisptr->callback(thisptr->callbackThisptr, netMessage, idFrom);
 }
 
 } // namespace hooks

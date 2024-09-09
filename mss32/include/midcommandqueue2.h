@@ -21,6 +21,7 @@
 #define MIDCOMMANDQUEUE2_H
 
 #include "idlist.h"
+#include "netmsgmapentry.h"
 #include "uievent.h"
 
 namespace game {
@@ -29,6 +30,7 @@ struct CCommandMsg;
 struct CoreCommandUpdate;
 struct CCommandCanIgnore;
 struct NetMsgEntryData;
+struct NetMsgCallbacks;
 
 struct CMidCommandQueue2
 {
@@ -88,6 +90,15 @@ struct Api
 {
     using ProcessCommands = void(__thiscall*)(CMidCommandQueue2* thisptr);
     ProcessCommands processCommands;
+
+    using NMMapConstructor =
+        CMidCommandQueue2::CNMMap*(__thiscall*)(CMidCommandQueue2::CNMMap* thisptr,
+                                                NetMsgCallbacks** netCallbacks,
+                                                CMidCommandQueue2* commandQueue);
+    NMMapConstructor netMsgMapConstructor;
+
+    /** Checks the message and adds it to CMidCommandQueue2::commandsList. */
+    CNetMsgMapEntry_member::Callback netMsgMapQueueMessageCallback;
 };
 
 Api& get();

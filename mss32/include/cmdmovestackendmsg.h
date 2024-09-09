@@ -21,6 +21,7 @@
 #define CMDMOVESTACKENDMSG_H
 
 #include "commandmsg.h"
+#include "d2assert.h"
 
 namespace game {
 struct TypeDescriptor;
@@ -58,7 +59,7 @@ namespace hooks {
  * 12. Finally, the client receives CCmdBattleStartMsg while already being in battle and happily
  * crashes to desktop
  */
-struct CCmdMoveStackEndMsg : public game::CCommandMsg
+class CCmdMoveStackEndMsg : public game::CCommandMsg
 {
 public:
     CCmdMoveStackEndMsg();
@@ -86,6 +87,8 @@ protected:
                                      const game::IdList* playerIds,
                                      const game::CMidgardID* currentPlayerId);
 };
+
+assert_offset(CCmdMoveStackEndMsg, vftable, 0);
 
 } // namespace hooks
 

@@ -341,6 +341,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\midautodlgimages.cpp" />
     <ClCompile Include="src\midautodlgimageshooks.cpp" />
     <ClCompile Include="src\midcommandqueue2.cpp" />
+    <ClCompile Include="src\midcommandqueue2hooks.cpp" />
     <ClCompile Include="src\middatacache.cpp" />
     <ClCompile Include="src\middiplomacy.cpp" />
     <ClCompile Include="src\middragdropinterf.cpp" />
@@ -802,6 +803,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\midautodlgimages.h" />
     <ClInclude Include="include\midautodlgimageshooks.h" />
     <ClInclude Include="include\globalvariableshooks.h" />
+    <ClInclude Include="include\midcommandqueue2hooks.h" />
     <ClInclude Include="include\midcrystal.h" />
     <ClInclude Include="include\middiplomacy.h" />
     <ClInclude Include="include\midgardhooks.h" />

@@ -73,7 +73,7 @@ static bool __fastcall runCallback(CNetMsgMapEntryExchangeResources* thisptr,
                                    std::uint32_t idFrom,
                                    std::uint32_t)
 {
-    return thisptr->callback(thisptr->data, netMessage, idFrom);
+    return thisptr->callback(thisptr->callbackThisptr, netMessage, idFrom);
 }
 
 static game::TypeDescriptor* getNetMsgMapEntryExchangeResourcesTypeDescriptor()
@@ -161,7 +161,7 @@ game::CNetMsgMapEntry_member* createNetMsgMapEntryExchangeResourcesMsg(
     }
 
     entry->vftable = &getMsgRttiInfo().vftable;
-    entry->data = serverLogic;
+    entry->callbackThisptr = serverLogic;
     entry->callback = callback;
 
     return entry;

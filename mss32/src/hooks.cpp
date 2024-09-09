@@ -128,6 +128,7 @@
 #include "menuphasehooks.h"
 #include "midautodlgimages.h"
 #include "midautodlgimageshooks.h"
+#include "midcommandqueue2hooks.h"
 #include "middatacache.h"
 #include "midevconditionhooks.h"
 #include "mideveffecthooks.h"
@@ -462,6 +463,8 @@ static Hooks getGameHooks()
         {fn.getSiteNobleActions, getSiteNobleActionsHooked, (void**)&orig.getSiteNobleActions},
         {fn.getPossibleNobleActions, getPossibleNobleActionsHooked, (void**)&orig.getPossibleNobleActions},
         {fn.getNobleActionResultDescription, getNobleActionResultDescriptionHooked, (void**)&orig.getNobleActionResultDescription},
+        // Fix network desync issues
+        {CMidCommandQueue2Api::get().netMsgMapConstructor, netMsgMapConstructorHooked, (void**)&orig.netMsgMapConstructor},
     };
     // clang-format on
 

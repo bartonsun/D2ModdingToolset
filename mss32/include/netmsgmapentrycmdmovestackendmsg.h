@@ -29,10 +29,10 @@ struct CompleteObjectLocator;
 
 namespace hooks {
 
-struct CNetMsgMapEntryCmdMoveStackEndMsg : public game::CNetMsgMapEntry_member
+class CNetMsgMapEntryCmdMoveStackEndMsg : public game::CNetMsgMapEntry_member
 {
 public:
-    CNetMsgMapEntryCmdMoveStackEndMsg();
+    CNetMsgMapEntryCmdMoveStackEndMsg(void* callbackThisptr, CNetMsgMapEntry_member::Callback callback);
     ~CNetMsgMapEntryCmdMoveStackEndMsg();
 
 protected:
@@ -58,6 +58,8 @@ protected:
                                        std::uint32_t idFrom,
                                        std::uint32_t playerNetId);
 };
+
+assert_offset(CNetMsgMapEntryCmdMoveStackEndMsg, vftable, 0);
 
 } // namespace hooks
 

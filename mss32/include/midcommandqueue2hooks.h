@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2024 Vladimir Makeev.
+ * Copyright (C) 2024 Stanislav Egorov.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,38 +17,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef MIDCOMMANDQUEUE2HOOKS_H
+#define MIDCOMMANDQUEUE2HOOKS_H
+
 #include "midcommandqueue2.h"
-#include "version.h"
-#include <array>
 
-namespace game::CMidCommandQueue2Api {
+namespace hooks {
 
-// clang-format off
-static std::array<Api, 3> functions = {{
-    // Akella
-    Api{
-        (Api::ProcessCommands)0x410678,
-        (Api::NMMapConstructor)0x40fd60,
-        (CNetMsgMapEntry_member::Callback)0x4102b0,
-    },
-    // Russobit
-    Api{
-        (Api::ProcessCommands)0x410678,
-        (Api::NMMapConstructor)0x40fd60,
-        (CNetMsgMapEntry_member::Callback)0x4102b0,
-    },
-    // Gog
-    Api{
-        (Api::ProcessCommands)0x410236,
-        (Api::NMMapConstructor)0x40f91e,
-        (CNetMsgMapEntry_member::Callback)0x40fe6e,
-    }
-}};
-// clang-format on
+game::CMidCommandQueue2::CNMMap* __fastcall netMsgMapConstructorHooked(
+    game::CMidCommandQueue2::CNMMap* thisptr,
+    int /*%edx*/,
+    game::NetMsgCallbacks** netCallbacks,
+    game::CMidCommandQueue2* commandQueue);
 
-Api& get()
-{
-    return functions[static_cast<int>(hooks::gameVersion())];
-}
+} // namespace hooks
 
-} // namespace game::CMidCommandQueue2Api
+#endif // MIDCOMMANDQUEUE2HOOKS_H
