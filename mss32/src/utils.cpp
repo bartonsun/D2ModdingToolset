@@ -26,8 +26,8 @@
 #include "midgardobjectmap.h"
 #include "midmsgboxbuttonhandlerstd.h"
 #include "midscenvariables.h"
-#include "smartptr.h"
 #include "mquikernelsimple.h"
+#include "smartptr.h"
 #include "sounds.h"
 #include "uimanager.h"
 #include <Windows.h>
@@ -364,7 +364,7 @@ std::uint32_t createMessageEvent(game::UiEvent* messageEvent,
     return messageId;
 }
 
-std::string computeHash(const std::vector<std::filesystem::path>& folders)
+std::string computeHash(std::vector<std::filesystem::path> filenames)
 {
     struct HashGuard
     {
@@ -378,18 +378,6 @@ std::string computeHash(const std::vector<std::filesystem::path>& folders)
         HCRYPTPROV provider{};
         HCRYPTHASH hash{};
     };
-
-    std::vector<std::filesystem::path> filenames;
-    for (const auto& folder : folders) {
-        if (!std::filesystem::is_directory(folder)) {
-            continue;
-        }
-        for (const auto& entry : std::filesystem::recursive_directory_iterator(folder)) {
-            if (entry.is_regular_file()) {
-                filenames.push_back(entry.path());
-            }
-        }
-    }
 
     std::sort(filenames.begin(), filenames.end());
 

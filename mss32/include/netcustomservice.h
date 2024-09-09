@@ -29,6 +29,7 @@
 #include <PacketPriority.h>
 #include <RakPeerInterface.h>
 #include <RoomsPlugin.h>
+#include <filesystem>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -118,6 +119,7 @@ public:
               const SLNet::RakNetGUID& to,
               PacketPriority priority) const;
     const std::string& getGameFilesHash();
+    std::vector<std::filesystem::path> getGameFilesToHash() const;
     UserInfo getUserInfo() const;
     void processPeerMessages() const;
 

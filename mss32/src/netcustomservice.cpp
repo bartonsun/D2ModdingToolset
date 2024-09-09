@@ -28,6 +28,7 @@
 #include "textids.h"
 #include "utils.h"
 #include <MessageIdentifiers.h>
+#include <array>
 #include <fmt/format.h>
 #include <mutex>
 
@@ -635,13 +636,47 @@ std::vector<NetPeerCallback*> CNetCustomService::getPeerCallbacks() const
 const std::string& CNetCustomService::getGameFilesHash()
 {
     if (m_gameFilesHash.empty()) {
-        m_gameFilesHash = computeHash({globalsFolder(), scriptsFolder()});
+        m_gameFilesHash = computeHash(getGameFilesToHash());
         if (m_gameFilesHash.empty()) {
             logDebug("lobby.log", __FUNCTION__ ": failed to compute hash of game files");
         }
     }
 
     return m_gameFilesHash;
+}
+
+std::vector<std::filesystem::path> CNetCustomService::getGameFilesToHash() const
+{
+    std::vector<std::filesystem::path> result{{gameFolder() / "mss32.dll"}};
+
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(globalsFolder())) {
+        if (!entry.is_regular_file()) {
+            continue;
+        }
+
+        static const std::array<std::filesystem::path, 4> excludeGlobals{
+            {globalsFolder() / "Tglobal.dbf", globalsFolder() / "TAiMsg.dbf",
+             globalsFolder() / "Tleader.dbf", globalsFolder() / "Tplayer.dbf"}};
+        if (std::find_if(excludeGlobals.begin(), excludeGlobals.end(),
+                         [&entry](const std::filesystem::path& excluded) {
+                             return std::filesystem::equivalent(excluded, entry);
+                         })
+            != excludeGlobals.end()) {
+            continue;
+        }
+
+        result.push_back(entry.path());
+    }
+
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(scriptsFolder())) {
+        if (!entry.is_regular_file()) {
+            continue;
+        }
+
+        result.push_back(entry.path());
+    }
+
+    return result;
 }
 
 CNetCustomService::UserInfo CNetCustomService::getUserInfo() const
