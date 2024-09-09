@@ -31,6 +31,7 @@ static std::array<Api, 3> functions = {{
         (Api::ShowDialog)0x4889d8,
         (Api::CreateToggleButtonFunctor)0x48c5d7,
         (Api::HandleCmdStackVisitMsg)0x48b62f,
+        (Api::CommandQueueCallback)0x48985f,
     },
     // Russobit
     Api{
@@ -38,6 +39,7 @@ static std::array<Api, 3> functions = {{
         (Api::ShowDialog)0x4889d8,
         (Api::CreateToggleButtonFunctor)0x48c5d7,
         (Api::HandleCmdStackVisitMsg)0x48b62f,
+        (Api::CommandQueueCallback)0x48985f,
     },
     // Gog
     Api{
@@ -45,6 +47,7 @@ static std::array<Api, 3> functions = {{
         (Api::ShowDialog)0x4885c1,
         (Api::CreateToggleButtonFunctor)0x48c19d,
         (Api::HandleCmdStackVisitMsg)0x48b218,
+        (Api::CommandQueueCallback)0x489448,
     },
 }};
 // clang-format on

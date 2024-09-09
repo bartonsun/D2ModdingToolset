@@ -141,6 +141,8 @@
 #include "midgardstreamenv.h"
 #include "midmsgboxbuttonhandlerstd.h"
 #include "midmusic.h"
+#include "midobjectlock.h"
+#include "midobjectlockhooks.h"
 #include "midplayer.h"
 #include "midscenvariables.h"
 #include "midserverlogic.h"
@@ -164,6 +166,7 @@
 #include "objectinterfhooks.h"
 #include "originalfunctions.h"
 #include "phasegame.h"
+#include "phasegamehooks.h"
 #include "playerbuildings.h"
 #include "playerincomehooks.h"
 #include "racecategory.h"
@@ -466,6 +469,9 @@ static Hooks getGameHooks()
         // Fix network desync issues
         {CMidCommandQueue2Api::get().netMsgMapConstructor, netMsgMapConstructorHooked, (void**)&orig.netMsgMapConstructor},
         {CCommandMsgApi::get().create, commandMsgCreateHooked, (void**)&orig.commandMsgCreate},
+        {CMainView2Api::get().commandQueueCallback, mainView2CommandQueueCallbackHooked, (void**)&orig.mainView2CommandQueueCallback},
+        {CMidObjectLockApi::get().constructor, midObjectLockCtorHooked, (void**)&orig.midObjectLockCtor},
+        {CPhaseGameApi::get().checkObjectLock, phaseGameCheckObjectLockHooked},
     };
     // clang-format on
 

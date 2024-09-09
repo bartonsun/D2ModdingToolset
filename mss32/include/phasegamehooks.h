@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2022 Vladimir Makeev.
+ * Copyright (C) 2024 Stanislav Egorov.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,24 +17,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MAINVIEW2HOOKS_H
-#define MAINVIEW2HOOKS_H
+#ifndef PHASEGAMEHOOKS_H
+#define PHASEGAMEHOOKS_H
 
 namespace game {
-struct CMainView2;
-struct CCommandMsg;
+struct CPhaseGame;
 } // namespace game
 
 namespace hooks {
 
-void __fastcall mainView2ShowIsoDialogHooked(game::CMainView2* thisptr, int /*%edx*/);
-
-void __fastcall mainView2HandleCmdStackVisitMsgHooked(game::CMainView2* thisptr,
-                                                      int /*%edx*/,
-                                                      const game::CCommandMsg* stackVisitMsg);
-
-void __fastcall mainView2CommandQueueCallbackHooked(game::CMainView2* thisptr, int /*%edx*/);
+bool __fastcall phaseGameCheckObjectLockHooked(game::CPhaseGame* thisptr, int /*%edx*/);
 
 } // namespace hooks
 
-#endif // MAINVIEW2HOOKS_H
+#endif // PHASEGAMEHOOKS_H

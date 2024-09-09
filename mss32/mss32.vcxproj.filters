@@ -1526,6 +1526,18 @@
     <ClCompile Include="src\midcommandqueue2hooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\midobjectlock.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midobjectlockhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\phasegame.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\phasegamehooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3824,6 +3836,12 @@
       <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\midcommandqueue2hooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midobjectlockhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\phasegamehooks.h">
       <Filter>hooks</Filter>
     </ClInclude>
   </ItemGroup>

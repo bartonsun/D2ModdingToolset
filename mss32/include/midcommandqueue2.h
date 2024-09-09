@@ -99,6 +99,10 @@ struct Api
 
     /** Checks the message and adds it to CMidCommandQueue2::commandsList. */
     CNetMsgMapEntry_member::Callback netMsgMapQueueMessageCallback;
+
+    /** Accesses the first message in the queue. Returns nullptr if there are no messages. */
+    using Front = CCommandMsg*(__thiscall*)(CMidCommandQueue2* thisptr);
+    Front front;
 };
 
 Api& get();

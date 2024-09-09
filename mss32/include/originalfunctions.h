@@ -55,6 +55,7 @@
 #include "midgard.h"
 #include "midgardscenariomap.h"
 #include "midmsgsender.h"
+#include "midobjectlock.h"
 #include "midserverlogic.h"
 #include "midunit.h"
 #include "mqnetplayer.h"
@@ -197,6 +198,7 @@ struct OriginalFunctions
     game::CScenEditApi::Api::ReadScenData readScenData;
 
     game::CMainView2Api::Api::HandleCmdStackVisitMsg handleCmdStackVisitMsg;
+    game::CMainView2Api::Api::CommandQueueCallback mainView2CommandQueueCallback;
 
     game::CMidServerLogicApi::Api::Constructor midServerLogicCtor;
 
@@ -211,6 +213,8 @@ struct OriginalFunctions
 
     game::CMidCommandQueue2Api::Api::NMMapConstructor netMsgMapConstructor;
     game::CCommandMsgApi::Api::Create commandMsgCreate;
+
+    game::CMidObjectLockApi::Api::Constructor midObjectLockCtor;
 };
 
 OriginalFunctions& getOriginalFunctions();

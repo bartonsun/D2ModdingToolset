@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2022 Vladimir Makeev.
+ * Copyright (C) 2024 Stanislav Egorov.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,24 +17,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MAINVIEW2HOOKS_H
-#define MAINVIEW2HOOKS_H
+#ifndef MIDOBJECTLOCKHOOKS_H
+#define MIDOBJECTLOCKHOOKS_H
 
 namespace game {
-struct CMainView2;
-struct CCommandMsg;
+struct CMidObjectLock;
+struct CMidCommandQueue2;
+struct CMidDataCache2;
 } // namespace game
 
 namespace hooks {
 
-void __fastcall mainView2ShowIsoDialogHooked(game::CMainView2* thisptr, int /*%edx*/);
-
-void __fastcall mainView2HandleCmdStackVisitMsgHooked(game::CMainView2* thisptr,
-                                                      int /*%edx*/,
-                                                      const game::CCommandMsg* stackVisitMsg);
-
-void __fastcall mainView2CommandQueueCallbackHooked(game::CMainView2* thisptr, int /*%edx*/);
+game::CMidObjectLock* __fastcall midObjectLockCtorHooked(game::CMidObjectLock* thisptr,
+                                                         int /*%edx*/,
+                                                         game::CMidCommandQueue2* commandQueue,
+                                                         game::CMidDataCache2* dataCache);
 
 } // namespace hooks
 
-#endif // MAINVIEW2HOOKS_H
+#endif // MIDOBJECTLOCKHOOKS_H

@@ -357,6 +357,8 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\midgardhooks.cpp" />
     <ClCompile Include="src\midgardmapfog.cpp" />
     <ClCompile Include="src\midgardscenariomap.cpp" />
+    <ClCompile Include="src\midobjectlock.cpp" />
+    <ClCompile Include="src\midobjectlockhooks.cpp" />
     <ClCompile Include="src\midserver.cpp" />
     <ClCompile Include="src\midserverlogichooks.cpp" />
     <ClCompile Include="src\midsite.cpp" />
@@ -382,6 +384,8 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\objectinterf.cpp" />
     <ClCompile Include="src\objectinterfhooks.cpp" />
     <ClCompile Include="src\paperdollchildinterf.cpp" />
+    <ClCompile Include="src\phasegame.cpp" />
+    <ClCompile Include="src\phasegamehooks.cpp" />
     <ClCompile Include="src\resourcemarketinterface.cpp" />
     <ClCompile Include="src\resourcetype.cpp" />
     <ClCompile Include="src\scenarioobjectstreams.cpp" />
@@ -910,6 +914,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\midmsgboxupdatehandler.h" />
     <ClInclude Include="include\miditemext.h" />
     <ClInclude Include="include\midobjectlock.h" />
+    <ClInclude Include="include\midobjectlockhooks.h" />
     <ClInclude Include="include\midpopupinterf.h" />
     <ClInclude Include="include\midrod.h" />
     <ClInclude Include="include\midserverlogichooks.h" />
@@ -939,6 +944,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\objectinterf.h" />
     <ClInclude Include="include\objectinterfhooks.h" />
     <ClInclude Include="include\paperdollchildinterf.h" />
+    <ClInclude Include="include\phasegamehooks.h" />
     <ClInclude Include="include\playerlistentry.h" />
     <ClInclude Include="include\quickstring.h" />
     <ClInclude Include="include\refreshinfo.h" />

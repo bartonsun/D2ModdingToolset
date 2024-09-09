@@ -70,6 +70,19 @@ struct CPhaseGame : public CMidCommandQueue2::INotifyCQ
 assert_size(CPhaseGame, 20);
 assert_offset(CPhaseGame, phase, 8);
 
+namespace CPhaseGameApi {
+
+struct Api
+{
+    /** Returns true if CMidObjectLock is locked, preventing some player actions. */
+    using CheckObjectLock = bool(__thiscall*)(CPhaseGame* thisptr);
+    CheckObjectLock checkObjectLock;
+};
+
+Api& get();
+
+} // namespace CPhaseGameApi
+
 } // namespace game
 
 #endif // PHASEGAME_H

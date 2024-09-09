@@ -102,6 +102,9 @@ struct Api
     using HandleCmdStackVisitMsg = void(__thiscall*)(CMainView2* thisptr,
                                                      const CCommandMsg* stackVisitMsg);
     HandleCmdStackVisitMsg handleCmdStackVisitMsg;
+
+    using CommandQueueCallback = void(__thiscall*)(CMainView2* thisptr);
+    CommandQueueCallback commandQueueCallback;
 };
 
 Api& get();

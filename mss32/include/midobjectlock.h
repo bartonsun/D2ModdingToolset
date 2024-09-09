@@ -57,14 +57,50 @@ struct CMidObjectLock : public CMidDataCache2::INotify
      * Set to 0 on any call to CMidDataCache2::INotify::OnObjectChanged.
      */
     int pendingNetworkUpdates;
-    /** True when CTaskAskExportLeader is in process. */
-    bool exportingLeader;
-    char padding[3];
+    union
+    {
+        struct
+        {
+            /** True when CTaskAskExportLeader is in process. */
+            bool exportingLeader;
+            char padding[3];
+        } original;
+        struct
+        {
+            bool exportingLeader;
+            /**
+             * Prevents possible client desync while server is processing all effects for
+             * CStackMoveMsg, meanwhile sending separate messages like CCmdMoveStackMsg,
+             * CCmdBattleStartMsg, etc.
+             * Set on sending CStackMoveMsg to server.
+             * Reset on receiving CCmdMoveStackEndMsg back.
+             */
+            bool movingStack;
+            char padding[2];
+        } patched;
+    };
 };
 
 assert_size(CMidObjectLock, 32);
 assert_size(CMidObjectLock::Notify1, 16);
 assert_size(CMidObjectLock::Notify2, 16);
+
+namespace CMidObjectLockApi {
+
+struct Api
+{
+    using Constructor = CMidObjectLock*(__thiscall*)(CMidObjectLock* thisptr,
+                                                     CMidCommandQueue2* commandQueue,
+                                                     CMidDataCache2* dataCache);
+    Constructor constructor;
+
+    using Destructor = void(__thiscall*)(CMidObjectLock* thisptr);
+    Destructor destructor;
+};
+
+Api& get();
+
+} // namespace CMidObjectLockApi
 
 } // namespace game
 

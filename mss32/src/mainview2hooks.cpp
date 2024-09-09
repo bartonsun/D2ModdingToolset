@@ -27,7 +27,10 @@
 #include "log.h"
 #include "mainview2.h"
 #include "mapgraphics.h"
+#include "midclient.h"
+#include "midclientcore.h"
 #include "midcommandqueue2.h"
+#include "midobjectlock.h"
 #include "midsite.h"
 #include "midtaskopeninterfparamresmarket.h"
 #include "originalfunctions.h"
@@ -174,6 +177,27 @@ void __fastcall mainView2HandleCmdStackVisitMsgHooked(game::CMainView2* thisptr,
     CMidCommandQueue2Api::get().processCommands(commandQueue);
 
     CTaskManagerApi::get().setCurrentTask(taskManager, task);
+}
+
+void __fastcall mainView2CommandQueueCallbackHooked(game::CMainView2* thisptr, int /*%edx*/)
+{
+    using namespace game;
+
+    const auto& phaseApi = CPhaseApi::get();
+    const auto& commandQueueApi = CMidCommandQueue2Api::get();
+
+    auto commandQueue = phaseApi.getCommandQueue(&thisptr->phaseGame->phase);
+    auto message = commandQueueApi.front(commandQueue);
+    if (message) {
+        auto messageId = message->vftable->getId(message);
+        if (messageId == CommandMsgId::MoveStackEnd) {
+            thisptr->phaseGame->data->midObjectLock->patched.movingStack = false;
+            commandQueueApi.processCommands(commandQueue);
+            return;
+        }
+    }
+
+    return getOriginalFunctions().mainView2CommandQueueCallback(thisptr);
 }
 
 } // namespace hooks
