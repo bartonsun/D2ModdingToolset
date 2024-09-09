@@ -432,7 +432,6 @@ static Hooks getGameHooks()
         {battle.aiChooseBattleAction, aiChooseBattleActionHooked, (void**)&orig.aiChooseBattleAction},
         // Profile and speed up events system
         {serverLogic.applyEventEffectsAndCheckMidEventTriggerers, applyEventEffectsAndCheckMidEventTriggerersHooked, (void**)&orig.applyEventEffectsAndCheckMidEventTriggerers},
-        {serverLogic.stackMove, stackMoveHooked, (void**)&orig.stackMove},
         {serverLogic.filterAndProcessEventsNoPlayer, filterAndProcessEventsNoPlayerHooked, (void**)&orig.filterAndProcessEventsNoPlayer},
         {serverLogic.filterAndProcessEvents, filterAndProcessEventsHooked, (void**)&orig.filterAndProcessEvents},
         {serverLogic.checkEventConditions, checkEventConditionsHooked, (void**)&orig.checkEventConditions},
@@ -472,6 +471,8 @@ static Hooks getGameHooks()
         {CMainView2Api::get().commandQueueCallback, mainView2CommandQueueCallbackHooked, (void**)&orig.mainView2CommandQueueCallback},
         {CMidObjectLockApi::get().constructor, midObjectLockCtorHooked, (void**)&orig.midObjectLockCtor},
         {CPhaseGameApi::get().checkObjectLock, phaseGameCheckObjectLockHooked},
+        {CPhaseGameApi::get().sendStackMoveMsg, phaseGameSendStackMoveMsgHooked},
+        {serverLogic.stackMove, stackMoveHooked, (void**)&orig.stackMove},
     };
     // clang-format on
 

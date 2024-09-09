@@ -537,6 +537,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\sounds.cpp" />
     <ClCompile Include="src\spinbuttoninterf.cpp" />
     <ClCompile Include="src\stackbattleactionmsg.cpp" />
+    <ClCompile Include="src\stackmovemsg.cpp" />
     <ClCompile Include="src\stacktemplatecache.cpp" />
     <ClCompile Include="src\streambits.cpp" />
     <ClCompile Include="src\streamutils.cpp" />
@@ -1264,6 +1265,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\sounds.h" />
     <ClInclude Include="include\soundsystemsample.h" />
     <ClInclude Include="include\soundsystemstream.h" />
+    <ClInclude Include="include\stackmovemsg.h" />
     <ClInclude Include="include\stacktemplatecache.h" />
     <ClInclude Include="include\streambits.h" />
     <ClInclude Include="include\streamholder.h" />

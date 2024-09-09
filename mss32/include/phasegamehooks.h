@@ -20,13 +20,26 @@
 #ifndef PHASEGAMEHOOKS_H
 #define PHASEGAMEHOOKS_H
 
+#include "d2list.h"
+#include "d2pair.h"
+
 namespace game {
+struct CMidgardID;
+struct CMqPoint;
 struct CPhaseGame;
 } // namespace game
 
 namespace hooks {
 
 bool __fastcall phaseGameCheckObjectLockHooked(game::CPhaseGame* thisptr, int /*%edx*/);
+
+void __fastcall phaseGameSendStackMoveMsgHooked(
+    game::CPhaseGame* thisptr,
+    int /*%edx*/,
+    const game::CMidgardID* stackId,
+    const game::List<game::Pair<game::CMqPoint, int>>* movementPath,
+    const game::CMqPoint* startPosition,
+    const game::CMqPoint* endPosition);
 
 } // namespace hooks
 

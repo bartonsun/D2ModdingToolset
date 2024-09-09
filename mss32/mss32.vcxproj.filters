@@ -1538,6 +1538,9 @@
     <ClCompile Include="src\phasegamehooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\stackmovemsg.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3843,6 +3846,9 @@
     </ClInclude>
     <ClInclude Include="include\phasegamehooks.h">
       <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stackmovemsg.h">
+      <Filter>game</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

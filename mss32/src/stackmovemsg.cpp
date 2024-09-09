@@ -17,33 +17,37 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "phasegame.h"
+#include "stackmovemsg.h"
 #include "version.h"
 #include <array>
 
-namespace game::CPhaseGameApi {
+namespace game::CStackMoveMsgApi {
 
 // clang-format off
 static std::array<Api, 4> functions = {{
     // Akella
     Api{
-        (Api::CheckObjectLock)0x4078b7,
-        (Api::SendStackMoveMsg)0x40650f,
+        (Api::Constructor)0x47ef10,
+        (Api::Constructor2)0x47ef6f,
+        (Api::Destructor)0x406574,
     },
     // Russobit
     Api{
-        (Api::CheckObjectLock)0x4078b7,
-        (Api::SendStackMoveMsg)0x40650f,
+        (Api::Constructor)0x47ef10,
+        (Api::Constructor2)0x47ef6f,
+        (Api::Destructor)0x406574,
     },
     // Gog
     Api{
-        (Api::CheckObjectLock)0x40753e,
-        (Api::SendStackMoveMsg)0x40619b,
+        (Api::Constructor)0x47eada,
+        (Api::Constructor2)0x47eb39,
+        (Api::Destructor)0x406200,
     },
     // Scenario Editor
     Api{
-        (Api::CheckObjectLock)nullptr,
-        (Api::SendStackMoveMsg)nullptr,
+        (Api::Constructor)nullptr,
+        (Api::Constructor2)nullptr,
+        (Api::Destructor)nullptr,
     },
 }};
 // clang-format on
@@ -53,4 +57,4 @@ Api& get()
     return functions[static_cast<int>(hooks::gameVersion())];
 }
 
-} // namespace game::CPhaseGameApi
+} // namespace game::CStackMoveMsgApi

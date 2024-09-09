@@ -18,8 +18,11 @@
  */
 
 #include "phasegamehooks.h"
+#include "midclient.h"
+#include "midgard.h"
 #include "midobjectlock.h"
 #include "phasegame.h"
+#include "stackmovemsg.h"
 
 namespace hooks {
 
@@ -34,6 +37,36 @@ bool __fastcall phaseGameCheckObjectLockHooked(game::CPhaseGame* thisptr, int /*
     }
 
     return lock->pendingLocalUpdates || lock->pendingNetworkUpdates;
+}
+
+void __fastcall phaseGameSendStackMoveMsgHooked(
+    game::CPhaseGame* thisptr,
+    int /*%edx*/,
+    const game::CMidgardID* stackId,
+    const game::List<game::Pair<game::CMqPoint, int>>* movementPath,
+    const game::CMqPoint* startPosition,
+    const game::CMqPoint* endPosition)
+{
+    using namespace game;
+
+    const auto& stackMoveMsgApi = CStackMoveMsgApi::get();
+
+    auto* data = thisptr->data;
+    if (!data->clientTakesTurn) {
+        return;
+    }
+
+    ++data->midObjectLock->pendingNetworkUpdates;
+    data->midObjectLock->patched.movingStack = true;
+
+    CStackMoveMsg message;
+    stackMoveMsgApi.constructor2(&message, stackId, movementPath, startPosition, endPosition);
+
+    CMidClient* client = data->midClient;
+    CMidgard* midgard = client->core.data->midgard;
+    CMidgardApi::get().sendNetMsgToServer(midgard, &message);
+
+    stackMoveMsgApi.destructor(&message);
 }
 
 } // namespace hooks

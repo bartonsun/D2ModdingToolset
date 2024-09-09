@@ -20,6 +20,8 @@
 #ifndef PHASEGAME_H
 #define PHASEGAME_H
 
+#include "d2list.h"
+#include "d2pair.h"
 #include "interfmanager.h"
 #include "midcommandqueue2.h"
 #include "middatacache.h"
@@ -35,6 +37,7 @@ struct MapGraphics;
 struct IIsoCBScroll;
 struct CCityDisplay;
 struct CMidAnim2System;
+struct CMqPoint;
 
 struct CPhaseGameData
 {
@@ -77,6 +80,13 @@ struct Api
     /** Returns true if CMidObjectLock is locked, preventing some player actions. */
     using CheckObjectLock = bool(__thiscall*)(CPhaseGame* thisptr);
     CheckObjectLock checkObjectLock;
+
+    using SendStackMoveMsg = void(__thiscall*)(CPhaseGame* thisptr,
+                                               const CMidgardID* stackId,
+                                               const List<Pair<CMqPoint, int>>* movementPath,
+                                               const CMqPoint* startPosition,
+                                               const CMqPoint* endPosition);
+    SendStackMoveMsg sendStackMoveMsg;
 };
 
 Api& get();

@@ -18,6 +18,7 @@
  */
 
 #include "midserverlogichooks.h"
+#include "cmdmovestackendmsg.h"
 #include "dynamiccast.h"
 #include "exchangeresourcesmsg.h"
 #include "gameutils.h"
@@ -231,8 +232,22 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
     const ScopedTimer timer{std::string_view{message, result.size}, eventsPerformanceLog};
 #endif
 
-    return getOriginalFunctions().stackMove(thisptr, playerId, movementPath, stackId, startingPoint,
-                                            endPoint);
+    auto result = getOriginalFunctions().stackMove(thisptr, playerId, movementPath, stackId,
+                                                   startingPoint, endPoint);
+
+    // We can actually fall into battle message loop while processing stack move. This means that we
+    // will be holding player's CMidObjectLock until battle ends. Should not be a problem since the
+    // player will be switched to the battlefield and won't be able to interract with mid objects
+    // anyway (but if turned out that this is a problem, we can send CCmdMoveStackEndMsg right after
+    // CCmdBattleStartMsg and alike).
+    // The same applies to other effects like event triggers.
+    IMidMsgSender* sender = *thisptr;
+    CCmdMoveStackEndMsg message;
+    if (!sender->vftable->sendMessage(sender, &message, true)) {
+        logError("mss32Proxy.log", __FUNCTION__ ": failed to send CCmdMoveStackEndMsg");
+    }
+
+    return result;
 }
 
 bool __stdcall filterAndProcessEventsNoPlayerHooked(game::IMidgardObjectMap* objectMap,
