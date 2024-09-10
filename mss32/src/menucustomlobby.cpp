@@ -428,24 +428,25 @@ void __fastcall CMenuCustomLobby::joinBtnHandler(CMenuCustomLobby* thisptr, int 
         return;
     }
 
-    if (room->gameFilesHash != CNetCustomService::get()->getGameFilesHash()) {
+    // Show wait dialog right away because game files hashing can be lengthy
+    thisptr->showWaitDialog();
+    const auto& gameFilesHash = CNetCustomService::get()->getGameFilesHash();
+    if (room->gameFilesHash != gameFilesHash) {
         auto message{getInterfaceText(textIds().lobby.checkFilesFailed.c_str())};
         if (message.empty()) {
             message =
                 "Unable to join the room because the owner's game version or files are different.";
         }
+        thisptr->hideWaitDialog();
         showMessageBox(message);
-        return;
-    }
-
-    if (room->password.empty()) {
-        CNetCustomService::get()->joinRoom(room->id);
-        thisptr->showWaitDialog();
-    } else {
+    } else if (!room->password.empty()) {
         // Store selected room info because the room list can be updated while the dialog is shown
         thisptr->m_joiningRoomId = room->id;
         thisptr->m_joiningRoomPassword = room->password;
+        thisptr->hideWaitDialog();
         thisptr->showRoomPasswordDialog();
+    } else {
+        CNetCustomService::get()->joinRoom(room->id);
     }
 }
 

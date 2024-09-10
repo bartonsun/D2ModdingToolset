@@ -30,6 +30,7 @@
 #include "midgardmsgbox.h"
 #include "netcustomservice.h"
 #include "popupdialoginterf.h"
+#include "textids.h"
 #include "utils.h"
 
 namespace hooks {
@@ -126,6 +127,30 @@ void CMenuCustomBase::setUserNameToEditName()
     // editBoxApi.setEditable is bugged - it switches input focus to a next control even if the
     // current control is not focused
     editName->data->editable = false;
+}
+
+bool CMenuCustomBase::createRoom(const char* gameName,
+                                 const char* scenarioName,
+                                 const char* scenarioDescription,
+                                 const char* password)
+{
+    // Showing wait dialog right away because requesting room creation might be lengthy because of
+    // game files hashing
+    showWaitDialog();
+
+    if (!CNetCustomService::get()->createRoom(gameName, scenarioName, scenarioDescription,
+                                              password)) {
+        logDebug("lobby.log", "Failed to request room creation");
+        auto msg{getInterfaceText(textIds().lobby.createRoomRequestFailed.c_str())};
+        if (msg.empty()) {
+            msg = "Could not request to create a room from the lobby server.";
+        }
+        hideWaitDialog();
+        showMessageBox(msg);
+        return false;
+    }
+
+    return true;
 }
 
 CMenuCustomBase::CPopupDialogCustomBase::CPopupDialogCustomBase(game::CPopupDialogInterf* dialog,

@@ -50,6 +50,10 @@ protected:
     void hideWaitDialog();
     void onConnectionLost();
     void setUserNameToEditName();
+    bool createRoom(const char* gameName,
+                    const char* scenarioName,
+                    const char* scenarioDescription,
+                    const char* password);
 
     class CPopupDialogCustomBase
     {

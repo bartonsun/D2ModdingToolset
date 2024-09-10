@@ -67,20 +67,8 @@ void CMenuCustomRandomScenarioMulti::createRoomAndServer(CMenuCustomRandomScenar
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(menu);
     auto phaseData = menu->menuBaseData->menuPhase->data;
-    if (!CNetCustomService::get()->createRoom(getEditBoxText(dialog, "EDIT_GAME"),
-                                              phaseData->scenarioName,
-                                              phaseData->scenarioDescription,
-                                              getEditBoxText(dialog, "EDIT_PASSWORD"))) {
-        logDebug("lobby.log", "Failed to request room creation");
-        auto msg{getInterfaceText(textIds().lobby.createRoomRequestFailed.c_str())};
-        if (msg.empty()) {
-            msg = "Could not request to create a room from the lobby server.";
-        }
-        showMessageBox(msg);
-        return;
-    }
-
-    menu->showWaitDialog();
+    menu->createRoom(getEditBoxText(dialog, "EDIT_GAME"), phaseData->scenarioName,
+                     phaseData->scenarioDescription, getEditBoxText(dialog, "EDIT_PASSWORD"));
 }
 
 void __fastcall CMenuCustomRandomScenarioMulti::destructor(CMenuCustomRandomScenarioMulti* thisptr,

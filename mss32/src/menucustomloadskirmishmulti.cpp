@@ -72,19 +72,8 @@ void CMenuCustomLoadSkirmishMulti::createRoomAndServer()
 
     auto vftable = (CMenuLoadVftable*)((CMenuBase*)this)->vftable;
     auto phaseData = this->menuBaseData->menuPhase->data;
-    if (!CNetCustomService::get()->createRoom(vftable->getGameName(this), phaseData->scenarioName,
-                                              phaseData->scenarioDescription,
-                                              vftable->getPassword(this))) {
-        logDebug("lobby.log", "Failed to request room creation");
-        auto msg{getInterfaceText(textIds().lobby.createRoomRequestFailed.c_str())};
-        if (msg.empty()) {
-            msg = "Could not request to create a room from the lobby server.";
-        }
-        showMessageBox(msg);
-        return;
-    }
-
-    showWaitDialog();
+    createRoom(vftable->getGameName(this), phaseData->scenarioName, phaseData->scenarioDescription,
+               vftable->getPassword(this));
 }
 
 void __fastcall CMenuCustomLoadSkirmishMulti::destructor(CMenuCustomLoadSkirmishMulti* thisptr,
