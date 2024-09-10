@@ -69,7 +69,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <ModuleDefinitionFile>module.def</ModuleDefinitionFile>
-      <AdditionalDependencies>$(SolutionDir)Lib\SLikeNet_LibStatic_Debug_Win32.lib;ws2_32.lib;$(SolutionDir)$(Configuration)\ScenarioGenerator.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)Lib\SLikeNet_LibStatic_Debug_Win32.lib;$(SolutionDir)ScenarioGenerator\ScenarioGenerator.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command>if not exist detours.lib (
@@ -100,7 +100,7 @@ call ..\buildDetours.bat ..\Detours
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <ModuleDefinitionFile>module.def</ModuleDefinitionFile>
-      <AdditionalDependencies>$(SolutionDir)Lib\SLikeNet_LibStatic_Release_Win32.lib;ws2_32.lib;$(SolutionDir)$(Configuration)\ScenarioGenerator.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)Lib\SLikeNet_LibStatic_Release_Win32.lib;$(SolutionDir)ScenarioGenerator\ScenarioGenerator.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command>if not exist detours.lib (
