@@ -16,5 +16,4 @@
 	branch = disciples2-lobby
 [submodule "D2RSG"]
 	path = D2RSG
-	url = https://github.com/VladimirMakeev/D2RSG.git
-	branch = master
+	url = https://github.com/UnveN/D2RSG.git
