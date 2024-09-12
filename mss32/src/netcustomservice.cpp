@@ -130,6 +130,7 @@ const std::string& CNetCustomService::getUserName() const
 
 bool CNetCustomService::connected() const
 {
+    // TODO: try m_peer->GetConnectionState(getLobbyGuid()) == SLNet::ConnectionState::IS_CONNECTED
     return m_connected;
 }
 
