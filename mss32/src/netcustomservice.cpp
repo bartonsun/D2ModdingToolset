@@ -615,6 +615,7 @@ void __fastcall CNetCustomService::peerProcessEventCallback(const CNetCustomServ
     }
     processing = true;
 
+    logDebug("lobby.log", __FUNCTION__);
     auto peer{service->m_peer};
     for (auto packet = peer->Receive(); packet != nullptr;
          peer->DeallocatePacket(packet), packet = peer->Receive()) {
@@ -722,6 +723,9 @@ void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes typ
         break;
     case ID_LOBBY2_SERVER_ERROR:
         logDebug("lobby.log", __FUNCTION__ ": lobby server error");
+        break;
+    case ID_ROOMS_EXECUTE_FUNC:
+        logDebug("lobby.log", __FUNCTION__ ": room function executed");
         break;
     default:
         // Log user messages explicitly to avoid cluttering the log
