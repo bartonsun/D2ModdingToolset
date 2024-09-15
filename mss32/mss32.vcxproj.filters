@@ -1541,6 +1541,9 @@
     <ClCompile Include="src\stackmovemsg.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\netcustompeer.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3849,6 +3852,9 @@
     </ClInclude>
     <ClInclude Include="include\stackmovemsg.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\netcustompeer.h">
+      <Filter>features\lobby</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

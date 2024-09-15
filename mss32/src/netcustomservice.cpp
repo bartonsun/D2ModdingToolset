@@ -22,10 +22,13 @@
 #include "mempool.h"
 #include "midgard.h"
 #include "mqnetservice.h"
+#include "mquikernel.h"
+#include "netcustompeer.h"
 #include "netcustomsession.h"
 #include "netmsg.h"
 #include "settings.h"
 #include "textids.h"
+#include "uimanager.h"
 #include "utils.h"
 #include <MessageIdentifiers.h>
 #include <array>
@@ -44,7 +47,8 @@ game::IMqNetServiceVftable CNetCustomService::g_vftable = {
 
 CNetCustomService* CNetCustomService::create()
 {
-    auto peer = SLNet::RakPeerInterface::GetInstance();
+    auto peer = new CNetCustomPeer(peerProcessMessageName);
+    // auto peer = SLNet::RakPeerInterface::GetInstance();
     peer->SetTimeoutTime(CNetCustomService::peerTimeout, SLNet::UNASSIGNED_SYSTEM_ADDRESS);
 
     const auto& lobbySettings = userSettings().lobby;
@@ -85,7 +89,7 @@ CNetCustomService* CNetCustomService::get()
     return nullptr;
 }
 
-CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
+CNetCustomService::CNetCustomService(CNetCustomPeer* peer)
     : m_peer(peer)
     , m_connected(false)
     , m_session(nullptr)
@@ -96,8 +100,14 @@ CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
 
     vftable = &g_vftable;
 
-    createTimerEvent(&m_peerProcessEvent, this, peerProcessEventCallback, peerProcessInterval);
+    // TODO: separate peers for lobby client, server and client players.
+    // TODO: process server peer packets directly in server thread.
+    // TODO: process players peer packets right inside IMqNetPlayer::ReceiveMessage.
+    // Replacing peer queue constant polling (WM_TIMER) with notification message for better
+    // efficiency
+    // createTimerEvent(&m_peerProcessEvent, this, peerProcessEventCallback, peerProcessInterval);
     addPeerCallback(&m_peerCallback);
+    createMessageEvent(&m_peerProcessEvent, this, peerProcessEventCallback, peerProcessMessageName);
 
     m_lobbyClient.SetMessageFactory(&m_lobbyMsgFactory);
     m_lobbyClient.SetCallbackInterface(&m_lobbyCallback);
@@ -106,16 +116,19 @@ CNetCustomService::CNetCustomService(SLNet::RakPeerInterface* peer)
 
     m_peer->AttachPlugin(&m_lobbyClient);
     m_peer->AttachPlugin(&m_roomsClient);
+
+    // TODO: proper order of peer init? create peer after callback is set
+    m_peer->ResetPacketNotification();
 }
 
 CNetCustomService::~CNetCustomService()
 {
     logDebug("lobby.log", __FUNCTION__);
 
-    game::UiEventApi::get().destructor(&m_peerProcessEvent);
-
     m_peer->Shutdown(peerShutdownTimeout);
     SLNet::RakPeerInterface::DestroyInstance(m_peer);
+
+    game::UiEventApi::get().destructor(&m_peerProcessEvent);
 }
 
 CNetCustomSession* CNetCustomService::getSession() const
@@ -595,8 +608,12 @@ void __fastcall CNetCustomService::joinSession(CNetCustomService* thisptr,
 }
 
 void __fastcall CNetCustomService::peerProcessEventCallback(const CNetCustomService* /*thisptr*/,
-                                                            int /*%edx*/)
+                                                            int /*%edx*/,
+                                                            unsigned int,
+                                                            long)
 {
+    logDebug("lobby.log", __FUNCTION__);
+
     auto service = get();
     if (!service) {
         // MSDN: "The KillTimer function does not remove WM_TIMER messages already posted to the
@@ -613,10 +630,9 @@ void __fastcall CNetCustomService::peerProcessEventCallback(const CNetCustomServ
         logDebug("lobby.log", __FUNCTION__ ": preventing processing callback re-entry");
         return;
     }
-    processing = true;
 
-    logDebug("lobby.log", __FUNCTION__);
-    auto peer{service->m_peer};
+    processing = true;
+    auto peer = service->m_peer;
     for (auto packet = peer->Receive(); packet != nullptr;
          peer->DeallocatePacket(packet), packet = peer->Receive()) {
 
@@ -627,6 +643,7 @@ void __fastcall CNetCustomService::peerProcessEventCallback(const CNetCustomServ
         }
     }
     processing = false;
+    peer->ResetPacketNotification();
 }
 
 std::vector<NetPeerCallback*> CNetCustomService::getPeerCallbacks() const
@@ -688,7 +705,7 @@ CNetCustomService::UserInfo CNetCustomService::getUserInfo() const
 
 void CNetCustomService::processPeerMessages() const
 {
-    peerProcessEventCallback(this, 0);
+    peerProcessEventCallback(this, 0, 0, 0);
 }
 
 void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,

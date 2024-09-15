@@ -31,6 +31,7 @@ namespace game {
 struct CMidMsgBoxButtonHandler;
 struct IMidgardObjectMap;
 struct UiEvent;
+struct IMqUIKernel;
 
 template <typename T>
 struct CInterfaceT;

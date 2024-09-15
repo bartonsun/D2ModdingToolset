@@ -54,6 +54,7 @@ enum ClientMessages
     ID_GAME_MESSAGE = game::netMessageNormalType & 0xff,
 };
 
+class CNetCustomPeer;
 class CNetCustomSession;
 
 class NetPeerCallback
@@ -89,7 +90,8 @@ public:
 
     static constexpr std::uint32_t peerTimeout{30000}; // !!! Keep in sync with lobby server
     static constexpr std::uint32_t peerShutdownTimeout{100};
-    static constexpr std::uint32_t peerProcessInterval{10};
+    // static constexpr std::uint32_t peerProcessInterval{10};
+    static constexpr char peerProcessMessageName[] = "MIDGARD CUSTOM LOBBY NETMSG";
     static constexpr char titleName[] = "Disciples II: Rise of the Elves";
     static constexpr char titleSecretKey[] = "TheVerySecretKey";
     static constexpr char gameFilesHashColumnName[] = "FilesHash";
@@ -106,7 +108,7 @@ public:
     /** Returns the service instance if it is set in CMidgard, otherwise returns nullptr. */
     static CNetCustomService* get();
 
-    CNetCustomService(SLNet::RakPeerInterface* peer);
+    CNetCustomService(CNetCustomPeer* peer);
     ~CNetCustomService();
 
     CNetCustomSession* getSession() const;
@@ -267,7 +269,10 @@ private:
                                   SLNet::RoomDescriptor* roomDescriptor = nullptr) const;
     };
 
-    static void __fastcall peerProcessEventCallback(const CNetCustomService* thisptr, int /*%edx*/);
+    static void __fastcall peerProcessEventCallback(const CNetCustomService* thisptr,
+                                                    int /*%edx*/,
+                                                    unsigned int,
+                                                    long);
     std::vector<NetPeerCallback*> getPeerCallbacks() const;
 
     bool m_connected;
@@ -283,7 +288,7 @@ private:
     SLNet::RoomsPlugin m_roomsClient;
     RoomsCallback m_roomsCallback;
     /** Connection with lobby server. */
-    SLNet::RakPeerInterface* m_peer;
+    CNetCustomPeer* m_peer;
     game::UiEvent m_peerProcessEvent;
     std::vector<NetPeerCallback*> m_peerCallbacks;
     mutable std::mutex m_peerCallbacksMutex;

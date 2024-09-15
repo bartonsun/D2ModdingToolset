@@ -372,6 +372,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\midunitgroupadapter.cpp" />
     <ClCompile Include="src\mqimage2surface16.cpp" />
     <ClCompile Include="src\mqpresentationmanager.cpp" />
+    <ClCompile Include="src\netcustompeer.cpp" />
     <ClCompile Include="src\netmsgmapentrycmdmovestackendmsg.cpp" />
     <ClCompile Include="src\netmsgmapentryexchangeresourcesmsg.cpp" />
     <ClCompile Include="src\netsingleplayer.cpp" />
@@ -933,6 +934,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\mqdb.h" />
     <ClInclude Include="include\mqdbpackedimage.h" />
     <ClInclude Include="include\mqnetreceptionwnd.h" />
+    <ClInclude Include="include\netcustompeer.h" />
     <ClInclude Include="include\netmsgmapentrycmdmovestackendmsg.h" />
     <ClInclude Include="include\netmsgmapentryexchangeresourcesmsg.h" />
     <ClInclude Include="include\netsingleplayer.h" />
