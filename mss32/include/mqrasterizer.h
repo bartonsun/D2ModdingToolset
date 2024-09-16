@@ -22,7 +22,8 @@
 
 #include "d2assert.h"
 #include <cstdint>
-#include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 struct IDirectDrawSurface7;
 struct IDirectDrawPalette;

@@ -30,7 +30,6 @@
 #include "game.h"
 #include "interfmanager.h"
 #include "listbox.h"
-#include "log.h"
 #include "mempool.h"
 #include "midbag.h"
 #include "midevcondition.h"
@@ -43,9 +42,11 @@
 #include "textboxinterf.h"
 #include "timer.h"
 #include "utils.h"
-#include <Windows.h>
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 #include <string>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <shellapi.h>
 
 namespace hooks {
 
@@ -737,14 +738,12 @@ bool __fastcall testScriptDoTest(const CTestScript* thisptr,
     auto env = executeScript(code, result);
     if (!result.valid()) {
         const sol::error err = result;
-        logError("mssProxyError.log",
-                 fmt::format("Failed to load scriptable event condition.\n"
-                             "Event id {:s}\n"
-                             "Description: '{:s}'\n"
-                             "Script:\n'{:s}'\n"
-                             "Reason: '{:s}'",
-                             idToString(eventId), thisptr->condition->description, code,
-                             err.what()));
+        spdlog::error("Failed to load scriptable event condition.\n"
+                      "Event id {:s}\n"
+                      "Description: '{:s}'\n"
+                      "Script:\n'{:s}'\n"
+                      "Reason: '{:s}'",
+                      idToString(eventId), thisptr->condition->description, code, err.what());
         return false;
     }
 
@@ -757,14 +756,12 @@ bool __fastcall testScriptDoTest(const CTestScript* thisptr,
     result = (*checkCondition)(scenario);
     if (!result.valid()) {
         const sol::error err = result;
-        logError("mssProxyError.log",
-                 fmt::format("Failed to execute scriptable event condition.\n"
-                             "Event id {:s}\n"
-                             "Description: '{:s}'\n"
-                             "Script:\n'{:s}'\n"
-                             "Reason: '{:s}'",
-                             idToString(eventId), thisptr->condition->description, code,
-                             err.what()));
+        spdlog::error("Failed to execute scriptable event condition.\n"
+                      "Event id {:s}\n"
+                      "Description: '{:s}'\n"
+                      "Script:\n'{:s}'\n"
+                      "Reason: '{:s}'",
+                      idToString(eventId), thisptr->condition->description, code, err.what());
         return false;
     }
 

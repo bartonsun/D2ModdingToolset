@@ -23,7 +23,6 @@
 #include "dynamiccast.h"
 #include "editboxinterf.h"
 #include "interfmanager.h"
-#include "log.h"
 #include "mempool.h"
 #include "menuflashwait.h"
 #include "menuphase.h"
@@ -32,6 +31,7 @@
 #include "popupdialoginterf.h"
 #include "textids.h"
 #include "utils.h"
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -83,7 +83,7 @@ void CMenuCustomBase::showWaitDialog()
     using namespace game;
 
     if (m_menuWait) {
-        logDebug("lobby.log", "Error showing wait dialog that is already shown");
+        spdlog::debug("Error showing wait dialog that is already shown");
         return;
     }
 
@@ -140,7 +140,7 @@ bool CMenuCustomBase::createRoom(const char* gameName,
 
     if (!CNetCustomService::get()->createRoom(gameName, scenarioName, scenarioDescription,
                                               password)) {
-        logDebug("lobby.log", "Failed to request room creation");
+        spdlog::debug("Failed to request room creation");
         auto msg{getInterfaceText(textIds().lobby.createRoomRequestFailed.c_str())};
         if (msg.empty()) {
             msg = "Could not request to create a room from the lobby server.";

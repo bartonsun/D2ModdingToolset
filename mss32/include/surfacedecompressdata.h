@@ -23,7 +23,8 @@
 #include "d2color.h"
 #include "mqrect.h"
 #include <cstdint>
-#include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 namespace game {
 

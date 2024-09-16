@@ -23,7 +23,6 @@
 #include "gamesettings.h"
 #include "interfaceutils.h"
 #include "listbox.h"
-#include "log.h"
 #include "mempool.h"
 #include "menuflashwait.h"
 #include "menuphase.h"
@@ -33,7 +32,7 @@
 #include "textboxinterf.h"
 #include "textids.h"
 #include "utils.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -90,7 +89,7 @@ void __fastcall CMenuCustomMain::destructor(CMenuCustomMain* thisptr, int /*%edx
     thisptr->~CMenuCustomMain();
 
     if (flags & 1) {
-        logDebug("transitions.log", "Free CMenuCustomMain memory");
+        spdlog::debug("Free CMenuCustomMain memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
@@ -125,7 +124,7 @@ void CMenuCustomMain::showLoginDialog()
     using namespace game;
 
     if (m_loginDialog) {
-        logDebug("lobby.log", "Error showing login dialog that is already shown");
+        spdlog::debug("Error showing login dialog that is already shown");
         return;
     }
 
@@ -147,7 +146,7 @@ void CMenuCustomMain::showRegisterDialog()
     using namespace game;
 
     if (m_registerDialog) {
-        logDebug("lobby.log", "Error showing register dialog that is already shown");
+        spdlog::debug("Error showing register dialog that is already shown");
         return;
     }
 
@@ -361,7 +360,7 @@ void __fastcall CMenuCustomMain::CLoginAccountInterf::cancelBtnHandler(CLoginAcc
 
     const auto& midgardApi = CMidgardApi::get();
 
-    logDebug("lobby.log", "User canceled logging in");
+    spdlog::debug("User canceled logging in");
     thisptr->m_menu->hideLoginDialog();
 
     // Drop connection to the lobby server
@@ -425,7 +424,7 @@ void __fastcall CMenuCustomMain::CRegisterAccountInterf::cancelBtnHandler(
 
     const auto& midgardApi = CMidgardApi::get();
 
-    logDebug("lobby.log", "User canceled register account");
+    spdlog::debug("User canceled register account");
     thisptr->m_menu->hideRegisterDialog();
 
     // Drop connection to the lobby server

@@ -24,11 +24,10 @@
 #include "functordispatch0.h"
 #include "functordispatch2.h"
 #include "smartptr.h"
-
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
 #include <cstddef>
 #include <cstdint>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 namespace game {
 

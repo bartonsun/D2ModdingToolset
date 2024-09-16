@@ -35,7 +35,6 @@
 #include "idlistutils.h"
 #include "immunecat.h"
 #include "itembattle.h"
-#include "log.h"
 #include "mempool.h"
 #include "midstack.h"
 #include "midunitgroup.h"
@@ -48,8 +47,8 @@
 #include "usstackleader.h"
 #include "usunitimpl.h"
 #include "utils.h"
-#include <fmt/format.h>
 #include <limits>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -63,12 +62,12 @@ game::LAttackClassTable* __fastcall attackClassTableCtorHooked(game::LAttackClas
     static const char dbfFileName[] = "LAttC.dbf";
     static const char customCategoryName[] = "L_CUSTOM";
 
-    logDebug("newAttackType.log", "LAttackClassTable c-tor hook started");
+    spdlog::debug("LAttackClassTable c-tor hook started");
 
     const auto dbfFilePath{std::filesystem::path(globalsFolderPath) / dbfFileName};
     bool customAttackExists = utils::dbValueExists(dbfFilePath, "TEXT", customCategoryName);
     if (customAttackExists)
-        logDebug("newAttackType.log", "Found custom attack category");
+        spdlog::debug("Found custom attack category");
 
     using namespace game;
     thisptr->bgn = nullptr;
@@ -111,7 +110,7 @@ game::LAttackClassTable* __fastcall attackClassTableCtorHooked(game::LAttackClas
 
     table.initDone(thisptr);
 
-    logDebug("newAttackType.log", "LAttackClassTable c-tor hook finished");
+    spdlog::debug("LAttackClassTable c-tor hook finished");
     return thisptr;
 }
 
@@ -121,7 +120,7 @@ game::LAttackSourceTable* __fastcall attackSourceTableCtorHooked(game::LAttackSo
                                                                  void* codeBaseEnvProxy)
 {
     using namespace game;
-    logDebug("customAttacks.log", "LAttackSourceTable c-tor hook started");
+    spdlog::debug("LAttackSourceTable c-tor hook started");
 
     static const char dbfFileName[] = "LAttS.dbf";
     fillCustomAttackSources(std::filesystem::path(globalsFolderPath) / dbfFileName);
@@ -146,13 +145,12 @@ game::LAttackSourceTable* __fastcall attackSourceTableCtorHooked(game::LAttackSo
     table.readCategory(sources.earth, thisptr, "L_EARTH", dbfFileName);
 
     for (auto& custom : getCustomAttacks().sources) {
-        logDebug("customAttacks.log",
-                 fmt::format("Reading custom attack source {:s}", custom.text));
+        spdlog::debug("Reading custom attack source {:s}", custom.text);
         table.readCategory(&custom.source, thisptr, custom.text.c_str(), dbfFileName);
     }
 
     table.initDone(thisptr);
-    logDebug("customAttacks.log", "LAttackSourceTable c-tor hook finished");
+    spdlog::debug("LAttackSourceTable c-tor hook finished");
     return thisptr;
 }
 
@@ -162,7 +160,7 @@ game::LAttackReachTable* __fastcall attackReachTableCtorHooked(game::LAttackReac
                                                                void* codeBaseEnvProxy)
 {
     using namespace game;
-    logDebug("customAttacks.log", "LAttackReachTable c-tor hook started");
+    spdlog::debug("LAttackReachTable c-tor hook started");
 
     static const char dbfFileName[] = "LAttR.dbf";
     fillCustomAttackReaches(std::filesystem::path(globalsFolderPath) / dbfFileName);
@@ -182,12 +180,12 @@ game::LAttackReachTable* __fastcall attackReachTableCtorHooked(game::LAttackReac
     table.readCategory(reaches.adjacent, thisptr, "L_ADJACENT", dbfFileName);
 
     for (auto& custom : getCustomAttacks().reaches) {
-        logDebug("customAttacks.log", fmt::format("Reading custom attack reach {:s}", custom.text));
+        spdlog::debug("Reading custom attack reach {:s}", custom.text);
         table.readCategory(&custom.reach, thisptr, custom.text.c_str(), dbfFileName);
     }
 
     table.initDone(thisptr);
-    logDebug("customAttacks.log", "LAttackReachTable c-tor hook finished");
+    spdlog::debug("LAttackReachTable c-tor hook finished");
     return thisptr;
 }
 
@@ -555,9 +553,8 @@ void __stdcall addUnitToBattleMsgDataHooked(const game::IMidgardObjectMap* objec
         }
     }
 
-    logError("mssProxyError.log",
-             fmt::format("Could not find a free slot for a new unit {:s} in battle msg data",
-                         hooks::idToString(unitId)));
+    spdlog::error("Could not find a free slot for a new unit {:s} in battle msg data",
+                  hooks::idToString(unitId));
 }
 
 bool __stdcall getTargetsToAttackForAllOrCustomReach(game::IdList* value,
@@ -1014,7 +1011,7 @@ bool __stdcall findShatterAttackTarget(const game::IMidgardObjectMap* objectMap,
         auto soldier = fn.castUnitImplToSoldier(unit->unitImpl);
 
         attackDamage = fn.computeAttackDamageCheckAltAttack(soldier, &unit->unitImpl->id,
-                                                                 battleMsgData, unitOrItemId);
+                                                            battleMsgData, unitOrItemId);
     }
 
     if (attackDamage > 0) {
@@ -1028,10 +1025,10 @@ bool __stdcall findShatterAttackTarget(const game::IMidgardObjectMap* objectMap,
                                                                   targetGroup, targets,
                                                                   battleMsgData, value);
         } else {
-            return findDamageAndShatterAttackTargetWithNonMeleeReach(objectMap, unitOrItemId, attack,
-                                                                     primaryAttack, attackDamage,
-                                                                     targetGroup, targets,
-                                                                     battleMsgData, value);
+            return findDamageAndShatterAttackTargetWithNonMeleeReach(objectMap, unitOrItemId,
+                                                                     attack, primaryAttack,
+                                                                     attackDamage, targetGroup,
+                                                                     targets, battleMsgData, value);
         }
     }
 
@@ -1054,13 +1051,13 @@ bool __stdcall findAttackTargetHooked(const game::IMidgardObjectMap* objectMap,
 
     auto attackClass = attack->vftable->getAttackClass(attack);
     if (attackClass->id == attackCategories.shatter->id) {
-        if (findShatterAttackTarget(objectMap, unitOrItemId, attack, targetGroup, targets, battleMsgData,
-                                    value))
+        if (findShatterAttackTarget(objectMap, unitOrItemId, attack, targetGroup, targets,
+                                    battleMsgData, value))
             return true;
     }
 
-    if (getOriginalFunctions().findAttackTarget(objectMap, unitOrItemId, attack, targetGroup, targets,
-                                                battleMsgData, value)) {
+    if (getOriginalFunctions().findAttackTarget(objectMap, unitOrItemId, attack, targetGroup,
+                                                targets, battleMsgData, value)) {
         return true;
     }
 

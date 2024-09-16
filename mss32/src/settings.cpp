@@ -19,14 +19,14 @@
 
 #include "settings.h"
 #include "battlemsgdata.h"
-#include "log.h"
 #include "scripts.h"
 #include "utils.h"
-#include <Windows.h>
 #include <algorithm>
-#include <fmt/format.h>
 #include <limits>
+#include <spdlog/spdlog.h>
 #include <string>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 namespace hooks {
 

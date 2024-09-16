@@ -28,7 +28,6 @@
 #include "groundcat.h"
 #include "leaderabilitycat.h"
 #include "leadercategory.h"
-#include "log.h"
 #include "midsubrace.h"
 #include "modifierutils.h"
 #include "modifierview.h"
@@ -40,8 +39,8 @@
 #include "ussoldier.h"
 #include "usstackleader.h"
 #include "usunitimpl.h"
-#include <fmt/format.h>
 #include <sol/sol.hpp>
+#include <spdlog/spdlog.h>
 
 namespace bindings {
 

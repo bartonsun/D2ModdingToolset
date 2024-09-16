@@ -24,14 +24,13 @@
 #include "game.h"
 #include "interfaceutils.h"
 #include "listbox.h"
-#include "log.h"
 #include "mempool.h"
 #include "menuphase.h"
 #include "scenariodata.h"
 #include "scenariodataarray.h"
 #include "textids.h"
 #include "utils.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -76,7 +75,7 @@ void __fastcall CMenuCustomNewSkirmishMulti::destructor(CMenuCustomNewSkirmishMu
     thisptr->~CMenuCustomNewSkirmishMulti();
 
     if (flags & 1) {
-        logDebug("transitions.log", "Free CMenuCustomNewSkirmishMulti memory");
+        spdlog::debug("Free CMenuCustomNewSkirmishMulti memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
@@ -112,7 +111,7 @@ void __fastcall CMenuCustomNewSkirmishMulti::loadBtnHandler(CMenuCustomNewSkirmi
         }
     }
     if (!races->length) {
-        logDebug("lobby.log", "A scenario selected for a new skirmish has no playable races");
+        spdlog::debug("A scenario selected for a new skirmish has no playable races");
         return;
     }
 
@@ -182,7 +181,7 @@ void CMenuCustomNewSkirmishMulti::RoomsCallback::CreateRoom_Callback(
     case SLNet::REC_SUCCESS: {
         if (!CMenuNewSkirmishMultiApi::get().createServer(m_menu)) {
             // Should not happen at any circumstances
-            logDebug("lobby.log", "Unable to create server for a new skirmish");
+            spdlog::debug("Unable to create server for a new skirmish");
             CNetCustomService::get()->leaveRoom();
             break;
         }

@@ -33,7 +33,6 @@
 #include "globalvariables.h"
 #include "immunecat.h"
 #include "leaderabilitycat.h"
-#include "log.h"
 #include "lordtype.h"
 #include "midgardid.h"
 #include "midgardmap.h"
@@ -58,7 +57,7 @@
 #include "usunitimpl.h"
 #include "utils.h"
 #include "visitors.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -84,8 +83,7 @@ game::IUsSoldier* castUnitImplToSoldierWithLogging(const game::IUsUnit* unitImpl
 
     auto soldier = gameFunctions().castUnitImplToSoldier(unitImpl);
     if (!soldier) {
-        hooks::logError("mssProxyError.log", fmt::format("Failed to cast unit impl {:s} to soldier",
-                                                         hooks::idToString(&unitImpl->id)));
+        spdlog::error("Failed to cast unit impl {:s} to soldier", hooks::idToString(&unitImpl->id));
     }
 
     return soldier;
@@ -183,8 +181,7 @@ game::TUsUnitImpl* getUnitImpl(const game::CMidgardID* unitImplId)
     auto globalData = *global.getGlobalData();
     auto result = (TUsUnitImpl*)global.findById(globalData->units, unitImplId);
     if (!result) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not find unit impl {:s}", idToString(unitImplId)));
+        spdlog::error("Could not find unit impl {:s}", idToString(unitImplId));
     }
 
     return result;
@@ -301,9 +298,8 @@ const game::CDynUpgrade* getDynUpgrade(const game::IUsUnit* unit, int upgradeNum
     auto id = upgradeNumber == 1 ? soldier->vftable->getDynUpg1(soldier)
                                  : soldier->vftable->getDynUpg2(soldier);
     if (!id) {
-        hooks::logError("mssProxyError.log",
-                        fmt::format("Dyn upgrade {:d} id is null, unit impl {:s}", upgradeNumber,
-                                    hooks::idToString(&unit->id)));
+        spdlog::error("Dyn upgrade {:d} id is null, unit impl {:s}", upgradeNumber,
+                      hooks::idToString(&unit->id));
         return nullptr;
     }
 
@@ -312,8 +308,7 @@ const game::CDynUpgrade* getDynUpgrade(const game::IUsUnit* unit, int upgradeNum
 
     auto upgrade = globalApi.findDynUpgradeById(globalData->dynUpgrade, id);
     if (!upgrade) {
-        hooks::logError("mssProxyError.log", fmt::format("Could not find dyn upgrade {:d} {:s}",
-                                                         upgradeNumber, hooks::idToString(id)));
+        spdlog::error("Could not find dyn upgrade {:d} {:s}", upgradeNumber, hooks::idToString(id));
         return nullptr;
     }
 

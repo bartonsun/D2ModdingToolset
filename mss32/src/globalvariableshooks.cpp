@@ -20,12 +20,11 @@
 #include "globalvariableshooks.h"
 #include "dbffile.h"
 #include "globalvariables.h"
-#include "log.h"
 #include "mempool.h"
 #include "originalfunctions.h"
 #include <cstring>
 #include <filesystem>
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -53,7 +52,7 @@ game::GlobalVariables* __fastcall globalVariablesCtorHooked(game::GlobalVariable
     // We can not open database right after original c-tor, file is still being locked
     utils::DbfFile dbfFile;
     if (!dbfFile.open(std::filesystem::path{directory} / dbfFileName)) {
-        logError("mssProxyError.log", fmt::format("Could not open {:s}", dbfFileName));
+        spdlog::error("Could not open {:s}", dbfFileName);
         return originalCtor(thisptr, directory, proxy);
     }
 

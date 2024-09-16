@@ -22,7 +22,6 @@
 #include "custommodifier.h"
 #include "custommodifiers.h"
 #include "dynamiccast.h"
-#include "log.h"
 #include "midgardstream.h"
 #include "midgardstreamenv.h"
 #include "modifierutils.h"
@@ -38,7 +37,7 @@
 #include "ussoldier.h"
 #include "usunit.h"
 #include "usunitimpl.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -460,8 +459,8 @@ void __stdcall midUnitStreamImplIdAndLevelHooked(game::IMidgardStream** stream,
                 int levelMin = fn.getUnitLevelByImplId(&globalUnitImplId);
                 int levelMax = unitGenerator->vftable->getGeneratedUnitImplLevelMax(unitGenerator);
                 unitLevel = std::clamp(unitLevel, levelMin, levelMax);
-                logDebug("scenario.log", fmt::format("Adjusted level of unit impl '{:s}' to {:d}",
-                                                     idToString(&globalUnitImplId), unitLevel));
+                spdlog::debug("Adjusted level of unit impl '{:s}' to {:d}",
+                              idToString(&globalUnitImplId), unitLevel);
                 unitGenerator->vftable->generateUnitImplId(unitGenerator, unitImplId,
                                                            &globalUnitImplId, unitLevel);
             }

@@ -18,13 +18,12 @@
  */
 
 #include "objectinterfhooks.h"
-#include "log.h"
 #include "mempool.h"
 #include "objectinterf.h"
 #include "originalfunctions.h"
 #include "sitecategoryhooks.h"
 #include "taskobjaddsite.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -45,14 +44,12 @@ game::editor::CTaskObj* __fastcall createTaskObjHooked(game::ITaskManagerHolder*
     // TOG_RES_MARKET radio button in DLG_OBJECTS, ScenEdit.dlg
     constexpr int togResMarket = 13;
     if (objInterf->objInterfData->selectedMode != togResMarket) {
-        logError("mssProxyError.log", fmt::format("Unknown selection mode {:d}",
-                                                  objInterf->objInterfData->selectedMode));
+        spdlog::error("Unknown selection mode {:d}", objInterf->objInterfData->selectedMode);
         return nullptr;
     }
 
     if (!customSiteCategories().exists) {
-        logError("mssProxyError.log", fmt::format("Toggle button was added to the UI"
-                                                  " but new site category does not exist."));
+        spdlog::error("Toggle button was added to the UI but new site category does not exist.");
         return nullptr;
     }
 

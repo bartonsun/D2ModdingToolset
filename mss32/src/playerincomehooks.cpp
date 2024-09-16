@@ -23,7 +23,6 @@
 #include "fortification.h"
 #include "game.h"
 #include "gameutils.h"
-#include "log.h"
 #include "lordtype.h"
 #include "midgardid.h"
 #include "midgardobjectmap.h"
@@ -37,7 +36,7 @@
 #include "utils.h"
 #include <algorithm>
 #include <array>
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -51,8 +50,7 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
 
     auto playerObj = objectMap->vftable->findScenarioObjectById(objectMap, playerId);
     if (!playerObj) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not find player {:s}", idToString(playerId)));
+        spdlog::error("Could not find player {:s}", idToString(playerId));
         return income;
     }
 
@@ -62,24 +60,23 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
         // Skip neutrals
         return income;
     }
-    
-    //additional income for lord type
+
+    // additional income for lord type
     const auto& globalApi = GlobalDataApi::get();
     const auto lords = (*globalApi.getGlobalData())->lords;
     const auto lordType = (TLordType*)globalApi.findById(lords, &player->lordId);
     const auto lordId = lordType->data->lordCategory.id;
-    int additionalLordIncome {};
-    switch (lordId)
-    {
-        case LordId::Warrior: 
-            additionalLordIncome = userSettings().additionalLordIncome.warrior;
-            break;
-        case LordId::Mage:
-            additionalLordIncome = userSettings().additionalLordIncome.mage;
-            break;
-        case LordId::Diplomat:
-            additionalLordIncome = userSettings().additionalLordIncome.guildmaster;
-            break;
+    int additionalLordIncome{};
+    switch (lordId) {
+    case LordId::Warrior:
+        additionalLordIncome = userSettings().additionalLordIncome.warrior;
+        break;
+    case LordId::Mage:
+        additionalLordIncome = userSettings().additionalLordIncome.mage;
+        break;
+    case LordId::Diplomat:
+        additionalLordIncome = userSettings().additionalLordIncome.guildmaster;
+        break;
     }
     const int goldLordIncome{income->gold + additionalLordIncome};
     BankApi::get().set(income, CurrencyType::Gold, std::clamp(goldLordIncome, 0, 9999));
@@ -106,17 +103,14 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
     }
 
     if (!racePrefix) {
-        logError("mssProxyError.log",
-                 fmt::format("Trying to compute daily income for unknown race. "
-                             "LRace.dbf id: {:d}",
-                             raceId));
+        spdlog::error("Trying to compute daily income for unknown race. LRace.dbf id: {:d}",
+                      (int)raceId);
         return income;
     }
 
     std::array<int, 6> cityIncome = {0, 0, 0, 0, 0, 0};
 
-    logDebug("cityIncome.log",
-             fmt::format("Loop through {:d} scenario variables", variables->variables.length));
+    spdlog::debug("Loop through {:d} scenario variables", variables->variables.length);
 
     std::uint32_t listIndex{};
     for (const auto& variable : variables->variables) {
@@ -149,7 +143,7 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
         listIndex++;
     }
 
-    logDebug("cityIncome.log", fmt::format("Loop done in {:d} iterations", listIndex));
+    spdlog::debug("Loop done in {:d} iterations", listIndex);
 
     if (std::all_of(std::begin(cityIncome), std::end(cityIncome),
                     [](int value) { return value == 0; })) {

@@ -23,18 +23,19 @@
 #include "customattacks.h"
 #include "custommodifiers.h"
 #include "hooks.h"
-#include "log.h"
 #include "restrictions.h"
 #include "settings.h"
 #include "unitsforhire.h"
 #include "utils.h"
 #include "version.h"
+#include <spdlog/sinks/msvc_sink.h>
+#include <spdlog/sinks/rotating_file_sink.h>
+#include <spdlog/spdlog.h>
+#include <string>
+#include <thread>
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <detours.h>
-#include <fmt/format.h>
-#include <string>
-#include <thread>
 
 HMODULE library{};
 static HMODULE libraryMss23{};
@@ -66,8 +67,7 @@ static void writeProtectedMemory(T* address, T value)
         return;
     }
 
-    hooks::logError("mssProxyError.log",
-                    fmt::format("Failed to change memory protection for {:p}", (void*)address));
+    spdlog::error("Failed to change memory protection for {:p}", (void*)address);
 }
 
 template <typename T>
@@ -76,17 +76,14 @@ static void adjustRestrictionMax(game::Restriction<T>* restriction,
                                  const char* name)
 {
     if (value >= restriction->min) {
-        hooks::logDebug("restrictions.log", fmt::format("Set '{:s}' to {:d}", name, value));
+        spdlog::debug("Set '{:s}' to {:d}", name, value);
         writeProtectedMemory(&restriction->max, value);
         return;
     }
 
-    hooks::logError(
-        "mssProxyError.log",
-        fmt::format(
-            "User specified '{:s}' value of {:d} is less than minimum value allowed in game ({:d}). "
-            "Change rejected.",
-            name, value, restriction->min));
+    spdlog::error(
+        "User specified '{:s}' value of {:d} is less than minimum value allowed in game ({:d}). Change rejected.",
+        name, value, restriction->min);
 }
 
 static void adjustGameRestrictions()
@@ -116,16 +113,14 @@ static void adjustGameRestrictions()
 
     if (executableIsGame()) {
         if (userSettings().criticalHitDamage != baseSettings().criticalHitDamage) {
-            logDebug("restrictions.log", fmt::format("Set 'criticalHitDamage' to {:d}",
-                                                     (int)userSettings().criticalHitDamage));
+            spdlog::debug("Set 'criticalHitDamage' to {:d}", (int)userSettings().criticalHitDamage);
             writeProtectedMemory(restrictions.criticalHitDamage, userSettings().criticalHitDamage);
         }
 
         if (userSettings().mageLeaderAttackPowerReduction
             != baseSettings().mageLeaderAttackPowerReduction) {
-            logDebug("restrictions.log",
-                     fmt::format("Set 'mageLeaderPowerReduction' to {:d}",
-                                 (int)userSettings().mageLeaderAttackPowerReduction));
+            spdlog::debug("Set 'mageLeaderPowerReduction' to {:d}",
+                          (int)userSettings().mageLeaderAttackPowerReduction);
             writeProtectedMemory(restrictions.mageLeaderAttackPowerReduction,
                                  userSettings().mageLeaderAttackPowerReduction);
         }
@@ -134,8 +129,7 @@ static void adjustGameRestrictions()
 
 static bool setupHook(hooks::HookInfo& hook)
 {
-    hooks::logDebug("mss32Proxy.log", fmt::format("Try to attach hook. Function {:p}, hook {:p}.",
-                                                  hook.target, hook.hook));
+    spdlog::debug("Try to attach hook. Function {:p}, hook {:p}.", hook.target, hook.hook);
 
     // hook.original is an optional field that can point to where the new address of the original
     // function should be placed.
@@ -144,12 +138,9 @@ static bool setupHook(hooks::HookInfo& hook)
 
     auto result = DetourAttach(pointer, hook.hook);
     if (result != NO_ERROR) {
-        const std::string msg{
+        hooks::showErrorMessageBox(
             fmt::format("Failed to attach hook. Function {:p}, hook {:p}. Error code: {:d}.",
-                        hook.target, hook.hook, result)};
-
-        hooks::logError("mssProxyError.log", msg);
-        MessageBox(NULL, msg.c_str(), "mss32.dll proxy", MB_OK);
+                        hook.target, hook.hook, result));
         return false;
     }
 
@@ -171,15 +162,12 @@ static bool setupHooks()
 
     const auto result = DetourTransactionCommit();
     if (result != NO_ERROR) {
-        const std::string msg{
-            fmt::format("Failed to commit detour transaction. Error code: {:d}.", result)};
-
-        hooks::logError("mssProxyError.log", msg);
-        MessageBox(NULL, msg.c_str(), "mss32.dll proxy", MB_OK);
+        hooks::showErrorMessageBox(
+            fmt::format("Failed to commit detour transaction. Error code: {:d}.", result));
         return false;
     }
 
-    hooks::logDebug("mss32Proxy.log", "All hooks are set");
+    spdlog::debug("All hooks are set");
     return true;
 }
 
@@ -193,7 +181,39 @@ static void setupVftableHooks()
         writeProtectedMemory(target, hook.hook);
     }
 
-    hooks::logDebug("mss32Proxy.log", "All vftable hooks are set");
+    spdlog::debug("All vftable hooks are set");
+}
+
+static void setDefaultLogger()
+{
+    std::vector<spdlog::sink_ptr> sinks;
+
+    // Original mss32.dll has no log file so we are free to use short name "mss32.log"
+    // (instead of the old "mss32Proxy.log")
+    auto fileName = hooks::gameFolder() / "mss32.log";
+    auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(fileName.string(),
+                                                                           5u << 20, 3, false);
+    // TODO: setting for all available trace levels (not only debug vs non-debug)
+    if (hooks::userSettings().debugMode) {
+        fileSink->set_level(spdlog::level::trace);
+    } else {
+        fileSink->set_level(spdlog::level::info);
+    }
+    sinks.push_back(std::move(fileSink));
+
+    if (IsDebuggerPresent()) {
+        auto msvcSink = std::make_shared<spdlog::sinks::msvc_sink_mt>(false);
+        msvcSink->set_level(spdlog::level::trace);
+        sinks.push_back(std::move(msvcSink));
+    }
+
+    auto logger = std::make_shared<spdlog::logger>("default", sinks.begin(), sinks.end());
+    // Setting maximum log level for the logger so only the sinks levels will matter
+    logger->set_level(spdlog::level::trace);
+    // Using UTC helps to match logs from different users (with different timezones).
+    // It also helps to match client logs with lobby server logs.
+    logger->set_pattern("%D %H:%M:%S.%e %5t [%=8!n] [%L] %v", spdlog::pattern_time_type::utc);
+    spdlog::set_default_logger(std::move(logger));
 }
 
 BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
@@ -212,32 +232,30 @@ BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
 
     libraryMss23 = LoadLibrary("Mss23.dll");
     if (!libraryMss23) {
-        MessageBox(NULL, "Failed to load Mss23.dll", "mss32.dll proxy", MB_OK);
+        hooks::showErrorMessageBox("Failed to load Mss23.dll");
         return FALSE;
     }
 
     registerInterface = GetProcAddress(libraryMss23, "RIB_register_interface");
     unregisterInterface = GetProcAddress(libraryMss23, "RIB_unregister_interface");
     if (!registerInterface || !unregisterInterface) {
-        MessageBox(NULL, "Could not load Mss23.dll addresses", "mss32.dll proxy", MB_OK);
+        hooks::showErrorMessageBox("Could not load Mss23.dll addresses");
         return FALSE;
     }
 
     DisableThreadLibraryCalls(hDll);
 
+    setDefaultLogger();
+
     const auto error = hooks::determineGameVersion(hooks::exePath());
     if (error || hooks::gameVersion() == hooks::GameVersion::Unknown) {
-        const std::string msg{
-            fmt::format("Failed to determine target exe type.\nReason: {:s}.", error.message())};
-
-        hooks::logError("mssProxyError.log", msg);
-        MessageBox(NULL, msg.c_str(), "mss32.dll proxy", MB_OK);
+        hooks::showErrorMessageBox(
+            fmt::format("Failed to determine target exe type.\nReason: {:s}.", error.message()));
         return FALSE;
     }
 
     if (hooks::executableIsGame() && !hooks::loadUnitsForHire()) {
-        MessageBox(NULL, "Failed to load new units. Check error log for details.",
-                   "mss32.dll proxy", MB_OK);
+        hooks::showErrorMessageBox("Failed to load new units. Check error log for details.");
         return FALSE;
     }
 

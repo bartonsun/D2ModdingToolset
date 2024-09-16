@@ -20,9 +20,8 @@
 #ifndef TIMER_H
 #define TIMER_H
 
-#include "log.h"
 #include <chrono>
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 #include <string_view>
 
 namespace hooks {
@@ -45,7 +44,7 @@ public:
     {
         const auto elapsed{Clock::now() - start};
         const auto us{std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count()};
-        logDebug(log, fmt::format("{:s} time {:d} us", description, us));
+        spdlog::debug("{:s} time {:d} us", description, us);
     }
 
 private:

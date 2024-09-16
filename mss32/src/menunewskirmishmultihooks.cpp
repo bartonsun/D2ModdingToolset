@@ -20,11 +20,11 @@
 #include "menunewskirmishmultihooks.h"
 #include "button.h"
 #include "dialoginterf.h"
-#include "log.h"
 #include "netcustomplayerserver.h"
 #include "netcustomservice.h"
 #include "netcustomsession.h"
 #include "originalfunctions.h"
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 

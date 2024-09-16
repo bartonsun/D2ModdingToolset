@@ -18,16 +18,16 @@
  */
 
 #include "taskobjaddsitehooks.h"
-#include "taskobjaddsite.h"
-#include "sitecategoryhooks.h"
-#include "originalfunctions.h"
-#include "visitors.h"
-#include "scenedit.h"
-#include "utils.h"
 #include "editor.h"
-#include "midsite.h"
-#include "scenedithooks.h"
 #include "game.h"
+#include "midsite.h"
+#include "originalfunctions.h"
+#include "scenedit.h"
+#include "scenedithooks.h"
+#include "sitecategoryhooks.h"
+#include "taskobjaddsite.h"
+#include "utils.h"
+#include "visitors.h"
 #include <fmt/format.h>
 
 namespace hooks {
@@ -70,7 +70,7 @@ bool __fastcall taskObjAddSiteDoActionHooked(game::editor::CTaskObjAddSite* this
                                         (int)site->siteCategory.id, (int)marketCategory.id));
         return true;
     }
-    
+
     const auto& names{getMarketNames()};
     const int index{gameFunctions().generateRandomNumberStd(names.size())};
 
@@ -84,4 +84,4 @@ bool __fastcall taskObjAddSiteDoActionHooked(game::editor::CTaskObjAddSite* this
     return false;
 }
 
-}
+} // namespace hooks

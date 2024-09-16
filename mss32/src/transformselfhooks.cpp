@@ -29,7 +29,6 @@
 #include "globaldata.h"
 #include "intset.h"
 #include "itemview.h"
-#include "log.h"
 #include "midgardobjectmap.h"
 #include "midplayer.h"
 #include "midunit.h"
@@ -43,7 +42,7 @@
 #include "usunitimpl.h"
 #include "utils.h"
 #include "visitors.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 

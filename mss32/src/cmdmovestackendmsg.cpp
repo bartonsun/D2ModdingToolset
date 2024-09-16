@@ -19,8 +19,8 @@
 
 #include "cmdmovestackendmsg.h"
 #include "dynamiccast.h"
-#include "log.h"
 #include "mempool.h"
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -28,7 +28,7 @@ CCmdMoveStackEndMsg::CCmdMoveStackEndMsg()
 {
     using namespace game;
 
-    logDebug("mss32Proxy.log", __FUNCTION__);
+    spdlog::debug(__FUNCTION__);
 
     CCommandMsgApi::get().constructor(this);
 
@@ -48,7 +48,7 @@ CCmdMoveStackEndMsg::~CCmdMoveStackEndMsg()
 {
     using namespace game;
 
-    logDebug("mss32Proxy.log", __FUNCTION__);
+    spdlog::debug(__FUNCTION__);
 
     CCommandMsgApi::get().destructor(this);
 }
@@ -118,7 +118,7 @@ void __fastcall CCmdMoveStackEndMsg::destructor(CCmdMoveStackEndMsg* thisptr,
     thisptr->~CCmdMoveStackEndMsg();
 
     if (flags & 1) {
-        logDebug("mss32Proxy.log", __FUNCTION__ ": freeing memory");
+        spdlog::debug(__FUNCTION__ ": freeing memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }

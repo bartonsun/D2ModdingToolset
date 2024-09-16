@@ -31,7 +31,6 @@
 #include "interfaceutils.h"
 #include "interfmanager.h"
 #include "listbox.h"
-#include "log.h"
 #include "mempool.h"
 #include "menuphase.h"
 #include "midgard.h"
@@ -49,9 +48,7 @@
 #include "textids.h"
 #include "uimanager.h"
 #include "utils.h"
-#include <chrono>
-#include <fmt/chrono.h>
-#include <thread>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -121,7 +118,7 @@ CMenuCustomLobby ::~CMenuCustomLobby()
     }
 
     if (m_netMsgEntryData) {
-        logDebug("transitions.log", "Delete custom lobby menu netMsgEntryData");
+        spdlog::debug("Delete custom lobby menu netMsgEntryData");
         NetMsgApi::get().freeEntryData(m_netMsgEntryData);
     }
 
@@ -133,7 +130,7 @@ void __fastcall CMenuCustomLobby::destructor(CMenuCustomLobby* thisptr, int /*%e
     thisptr->~CMenuCustomLobby();
 
     if (flags & 1) {
-        logDebug("transitions.log", "Free CMenuCustomLobby memory");
+        spdlog::debug("Free CMenuCustomLobby memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
@@ -379,7 +376,7 @@ void CMenuCustomLobby::showRoomPasswordDialog()
     using namespace game;
 
     if (m_roomPasswordDialog) {
-        logDebug("lobby.log", "Error showing room-password dialog that is already shown");
+        spdlog::debug("Error showing room-password dialog that is already shown");
         return;
     }
 
@@ -565,7 +562,7 @@ bool __fastcall CMenuCustomLobby::gameVersionMsgHandler(CMenuCustomLobby* menu,
 
     const auto& midgardApi = CMidgardApi::get();
 
-    logDebug("lobby.log", fmt::format("CGameVersionMsg received from 0x{:x}", idFrom));
+    spdlog::debug("CGameVersionMsg received from 0x{:x}", idFrom);
 
     if (message->gameVersion != GameVersion::RiseOfTheElves) {
         // You are trying to join a game with a newer or an older version of the game.
@@ -589,7 +586,7 @@ bool __fastcall CMenuCustomLobby::ansInfoMsgHandler(CMenuCustomLobby* menu,
     const auto& midgardApi = CMidgardApi::get();
     const auto& listApi = RaceCategoryListApi::get();
 
-    logDebug("lobby.log", fmt::format("CMenusAnsInfoMsg received from 0x{:x}", idFrom));
+    spdlog::debug("CMenusAnsInfoMsg received from 0x{:x}", idFrom);
 
     menu->hideWaitDialog();
 
@@ -1031,11 +1028,9 @@ void CMenuCustomLobby::updateListBoxUsersRow(int rowIndex,
     const auto& user = m_users[rowIndex];
 
     if (rowIndex < 0 || rowIndex >= (int)m_userIcons.size()) {
-        logDebug(
-            "lobby.log",
-            fmt::format(
-                "Failed to update users listbox because the icon at index {:d} is out of list bounds",
-                rowIndex));
+        spdlog::debug(
+            "Failed to update users listbox because the icon at index {:d} is out of list bounds",
+            rowIndex);
         return;
     }
     const auto& icon = m_userIcons.bgn[rowIndex];
@@ -1471,7 +1466,7 @@ void __fastcall CMenuCustomLobby::CRoomPasswordInterf::cancelBtnHandler(
     CRoomPasswordInterf* thisptr,
     int /*%edx*/)
 {
-    logDebug("lobby.log", "User canceled register account");
+    spdlog::debug("User canceled register account");
     thisptr->m_menu->hideRoomPasswordDialog();
 }
 

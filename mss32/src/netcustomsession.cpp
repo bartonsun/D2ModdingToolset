@@ -19,7 +19,6 @@
 
 #include "netcustomsession.h"
 #include "d2string.h"
-#include "log.h"
 #include "mempool.h"
 #include "mqnetsystem.h"
 #include "netcustomplayerclient.h"
@@ -28,7 +27,7 @@
 #include "utils.h"
 #include <atomic>
 #include <chrono>
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 #include <thread>
 
 namespace hooks {
@@ -43,8 +42,8 @@ CNetCustomSession::CNetCustomSession(CNetCustomService* service,
     , m_isHost{serverGuid == service->getPeerGuid()}
     , m_serverGuid(serverGuid)
 {
-    logDebug("lobby.log", fmt::format(__FUNCTION__ ": server = 0x{:x}, is host = {:d}",
-                                      m_serverGuid.ToUint32(m_serverGuid), (int)m_isHost));
+    spdlog::debug(__FUNCTION__ ": server = 0x{:x}, is host = {:d}",
+                  m_serverGuid.ToUint32(m_serverGuid), (int)m_isHost);
 
     static game::IMqNetSessionVftable vftable = {
         (game::IMqNetSessionVftable::Destructor)destructor,
@@ -61,7 +60,7 @@ CNetCustomSession::CNetCustomSession(CNetCustomService* service,
 
 CNetCustomSession ::~CNetCustomSession()
 {
-    logDebug("lobby.log", __FUNCTION__);
+    spdlog::debug(__FUNCTION__);
     m_service->leaveRoom();
 }
 
@@ -105,7 +104,7 @@ void __fastcall CNetCustomSession::destructor(CNetCustomSession* thisptr, int /*
     thisptr->~CNetCustomSession();
 
     if (flags & 1) {
-        logDebug("lobby.log", __FUNCTION__ ": freeing memory");
+        spdlog::debug(__FUNCTION__ ": freeing memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
@@ -114,21 +113,20 @@ game::String* __fastcall CNetCustomSession::getName(CNetCustomSession* thisptr,
                                                     int /*%edx*/,
                                                     game::String* sessionName)
 {
-    logDebug("lobby.log", fmt::format(__FUNCTION__ ": name = {:s}", thisptr->m_name));
+    spdlog::debug(__FUNCTION__ ": name = {:s}", thisptr->m_name);
     game::StringApi::get().initFromString(sessionName, thisptr->m_name.c_str());
     return sessionName;
 }
 
 int __fastcall CNetCustomSession::getClientCount(CNetCustomSession* thisptr, int /*%edx*/)
 {
-    logDebug("lobby.log",
-             fmt::format(__FUNCTION__ ": client count = {:d}", thisptr->m_clientCount));
+    spdlog::debug(__FUNCTION__ ": client count = {:d}", thisptr->m_clientCount);
     return thisptr->m_clientCount;
 }
 
 int __fastcall CNetCustomSession::getMaxClients(CNetCustomSession* thisptr, int /*%edx*/)
 {
-    logDebug("lobby.log", fmt::format(__FUNCTION__ ": max clients = {:d}", thisptr->m_maxPlayers));
+    spdlog::debug(__FUNCTION__ ": max clients = {:d}", thisptr->m_maxPlayers);
     return thisptr->m_maxPlayers;
 }
 
@@ -136,7 +134,7 @@ void __fastcall CNetCustomSession::getPlayers(CNetCustomSession* thisptr,
                                               int /*%edx*/,
                                               game::List<game::IMqNetPlayerEnum*>* players)
 {
-    logDebug("lobby.log", __FUNCTION__ ": should not be called, returning nothing");
+    spdlog::debug(__FUNCTION__ ": should not be called, returning nothing");
 }
 
 void __fastcall CNetCustomSession::createClient(CNetCustomSession* thisptr,
@@ -146,7 +144,7 @@ void __fastcall CNetCustomSession::createClient(CNetCustomSession* thisptr,
                                                 game::IMqNetReception* reception,
                                                 const char* clientName)
 {
-    logDebug("lobby.log", fmt::format(__FUNCTION__ ": client name = {:s}", clientName));
+    spdlog::debug(__FUNCTION__ ": client name = {:s}", clientName);
 
     auto result = (CNetCustomPlayerClient*)game::Memory::get().allocate(
         sizeof(CNetCustomPlayerClient));
@@ -162,7 +160,7 @@ void __fastcall CNetCustomSession::createServer(CNetCustomSession* thisptr,
                                                 game::IMqNetSystem* netSystem,
                                                 game::IMqNetReception* reception)
 {
-    logDebug("lobby.log", __FUNCTION__);
+    spdlog::debug(__FUNCTION__);
 
     auto result = (CNetCustomPlayerServer*)game::Memory::get().allocate(
         sizeof(CNetCustomPlayerServer));

@@ -23,7 +23,6 @@
 #include "campaignstream.h"
 #include "dynamiccast.h"
 #include "gameutils.h"
-#include "log.h"
 #include "mempool.h"
 #include "midgardobjectmap.h"
 #include "midgardstream.h"
@@ -36,7 +35,7 @@
 #include "utils.h"
 #include <algorithm>
 #include <cstring>
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -420,12 +419,12 @@ bool getExchangeRates(const game::IMidgardObjectMap* objectMap,
         if (!result.valid()) {
             const CMqPoint& pos{market->mapElement.position};
             const sol::error err = result;
-            logError("mssProxyError.log", fmt::format("Failed to load custom exchange rates"
-                                                      " for resource market {:s} at ({:d}, {:d}).\n"
-                                                      "Script:\n'{:s}'\n"
-                                                      "Reason: {:s}",
-                                                      idToString(&market->id), pos.x, pos.y,
-                                                      market->exchangeRatesScript, err.what()));
+            spdlog::error("Failed to load custom exchange rates"
+                          " for resource market {:s} at ({:d}, {:d}).\n"
+                          "Script:\n'{:s}'\n"
+                          "Reason: {:s}",
+                          idToString(&market->id), pos.x, pos.y, market->exchangeRatesScript,
+                          err.what());
             return false;
         }
 
@@ -449,10 +448,10 @@ bool getExchangeRates(const game::IMidgardObjectMap* objectMap,
         readExchangeRates(table, exchangeRates);
     } catch (const std::exception& e) {
         const CMqPoint& pos{market->mapElement.position};
-        logError("mssProxyError.log", fmt::format("Failed to get exchange rates"
-                                                  " for resource market {:s} at ({:d}, {:d}).\n"
-                                                  "Reason: '{:s}'",
-                                                  idToString(&market->id), pos.x, pos.y, e.what()));
+        spdlog::error("Failed to get exchange rates"
+                      " for resource market {:s} at ({:d}, {:d}).\n"
+                      "Reason: '{:s}'",
+                      idToString(&market->id), pos.x, pos.y, e.what());
         return false;
     }
 

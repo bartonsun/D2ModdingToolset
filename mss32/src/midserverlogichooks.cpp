@@ -23,7 +23,6 @@
 #include "exchangeresourcesmsg.h"
 #include "gameutils.h"
 #include "idset.h"
-#include "log.h"
 #include "logutils.h"
 #include "midgardscenariomap.h"
 #include "midplayer.h"
@@ -43,8 +42,8 @@
 #include "unitutils.h"
 #include "utils.h"
 #include <chrono>
-#include <fmt/format.h>
 #include <process.h>
+#include <spdlog/spdlog.h>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
@@ -109,25 +108,19 @@ void logObjectsToSend(const game::CMidgardScenarioMap* scenarioMap)
     const auto& changedObjects = scenarioMap->changedObjects;
     const auto& objectsToErase = scenarioMap->objectsToErase;
 
-    auto logFileName = fmt::format("netMessages{:d}.log", _getpid());
-    logDebug(
-        logFileName,
-        fmt::format("Sending scenario objects changes, added: {:d}, changed: {:d}, erased: {:d}",
-                    addedObjects.length, changedObjects.length, objectsToErase.length));
+    spdlog::debug("Sending scenario objects changes, added: {:d}, changed: {:d}, erased: {:d}",
+                  addedObjects.length, changedObjects.length, objectsToErase.length);
 
     auto totalLength = addedObjects.length + changedObjects.length + objectsToErase.length;
     if (totalLength >= userSettings().debug.sendObjectsChangesTreshold) {
         for (auto obj : addedObjects) {
-            logDebug(logFileName, fmt::format("Added\t{:s}\t{:s}", idToString(&obj),
-                                              getMidgardIdTypeDesc(&obj)));
+            spdlog::debug("Added\t{:s}\t{:s}", idToString(&obj), getMidgardIdTypeDesc(&obj));
         }
         for (auto obj : changedObjects) {
-            logDebug(logFileName, fmt::format("Changed\t{:s}\t{:s}", idToString(&obj),
-                                              getMidgardIdTypeDesc(&obj)));
+            spdlog::debug("Changed\t{:s}\t{:s}", idToString(&obj), getMidgardIdTypeDesc(&obj));
         }
         for (auto obj : objectsToErase) {
-            logDebug(logFileName, fmt::format("Erased\t{:s}\t{:s}", idToString(&obj),
-                                              getMidgardIdTypeDesc(&obj)));
+            spdlog::debug("Erased\t{:s}\t{:s}", idToString(&obj), getMidgardIdTypeDesc(&obj));
         }
     }
 }
@@ -244,7 +237,7 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
     IMidMsgSender* sender = *thisptr;
     CCmdMoveStackEndMsg message;
     if (!sender->vftable->sendMessage(sender, &message, true)) {
-        logError("mss32Proxy.log", __FUNCTION__ ": failed to send CCmdMoveStackEndMsg");
+        spdlog::error(__FUNCTION__ ": failed to send CCmdMoveStackEndMsg");
     }
 
     return result;
@@ -379,12 +372,11 @@ bool __stdcall filterAndProcessEventsHooked(game::IMidgardObjectMap* objectMap,
             }
 
             const auto overhead{conditionsSystemTime - conditionsTotalTime};
-            logDebug("eventsPerformance.log",
-                     fmt::format("{:s} conditions time {:d} us, "
-                                 "conditions system time {:d} us (overhead {:d} us), "
-                                 "effects time {:d} us",
-                                 message, conditionsTotalTime, conditionsSystemTime, overhead,
-                                 effectsTime));
+            spdlog::debug("{:s} conditions time {:d} us, "
+                          "conditions system time {:d} us (overhead {:d} us), "
+                          "effects time {:d} us",
+                          message, conditionsTotalTime, conditionsSystemTime, overhead,
+                          effectsTime);
 #endif
         }
 

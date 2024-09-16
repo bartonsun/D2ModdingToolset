@@ -19,12 +19,11 @@
 
 #include "netsingleplayerhooks.h"
 #include "commandmsg.h"
-#include "log.h"
 #include "logutils.h"
 #include "netsingleplayer.h"
 #include "originalfunctions.h"
-#include <fmt/format.h>
 #include <process.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -33,11 +32,9 @@ bool __fastcall netSinglePlayerSendMessageHooked(game::CNetSinglePlayer* thisptr
                                                  int idTo,
                                                  const game::NetMessageHeader* message)
 {
-    auto logFileName = fmt::format("netMessages{:d}.log", _getpid());
-    logDebug(logFileName,
-             fmt::format("{:08x} ({:s})\t-> {:08x} ({:s})\t{:s}\tsender name: {:s}", thisptr->netId,
-                         getNetPlayerIdDesc(thisptr->netId), idTo, getNetPlayerIdDesc(idTo),
-                         message->messageClassName, thisptr->playerName.string));
+    spdlog::debug("{:08x} ({:s})\t-> {:08x} ({:s})\t{:s}\tsender name: {:s}", thisptr->netId,
+                  getNetPlayerIdDesc(thisptr->netId), idTo, getNetPlayerIdDesc(idTo),
+                  message->messageClassName, thisptr->playerName.string);
 
     return getOriginalFunctions().netSinglePlayerSendMessage(thisptr, idTo, message);
 }

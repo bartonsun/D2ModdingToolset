@@ -26,6 +26,7 @@
 #include "customattacks.h"
 #include "dialoginterf.h"
 #include "editboxinterf.h"
+#include "editor.h"
 #include "encunitdescriptor.h"
 #include "leaderunitdescriptor.h"
 #include "mempool.h"
@@ -39,7 +40,6 @@
 #include "unitutils.h"
 #include "usunitimpl.h"
 #include "utils.h"
-#include <editor.h>
 #include <fmt/format.h>
 
 namespace hooks {

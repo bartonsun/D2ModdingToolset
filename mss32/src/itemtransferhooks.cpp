@@ -29,7 +29,6 @@
 #include "itembase.h"
 #include "itemcategory.h"
 #include "itemutils.h"
-#include "log.h"
 #include "mempool.h"
 #include "midbag.h"
 #include "midgardmsgbox.h"
@@ -45,8 +44,8 @@
 #include "textids.h"
 #include "utils.h"
 #include "visitors.h"
-#include <fmt/format.h>
 #include <optional>
+#include <spdlog/spdlog.h>
 #include <vector>
 
 namespace hooks {
@@ -124,10 +123,9 @@ static void transferItems(const std::vector<game::CMidgardID>& items,
         sendExchangeItemMsg(phaseGame, srcObjectId, dstObjectId, &item, 1);
 
         if (!exchangeItem(srcObjectId, dstObjectId, &item, objectMap, 1)) {
-            logError("mssProxyError.log",
-                     fmt::format("Failed to transfer item {:s} from {:s} {:s} to {:s} {:s}",
-                                 idToString(&item), srcObjectName, idToString(srcObjectId),
-                                 dstObjectName, idToString(dstObjectId)));
+            spdlog::error("Failed to transfer item {:s} from {:s} {:s} to {:s} {:s}",
+                          idToString(&item), srcObjectName, idToString(srcObjectId), dstObjectName,
+                          idToString(dstObjectId));
         }
     }
 }
@@ -142,7 +140,7 @@ static void transferCityToStack(game::CPhaseGame* phaseGame,
     auto objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
     auto obj = objectMap->vftable->findScenarioObjectById(objectMap, cityId);
     if (!obj) {
-        logError("mssProxyError.log", fmt::format("Could not find city {:s}", idToString(cityId)));
+        spdlog::error("Could not find city {:s}", idToString(cityId));
         return;
     }
 
@@ -208,7 +206,7 @@ static void transferStackToCity(game::CPhaseGame* phaseGame,
     auto objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
     auto obj = objectMap->vftable->findScenarioObjectById(objectMap, cityId);
     if (!obj) {
-        logError("mssProxyError.log", fmt::format("Could not find city {:s}", idToString(cityId)));
+        spdlog::error("Could not find city {:s}", idToString(cityId));
         return;
     }
 
@@ -219,8 +217,7 @@ static void transferStackToCity(game::CPhaseGame* phaseGame,
 
     auto stackObj = objectMap->vftable->findScenarioObjectById(objectMap, &fortification->stackId);
     if (!stackObj) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not find stack {:s}", idToString(&fortification->stackId)));
+        spdlog::error("Could not find stack {:s}", idToString(&fortification->stackId));
         return;
     }
 
@@ -230,8 +227,8 @@ static void transferStackToCity(game::CPhaseGame* phaseGame,
     auto stack = (CMidStack*)dynamicCast(stackObj, 0, rtti.IMidScenarioObjectType,
                                          rtti.CMidStackType, 0);
     if (!stack) {
-        logError("mssProxyError.log", fmt::format("Failed to cast scenario oject {:s} to stack",
-                                                  idToString(&fortification->stackId)));
+        spdlog::error("Failed to cast scenario oject {:s} to stack",
+                      idToString(&fortification->stackId));
         return;
     }
 
@@ -367,8 +364,7 @@ static void transferStackToStack(game::CPhaseGame* phaseGame,
     auto objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
     auto srcObj = objectMap->vftable->findScenarioObjectById(objectMap, srcStackId);
     if (!srcObj) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not find stack {:s}", idToString(srcStackId)));
+        spdlog::error("Could not find stack {:s}", idToString(srcStackId));
         return;
     }
 
@@ -378,8 +374,7 @@ static void transferStackToStack(game::CPhaseGame* phaseGame,
     auto srcStack = (CMidStack*)dynamicCast(srcObj, 0, rtti.IMidScenarioObjectType,
                                             rtti.CMidStackType, 0);
     if (!srcStack) {
-        logError("mssProxyError.log", fmt::format("Failed to cast scenario oject {:s} to stack",
-                                                  idToString(srcStackId)));
+        spdlog::error("Failed to cast scenario oject {:s} to stack", idToString(srcStackId));
         return;
     }
 
@@ -542,7 +537,7 @@ static void transferBagToStack(game::CPhaseGame* phaseGame,
     auto objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
     auto bagObj = objectMap->vftable->findScenarioObjectById(objectMap, bagId);
     if (!bagObj) {
-        logError("mssProxyError.log", fmt::format("Could not find bag {:s}", idToString(bagId)));
+        spdlog::error("Could not find bag {:s}", idToString(bagId));
         return;
     }
 
@@ -595,8 +590,7 @@ static void transferStackToBag(game::CPhaseGame* phaseGame,
     auto objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
     auto stackObj = objectMap->vftable->findScenarioObjectById(objectMap, stackId);
     if (!stackObj) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not find stack {:s}", idToString(stackId)));
+        spdlog::error("Could not find stack {:s}", idToString(stackId));
         return;
     }
 
@@ -606,8 +600,7 @@ static void transferStackToBag(game::CPhaseGame* phaseGame,
     auto stack = (CMidStack*)dynamicCast(stackObj, 0, rtti.IMidScenarioObjectType,
                                          rtti.CMidStackType, 0);
     if (!stack) {
-        logError("mssProxyError.log",
-                 fmt::format("Failed to cast scenario oject {:s} to stack", idToString(stackId)));
+        spdlog::error("Failed to cast scenario oject {:s} to stack", idToString(stackId));
         return;
     }
 
@@ -761,8 +754,7 @@ static void sellItemsToMerchant(game::CPhaseGame* phaseGame,
     auto objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
     auto stackObj = objectMap->vftable->findScenarioObjectById(objectMap, stackId);
     if (!stackObj) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not find stack {:s}", idToString(stackId)));
+        spdlog::error("Could not find stack {:s}", idToString(stackId));
         return;
     }
 
@@ -772,8 +764,7 @@ static void sellItemsToMerchant(game::CPhaseGame* phaseGame,
     auto stack = (CMidStack*)dynamicCast(stackObj, 0, rtti.IMidScenarioObjectType,
                                          rtti.CMidStackType, 0);
     if (!stack) {
-        logError("mssProxyError.log",
-                 fmt::format("Failed to cast scenario oject {:s} to stack", idToString(stackId)));
+        spdlog::error("Failed to cast scenario oject {:s} to stack", idToString(stackId));
         return;
     }
 
@@ -902,8 +893,7 @@ static game::Bank computeItemsSellPrice(game::IMidgardObjectMap* objectMap,
 
     auto stackObj = objectMap->vftable->findScenarioObjectById(objectMap, stackId);
     if (!stackObj) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not find stack {:s}", idToString(stackId)));
+        spdlog::error("Could not find stack {:s}", idToString(stackId));
         return {};
     }
 
@@ -913,8 +903,7 @@ static game::Bank computeItemsSellPrice(game::IMidgardObjectMap* objectMap,
     auto stack = (CMidStack*)dynamicCast(stackObj, 0, rtti.IMidScenarioObjectType,
                                          rtti.CMidStackType, 0);
     if (!stack) {
-        logError("mssProxyError.log",
-                 fmt::format("Failed to cast scenario oject {:s} to stack", idToString(stackId)));
+        spdlog::error("Failed to cast scenario oject {:s} to stack", idToString(stackId));
         return {};
     }
 

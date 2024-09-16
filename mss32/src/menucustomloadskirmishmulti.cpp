@@ -18,12 +18,11 @@
  */
 
 #include "menucustomloadskirmishmulti.h"
-#include "log.h"
 #include "mempool.h"
 #include "originalfunctions.h"
 #include "textids.h"
 #include "utils.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -83,7 +82,7 @@ void __fastcall CMenuCustomLoadSkirmishMulti::destructor(CMenuCustomLoadSkirmish
     thisptr->~CMenuCustomLoadSkirmishMulti();
 
     if (flags & 1) {
-        logDebug("transitions.log", "Free CMenuCustomLoadSkirmishMulti memory");
+        spdlog::debug("Free CMenuCustomLoadSkirmishMulti memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }

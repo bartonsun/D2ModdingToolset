@@ -61,7 +61,7 @@
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\Detours\src;$(ProjectDir)..\GSL\include;$(ProjectDir)..\fmt\include;$(ProjectDir)include;$(ProjectDir)include\dbf;$(ProjectDir)..\lua;$(ProjectDir)..\sol2\single\include;$(ProjectDir)include\bindings;$(ProjectDir)..\SLikeNet\Source;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2\Rooms;$(ProjectDir)..\D2RSG\ScenarioGenerator\src;$(ProjectDir)..\D2RSG\ScenarioGenerator\src\scenario;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Detours\src;$(ProjectDir)..\GSL\include;$(ProjectDir)..\fmt\include;$(ProjectDir)include;$(ProjectDir)include\dbf;$(ProjectDir)..\lua;$(ProjectDir)..\sol2\single\include;$(ProjectDir)..\spdlog\include;$(ProjectDir)include\bindings;$(ProjectDir)..\SLikeNet\Source;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2\Rooms;$(ProjectDir)..\D2RSG\ScenarioGenerator\src;$(ProjectDir)..\D2RSG\ScenarioGenerator\src\scenario;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -90,7 +90,7 @@ call ..\buildDetours.bat ..\Detours
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\Detours\src;$(ProjectDir)..\GSL\include;$(ProjectDir)..\fmt\include;$(ProjectDir)include;$(ProjectDir)include\dbf;$(ProjectDir)..\lua;$(ProjectDir)..\sol2\single\include;$(ProjectDir)include\bindings;$(ProjectDir)..\SLikeNet\Source;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2\Rooms;$(ProjectDir)..\D2RSG\ScenarioGenerator\src;$(ProjectDir)..\D2RSG\ScenarioGenerator\src\scenario;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Detours\src;$(ProjectDir)..\GSL\include;$(ProjectDir)..\fmt\include;$(ProjectDir)include;$(ProjectDir)include\dbf;$(ProjectDir)..\lua;$(ProjectDir)..\sol2\single\include;$(ProjectDir)..\spdlog\include;$(ProjectDir)include\bindings;$(ProjectDir)..\SLikeNet\Source;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2\Rooms;$(ProjectDir)..\D2RSG\ScenarioGenerator\src;$(ProjectDir)..\D2RSG\ScenarioGenerator\src\scenario;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -434,7 +434,6 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\leaderabilitycat.cpp" />
     <ClCompile Include="src\listbox.cpp" />
     <ClCompile Include="src\idlistutils.cpp" />
-    <ClCompile Include="src\log.cpp" />
     <ClCompile Include="src\lordcat.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\mainview2.cpp" />
@@ -1090,7 +1089,6 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\d2list.h" />
     <ClInclude Include="include\listbox.h" />
     <ClInclude Include="include\idlistutils.h" />
-    <ClInclude Include="include\log.h" />
     <ClInclude Include="include\lordcat.h" />
     <ClInclude Include="include\lordtype.h" />
     <ClInclude Include="include\mapelement.h" />

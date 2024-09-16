@@ -18,10 +18,10 @@
  */
 
 #include "scenedithooks.h"
-#include "originalfunctions.h"
 #include "dbf/dbffile.h"
-#include "utils.h"
 #include "game.h"
+#include "originalfunctions.h"
+#include "utils.h"
 #include <fmt/format.h>
 
 namespace hooks {
@@ -72,17 +72,17 @@ static bool readMarketNames(const std::filesystem::path& dbPath)
 
 bool __fastcall readScenDataHooked(game::CScenEdit* thisptr, int /*%edx*/)
 {
-	using namespace game;
+    using namespace game;
 
-	const auto dbPath{scenDataFolder() / "Marketname.dbf"};
+    const auto dbPath{scenDataFolder() / "Marketname.dbf"};
     if (std::filesystem::exists(dbPath)) {
         if (!readMarketNames(dbPath)) {
             showErrorMessageBox(
                 fmt::format("Failed to read resource market names from '{:s}'", dbPath.string()));
         }
-	}
+    }
 
-	return getOriginalFunctions().readScenData(thisptr);
+    return getOriginalFunctions().readScenData(thisptr);
 }
 
 const MarketNames& getMarketNames()
@@ -90,4 +90,4 @@ const MarketNames& getMarketNames()
     return marketNames;
 }
 
-}
+} // namespace hooks

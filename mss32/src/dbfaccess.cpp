@@ -19,11 +19,10 @@
 
 #include "dbfaccess.h"
 #include "dbf/dbffile.h"
-#include "log.h"
 #include "midgardid.h"
 #include "utils.h"
-#include <fmt/format.h>
 #include <functional>
+#include <spdlog/spdlog.h>
 
 namespace utils {
 
@@ -100,16 +99,15 @@ bool dbValueExists(const std::filesystem::path& dbfFilePath,
 {
     DbfFile dbf;
     if (!dbf.open(dbfFilePath)) {
-        hooks::logError("mssProxyError.log",
-                        fmt::format("Could not open {:s}", dbfFilePath.filename().string()));
+        spdlog::error("Could not open {:s}", dbfFilePath.filename().string());
         return false;
     }
 
     for (std::uint32_t i = 0; i < dbf.recordsTotal(); ++i) {
         DbfRecord record;
         if (!dbf.record(record, i)) {
-            hooks::logError("mssProxyError.log", fmt::format("Could not read record {:d} from {:s}",
-                                                             i, dbfFilePath.filename().string()));
+            spdlog::error("Could not read record {:d} from {:s}", i,
+                          dbfFilePath.filename().string());
             return false;
         }
 

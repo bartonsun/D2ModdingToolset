@@ -26,7 +26,8 @@
 #include "idview.h"
 #include "scripts.h"
 #include "utils.h"
-#include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 namespace hooks {
 

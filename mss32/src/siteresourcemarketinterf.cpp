@@ -31,7 +31,6 @@
 #include "image2outline.h"
 #include "image2text.h"
 #include "listbox.h"
-#include "log.h"
 #include "mainview2.h"
 #include "mempool.h"
 #include "menubase.h"
@@ -63,7 +62,7 @@
 #include "utils.h"
 #include <algorithm>
 #include <cstring>
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 

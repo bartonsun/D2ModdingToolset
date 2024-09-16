@@ -39,7 +39,6 @@
 #include "itembaseview.h"
 #include "itemview.h"
 #include "locationview.h"
-#include "log.h"
 #include "merchantview.h"
 #include "mercsview.h"
 #include "midstack.h"
@@ -61,8 +60,8 @@
 #include "unitview.h"
 #include "unitviewdummy.h"
 #include "utils.h"
-#include <fmt/format.h>
 #include <mutex>
+#include <spdlog/spdlog.h>
 #include <thread>
 
 extern std::thread::id mainThreadId;
@@ -463,7 +462,7 @@ static void bindApi(sol::state& lua)
     bindings::GameView::bind(lua);
     bindings::BuildingView::bind(lua);
 
-    lua.set_function("log", [](const std::string& message) { logDebug("luaDebug.log", message); });
+    lua.set_function("log", [](const std::string& message) { spdlog::debug(message); });
     lua.set_function("randomNumber", [](std::uint32_t maxValue) {
         return game::gameFunctions().generateRandomNumber(maxValue);
     });

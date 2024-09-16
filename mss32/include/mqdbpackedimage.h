@@ -23,8 +23,9 @@
 #include "d2string.h"
 #include "d2vector.h"
 #include "mqpoint.h"
-#include <Windows.h>
 #include <cstdint>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 namespace game {
 

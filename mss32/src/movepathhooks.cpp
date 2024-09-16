@@ -25,7 +25,6 @@
 #include "groundcat.h"
 #include "image2text.h"
 #include "isolayers.h"
-#include "log.h"
 #include "mapgraphics.h"
 #include "mempool.h"
 #include "midgard.h"
@@ -41,7 +40,7 @@
 #include "utils.h"
 #include <array>
 #include <cmath>
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 

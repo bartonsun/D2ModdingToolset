@@ -28,7 +28,6 @@
 #include "globaldata.h"
 #include "image2outline.h"
 #include "listbox.h"
-#include "log.h"
 #include "mapgenerator.h"
 #include "maptemplatereader.h"
 #include "mempool.h"
@@ -43,9 +42,9 @@
 #include "utils.h"
 #include "waitgenerationinterf.h"
 #include <chrono>
-#include <fmt/format.h>
 #include <set>
 #include <sol/sol.hpp>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -412,7 +411,7 @@ static void updateMenuUi(CMenuRandomScenario* menu, int selectedIndex)
 
 static void __fastcall menuRandomScenarioDtor(CMenuRandomScenario* menu, int /*%edx*/, char flags)
 {
-    logDebug("mss32Proxy.log", "CMenuRandomScenario d-tor called");
+    spdlog::debug("CMenuRandomScenario d-tor called");
     menu->~CMenuRandomScenario();
 
     if (flags & 1) {
@@ -551,9 +550,9 @@ static void generateScenario(CMenuRandomScenario* menu, std::time_t seed)
             const auto genTime = std::chrono::duration_cast<ms>(end - beforeGeneration);
             const auto total = std::chrono::duration_cast<ms>(end - start);
 
-            logDebug("mss32Proxy.log", fmt::format("Random scenario generation done in {:d} ms. "
-                                                   "Made {:d} attempts, {:d} ms total.",
-                                                   genTime.count(), attempt + 1, total.count()));
+            spdlog::debug("Random scenario generation done in {:d} ms. "
+                          "Made {:d} attempts, {:d} ms total.",
+                          genTime.count(), attempt + 1, total.count());
 
             // Report success only after saving results
             menu->generationStatus = GenerationStatus::Done;
@@ -563,7 +562,7 @@ static void generateScenario(CMenuRandomScenario* menu, std::time_t seed)
             continue;
         } catch (const std::exception& e) {
             // Critical error, abort generation
-            logError("mssProxyError.log", e.what());
+            spdlog::error(e.what());
             menu->generationStatus = GenerationStatus::Error;
             return;
         }
@@ -767,7 +766,7 @@ static void __fastcall buttonGenerateHandler(CMenuRandomScenario* thisptr, int /
         thisptr->generatorThread = std::thread(
             [thisptr, seed]() { generateScenario(thisptr, seed); });
     } catch (const std::exception& e) {
-        logError("mssProxyError.log", e.what());
+        spdlog::error(e.what());
         showMessageBox(e.what());
         return;
     }
@@ -880,7 +879,7 @@ static void menuRandomScenarioCtor(CMenuRandomScenario* menu,
 {
     using namespace game;
 
-    logDebug("mss32Proxy.log", "CMenuRandomScenario c-tor called");
+    spdlog::debug("CMenuRandomScenario c-tor called");
 
     const auto& menuBase{CMenuBaseApi::get()};
     menuBase.constructor(menu, menuPhase);

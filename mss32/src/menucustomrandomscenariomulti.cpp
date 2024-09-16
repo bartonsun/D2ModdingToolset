@@ -19,12 +19,11 @@
 
 #include "menucustomrandomscenariomulti.h"
 #include "interfaceutils.h"
-#include "log.h"
 #include "mempool.h"
 #include "originalfunctions.h"
 #include "textids.h"
 #include "utils.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -78,7 +77,7 @@ void __fastcall CMenuCustomRandomScenarioMulti::destructor(CMenuCustomRandomScen
     thisptr->~CMenuCustomRandomScenarioMulti();
 
     if (flags & 1) {
-        logDebug("transitions.log", "Free CMenuCustomRandomScenarioMulti memory");
+        spdlog::debug("Free CMenuCustomRandomScenarioMulti memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }

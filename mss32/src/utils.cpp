@@ -20,7 +20,6 @@
 #include "utils.h"
 #include "game.h"
 #include "interfmanager.h"
-#include "log.h"
 #include "mempool.h"
 #include "midgardmsgbox.h"
 #include "midgardobjectmap.h"
@@ -30,11 +29,13 @@
 #include "smartptr.h"
 #include "sounds.h"
 #include "uimanager.h"
-#include <Windows.h>
-#include <fmt/format.h>
 #include <fstream>
 #include <random>
+#include <spdlog/spdlog.h>
 #include <wincrypt.h>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <commdlg.h>
 
 extern HMODULE library;
 
@@ -304,7 +305,7 @@ void showMessageBox(const std::string& message,
 
 void showErrorMessageBox(const std::string& message)
 {
-    logError("mssProxyError.log", message);
+    spdlog::error(message);
     MessageBox(NULL, message.c_str(), "mss32.dll proxy", MB_OK);
 }
 
@@ -384,22 +385,19 @@ std::string computeHash(std::vector<std::filesystem::path> filenames)
     HashGuard guard;
     if (!CryptAcquireContext(&guard.provider, nullptr, nullptr, PROV_RSA_FULL,
                              CRYPT_VERIFYCONTEXT)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not acquire context, reason {:d}", GetLastError()));
+        spdlog::error("Could not acquire context, reason {:d}", GetLastError());
         return "";
     }
 
     if (!CryptCreateHash(guard.provider, CALG_MD5, 0, 0, &guard.hash)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not create hash, reason {:d}", GetLastError()));
+        spdlog::error("Could not create hash, reason {:d}", GetLastError());
         return "";
     }
 
     for (const auto& file : filenames) {
         std::ifstream stream{file, std::ios_base::binary};
         if (!stream) {
-            logError("mssProxyError.log",
-                     fmt::format("Could not open file '{:s}'", file.filename().string()));
+            spdlog::error("Could not open file '{:s}'", file.filename().string());
             return "";
         }
 
@@ -410,8 +408,7 @@ std::string computeHash(std::vector<std::filesystem::path> filenames)
         stream.close();
 
         if (!CryptHashData(guard.hash, contents.data(), size, 0)) {
-            logError("mssProxyError.log",
-                     fmt::format("Compute hash failed, reason {:d}", GetLastError()));
+            spdlog::error("Compute hash failed, reason {:d}", GetLastError());
             return "";
         }
     }
@@ -421,8 +418,7 @@ std::string computeHash(std::vector<std::filesystem::path> filenames)
     unsigned char md5Hash[md5Length] = {0};
 
     if (!CryptGetHashParam(guard.hash, HP_HASHVAL, md5Hash, &length, 0)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not get hash value, reason {:d}", GetLastError()));
+        spdlog::error("Could not get hash value, reason {:d}", GetLastError());
         return "";
     }
 

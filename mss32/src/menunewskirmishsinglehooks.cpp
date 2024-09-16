@@ -20,9 +20,9 @@
 #include "menunewskirmishsinglehooks.h"
 #include "button.h"
 #include "dialoginterf.h"
-#include "log.h"
 #include "menunewskirmishsingle.h"
 #include "originalfunctions.h"
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 

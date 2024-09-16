@@ -19,11 +19,10 @@
 
 #include "customnobleactioncategories.h"
 #include "dbffile.h"
-#include "log.h"
 #include "utils.h"
 #include <array>
 #include <filesystem>
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -35,8 +34,7 @@ static void checkCustomActionCategories(const std::filesystem::path& dbfFilePath
 {
     utils::DbfFile dbf;
     if (!dbf.open(dbfFilePath)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not open {:s}", dbfFilePath.filename().string()));
+        spdlog::error("Could not open {:s}", dbfFilePath.filename().string());
         return;
     }
 

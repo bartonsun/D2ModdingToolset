@@ -27,7 +27,6 @@
 #include "scenedit.h"
 #include "terraincat.h"
 #include "utils.h"
-#include <fmt/format.h>
 
 namespace hooks {
 

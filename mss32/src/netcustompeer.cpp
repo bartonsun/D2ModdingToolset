@@ -18,9 +18,8 @@
  */
 
 #include "netcustompeer.h"
-#include "log.h"
 #include "uimanager.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -31,8 +30,7 @@ CNetCustomPeer::CNetCustomPeer(const char* packetNotificationMessageName)
 
     const auto& uiManagerApi = CUIManagerApi::get();
 
-    logDebug("lobby.log",
-             fmt::format(__FUNCTION__ ": messageName = {:s}", packetNotificationMessageName));
+    spdlog::debug(__FUNCTION__ ": messageName = {:s}", packetNotificationMessageName);
 
     SetUserUpdateThread(UpdateThreadCallback, nullptr);
 
@@ -45,7 +43,7 @@ CNetCustomPeer::CNetCustomPeer(const char* packetNotificationMessageName)
 
 CNetCustomPeer::~CNetCustomPeer()
 {
-    logDebug("lobby.log", __FUNCTION__);
+    spdlog::debug(__FUNCTION__);
 }
 
 bool CNetCustomPeer::IsPacketNotificationSent() const
@@ -65,7 +63,7 @@ void CNetCustomPeer::UpdateThreadCallback(RakPeerInterface* peer, void* /*data*/
     static DWORD lastUpdate = 0;
     DWORD tickCount = GetTickCount();
     if (DWORD(tickCount - lastUpdate) > 5000) {
-        logDebug("lobby.log", __FUNCTION__ ": the network thread appears responsive");
+        spdlog::debug(__FUNCTION__ ": the network thread appears responsive");
         lastUpdate = tickCount;
     }
 
@@ -75,8 +73,7 @@ void CNetCustomPeer::UpdateThreadCallback(RakPeerInterface* peer, void* /*data*/
     customPeer->packetReturnMutex.Unlock();
 
     if (!empty && !customPeer->IsPacketNotificationSent()) {
-        logDebug(
-            "lobby.log",
+        spdlog::debug(
             __FUNCTION__ ": there are packets in the return queue, posting notification message");
         customPeer->SendPacketNotification();
     }
@@ -93,9 +90,8 @@ void CNetCustomPeer::SendPacketNotification()
     m_packetNotificationSent = uiManagerApi.postMessage(uiManager.data,
                                                         m_packetNotificationMessageId, 0, 0);
     if (!m_packetNotificationSent) {
-        logDebug("lobby.log",
-                 fmt::format(__FUNCTION__ ": failed to post notification message, error = {:d}",
-                             GetLastError()));
+        spdlog::debug(__FUNCTION__ ": failed to post notification message, error = {:d}",
+                      GetLastError());
     }
     SmartPointerApi::get().createOrFree((SmartPointer*)&uiManager, nullptr);
 }

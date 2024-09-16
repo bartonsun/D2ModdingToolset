@@ -30,7 +30,6 @@
 #include "gameutils.h"
 #include "groupview.h"
 #include "intset.h"
-#include "log.h"
 #include "midplayer.h"
 #include "midstack.h"
 #include "modifierutils.h"
@@ -43,7 +42,7 @@
 #include "usunitimpl.h"
 #include "utils.h"
 #include <atomic>
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -57,9 +56,7 @@ public:
     ~ModifiedUnitsPatchedFactory()
     {
         if (count != 0) {
-            logError("mssProxyError.log",
-                     fmt::format("{:d} instances of ModifiedUnitsPatched remained on finalization",
-                                 count));
+            spdlog::error("{:d} instances of ModifiedUnitsPatched remained on finalization", count.load());
         }
     }
 
@@ -439,7 +436,7 @@ void __stdcall aiChooseBattleActionHooked(const game::IMidgardObjectMap* objectM
         if (userSettings().battle.debugAi) {
             showErrorMessageBox(message);
         } else {
-            logError("mssProxyError.log", message);
+            spdlog::error(message);
         }
 
         chooseBattleAction(objectMap, battleMsgData, unitId, possibleActions, possibleTargets,
@@ -456,7 +453,7 @@ void __stdcall aiChooseBattleActionHooked(const game::IMidgardObjectMap* objectM
         if (userSettings().battle.debugAi) {
             showErrorMessageBox(message);
         } else {
-            logError("mssProxyError.log", message);
+            spdlog::error(message);
         }
 
         chooseBattleAction(objectMap, battleMsgData, unitId, possibleActions, possibleTargets,
@@ -476,7 +473,7 @@ void __stdcall aiChooseBattleActionHooked(const game::IMidgardObjectMap* objectM
         if (userSettings().battle.debugAi) {
             showErrorMessageBox(message);
         } else {
-            logError("mssProxyError.log", message);
+            spdlog::error(message);
         }
 
         chooseBattleAction(objectMap, battleMsgData, unitId, possibleActions, possibleTargets,
@@ -552,7 +549,7 @@ void __stdcall aiChooseBattleActionHooked(const game::IMidgardObjectMap* objectM
         if (userSettings().battle.debugAi) {
             showErrorMessageBox(message);
         } else {
-            logError("mssProxyError.log", message);
+            spdlog::error(message);
         }
 
         *targetUnitId = *unitId;

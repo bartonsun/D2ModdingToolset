@@ -36,7 +36,6 @@
 #include "idlistutils.h"
 #include "intset.h"
 #include "itemview.h"
-#include "log.h"
 #include "midgardobjectmap.h"
 #include "midplayer.h"
 #include "midunit.h"
@@ -48,7 +47,7 @@
 #include "unitutils.h"
 #include "ussoldier.h"
 #include "utils.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -58,8 +57,7 @@ void fillCustomAttackSources(const std::filesystem::path& dbfFilePath)
 
     utils::DbfFile dbf;
     if (!dbf.open(dbfFilePath)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not open {:s}", dbfFilePath.filename().string()));
+        spdlog::error("Could not open {:s}", dbfFilePath.filename().string());
         return;
     }
 
@@ -81,8 +79,8 @@ void fillCustomAttackSources(const std::filesystem::path& dbfFilePath)
 
         utils::DbfRecord record;
         if (!dbf.record(record, i)) {
-            logError("mssProxyError.log", fmt::format("Could not read record {:d} from {:s}", i,
-                                                      dbfFilePath.filename().string()));
+            spdlog::error("Could not read record {:d} from {:s}", i,
+                          dbfFilePath.filename().string());
             return;
         }
 
@@ -102,10 +100,8 @@ void fillCustomAttackSources(const std::filesystem::path& dbfFilePath)
             int immunityAiRating = 5; // 5 is the default
             record.value(immunityAiRating, "IMMU_AI_R");
 
-            logDebug("customAttacks.log",
-                     fmt::format(
-                         "Found custom attack source {:s}, name id {:s}, immunity ai rating {:d}",
-                         text, nameId, immunityAiRating));
+            spdlog::debug("Found custom attack source {:s}, name id {:s}, immunity ai rating {:d}",
+                          text, nameId, immunityAiRating);
 
             customSources.push_back({LAttackSource{AttackSourceCategories::vftable(), nullptr,
                                                    (AttackSourceId)emptyCategoryId},
@@ -120,8 +116,7 @@ void fillCustomAttackReaches(const std::filesystem::path& dbfFilePath)
 
     utils::DbfFile dbf;
     if (!dbf.open(dbfFilePath)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not open {:s}", dbfFilePath.filename().string()));
+        spdlog::error("Could not open {:s}", dbfFilePath.filename().string());
         return;
     }
 
@@ -132,8 +127,8 @@ void fillCustomAttackReaches(const std::filesystem::path& dbfFilePath)
     for (std::uint32_t i = 0; i < recordsTotal; ++i) {
         utils::DbfRecord record;
         if (!dbf.record(record, i)) {
-            logError("mssProxyError.log", fmt::format("Could not read record {:d} from {:s}", i,
-                                                      dbfFilePath.filename().string()));
+            spdlog::error("Could not read record {:d} from {:s}", i,
+                          dbfFilePath.filename().string());
             return;
         }
 
@@ -168,7 +163,7 @@ void fillCustomAttackReaches(const std::filesystem::path& dbfFilePath)
             int maxTargets = 1; // 1 is the default
             record.value(maxTargets, "MAX_TARGTS");
 
-            logDebug("customAttacks.log", fmt::format("Found custom attack reach {:s}", text));
+            spdlog::debug("Found custom attack reach {:s}", text);
 
             customReaches.push_back({LAttackReach{AttackReachCategories::vftable(), nullptr,
                                                   (AttackReachId)emptyCategoryId},

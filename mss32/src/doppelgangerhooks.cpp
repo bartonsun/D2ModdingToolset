@@ -27,7 +27,6 @@
 #include "globaldata.h"
 #include "immunecat.h"
 #include "itemview.h"
-#include "log.h"
 #include "midgardobjectmap.h"
 #include "midunit.h"
 #include "scripts.h"
@@ -38,7 +37,7 @@
 #include "usunitimpl.h"
 #include "utils.h"
 #include "visitors.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 

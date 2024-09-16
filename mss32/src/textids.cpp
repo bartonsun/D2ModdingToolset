@@ -18,10 +18,9 @@
  */
 
 #include "textids.h"
-#include "log.h"
 #include "scripts.h"
 #include "utils.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 

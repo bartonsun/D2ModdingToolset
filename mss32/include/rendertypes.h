@@ -26,8 +26,9 @@
 #include "d2set.h"
 #include "mqrect.h"
 #include "texturehandle.h"
-#include <Windows.h>
 #include <cstdint>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 struct IDirectDrawSurface7;
 struct IDirectDrawPalette;

@@ -124,9 +124,6 @@
     <ClCompile Include="src\listbox.cpp">
       <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="src\log.cpp">
-      <Filter>utils</Filter>
-    </ClCompile>
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\mempool.cpp">
       <Filter>game</Filter>
@@ -1653,9 +1650,6 @@
     </ClInclude>
     <ClInclude Include="include\listbox.h">
       <Filter>game</Filter>
-    </ClInclude>
-    <ClInclude Include="include\log.h">
-      <Filter>utils</Filter>
     </ClInclude>
     <ClInclude Include="include\lordcat.h">
       <Filter>game</Filter>

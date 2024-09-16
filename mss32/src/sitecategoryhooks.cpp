@@ -19,10 +19,9 @@
 
 #include "sitecategoryhooks.h"
 #include "dbf/dbffile.h"
-#include "log.h"
 #include "midsiteresourcemarket.h"
 #include "utils.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -39,8 +38,7 @@ static bool readCustomSites(const std::filesystem::path& dbfFilePath)
 {
     utils::DbfFile dbf;
     if (!dbf.open(dbfFilePath)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not open {:s}", dbfFilePath.filename().string()));
+        spdlog::error("Could not open {:s}", dbfFilePath.filename().string());
         return false;
     }
 
@@ -48,8 +46,8 @@ static bool readCustomSites(const std::filesystem::path& dbfFilePath)
     for (std::uint32_t i = 0u; i < recordsTotal; ++i) {
         utils::DbfRecord record;
         if (!dbf.record(record, i)) {
-            logError("mssProxyError.log", fmt::format("Could not read record {:d} from {:s}", i,
-                                                      dbfFilePath.filename().string()));
+            spdlog::error("Could not read record {:d} from {:s}", i,
+                          dbfFilePath.filename().string());
             return false;
         }
 

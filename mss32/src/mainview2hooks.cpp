@@ -24,7 +24,6 @@
 #include "gameimages.h"
 #include "gameutils.h"
 #include "isolayers.h"
-#include "log.h"
 #include "mainview2.h"
 #include "mapgraphics.h"
 #include "midclient.h"
@@ -39,7 +38,7 @@
 #include "sitecategoryhooks.h"
 #include "taskmanager.h"
 #include "togglebutton.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -118,8 +117,7 @@ void __fastcall mainView2ShowIsoDialogHooked(game::CMainView2* thisptr, int /*%e
     auto toggleButton{dialogApi.findToggleButton(dialog, buttonName)};
     if (!toggleButton) {
         // Control was found, but it is not CToggleButton
-        logError("mssProxyError.log", fmt::format("{:s} in {:s} must be a toggle button",
-                                                  buttonName, dialog->data->dialogName));
+        spdlog::error("{:s} in {:s} must be a toggle button", buttonName, dialog->data->dialogName);
         return;
     }
 

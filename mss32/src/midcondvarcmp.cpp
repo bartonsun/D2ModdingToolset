@@ -40,7 +40,6 @@
 #include "textids.h"
 #include "timer.h"
 #include "utils.h"
-#include <fmt/format.h>
 #include <functional>
 #include <vector>
 

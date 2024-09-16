@@ -110,7 +110,6 @@
 #include "itemutils.h"
 #include "leaderabilitycat.h"
 #include "listbox.h"
-#include "log.h"
 #include "lordtype.h"
 #include "mainview2.h"
 #include "mainview2hooks.h"
@@ -224,9 +223,9 @@
 #include "visitors.h"
 #include <algorithm>
 #include <cstring>
-#include <fmt/format.h>
 #include <fstream>
 #include <iterator>
+#include <spdlog/spdlog.h>
 #include <string>
 
 namespace hooks {
@@ -887,26 +886,26 @@ Hooks getVftableHooks()
 
 void respopupInitHooked(void)
 {
-    logDebug("mss32Proxy.log", "Resource popup hook start");
+    spdlog::debug("Resource popup hook start");
 
     auto& variables = game::gameVariables();
 
     *variables.minimapMode = userSettings().showLandConverted;
     *variables.respopup = userSettings().showResources;
 
-    logDebug("mss32Proxy.log", "Resource popup hook finished");
+    spdlog::debug("Resource popup hook finished");
 }
 
 void* __fastcall toggleShowBannersInitHooked(void* thisptr, int /*%edx*/)
 {
-    logDebug("mss32Proxy.log", "Show banners hook start");
+    spdlog::debug("Show banners hook start");
 
     char* ptr = (char*)thisptr;
     *ptr = userSettings().showBanners;
     // meaning unknown
     ptr[1] = 0;
 
-    logDebug("mss32Proxy.log", "Show banners hook finished");
+    spdlog::debug("Show banners hook finished");
     return thisptr;
 }
 
@@ -928,8 +927,7 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
     auto findScenarioObjectById = dataCache->vftable->findScenarioObjectById;
     auto playerObject = findScenarioObjectById(dataCache, playerId);
     if (!playerObject) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not find player object with id {:x}", playerId->value));
+        spdlog::error("Could not find player object with id {:x}", playerId->value);
         return false;
     }
 
@@ -938,15 +936,13 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
     CMidPlayer* player = (CMidPlayer*)dynamicCast(playerObject, 0, rtti.IMidScenarioObjectType,
                                                   rtti.CMidPlayerType, 0);
     if (!player) {
-        logError("mssProxyError.log",
-                 fmt::format("Object with id {:x} is not player", playerId->value));
+        spdlog::error("Object with id {:x} is not player", playerId->value);
         return false;
     }
 
     auto buildingsObject = findScenarioObjectById(dataCache, &player->buildingsId);
     if (!buildingsObject) {
-        logError("mssProxyError.log", fmt::format("Could not find player buildings with id {:x}",
-                                                  player->buildingsId.value));
+        spdlog::error("Could not find player buildings with id {:x}", player->buildingsId.value);
         return false;
     }
 
@@ -954,8 +950,7 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
                                                           rtti.IMidScenarioObjectType,
                                                           rtti.CPlayerBuildingsType, 0);
     if (!playerBuildings) {
-        logError("mssProxyError.log", fmt::format("Object with id {:x} is not player buildings",
-                                                  player->buildingsId.value));
+        spdlog::error("Object with id {:x} is not player buildings", player->buildingsId.value);
         return false;
     }
 
@@ -1107,7 +1102,7 @@ game::LBuildingCategoryTable* __fastcall buildingCategoryTableCtorHooked(
 
     static const char dbfFileName[] = "LBuild.dbf";
 
-    logDebug("newBuildingType.log", "Hook started");
+    spdlog::debug("Hook started");
 
     const auto dbfFilePath{std::filesystem::path(globalsFolderPath) / dbfFileName};
     addCustomBuildingCategory(dbfFilePath, BuildingBranchNumber::Fighter, "L_FIGHTER");
@@ -1135,7 +1130,7 @@ game::LBuildingCategoryTable* __fastcall buildingCategoryTableCtorHooked(
     }
     table.initDone(thisptr);
 
-    logDebug("newBuildingType.log", "Hook finished");
+    spdlog::debug("Hook finished");
     return thisptr;
 }
 
@@ -1197,7 +1192,7 @@ game::CBuildingBranch* __fastcall buildingBranchCtorHooked(game::CBuildingBranch
 {
     using namespace game;
 
-    logDebug("newBuildingType.log", "CBuildingBranchCtor hook started");
+    spdlog::debug("CBuildingBranchCtor hook started");
 
     auto memAlloc = Memory::get().allocate;
     CBuildingBranchData* data = (CBuildingBranchData*)memAlloc(sizeof(CBuildingBranchData));
@@ -1246,7 +1241,7 @@ game::CBuildingBranch* __fastcall buildingBranchCtorHooked(game::CBuildingBranch
         addBuilding(&thisptr->data->map, buildingType, *branchNumber, phaseGame);
     }
 
-    logDebug("newBuildingType.log", "Ctor finished");
+    spdlog::debug("Ctor finished");
     return thisptr;
 }
 
@@ -2098,8 +2093,7 @@ bool __fastcall checkMapObjectsHooked(game::CMidgardScenarioMap* scenarioMap, in
 
         const auto* object{current.foundRecord->value.data};
         if (!object->vftable->isValid(object, scenarioMap)) {
-            logError("mssProxyError.log",
-                     fmt::format("Scenario object {:s} is invalid", idToString(objectId)));
+            spdlog::error("Scenario object {:s} is invalid", idToString(objectId));
             return false;
         }
 

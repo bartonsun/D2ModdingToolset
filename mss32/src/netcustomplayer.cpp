@@ -19,7 +19,6 @@
 
 #include "netcustomplayer.h"
 #include "d2string.h"
-#include "log.h"
 #include "mempool.h"
 #include "mqnetplayer.h"
 #include "mqnetreception.h"
@@ -27,9 +26,9 @@
 #include "netcustomservice.h"
 #include "netcustomsession.h"
 #include "netmsg.h"
-#include <fmt/format.h>
 #include <mutex>
 #include <slikenet/types.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -49,15 +48,15 @@ CNetCustomPlayer::CNetCustomPlayer(CNetCustomSession* session,
 
 CNetCustomPlayer::~CNetCustomPlayer()
 {
-    logDebug("lobby.log", __FUNCTION__);
+    spdlog::debug(__FUNCTION__);
 
     if (m_system) {
-        logDebug("lobby.log", __FUNCTION__ ": destroying net system");
+        spdlog::debug(__FUNCTION__ ": destroying net system");
         m_system->vftable->destructor(m_system, 1);
     }
 
     if (m_reception) {
-        logDebug("lobby.log", __FUNCTION__ ": destroying net reception");
+        spdlog::debug(__FUNCTION__ ": destroying net reception");
         m_reception->vftable->destructor(m_reception, 1);
     }
 }
@@ -73,7 +72,7 @@ const game::NetMessageHeader* CNetCustomPlayer::getMessageAndSender(const SLNet:
     SLNet::BitStream input{packet->data, packet->length, false};
     input.IgnoreBytes(sizeof(SLNet::MessageID));
     if (!input.Read(*sender)) {
-        logDebug("lobby.log", __FUNCTION__ ": failed to read sender guid");
+        spdlog::debug(__FUNCTION__ ": failed to read sender guid");
         return nullptr;
     }
 
@@ -119,8 +118,7 @@ uint32_t CNetCustomPlayer::getId() const
 void CNetCustomPlayer::postMessageToReceive(const game::NetMessageHeader* message,
                                             std::uint32_t idFrom)
 {
-    logDebug("lobby.log",
-             fmt::format(__FUNCTION__ ": '{:s}' from 0x{:x}", message->messageClassName, idFrom));
+    spdlog::debug(__FUNCTION__ ": '{:s}' from 0x{:x}", message->messageClassName, idFrom);
 
     auto msg = std::make_unique<unsigned char[]>(message->length);
     std::memcpy(msg.get(), message, message->length);
@@ -135,8 +133,7 @@ void CNetCustomPlayer::postMessageToReceive(const game::NetMessageHeader* messag
 bool CNetCustomPlayer::sendRemoteMessage(const game::NetMessageHeader* message,
                                          const SLNet::RakNetGUID& to) const
 {
-    logDebug("lobby.log", fmt::format(__FUNCTION__ ": '{:s}' to 0x{:x}", message->messageClassName,
-                                      getClientId(to)));
+    spdlog::debug(__FUNCTION__ ": '{:s}' to 0x{:x}", message->messageClassName, getClientId(to));
 
     SLNet::BitStream stream;
     stream.Write(static_cast<SLNet::MessageID>(ID_GAME_MESSAGE));
@@ -151,8 +148,8 @@ bool CNetCustomPlayer::sendRemoteMessage(const game::NetMessageHeader* message,
 bool CNetCustomPlayer::sendRemoteMessage(const game::NetMessageHeader* message,
                                          const RemoteClients& to) const
 {
-    logDebug("lobby.log", fmt::format(__FUNCTION__ ": '{:s}' to {:d} recipient(s)",
-                                      message->messageClassName, to.size()));
+    spdlog::debug(__FUNCTION__ ": '{:s}' to {:d} recipient(s)", message->messageClassName,
+                  to.size());
 
     if (to.empty()) {
         return false;
@@ -172,8 +169,7 @@ bool CNetCustomPlayer::sendRemoteMessage(const game::NetMessageHeader* message,
 
 bool CNetCustomPlayer::sendHostMessage(const game::NetMessageHeader* message) const
 {
-    logDebug("lobby.log",
-             fmt::format(__FUNCTION__ ": '{:s}' to 0x{:x}", message->messageClassName, m_id));
+    spdlog::debug(__FUNCTION__ ": '{:s}' to 0x{:x}", message->messageClassName, m_id);
 
     auto msg = const_cast<game::NetMessageHeader*>(message);
     auto originalType = msg->messageType;
@@ -192,7 +188,7 @@ void __fastcall CNetCustomPlayer::destructor(CNetCustomPlayer* thisptr, int /*%e
     thisptr->~CNetCustomPlayer();
 
     if (flags & 1) {
-        logDebug("lobby.log", __FUNCTION__ ": freeing memory");
+        spdlog::debug(__FUNCTION__ ": freeing memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
@@ -201,21 +197,21 @@ game::String* __fastcall CNetCustomPlayer::getName(CNetCustomPlayer* thisptr,
                                                    int /*%edx*/,
                                                    game::String* string)
 {
-    logDebug("lobby.log", fmt::format(__FUNCTION__ ": name = '{:s}'", thisptr->m_name));
+    spdlog::debug(__FUNCTION__ ": name = '{:s}'", thisptr->m_name);
     game::StringApi::get().initFromString(string, thisptr->m_name.c_str());
     return string;
 }
 
 int __fastcall CNetCustomPlayer::getNetId(CNetCustomPlayer* thisptr, int /*%edx*/)
 {
-    logDebug("lobby.log", fmt::format(__FUNCTION__ ": id = 0x{:x}", thisptr->m_id));
+    spdlog::debug(__FUNCTION__ ": id = 0x{:x}", thisptr->m_id);
     return static_cast<int>(thisptr->m_id);
 }
 
 game::IMqNetSession* __fastcall CNetCustomPlayer::getSession(CNetCustomPlayer* thisptr,
                                                              int /*%edx*/)
 {
-    logDebug("lobby.log", __FUNCTION__);
+    spdlog::debug(__FUNCTION__);
     return thisptr->m_session;
 }
 
@@ -241,18 +237,15 @@ game::ReceiveMessageResult __fastcall CNetCustomPlayer::receiveMessage(
     auto message = reinterpret_cast<const game::NetMessageHeader*>(pair.second.get());
 
     if (message->messageType != game::netMessageNormalType) {
-        logDebug("lobby.log",
-                 fmt::format(__FUNCTION__ ": message from 0x{:x} with unexpected type 0x{:x}",
-                             *idFrom, message->messageType));
+        spdlog::debug(__FUNCTION__ ": message from 0x{:x} with unexpected type 0x{:x}", *idFrom,
+                      message->messageType);
         return game::ReceiveMessageResult::Failure;
     }
 
     if (message->length >= game::netMessageMaxLength) {
-        logDebug(
-            "lobby.log",
-            fmt::format(
-                __FUNCTION__ ": message from 0x{:x} with length {:d} that exeeds maximum of {:d}",
-                *idFrom, message->length, game::netMessageMaxLength));
+        spdlog::debug(
+            __FUNCTION__ ": message from 0x{:x} with length {:d} that exeeds maximum of {:d}",
+            *idFrom, message->length, game::netMessageMaxLength);
         return game::ReceiveMessageResult::Failure;
     }
 
@@ -260,10 +253,8 @@ game::ReceiveMessageResult __fastcall CNetCustomPlayer::receiveMessage(
     std::memcpy(buffer, message, message->length);
     thisptr->m_messages.pop();
 
-    logDebug(
-        "lobby.log",
-        fmt::format(__FUNCTION__ ": '{:s}' from 0x{:x} with length {:d}, messages remain = {:d}",
-                    buffer->messageClassName, *idFrom, buffer->length, thisptr->m_messages.size()));
+    spdlog::debug(__FUNCTION__ ": '{:s}' from 0x{:x} with length {:d}, messages remain = {:d}",
+                  buffer->messageClassName, *idFrom, buffer->length, thisptr->m_messages.size());
     return game::ReceiveMessageResult::Success;
 }
 
@@ -271,8 +262,8 @@ void __fastcall CNetCustomPlayer::setNetSystem(CNetCustomPlayer* thisptr,
                                                int /*%edx*/,
                                                game::IMqNetSystem* netSystem)
 {
-    logDebug("lobby.log", fmt::format(__FUNCTION__ ": old system = {:p}, new system = {:p}",
-                                      (void*)thisptr->m_system, (void*)netSystem));
+    spdlog::debug(__FUNCTION__ ": old system = {:p}, new system = {:p}", (void*)thisptr->m_system,
+                  (void*)netSystem);
     if (thisptr->m_system != netSystem) {
         if (thisptr->m_system) {
             thisptr->m_system->vftable->destructor(thisptr->m_system, 1);
@@ -283,7 +274,7 @@ void __fastcall CNetCustomPlayer::setNetSystem(CNetCustomPlayer* thisptr,
 
 int __fastcall CNetCustomPlayer::method8(CNetCustomPlayer* thisptr, int /*%edx*/, int a2)
 {
-    logDebug("lobby.log", __FUNCTION__);
+    spdlog::debug(__FUNCTION__);
     return a2;
 }
 

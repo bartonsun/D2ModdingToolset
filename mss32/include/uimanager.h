@@ -22,8 +22,9 @@
 
 #include "d2assert.h"
 #include "smartptr.h"
-#include <Windows.h>
 #include <cstdint>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 namespace game {
 

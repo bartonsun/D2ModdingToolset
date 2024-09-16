@@ -18,7 +18,6 @@
  */
 
 #include "netcustomplayerclient.h"
-#include "log.h"
 #include "mempool.h"
 #include "mqnetreception.h"
 #include "mqnetsystem.h"
@@ -29,7 +28,7 @@
 #include "netmsg.h"
 #include "settings.h"
 #include "utils.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -44,7 +43,7 @@ CNetCustomPlayerClient::CNetCustomPlayerClient(CNetCustomSession* session,
     , m_roomsCallback(this)
     , m_serverGuid{serverGuid}
 {
-    logDebug("lobby.log", __FUNCTION__);
+    spdlog::debug(__FUNCTION__);
 
     static game::IMqNetPlayerClientVftable vftable = {
         (game::IMqNetPlayerClientVftable::Destructor)destructor,
@@ -68,7 +67,7 @@ CNetCustomPlayerClient::CNetCustomPlayerClient(CNetCustomSession* session,
 
 CNetCustomPlayerClient ::~CNetCustomPlayerClient()
 {
-    logDebug("lobby.log", __FUNCTION__);
+    spdlog::debug(__FUNCTION__);
     auto service = getService();
     service->removeRoomsCallback(&m_roomsCallback);
     service->removePeerCallback(&m_peerCallback);
@@ -81,7 +80,7 @@ void __fastcall CNetCustomPlayerClient::destructor(CNetCustomPlayerClient* thisp
     thisptr->~CNetCustomPlayerClient();
 
     if (flags & 1) {
-        logDebug("lobby.log", __FUNCTION__ ": freeing memory");
+        spdlog::debug(__FUNCTION__ ": freeing memory");
         game::Memory::get().freeNonZero(thisptr);
     }
 }
@@ -92,8 +91,7 @@ bool __fastcall CNetCustomPlayerClient::sendMessage(CNetCustomPlayerClient* this
                                                     const game::NetMessageHeader* message)
 {
     if (idTo != game::serverNetPlayerId) {
-        logDebug("lobby.log",
-                 __FUNCTION__ ": denying sending message to a player other than the server");
+        spdlog::debug(__FUNCTION__ ": denying sending message to a player other than the server");
         return false;
     }
 
@@ -108,7 +106,7 @@ bool __fastcall CNetCustomPlayerClient::setName(CNetCustomPlayerClient* thisptr,
                                                 int /*%edx*/,
                                                 const char* name)
 {
-    logDebug("lobby.log", fmt::format(__FUNCTION__ ": name = '{:s}'", name));
+    spdlog::debug(__FUNCTION__ ": name = '{:s}'", name);
     thisptr->setName(name);
     return true;
 }
@@ -116,7 +114,7 @@ bool __fastcall CNetCustomPlayerClient::setName(CNetCustomPlayerClient* thisptr,
 bool __fastcall CNetCustomPlayerClient::isHost(CNetCustomPlayerClient* thisptr, int /*%edx*/)
 {
     bool result = thisptr->getSession()->isHost();
-    logDebug("lobby.log", fmt::format(__FUNCTION__ ": is host = {:d}", (int)result));
+    spdlog::debug(__FUNCTION__ ": is host = {:d}", (int)result);
     return result;
 }
 
@@ -131,9 +129,8 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
         if (sender != m_player->m_serverGuid) {
             // Should only be a message to the server if we are hosting
             // (since both server and client players share the same peer)
-            logDebug("lobby.log",
-                     fmt::format(__FUNCTION__ ": skipping '{:s}' from 0x{:x} (not a server)",
-                                 message->messageClassName, getClientId(sender)));
+            spdlog::debug(__FUNCTION__ ": skipping '{:s}' from 0x{:x} (not a server)",
+                          message->messageClassName, getClientId(sender));
             break;
         }
         m_player->postMessageToReceive(message, game::serverNetPlayerId);
@@ -148,7 +145,7 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
     }
 
     case ID_DISCONNECTION_NOTIFICATION: {
-        logDebug("lobby.log", __FUNCTION__ ": server was shut down");
+        spdlog::debug(__FUNCTION__ ": server was shut down");
         auto system = m_player->getSystem();
         if (system) {
             system->vftable->onPlayerDisconnected(system, game::serverNetPlayerId);
@@ -157,7 +154,7 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
     }
 
     case ID_CONNECTION_LOST: {
-        logDebug("lobby.log", __FUNCTION__ ": connection with server is lost");
+        spdlog::debug(__FUNCTION__ ": connection with server is lost");
         auto system = m_player->getSystem();
         if (system) {
             system->vftable->onPlayerDisconnected(system, game::serverNetPlayerId);
@@ -172,7 +169,7 @@ void CNetCustomPlayerClient::RoomsCallback::RoomDestroyedOnModeratorLeft_Callbac
     SLNet::RoomDestroyedOnModeratorLeft_Notification* notification)
 {
     // TODO: make sure that the notification only arrives for our room, otherwise check roomId
-    logDebug("lobby.log", __FUNCTION__);
+    spdlog::debug(__FUNCTION__);
     auto system = m_player->getSystem();
     if (system) {
         system->vftable->onPlayerDisconnected(system, game::serverNetPlayerId);

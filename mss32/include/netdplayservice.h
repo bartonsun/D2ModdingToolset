@@ -21,9 +21,9 @@
 #define NETDPLAYSERVICE_H
 
 #include "mqnetservice.h"
+#include <cstdint>
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include <cstdint>
 
 struct IDirectPlay4;
 
