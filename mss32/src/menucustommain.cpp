@@ -101,12 +101,16 @@ void __fastcall CMenuCustomMain::tutorialBtnHandler(CMenuCustomMain* thisptr, in
 
     const auto& midgardApi = CMidgardApi::get();
 
-    auto service = CNetCustomService::create();
-    if (!service) {
+    auto service = (CNetCustomService*)game::Memory::get().allocate(sizeof(CNetCustomService));
+    new (service) CNetCustomService();
+    if (!service->connect()) {
+        service->vftable->destructor(service, 1);
+
         auto message{getInterfaceText(textIds().lobby.connectStartFailed.c_str())};
         if (message.empty()) {
             message = "Connection start failed";
         }
+        showMessageBox(message);
         return;
     }
     service->addPeerCallback(&thisptr->m_peerCallback);

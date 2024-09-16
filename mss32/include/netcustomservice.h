@@ -88,7 +88,8 @@ public:
         SLNet::RakString text;
     };
 
-    static constexpr std::uint32_t peerTimeout{30000}; // !!! Keep in sync with lobby server
+    // !!! Keep in sync with lobby server
+    static constexpr std::uint32_t peerConnectionTimeout{30000};
     static constexpr std::uint32_t peerShutdownTimeout{100};
     // static constexpr std::uint32_t peerProcessInterval{10};
     static constexpr char peerProcessMessageName[] = "MIDGARD CUSTOM LOBBY NETMSG";
@@ -103,14 +104,13 @@ public:
     // See SLNet::Lobby2Message::ValidatePassword
     static constexpr std::uint32_t passwordMaxLength{50};
 
-    /** Returns nullptr if initialization of connection to lobby server fails. */
-    static CNetCustomService* create();
     /** Returns the service instance if it is set in CMidgard, otherwise returns nullptr. */
     static CNetCustomService* get();
 
-    CNetCustomService(CNetCustomPeer* peer);
+    CNetCustomService();
     ~CNetCustomService();
 
+    bool connect();
     CNetCustomSession* getSession() const;
     const std::string& getUserName() const;
     bool connected() const;
@@ -181,6 +181,8 @@ public:
     void removeRoomsCallback(SLNet::RoomsCallback* callback);
 
 protected:
+    bool startPeer();
+
     // IMqNetService
     static void __fastcall destructor(CNetCustomService* thisptr, int /*%edx*/, char flags);
     static bool __fastcall hasSessions(CNetCustomService* thisptr, int /*%edx*/);

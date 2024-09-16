@@ -45,38 +45,6 @@ game::IMqNetServiceVftable CNetCustomService::g_vftable = {
     (game::IMqNetServiceVftable::JoinSession)joinSession,
 };
 
-CNetCustomService* CNetCustomService::create()
-{
-    auto peer = new CNetCustomPeer(peerProcessMessageName);
-    // auto peer = SLNet::RakPeerInterface::GetInstance();
-    peer->SetTimeoutTime(CNetCustomService::peerTimeout, SLNet::UNASSIGNED_SYSTEM_ADDRESS);
-
-    const auto& lobbySettings = userSettings().lobby;
-    const auto& clientPort = lobbySettings.client.port;
-    SLNet::SocketDescriptor socket{clientPort, nullptr};
-    logDebug("lobby.log", fmt::format("Start lobby peer on port {:d}", clientPort));
-    if (peer->Startup(1, &socket, 1) != SLNet::RAKNET_STARTED) {
-        logError("lobby.log", "Failed to start lobby client");
-        SLNet::RakPeerInterface::DestroyInstance(peer);
-        return nullptr;
-    }
-
-    const auto& serverIp = lobbySettings.server.ip;
-    const auto& serverPort = lobbySettings.server.port;
-    logDebug("lobby.log", fmt::format("Connecting to lobby server with ip '{:s}', port {:d}",
-                                      serverIp, serverPort));
-    if (peer->Connect(serverIp.c_str(), serverPort, nullptr, 0)
-        != SLNet::CONNECTION_ATTEMPT_STARTED) {
-        logError("lobby.log", "Failed to start lobby connection");
-        SLNet::RakPeerInterface::DestroyInstance(peer);
-        return nullptr;
-    }
-
-    auto service = (CNetCustomService*)game::Memory::get().allocate(sizeof(CNetCustomService));
-    new (service) CNetCustomService(peer);
-    return service;
-}
-
 CNetCustomService* CNetCustomService::get()
 {
     auto midgard = game::CMidgardApi::get().instance();
@@ -89,8 +57,8 @@ CNetCustomService* CNetCustomService::get()
     return nullptr;
 }
 
-CNetCustomService::CNetCustomService(CNetCustomPeer* peer)
-    : m_peer(peer)
+CNetCustomService::CNetCustomService()
+    : m_peer(nullptr)
     , m_connected(false)
     , m_session(nullptr)
     , m_peerCallback(this)
@@ -109,16 +77,14 @@ CNetCustomService::CNetCustomService(CNetCustomPeer* peer)
     addPeerCallback(&m_peerCallback);
     createMessageEvent(&m_peerProcessEvent, this, peerProcessEventCallback, peerProcessMessageName);
 
+    m_peer = new CNetCustomPeer(peerProcessMessageName);
+    // auto peer = SLNet::RakPeerInterface::GetInstance();
+    m_peer->SetTimeoutTime(peerConnectionTimeout, SLNet::UNASSIGNED_SYSTEM_ADDRESS);
+
     m_lobbyClient.SetMessageFactory(&m_lobbyMsgFactory);
     m_lobbyClient.SetCallbackInterface(&m_lobbyCallback);
 
     m_roomsClient.SetRoomsCallback(&m_roomsCallback);
-
-    m_peer->AttachPlugin(&m_lobbyClient);
-    m_peer->AttachPlugin(&m_roomsClient);
-
-    // TODO: proper order of peer init? create peer after callback is set
-    m_peer->ResetPacketNotification();
 }
 
 CNetCustomService::~CNetCustomService()
@@ -129,6 +95,60 @@ CNetCustomService::~CNetCustomService()
     SLNet::RakPeerInterface::DestroyInstance(m_peer);
 
     game::UiEventApi::get().destructor(&m_peerProcessEvent);
+}
+
+bool CNetCustomService::connect()
+{
+    if (!startPeer()) {
+        return false;
+    }
+
+    const auto& serverIp = userSettings().lobby.server.ip;
+    const auto& serverPort = userSettings().lobby.server.port;
+    logDebug("lobby.log",
+             fmt::format(__FUNCTION__ ": connecting to lobby server with ip '{:s}', port {:d}",
+                         serverIp, serverPort));
+    switch (auto result = m_peer->Connect(serverIp.c_str(), serverPort, nullptr, 0)) {
+    case SLNet::CONNECTION_ATTEMPT_STARTED:
+        logDebug("lobby.log", __FUNCTION__ ": lobby connection attempt started");
+        break;
+    case SLNet::ALREADY_CONNECTED_TO_ENDPOINT:
+        logDebug("lobby.log", __FUNCTION__ ": lobby is already connected");
+        break;
+    default:
+        logError("lobby.log", __FUNCTION__ ": lobby connection attempt failed");
+        return false;
+    }
+
+    return true;
+}
+
+bool CNetCustomService::startPeer()
+{
+    const auto& clientPort = userSettings().lobby.client.port;
+    logDebug("lobby.log",
+             fmt::format(__FUNCTION__ ": starting lobby peer on port {:d}", clientPort));
+    SLNet::SocketDescriptor socket{clientPort, nullptr};
+    switch (auto result = m_peer->Startup(1, &socket, 1)) {
+    case SLNet::RAKNET_STARTED:
+        logDebug("lobby.log", __FUNCTION__ ": lobby peer is started");
+        break;
+    case SLNet::RAKNET_ALREADY_STARTED:
+        logDebug("lobby.log", __FUNCTION__ ": lobby peer is already started");
+        break;
+    default:
+        logError("lobby.log",
+                 fmt::format(__FUNCTION__ ": lobby peer has failed to start, result = {:d}",
+                             (int)result));
+        return false;
+    }
+
+    // Some examples do this after peer creation, some - after startup. Does not seems to really
+    // matter except that some plugins do some stuff on attaching if the peer is already started.
+    m_peer->AttachPlugin(&m_lobbyClient);
+    m_peer->AttachPlugin(&m_roomsClient);
+
+    return true;
 }
 
 CNetCustomSession* CNetCustomService::getSession() const
