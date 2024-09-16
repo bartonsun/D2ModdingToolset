@@ -22,6 +22,7 @@
 
 #include "d2assert.h"
 #include "smartptr.h"
+#include <Windows.h>
 #include <cstdint>
 
 namespace game {
@@ -206,6 +207,12 @@ struct Api
     using RegisterMessage = std::uint32_t(__thiscall*)(CUIManager* thisptr,
                                                        const char* messageName);
     RegisterMessage registerMessage;
+
+    using PostWndMessage = bool(__thiscall*)(const CUIManager* thisptr,
+                                             UINT messageId,
+                                             WPARAM wParam,
+                                             LPARAM lParam);
+    PostWndMessage postMessage;
 };
 
 Api& get();
