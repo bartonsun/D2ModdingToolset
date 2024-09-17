@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma comment(lib, "detours.lib")
+#pragma comment(lib, "Lib/detours.lib")
 
 #include "customaibattle.h"
 #include "customattacks.h"

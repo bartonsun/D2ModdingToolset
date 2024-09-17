@@ -72,7 +72,7 @@
       <AdditionalDependencies>$(SolutionDir)Lib\SLikeNet_LibStatic_$(Configuration)_$(Platform).lib;$(SolutionDir)Lib\ScenarioGenerator_$(Configuration)_$(Platform).lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
-      <Command>if not exist detours.lib (
+      <Command>if not exist Lib\detours.lib (
 call ..\buildDetours.bat ..\Detours
 )</Command>
     </PreBuildEvent>
@@ -103,7 +103,7 @@ call ..\buildDetours.bat ..\Detours
       <AdditionalDependencies>$(SolutionDir)Lib\SLikeNet_LibStatic_$(Configuration)_$(Platform).lib;$(SolutionDir)Lib\ScenarioGenerator_$(Configuration)_$(Platform).lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
-      <Command>if not exist detours.lib (
+      <Command>if not exist Lib\detours.lib (
 call ..\buildDetours.bat ..\Detours
 )</Command>
     </PreBuildEvent>
