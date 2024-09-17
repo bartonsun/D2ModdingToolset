@@ -51,6 +51,7 @@
 #include "scenariovariableview.h"
 #include "scenarioview.h"
 #include "scenvariablesview.h"
+#include "settings.h"
 #include "siteview.h"
 #include "stackview.h"
 #include "tileview.h"
@@ -61,17 +62,20 @@
 #include "unitviewdummy.h"
 #include "utils.h"
 #include <mutex>
+#include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/spdlog.h>
 #include <thread>
 
 extern std::thread::id mainThreadId;
 
+namespace hooks {
+
 // Global static variables ensure that it will be destroyed after local static variables that depend
 // on Lua (such as CustomUnitEncyclopedia).
 static std::unique_ptr<sol::state> mainThreadLua;
 static std::unique_ptr<sol::state> workerThreadLua;
-
-namespace hooks {
+static std::string serverLogName = "server";
+static std::string clientLogName = "client";
 
 struct PathHash
 {
@@ -80,6 +84,41 @@ struct PathHash
         return std::filesystem::hash_value(p);
     }
 };
+
+static void logClient(const std::string& message)
+{
+    // TODO: provide different log levels for scripts
+    spdlog::get(clientLogName)->debug(message);
+}
+
+static void logServer(const std::string& message)
+{
+    // TODO: provide different log levels for scripts
+    spdlog::get(serverLogName)->debug(message);
+}
+
+static std::shared_ptr<spdlog::logger> createLogger(bool client)
+{
+    auto logger = spdlog::get(client ? clientLogName : serverLogName);
+    if (logger) {
+        return logger;
+    }
+
+    auto otherLogger = spdlog::get(client ? serverLogName : clientLogName);
+    if (otherLogger) {
+        return otherLogger->clone(client ? clientLogName : serverLogName);
+    }
+
+    // TODO: rename to mss32Scripting.log when different log levels are available
+    auto fileName = hooks::gameFolder() / "luaDebug.log";
+    auto newLogger = spdlog::rotating_logger_mt(client ? clientLogName : serverLogName,
+                                                fileName.string(), 5u << 20, 3);
+    // TODO: setting for all available trace levels (not only debug vs non-debug)
+    // TODO: add log level to the pattern when different log levels are available
+    newLogger->set_level(userSettings().debugMode ? spdlog::level::trace : spdlog::level::info);
+    newLogger->set_pattern("%D %H:%M:%S.%e [%=8!n] %v", spdlog::pattern_time_type::utc);
+    return newLogger;
+}
 
 static void bindApi(sol::state& lua)
 {
@@ -462,7 +501,14 @@ static void bindApi(sol::state& lua)
     bindings::GameView::bind(lua);
     bindings::BuildingView::bind(lua);
 
-    lua.set_function("log", [](const std::string& message) { spdlog::debug(message); });
+    if (std::this_thread::get_id() == mainThreadId) {
+        createLogger(true);
+        lua.set_function("log", logClient);
+    } else {
+        createLogger(false);
+        lua.set_function("log", logServer);
+    }
+
     lua.set_function("randomNumber", [](std::uint32_t maxValue) {
         return game::gameFunctions().generateRandomNumber(maxValue);
     });

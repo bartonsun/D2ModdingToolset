@@ -192,13 +192,10 @@ static void setDefaultLogger()
     // (instead of the old "mss32Proxy.log")
     auto fileName = hooks::gameFolder() / "mss32.log";
     auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(fileName.string(),
-                                                                           5u << 20, 3, false);
+                                                                           5u << 20, 3);
     // TODO: setting for all available trace levels (not only debug vs non-debug)
-    if (hooks::userSettings().debugMode) {
-        fileSink->set_level(spdlog::level::trace);
-    } else {
-        fileSink->set_level(spdlog::level::info);
-    }
+    fileSink->set_level(hooks::userSettings().debugMode ? spdlog::level::trace
+                                                        : spdlog::level::info);
     sinks.push_back(std::move(fileSink));
 
     if (IsDebuggerPresent()) {
