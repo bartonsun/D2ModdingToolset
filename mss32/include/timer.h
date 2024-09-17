@@ -22,6 +22,7 @@
 
 #include <chrono>
 #include <spdlog/spdlog.h>
+#include <string>
 #include <string_view>
 
 namespace hooks {
@@ -34,7 +35,7 @@ class ScopedTimer
     using Clock = std::chrono::high_resolution_clock;
 
 public:
-    ScopedTimer(std::string_view description, std::string_view log)
+    ScopedTimer(std::string_view description, const std::string& log)
         : description{description}
         , log{log}
         , start{Clock::now()}
@@ -44,12 +45,17 @@ public:
     {
         const auto elapsed{Clock::now() - start};
         const auto us{std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count()};
-        spdlog::debug("{:s} time {:d} us", description, us);
+
+        auto logger = spdlog::get(log);
+        if (logger == nullptr) {
+            logger = spdlog::default_logger_raw()->clone(log);
+        }
+        logger->debug("{:s} time {:d} us", description, us);
     }
 
 private:
     const std::string_view description;
-    const std::string_view log;
+    const std::string& log; // No copy for better perf
     const Clock::time_point start;
 };
 

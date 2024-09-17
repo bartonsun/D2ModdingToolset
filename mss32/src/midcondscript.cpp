@@ -721,7 +721,7 @@ bool __fastcall testScriptDoTest(const CTestScript* thisptr,
                                  const game::CMidgardID* eventId)
 {
 #ifdef D2_MEASURE_EVENTS_TIME
-    extern const std::string_view eventsPerformanceLog;
+    extern const std::string eventsPerformanceLog;
     ScopedTimer timer{"    Test condition 'script'", eventsPerformanceLog};
 
     extern long long conditionsTotalTime;

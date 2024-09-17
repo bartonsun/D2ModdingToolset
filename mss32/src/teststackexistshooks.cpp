@@ -35,7 +35,7 @@ bool __fastcall testStackExistsHooked(const game::CTestStackExists* thisptr,
     using namespace game;
 
 #ifdef D2_MEASURE_EVENTS_TIME
-    extern const std::string_view eventsPerformanceLog;
+    extern const std::string eventsPerformanceLog;
     ScopedTimer timer{"    Test condition 'stack exists'", eventsPerformanceLog};
 
     extern long long conditionsTotalTime;

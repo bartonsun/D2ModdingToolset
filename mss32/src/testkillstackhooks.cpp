@@ -37,7 +37,7 @@ bool __fastcall testKillStackHooked(const game::CTestKillStack* thisptr,
     using namespace game;
 
 #ifdef D2_MEASURE_EVENTS_TIME
-    extern const std::string_view eventsPerformanceLog;
+    extern const std::string eventsPerformanceLog;
     ScopedTimer timer{"    Test condition 'kill stack'", eventsPerformanceLog};
 
     extern long long conditionsTotalTime;

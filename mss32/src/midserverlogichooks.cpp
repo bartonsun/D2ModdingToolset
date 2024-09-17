@@ -50,7 +50,9 @@
 
 namespace hooks {
 
-extern const std::string_view eventsPerformanceLog{"eventsPerformance.log"};
+// spdlog uses const std::string& to get named log so we create singleton of std::string.
+// Log name is truncated to 8 characters by the default logger pattern.
+extern const std::string eventsPerformanceLog{"evntperf"};
 
 long long conditionsTotalTime = 0;
 long long conditionsSystemTime = 0;

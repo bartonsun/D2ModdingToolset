@@ -521,7 +521,7 @@ bool __fastcall testVarCmpDoTest(const CTestVarCmp* thisptr,
                                  const game::CMidgardID* eventId)
 {
 #ifdef D2_MEASURE_EVENTS_TIME
-    extern const std::string_view eventsPerformanceLog;
+    extern const std::string eventsPerformanceLog;
     ScopedTimer timer{"    Test contidion 'var cmp'", eventsPerformanceLog};
 
     extern long long conditionsTotalTime;
