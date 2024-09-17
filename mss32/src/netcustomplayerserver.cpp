@@ -36,11 +36,16 @@ namespace hooks {
 CNetCustomPlayerServer::CNetCustomPlayerServer(CNetCustomSession* session,
                                                game::IMqNetSystem* system,
                                                game::IMqNetReception* reception)
-    : CNetCustomPlayer(session, system, reception, "SERVER", game::serverNetPlayerId)
+    : CNetCustomPlayer(session,
+                       system,
+                       reception,
+                       "SERVER",
+                       game::serverNetPlayerId,
+                       spdlog::default_logger_raw()->clone("plserver"))
     , m_peerCallback(this)
     , m_roomsCallback(this)
 {
-    spdlog::debug(__FUNCTION__);
+    getLogger()->debug(__FUNCTION__);
 
     static game::IMqNetPlayerServerVftable vftable = {
         (game::IMqNetPlayerServerVftable::Destructor)destructor,
@@ -64,21 +69,23 @@ CNetCustomPlayerServer::CNetCustomPlayerServer(CNetCustomSession* session,
 
 CNetCustomPlayerServer::~CNetCustomPlayerServer()
 {
-    spdlog::debug(__FUNCTION__);
+    getLogger()->debug(__FUNCTION__);
     getService()->removePeerCallback(&m_peerCallback);
     getService()->removeRoomsCallback(&m_roomsCallback);
 }
 
 bool CNetCustomPlayerServer::addClient(const SLNet::RakNetGUID& guid, const SLNet::RakString& name)
 {
-    spdlog::debug(__FUNCTION__ ": id = 0x{:x}, name = {:s}", getClientId(guid), name.C_String());
+    getLogger()->debug(__FUNCTION__ ": id = 0x{:x}, name = {:s}", getClientId(guid),
+                       name.C_String());
 
     {
         std::lock_guard lock(m_remoteClientsMutex);
         auto result = m_remoteClients.insert({guid, name});
         if (!result.second) {
-            spdlog::debug(__FUNCTION__ ": failed because the id 0x{:x} already exists, name = {:s}",
-                          getClientId(guid), name.C_String());
+            getLogger()
+                ->debug(__FUNCTION__ ": failed because the id 0x{:x} already exists, name = {:s}",
+                        getClientId(guid), name.C_String());
             return false;
         }
     }
@@ -95,8 +102,8 @@ bool CNetCustomPlayerServer::removeClient(const SLNet::RakNetGUID& guid)
         std::lock_guard lock(m_remoteClientsMutex);
         size_t result = m_remoteClients.erase(guid);
         if (!result) {
-            spdlog::debug(__FUNCTION__ ": failed because the id 0x{:x} does not exist",
-                          getClientId(guid));
+            getLogger()->debug(__FUNCTION__ ": failed because the id 0x{:x} does not exist",
+                               getClientId(guid));
             return false;
         }
     }
@@ -122,8 +129,8 @@ bool CNetCustomPlayerServer::removeClient(const SLNet::RakString& name)
     }
 
     if (guid == SLNet::UNASSIGNED_RAKNET_GUID) {
-        spdlog::debug(__FUNCTION__ ": failed because there is no client with name '{:s}'",
-                      name.C_String());
+        getLogger()->debug(__FUNCTION__ ": failed because there is no client with name '{:s}'",
+                           name.C_String());
         return false;
     }
 
@@ -171,7 +178,7 @@ bool __fastcall CNetCustomPlayerServer::destroyPlayer(CNetCustomPlayerServer* th
                                                       int /*%edx*/,
                                                       int playerId)
 {
-    spdlog::debug(__FUNCTION__);
+    thisptr->getLogger()->debug(__FUNCTION__);
     return false;
 }
 
@@ -179,7 +186,7 @@ bool __fastcall CNetCustomPlayerServer::setMaxPlayers(CNetCustomPlayerServer* th
                                                       int /*%edx*/,
                                                       int maxPlayers)
 {
-    spdlog::debug(__FUNCTION__ ": max players = {:d}", maxPlayers);
+    thisptr->getLogger()->debug(__FUNCTION__ ": max players = {:d}", maxPlayers);
     return thisptr->getSession()->setMaxPlayers(maxPlayers);
 }
 
@@ -188,7 +195,7 @@ bool __fastcall CNetCustomPlayerServer::setAllowJoin(CNetCustomPlayerServer* thi
                                                      bool allowJoin)
 {
     // Ignore this since its only called during server creation and eventually being allowed
-    spdlog::debug(__FUNCTION__ ": allow join = {:d}", (int)allowJoin);
+    thisptr->getLogger()->debug(__FUNCTION__ ": allow join = {:d}", (int)allowJoin);
 
     if (allowJoin) {
         // This means that the server finished initialization and ready to accept clients
@@ -213,7 +220,7 @@ SLNet::RakNetGUID CNetCustomPlayerServer::getRemoteClientGuid(std::uint32_t id) 
     auto it = std::find_if(m_remoteClients.begin(), m_remoteClients.end(),
                            [id](const auto& client) { return getClientId(client.first) == id; });
     if (it == m_remoteClients.end()) {
-        spdlog::debug(__FUNCTION__ ": there is no client with id 0x{:x}", id);
+        getLogger()->debug(__FUNCTION__ ": there is no client with id 0x{:x}", id);
         return {};
     }
     return it->first;
@@ -239,13 +246,13 @@ void CNetCustomPlayerServer::PeerCallback::onPacketReceived(DefaultMessageIDType
     }
 
     case ID_DISCONNECTION_NOTIFICATION: {
-        spdlog::debug(__FUNCTION__ ": server was shut down");
+        m_player->getLogger()->debug(__FUNCTION__ ": server was shut down");
         m_player->removeClient(packet->guid);
         break;
     }
 
     case ID_CONNECTION_LOST: {
-        spdlog::debug(__FUNCTION__ ": connection with server is lost");
+        m_player->getLogger()->debug(__FUNCTION__ ": connection with server is lost");
         m_player->removeClient(packet->guid);
         break;
     }
@@ -257,7 +264,8 @@ void CNetCustomPlayerServer::RoomsCallback::RoomMemberLeftRoom_Callback(
     SLNet::RoomMemberLeftRoom_Notification* notification)
 {
     // TODO: make sure that the notification only arrives for our room, otherwise check roomId
-    spdlog::debug(__FUNCTION__ ": member name = '{:s}'", notification->roomMember.C_String());
+    m_player->getLogger()->debug(__FUNCTION__ ": member name = '{:s}'",
+                                 notification->roomMember.C_String());
     m_player->removeClient(notification->roomMember);
 }
 
@@ -267,7 +275,8 @@ void CNetCustomPlayerServer::RoomsCallback::RoomMemberJoinedRoom_Callback(
 {
     // TODO: make sure that the notification only arrives for our room, otherwise check roomId
     const auto result = notification->joinedRoomResult;
-    spdlog::debug(__FUNCTION__ ": member name = '{:s}'", result->joiningMemberName.C_String());
+    m_player->getLogger()->debug(__FUNCTION__ ": member name = '{:s}'",
+                                 result->joiningMemberName.C_String());
     m_player->addClient(result->joiningMemberGuid, result->joiningMemberName);
 }
 

@@ -23,6 +23,7 @@
 #include "mqnetplayer.h"
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <queue>
 #include <string>
@@ -38,6 +39,10 @@ struct Packet;
 class RakString;
 }; // namespace SLNet
 
+namespace spdlog {
+class logger;
+};
+
 namespace hooks {
 
 class CNetCustomService;
@@ -50,7 +55,8 @@ public:
                      game::IMqNetSystem* system,
                      game::IMqNetReception* reception,
                      const char* name,
-                     std::uint32_t id);
+                     std::uint32_t id,
+                     std::shared_ptr<spdlog::logger> logger);
     ~CNetCustomPlayer();
 
 protected:
@@ -72,6 +78,7 @@ protected:
                            const SLNet::RakNetGUID& to) const;
     bool sendRemoteMessage(const game::NetMessageHeader* message, const RemoteClients& to) const;
     bool sendHostMessage(const game::NetMessageHeader* message) const;
+    const std::shared_ptr<spdlog::logger>& getLogger() const;
 
     // IMqNetPlayer
     using GetName = game::String*(__fastcall*)(CNetCustomPlayer* thisptr,
@@ -109,6 +116,7 @@ private:
     std::uint32_t m_id;
     std::queue<IdMessagePair> m_messages;
     mutable std::mutex m_messagesMutex;
+    std::shared_ptr<spdlog::logger> m_logger;
 };
 
 assert_offset(CNetCustomPlayer, vftable, 0);
