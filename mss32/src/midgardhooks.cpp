@@ -27,6 +27,7 @@
 #include "midstart.h"
 #include "netcustomservice.h"
 #include "originalfunctions.h"
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -91,8 +92,24 @@ void __fastcall midgardStartMenuMessageCallbackHooked(game::CMidgard* thisptr,
     }
 }
 
+void resetCommandSequenceGlobalCounters()
+{
+    using namespace game;
+
+    // Fixes leader "teleportation" issue
+    uint32_t& lastCommandSequenceNumber = *CMidCommandQueue2Api::get().lastCommandSequenceNumber;
+    uint32_t& nextCommandSequenceNumber = *CCommandMsgApi::get().nextCommandSequenceNumber;
+    spdlog::debug(
+        __FUNCTION__ ": lastCommandSequenceNumber = {:d}, nextCommandSequenceNumber = {:d}",
+        lastCommandSequenceNumber, nextCommandSequenceNumber);
+    lastCommandSequenceNumber = 0;
+    nextCommandSequenceNumber = 1;
+}
+
 void __fastcall midgardClearNetworkStateHooked(game::CMidgard* thisptr, int /*%edx*/)
 {
+    spdlog::debug(__FUNCTION__);
+
     getOriginalFunctions().midgardClearNetworkState(thisptr);
 
     // Make sure that there are no peer messages remain to process.
@@ -101,6 +118,17 @@ void __fastcall midgardClearNetworkStateHooked(game::CMidgard* thisptr, int /*%e
     if (service) {
         service->processPeerMessages();
     }
+
+    resetCommandSequenceGlobalCounters();
+}
+
+void __fastcall midgardClearNetworkStateAndServiceHooked(game::CMidgard* thisptr, int /*%edx*/)
+{
+    spdlog::debug(__FUNCTION__);
+
+    getOriginalFunctions().midgardClearNetworkStateAndService(thisptr);
+
+    resetCommandSequenceGlobalCounters();
 }
 
 } // namespace hooks

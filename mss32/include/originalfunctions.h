@@ -210,6 +210,7 @@ struct OriginalFunctions
     game::GlobalVariablesApi::Api::Constructor globalVariablesCtor;
 
     game::CMidgardApi::Api::ClearNetworkState midgardClearNetworkState;
+    game::CMidgardApi::Api::ClearNetworkStateAndService midgardClearNetworkStateAndService;
 
     game::CMidCommandQueue2Api::Api::Push midCommandQueue2Push;
     game::CMidCommandQueue2Api::Api::NMMapConstructor netMsgMapConstructor;

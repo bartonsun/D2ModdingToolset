@@ -421,7 +421,6 @@ static Hooks getGameHooks()
         {fn.computeMovementCost, computeMovementCostHooked},
         // Support custom lobby
         {CMidgardApi::get().startMenuMessageCallback, midgardStartMenuMessageCallbackHooked},
-        {CMidgardApi::get().clearNetworkState, midgardClearNetworkStateHooked, (void**)&orig.midgardClearNetworkState},
         {CMenuPhaseApi::get().transitionToMainOrCloseGame, menuPhaseTransitionToMainOrCloseGameHooked, (void**)&orig.menuPhaseTransitionToMainOrCloseGame},
         {CMenuMainApi::get().createMenu, menuMainCreateMenuHooked},
         {CMenuLoadApi::get().createServer, menuLoadCreateServerHooked, (void**)&orig.menuLoadCreateServer},
@@ -476,6 +475,8 @@ static Hooks getGameHooks()
         {CPhaseGameApi::get().checkObjectLock, phaseGameCheckObjectLockHooked},
         {CPhaseGameApi::get().sendStackMoveMsg, phaseGameSendStackMoveMsgHooked},
         {serverLogic.stackMove, stackMoveHooked, (void**)&orig.stackMove},
+        {CMidgardApi::get().clearNetworkState, midgardClearNetworkStateHooked, (void**)&orig.midgardClearNetworkState},
+        {CMidgardApi::get().clearNetworkStateAndService, midgardClearNetworkStateAndServiceHooked, (void**)&orig.midgardClearNetworkStateAndService},
     };
     // clang-format on
 

@@ -33,6 +33,8 @@ void __fastcall midgardStartMenuMessageCallbackHooked(game::CMidgard* thisptr,
 
 void __fastcall midgardClearNetworkStateHooked(game::CMidgard* thisptr, int /*%edx*/);
 
+void __fastcall midgardClearNetworkStateAndServiceHooked(game::CMidgard* thisptr, int /*%edx*/);
+
 } // namespace hooks
 
 #endif // MIDGARDHOOKS_H
