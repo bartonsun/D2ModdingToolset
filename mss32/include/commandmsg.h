@@ -22,6 +22,7 @@
 
 #include "idlist.h"
 #include "netmsg.h"
+#include <cstdint>
 
 namespace game {
 
@@ -101,7 +102,8 @@ struct IMidgardObjectMap;
 struct CCommandMsg : public CNetMsgT<CCommandMsgVftable>
 {
     CMidgardID playerId;
-    int unknown;
+    /** Used in CMidCommandQueue2::Push to reject out-of-order commands. */
+    std::uint32_t sequenceNumber;
     IdList* ids;
 };
 

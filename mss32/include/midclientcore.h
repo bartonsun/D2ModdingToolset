@@ -20,13 +20,13 @@
 #ifndef MIDCLIENTCORE_H
 #define MIDCLIENTCORE_H
 
+#include "midcommandqueue2.h"
 #include "mqnetsystem.h"
 
 namespace game {
 
 struct CMidgard;
 struct CMidDataCache2;
-struct CMidCommandQueue2;
 struct CoreCommandUpdate;
 struct CCommandCanIgnore;
 struct CMidHotseatManager;
@@ -54,6 +54,22 @@ struct CMidClientCore : public IMqNetSystem
 {
     CMidClientCoreData* data;
 };
+
+assert_size(CMidClientCore, 8);
+
+struct CoreCommandUpdate : public CMidCommandQueue2::IUpdate
+{
+    CMidClientCore* midClientCore;
+};
+
+assert_size(CoreCommandUpdate, 8);
+
+struct CCommandCanIgnore : public CMidCommandQueue2::ICanIgnore
+{
+    CMidClientCore* midClientCore;
+};
+
+assert_size(CCommandCanIgnore, 8);
 
 namespace CMidClientCoreApi {
 

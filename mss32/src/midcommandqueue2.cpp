@@ -31,6 +31,12 @@ static std::array<Api, 3> functions = {{
         (Api::NMMapConstructor)0x40fd60,
         (CNetMsgMapEntry_member::Callback)0x4102b0,
         (Api::Front)0x4105a4,
+        (Api::Push)0x410757,
+        (Api::ApplyCommandUpdate)0x410467,
+        (Api::Update)0x410730,
+        (Api::StartProcessing)0x410620,
+        (Api::CommandQueueMessageCallback)0x4105b8,
+        (std::uint32_t*)0x7b7a34,
     },
     // Russobit
     Api{
@@ -38,6 +44,12 @@ static std::array<Api, 3> functions = {{
         (Api::NMMapConstructor)0x40fd60,
         (CNetMsgMapEntry_member::Callback)0x4102b0,
         (Api::Front)0x4105a4,
+        (Api::Push)0x410757,
+        (Api::ApplyCommandUpdate)0x410467,
+        (Api::Update)0x410730,
+        (Api::StartProcessing)0x410620,
+        (Api::CommandQueueMessageCallback)0x4105b8,
+        (std::uint32_t*)0x7b7a34,
     },
     // Gog
     Api{
@@ -45,6 +57,12 @@ static std::array<Api, 3> functions = {{
         (Api::NMMapConstructor)0x40f91e,
         (CNetMsgMapEntry_member::Callback)0x40fe6e,
         (Api::Front)0x410162,
+        (Api::Push)0x410315,
+        (Api::ApplyCommandUpdate)0x410025,
+        (Api::Update)0x4102ee,
+        (Api::StartProcessing)0x4101de,
+        (Api::CommandQueueMessageCallback)0x410176,
+        (std::uint32_t*)0x7b59e4,
     }
 }};
 // clang-format on
