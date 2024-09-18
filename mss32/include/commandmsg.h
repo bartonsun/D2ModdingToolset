@@ -153,6 +153,13 @@ struct Api
 
     using Create = CCommandMsg*(__stdcall*)(CommandMsgId id);
     Create create;
+
+    /**
+     * Static counter, initialized to 1 and never ever being reset, that is a reason of some game
+     * desync issues like leader "teleportation" (lack of movement animation).
+     * See CMidCommandQueue2Api::lastCommandSequenceNumber for more details.
+     */
+    std::uint32_t* nextCommandSequenceNumber;
 };
 
 Api& get();

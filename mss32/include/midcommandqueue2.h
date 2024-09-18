@@ -211,6 +211,8 @@ struct Api
     CommandQueueMessageCallback commandQueueMessageCallback;
 
     /**
+     * Static counter, initialized to 0 and never ever being reset, that is a reason of some game
+     * desync issues like leader "teleportation" (lack of movement animation).
      * If CCommandMsg::playerId is empty, this value is compared to CCommandMsg::sequenceNumber in
      * Push. If CCommandMsg::sequenceNumber is greater, the counter value is assigned to it and the
      * message is pushed to the queue, otherwise the message is rejected.
