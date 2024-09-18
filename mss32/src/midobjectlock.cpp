@@ -29,28 +29,52 @@ static std::array<Api, 4> functions = {{
     Api{
         (Api::Constructor)0x417d8d,
         (Api::Destructor)0x41806e,
+        (Api::NotifyCQCallback)0x418101,
+        (Api::NotifyCQCallback)0x41810c,
     },
     // Russobit
     Api{
         (Api::Constructor)0x417d8d,
         (Api::Destructor)0x41806e,
+        (Api::NotifyCQCallback)0x418101,
+        (Api::NotifyCQCallback)0x41810c,
     },
     // Gog
     Api{
         (Api::Constructor)0x417979,
         (Api::Destructor)0x417c53,
+        (Api::NotifyCQCallback)0x417ce6,
+        (Api::NotifyCQCallback)0x417cf1,
     },
     // Scenario Editor
     Api{
         (Api::Constructor)nullptr,
         (Api::Destructor)nullptr,
+        (Api::NotifyCQCallback)nullptr,
+        (Api::NotifyCQCallback)nullptr,
     },
+}};
+
+static std::array<CMidDataCache2::INotifyVftable*, 4> vftables = {{
+    // Akella
+    (CMidDataCache2::INotifyVftable*)0x6cf97c,
+    // Russobit
+    (CMidDataCache2::INotifyVftable*)0x6cf97c,
+    // Gog
+    (CMidDataCache2::INotifyVftable*)0x6cd91c,
+    // Scenario Editor
+    (CMidDataCache2::INotifyVftable*)nullptr,
 }};
 // clang-format on
 
 Api& get()
 {
     return functions[static_cast<int>(hooks::gameVersion())];
+}
+
+CMidDataCache2::INotifyVftable* vftable()
+{
+    return vftables[static_cast<int>(hooks::gameVersion())];
 }
 
 } // namespace game::CMidObjectLockApi

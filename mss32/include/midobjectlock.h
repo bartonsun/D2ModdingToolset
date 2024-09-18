@@ -20,6 +20,7 @@
 #ifndef MIDOBJECTLOCK_H
 #define MIDOBJECTLOCK_H
 
+#include "autoptr.h"
 #include "functordispatch0.h"
 #include "midcommandqueue2.h"
 #include "middatacache.h"
@@ -44,8 +45,8 @@ struct CMidObjectLock : public CMidDataCache2::INotify
 
     CMidCommandQueue2* commandQueue;
     CMidDataCache2* dataCache;
-    Notify1* notify1;
-    Notify2* notify2;
+    AutoPtr<Notify1> notify1;
+    AutoPtr<Notify2> notify2;
     /**
      * Assumption: incremented at the start of CMidCommandQueue2::notifyList processing
      * and decremented at the end.
@@ -96,9 +97,15 @@ struct Api
 
     using Destructor = void(__thiscall*)(CMidObjectLock* thisptr);
     Destructor destructor;
+
+    using NotifyCQCallback = void(__thiscall*)(CMidObjectLock* thisptr);
+    NotifyCQCallback notify1Callback;
+    NotifyCQCallback notify2Callback;
 };
 
 Api& get();
+
+CMidDataCache2::INotifyVftable* vftable();
 
 } // namespace CMidObjectLockApi
 
