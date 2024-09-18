@@ -24,6 +24,7 @@ namespace game {
 struct CMidObjectLock;
 struct CMidCommandQueue2;
 struct CMidDataCache2;
+struct IMidScenarioObject;
 } // namespace game
 
 namespace hooks {
@@ -32,6 +33,14 @@ game::CMidObjectLock* __fastcall midObjectLockCtorHooked(game::CMidObjectLock* t
                                                          int /*%edx*/,
                                                          game::CMidCommandQueue2* commandQueue,
                                                          game::CMidDataCache2* dataCache);
+
+void __fastcall midObjectLockNotify1CallbackHooked(game::CMidObjectLock* thisptr, int /*%edx*/);
+
+void __fastcall midObjectLockNotify2CallbackHooked(game::CMidObjectLock* thisptr, int /*%edx*/);
+
+void __fastcall midObjectLockOnObjectChangedHooked(game::CMidObjectLock* thisptr,
+                                                   int /*%edx*/,
+                                                   const game::IMidScenarioObject* obj);
 
 } // namespace hooks
 

@@ -24,6 +24,7 @@
 #include "functordispatch0.h"
 #include "midcommandqueue2.h"
 #include "middatacache.h"
+#include <cstdint>
 
 namespace game {
 
@@ -51,13 +52,13 @@ struct CMidObjectLock : public CMidDataCache2::INotify
      * Assumption: incremented at the start of CMidCommandQueue2::notifyList processing
      * and decremented at the end.
      */
-    int pendingLocalUpdates;
+    std::uint32_t pendingLocalUpdates;
     /**
      * Incremented each time the client sends network message to a server.
      * See calls of CPhaseGameIncrementNetworkUpdates.
      * Set to 0 on any call to CMidDataCache2::INotify::OnObjectChanged.
      */
-    int pendingNetworkUpdates;
+    std::uint32_t pendingNetworkUpdates;
     union
     {
         struct

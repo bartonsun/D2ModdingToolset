@@ -23,6 +23,7 @@
 #include "midobjectlock.h"
 #include "phasegame.h"
 #include "stackmovemsg.h"
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -30,13 +31,27 @@ bool __fastcall phaseGameCheckObjectLockHooked(game::CPhaseGame* thisptr, int /*
 {
     const auto* lock = thisptr->data->midObjectLock;
     if (lock->patched.exportingLeader) {
+        spdlog::debug(__FUNCTION__ ": unlocked due to exportingLeader");
         return false;
     }
     if (lock->patched.movingStack) {
+        spdlog::debug(__FUNCTION__ ": locked due to movingStack");
         return true;
     }
 
-    return lock->pendingLocalUpdates || lock->pendingNetworkUpdates;
+    if (lock->pendingNetworkUpdates) {
+        spdlog::debug(__FUNCTION__ ": locked due to pendingNetworkUpdates = {:d}",
+                      lock->pendingNetworkUpdates);
+        return true;
+    }
+
+    if (lock->pendingLocalUpdates) {
+        spdlog::debug(__FUNCTION__ ": locked due to pendingLocalUpdates = {:d}",
+                      lock->pendingLocalUpdates);
+        return true;
+    }
+
+    return false;
 }
 
 void __fastcall phaseGameSendStackMoveMsgHooked(

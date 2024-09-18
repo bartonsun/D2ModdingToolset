@@ -30,6 +30,10 @@ game::CMidCommandQueue2::CNMMap* __fastcall netMsgMapConstructorHooked(
     game::NetMsgCallbacks** netCallbacks,
     game::CMidCommandQueue2* commandQueue);
 
+void __fastcall midCommandQueue2PushHooked(game::CMidCommandQueue2* thisptr,
+                                           int /*%edx*/,
+                                           const game::CCommandMsg* commandMsg);
+
 } // namespace hooks
 
 #endif // MIDCOMMANDQUEUE2HOOKS_H

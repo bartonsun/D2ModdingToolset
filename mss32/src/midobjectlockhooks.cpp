@@ -18,7 +18,9 @@
  */
 
 #include "midobjectlockhooks.h"
+#include "midcommandqueue2.h"
 #include "originalfunctions.h"
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -30,6 +32,34 @@ game::CMidObjectLock* __fastcall midObjectLockCtorHooked(game::CMidObjectLock* t
     auto result = getOriginalFunctions().midObjectLockCtor(thisptr, commandQueue, dataCache);
     result->patched.movingStack = false;
     return result;
+}
+
+void __fastcall midObjectLockNotify1CallbackHooked(game::CMidObjectLock* thisptr, int /*%edx*/)
+{
+    ++thisptr->pendingLocalUpdates;
+    spdlog::debug(
+        __FUNCTION__ ": pendingLocalUpdates incremented to {:d}, processingCommand = {:d}",
+        thisptr->pendingLocalUpdates, thisptr->commandQueue->processingCommand);
+
+    game::CMidCommandQueue2Api::get().processCommands(thisptr->commandQueue);
+}
+
+void __fastcall midObjectLockNotify2CallbackHooked(game::CMidObjectLock* thisptr, int /*%edx*/)
+{
+    --thisptr->pendingLocalUpdates;
+    spdlog::debug(
+        __FUNCTION__ ": pendingLocalUpdates decremented to {:d}, processingCommand = {:d}",
+        thisptr->pendingLocalUpdates, thisptr->commandQueue->processingCommand);
+
+    game::CMidCommandQueue2Api::get().processCommands(thisptr->commandQueue);
+}
+
+void __fastcall midObjectLockOnObjectChangedHooked(game::CMidObjectLock* thisptr,
+                                                   int /*%edx*/,
+                                                   const game::IMidScenarioObject* /*obj*/)
+{
+    spdlog::debug(__FUNCTION__ ": reseting pendingNetworkUpdates to 0");
+    thisptr->pendingNetworkUpdates = 0;
 }
 
 } // namespace hooks

@@ -211,6 +211,7 @@ struct OriginalFunctions
 
     game::CMidgardApi::Api::ClearNetworkState midgardClearNetworkState;
 
+    game::CMidCommandQueue2Api::Api::Push midCommandQueue2Push;
     game::CMidCommandQueue2Api::Api::NMMapConstructor netMsgMapConstructor;
     game::CCommandMsgApi::Api::Create commandMsgCreate;
 
