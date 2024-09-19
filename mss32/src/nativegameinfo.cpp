@@ -394,6 +394,9 @@ bool NativeGameInfo::readUnitsInfo()
         int level{soldier->vftable->getLevel(soldier)};
         int value{soldier->vftable->getXpKilled(soldier)};
 
+        const Bank* bankEnrollCost{soldier->vftable->getEnrollCost(soldier)};
+        int enrollCost{bankToValue(*bankEnrollCost)};
+
         rsg::SubRaceType subrace{(rsg::SubRaceType)soldier->vftable->getSubrace(soldier)->id};
 
         const IAttack* attack{soldier->vftable->getAttackById(soldier)};
@@ -448,8 +451,9 @@ bool NativeGameInfo::readUnitsInfo()
         bool male{soldier->vftable->getSexM(soldier)};
 
         auto unitInfo{std::make_unique<NativeUnitInfo>(unitId, raceId, nameId, level, value,
-                                                       unitType, subrace, reach, attackType, hp,
-                                                       move, leadership, big, male)};
+                                                       enrollCost, unitType, subrace, reach, 
+                                                       attackType, hp, move, leadership, 
+                                                       big, male)};
 
         if (unitType == rsg::UnitType::Leader) {
             leaders.push_back(unitInfo.get());
