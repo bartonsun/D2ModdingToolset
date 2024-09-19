@@ -698,12 +698,16 @@ std::vector<std::filesystem::path> CNetCustomService::getGameFilesToHash() const
         result.push_back(entry.path());
     }
 
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(scriptsFolder())) {
-        if (!entry.is_regular_file()) {
-            continue;
-        }
+    // Scripts might be absent in case of pure vanilla (even without settings.lua)
+    auto scripts = scriptsFolder();
+    if (std::filesystem::is_directory(scripts)) {
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(scripts)) {
+            if (!entry.is_regular_file()) {
+                continue;
+            }
 
-        result.push_back(entry.path());
+            result.push_back(entry.path());
+        }
     }
 
     return result;
