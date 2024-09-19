@@ -33,6 +33,7 @@ public:
                    const rsg::CMidgardID& nameId,
                    int level,
                    int value,
+                   int enrollCost,
                    rsg::UnitType type,
                    rsg::SubRaceType subrace,
                    rsg::ReachType reach,
@@ -47,6 +48,7 @@ public:
         , nameId{nameId}
         , level{level}
         , value{value}
+        , enrollCost{enrollCost}
         , unitType{type}
         , subrace{subrace}
         , reach{reach}
@@ -83,6 +85,11 @@ public:
     int getValue() const override
     {
         return value;
+    }
+
+    int getEnrollCost() const override
+    {
+        return enrollCost;
     }
 
     rsg::UnitType getUnitType() const override
@@ -136,6 +143,7 @@ private:
     rsg::CMidgardID nameId;
     int level{};
     int value{};
+    int enrollCost{};
     rsg::UnitType unitType{rsg::UnitType::Soldier};
     rsg::SubRaceType subrace{rsg::SubRaceType::Neutral};
     rsg::ReachType reach{rsg::ReachType::Adjacent};
