@@ -190,6 +190,7 @@ void __fastcall mainView2CommandQueueCallbackHooked(game::CMainView2* thisptr, i
         auto messageId = message->vftable->getId(message);
         if (messageId == CommandMsgId::MoveStackEnd) {
             thisptr->phaseGame->data->midObjectLock->patched.movingStack = false;
+            spdlog::debug(__FUNCTION__ ": CMidObjectLock::movingStack set to false");
             commandQueueApi.processCommands(commandQueue);
             return;
         }

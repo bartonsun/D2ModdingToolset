@@ -34,24 +34,12 @@ bool __fastcall phaseGameCheckObjectLockHooked(game::CPhaseGame* thisptr, int /*
         spdlog::debug(__FUNCTION__ ": unlocked due to exportingLeader");
         return false;
     }
+
     if (lock->patched.movingStack) {
-        spdlog::debug(__FUNCTION__ ": locked due to movingStack");
         return true;
     }
 
-    if (lock->pendingNetworkUpdates) {
-        spdlog::debug(__FUNCTION__ ": locked due to pendingNetworkUpdates = {:d}",
-                      lock->pendingNetworkUpdates);
-        return true;
-    }
-
-    if (lock->pendingLocalUpdates) {
-        spdlog::debug(__FUNCTION__ ": locked due to pendingLocalUpdates = {:d}",
-                      lock->pendingLocalUpdates);
-        return true;
-    }
-
-    return false;
+    return lock->pendingLocalUpdates || lock->pendingNetworkUpdates;
 }
 
 void __fastcall phaseGameSendStackMoveMsgHooked(
@@ -73,6 +61,9 @@ void __fastcall phaseGameSendStackMoveMsgHooked(
 
     ++data->midObjectLock->pendingNetworkUpdates;
     data->midObjectLock->patched.movingStack = true;
+    spdlog::debug(
+        __FUNCTION__ ": CMidObjectLock::movingStack set to true, pendingNetworkUpdates incremented to {:d}",
+        data->midObjectLock->pendingNetworkUpdates);
 
     CStackMoveMsg message;
     stackMoveMsgApi.constructor2(&message, stackId, movementPath, startPosition, endPosition);
