@@ -184,9 +184,11 @@ static void setupVftableHooks()
     spdlog::debug("All vftable hooks are set");
 }
 
-static void setDefaultLogger()
+static void setupDefaultLogger()
 {
-    std::vector<spdlog::sink_ptr> sinks;
+    auto logger = spdlog::default_logger();
+    auto& sinks = logger->sinks();
+    sinks.clear();
 
     // Original mss32.dll has no log file so we are free to use short name "mss32.log"
     // (instead of the old "mss32Proxy.log")
@@ -204,13 +206,11 @@ static void setDefaultLogger()
         sinks.push_back(std::move(msvcSink));
     }
 
-    auto logger = std::make_shared<spdlog::logger>("default", sinks.begin(), sinks.end());
     // Setting maximum log level for the logger so only the sinks levels will matter
     logger->set_level(spdlog::level::trace);
     // Using UTC helps to match logs from different users (with different timezones).
     // It also helps to match client logs with lobby server logs.
     logger->set_pattern("%D %H:%M:%S.%e %5t [%=8!n] [%L] %v", spdlog::pattern_time_type::utc);
-    spdlog::set_default_logger(std::move(logger));
 }
 
 BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
@@ -223,6 +223,8 @@ BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
     if (reason != DLL_PROCESS_ATTACH) {
         return TRUE;
     }
+
+    setupDefaultLogger();
 
     library = hDll;
     mainThreadId = std::this_thread::get_id();
@@ -241,8 +243,6 @@ BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
     }
 
     DisableThreadLibraryCalls(hDll);
-
-    setDefaultLogger();
 
     const auto error = hooks::determineGameVersion(hooks::exePath());
     if (error || hooks::gameVersion() == hooks::GameVersion::Unknown) {
