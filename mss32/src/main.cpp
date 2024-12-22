@@ -224,6 +224,14 @@ BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
         return TRUE;
     }
 
+    /*
+        https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-disablethreadlibrarycalls#remarks
+        Do not call this function from a DLL that is linked to the static C run-time library (CRT).
+        The static CRT requires DLL_THREAD_ATTACH and DLL_THREAD_DETATCH notifications to function
+        properly.
+    */
+    // DisableThreadLibraryCalls(hDll);
+
     setupDefaultLogger();
 
     library = hDll;
@@ -241,8 +249,6 @@ BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
         hooks::showErrorMessageBox("Could not load Mss23.dll addresses");
         return FALSE;
     }
-
-    DisableThreadLibraryCalls(hDll);
 
     const auto error = hooks::determineGameVersion(hooks::exePath());
     if (error || hooks::gameVersion() == hooks::GameVersion::Unknown) {
