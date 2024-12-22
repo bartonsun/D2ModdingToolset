@@ -106,7 +106,9 @@ static std::shared_ptr<spdlog::logger> createLogger(bool client)
 
     auto otherLogger = spdlog::get(client ? serverLogName : clientLogName);
     if (otherLogger) {
-        return otherLogger->clone(client ? clientLogName : serverLogName);
+        logger = otherLogger->clone(client ? clientLogName : serverLogName);
+        spdlog::register_logger(logger);
+        return logger;
     }
 
     // TODO: rename to mss32Scripting.log when different log levels are available
