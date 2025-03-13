@@ -382,11 +382,6 @@ bool NativeGameInfo::readUnitsInfo()
             continue;
         }
 
-        // Skip water-only units until generator supports water zones
-        if (soldier->vftable->getWaterOnly(soldier)) {
-            continue;
-        }
-
         auto& unitId{idToRsgId(unitImpl->id)};
         auto& raceId{idToRsgId(*soldier->vftable->getRaceId(soldier))};
         auto& nameId{idToRsgId(soldier->data->name.id)};
