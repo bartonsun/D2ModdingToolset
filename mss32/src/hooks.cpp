@@ -2521,7 +2521,20 @@ game::BuildingStatus __stdcall getBuildingStatusHooked(const game::IMidgardObjec
             return BuildingStatus::InsufficientBank;
         }
 
-        if (player->constructionTurn == scenarioInfo->currentTurn) {
+        bool multiple_build{false};
+        auto variables{getScenarioVariables(objectMap)};
+        if (variables && variables->variables.length) {
+            const auto expectedName{"MULTIPLE_BUILD_CAPITAL"};
+            for (const auto& variable : variables->variables) {
+                const auto& name = variable.second.name;
+                if (!strncmp(name, expectedName, sizeof(name))) {
+                    multiple_build = (bool)variable.second.value;
+                    break;
+                }
+            }
+        }
+
+        if (player->constructionTurn == scenarioInfo->currentTurn && !multiple_build) {
             return BuildingStatus::PlayerAlreadyBuiltThisDay;
         }
     }
