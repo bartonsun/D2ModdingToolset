@@ -38,6 +38,8 @@
 #include "batattacktransformself.h"
 #include "batattackuntransformeffect.h"
 #include "batbigface.h"
+#include "batlogic.h"
+#include "batlogichooks.h"
 #include "battleattackinfo.h"
 #include "battlemsgdatahooks.h"
 #include "battleviewerinterf.h"
@@ -477,6 +479,8 @@ static Hooks getGameHooks()
         {serverLogic.stackMove, stackMoveHooked, (void**)&orig.stackMove},
         {CMidgardApi::get().clearNetworkState, midgardClearNetworkStateHooked, (void**)&orig.midgardClearNetworkState},
         {CMidgardApi::get().clearNetworkStateAndService, midgardClearNetworkStateAndServiceHooked, (void**)&orig.midgardClearNetworkStateAndService},
+        // Correctly untransformation at the end of battle for extracted units
+        {CBatLogicApi::get().updateGroupsIfBattleIsOver, updateGroupsIfBattleIsOverHooked},
     };
     // clang-format on
 

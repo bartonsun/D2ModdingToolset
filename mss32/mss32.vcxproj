@@ -189,6 +189,8 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\batattackutils.cpp" />
     <ClCompile Include="src\batbigface.cpp" />
     <ClCompile Include="src\batimagesloader.cpp" />
+    <ClCompile Include="src\batlogic.cpp" />
+    <ClCompile Include="src\batlogichooks.cpp" />
     <ClCompile Include="src\battleattackinfo.cpp" />
     <ClCompile Include="src\battlemsgdata.cpp" />
     <ClCompile Include="src\battlemsgdatahooks.cpp" />
@@ -389,6 +391,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\phasegamehooks.cpp" />
     <ClCompile Include="src\resourcemarketinterface.cpp" />
     <ClCompile Include="src\resourcetype.cpp" />
+    <ClCompile Include="src\resultsender.cpp" />
     <ClCompile Include="src\scenarioobjectstreams.cpp" />
     <ClCompile Include="src\scenariotemplates.cpp" />
     <ClCompile Include="src\refreshinfo.cpp" />
@@ -716,6 +719,8 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\batattackutils.h" />
     <ClInclude Include="include\batbigface.h" />
     <ClInclude Include="include\batimagesloader.h" />
+    <ClInclude Include="include\batlogic.h" />
+    <ClInclude Include="include\batlogichooks.h" />
     <ClInclude Include="include\batnotify.h" />
     <ClInclude Include="include\battleattackinfo.h" />
     <ClInclude Include="include\battlemsgdata.h" />
@@ -958,6 +963,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\nativeunitinfo.h" />
     <ClInclude Include="include\resourcemarketinterface.h" />
     <ClInclude Include="include\resourcetype.h" />
+    <ClInclude Include="include\resultsender.h" />
     <ClInclude Include="include\scenarioobjectstreams.h" />
     <ClInclude Include="include\scenariotemplates.h" />
     <ClInclude Include="include\scenedit.h" />

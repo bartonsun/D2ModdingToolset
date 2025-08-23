@@ -1541,6 +1541,15 @@
     <ClCompile Include="src\netcustompeer.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
+    <ClCompile Include="src\batlogic.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\batlogichooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\resultsender.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3849,6 +3858,15 @@
     </ClInclude>
     <ClInclude Include="include\netcustompeer.h">
       <Filter>features\lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="include\batlogic.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\batlogichooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\resultsender.h">
+      <Filter>game</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
