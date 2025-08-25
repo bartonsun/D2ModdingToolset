@@ -120,8 +120,8 @@ bool __fastcall doppelgangerAttackCanPerformHooked(game::CBatAttackDoppelganger*
         return false;
 
     const IUsSoldier* targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
-    if (!targetSoldier->vftable->getSizeSmall(targetSoldier))
-        return false;
+    const CMidUnit* attUnit = fn.findUnitById(objectMap, &thisptr->unitId);
+	  const IUsSoldier* attSoldier = fn.castUnitImplToSoldier(attUnit->unitImpl);
 
     const IAttack* targetAttack = targetSoldier->vftable->getAttackById(targetSoldier);
     const LAttackClass* targetAttackClass = targetAttack->vftable->getAttackClass(targetAttack);
@@ -136,7 +136,12 @@ bool __fastcall doppelgangerAttackCanPerformHooked(game::CBatAttackDoppelganger*
 
     IAttack* attack = fn.getAttackById(objectMap, &thisptr->attackImplUnitId, thisptr->attackNumber,
                                        false);
-    return !fn.isUnitImmuneToAttack(objectMap, battleMsgData, targetUnitId, attack, true);
+    if (targetSoldier->vftable->getSizeSmall(targetSoldier) && attSoldier->vftable->getSizeSmall(attSoldier))
+        return !fn.isUnitImmuneToAttack(objectMap, battleMsgData, targetUnitId, attack, true);
+	  if (!targetSoldier->vftable->getSizeSmall(targetSoldier) && !attSoldier->vftable->getSizeSmall(attSoldier))
+        return !fn.isUnitImmuneToAttack(objectMap, battleMsgData, targetUnitId, attack, true);
+	  
+	  return false;
 }
 
 /*
