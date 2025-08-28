@@ -918,6 +918,34 @@ void* __fastcall toggleShowBannersInitHooked(void* thisptr, int /*%edx*/)
     return thisptr;
 }
 
+void __stdcall addUnitsToHireList(game::TRaceType* race, 
+                                   game::CPlayerBuildings* playerBuildings,
+                                   game::IdList* hireList)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+    const auto& id = CMidgardIDApi::get();
+    const auto& list = IdListApi::get();
+
+    const auto& unitBranch = UnitBranchCategories::get();
+
+    fn.addUnitToHireList(race, playerBuildings, unitBranch.fighter, hireList);
+    fn.addUnitToHireList(race, playerBuildings, unitBranch.archer, hireList);
+    fn.addUnitToHireList(race, playerBuildings, unitBranch.mage, hireList);
+    fn.addUnitToHireList(race, playerBuildings, unitBranch.special, hireList);
+    fn.addSideshowUnitToHireList(race, playerBuildings, hireList);
+
+    if (!unitsForHire().empty()) {
+        const int raceIndex = id.getTypeIndex(&race->id);
+
+        const auto& units = unitsForHire()[raceIndex];
+        for (const auto& unit : units) {
+            list.pushBack(hireList, &unit);
+        }
+    }
+}
+
 bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
                                               const game::CMidgardID* playerId,
                                               const game::CMidgardID* a3,
@@ -965,28 +993,32 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
 
     const auto& global = GlobalDataApi::get();
     const auto globalData = *global.getGlobalData();
-    auto races = globalData->races;
+    game::RacesMap** races = globalData->races;
     TRaceType* race = (TRaceType*)global.findById(races, &player->raceId);
 
     const auto& fn = gameFunctions();
 
-    const auto& addUnitToHireList = fn.addUnitToHireList;
-    const auto& unitBranch = UnitBranchCategories::get();
+    auto variables{getScenarioVariables(dataCache)};
 
-    addUnitToHireList(race, playerBuildings, unitBranch.fighter, hireList);
-    addUnitToHireList(race, playerBuildings, unitBranch.archer, hireList);
-    addUnitToHireList(race, playerBuildings, unitBranch.mage, hireList);
-    addUnitToHireList(race, playerBuildings, unitBranch.special, hireList);
-
-    fn.addSideshowUnitToHireList(race, playerBuildings, hireList);
-
-    if (!unitsForHire().empty()) {
-        const int raceIndex = id.getTypeIndex(&player->raceId);
-
-        const auto& units = unitsForHire()[raceIndex];
-        for (const auto& unit : units) {
-            list.pushBack(hireList, &unit);
+    bool hireAnyRace{false};
+    for (const auto& variable : variables->variables) {
+        static const char varName[]{"UNIT_HIRE_ANY_RACE"};
+        if (!strncmp(variable.second.name, varName, sizeof(varName))) {
+            hireAnyRace = (bool)variable.second.value;
+            break;
         }
+    }
+        
+    if (hireAnyRace) {
+        for (size_t i = 0; races[i] != nullptr; ++i) {
+            RacesMap* currentMap = races[i];
+            Vector<Pair<CMidgardID, TRaceType*>>& dataVec = currentMap->data;
+            for (auto* current = dataVec.bgn; current != dataVec.end; ++current) {
+                addUnitsToHireList(current->second, playerBuildings, hireList);
+            }
+        }
+    } else {
+        addUnitsToHireList(race, playerBuildings, hireList);
     }
 
     const auto& buildList = playerBuildings->buildings;
@@ -995,7 +1027,6 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
         return true;
     }
 
-    auto variables{getScenarioVariables(dataCache)};
     if (!variables || !variables->variables.length) {
         return true;
     }
@@ -1023,7 +1054,7 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
             continue;
         }
 
-        if (race->id != *soldier->vftable->getRaceId(soldier)) {
+        if (!hireAnyRace && race->id != *soldier->vftable->getRaceId(soldier)) {
             continue;
         }
 
