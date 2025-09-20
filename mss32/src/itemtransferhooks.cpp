@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/VladimirMakeev/D2ModdingToolset)
  * Copyright (C) 2021 Vladimir Makeev.
@@ -17,8 +17,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "itemtransferhooks.h"
+
 #include "button.h"
+#include "listbox.h"
+#include "fortview.h"
+#include "menubase.h"
+#include "itemtransferhooks.h"
 #include "citystackinterf.h"
 #include "dialoginterf.h"
 #include "dynamiccast.h"
@@ -60,6 +64,133 @@ static const game::LItemCategory* getItemCategoryById(game::IMidgardObjectMap* o
     return globalItem ? globalItem->vftable->getCategory(globalItem) : nullptr;
 }
 
+static game::CFortification* getFortByCityId(game::IMidgardObjectMap* map,
+                                             const game::CMidgardID* cityId)
+{
+    using namespace game;
+
+    if (!map || !cityId)
+        return nullptr;
+
+    auto* obj = map->vftable->findScenarioObjectById(map, cityId);
+    if (!obj)
+        return nullptr;
+
+    return static_cast<CFortification*>(obj);
+}
+
+static game::CMidgardID findFirstEmptyStackId(game::IMidgardObjectMap* map)
+{
+    using namespace game;
+    if (!map)
+        return invalidId;
+
+    auto& idApi = CMidgardIDApi::get();
+
+    IteratorPtr itBegin, itEnd;
+    map->vftable->begin(map, &itBegin);
+    map->vftable->end(map, &itEnd);
+
+    IMidgardObjectMap::Iterator* it = itBegin.data;
+    IMidgardObjectMap::Iterator* endIt = itEnd.data;
+
+    if (!it || !endIt)
+        return invalidId;
+
+    for (; !it->vftable->end(it, endIt); it->vftable->advance(it)) {
+        CMidgardID* objId = it->vftable->getObjectId(it);
+        if (!objId)
+            continue;
+
+        if (idApi.getType(objId) == IdType::Stack) {
+            // нашли Stack — достанем объект
+            auto obj = map->vftable->findScenarioObjectById(map, objId);
+            if (!obj)
+                continue;
+
+            auto* stack = static_cast<CMidStack*>(obj);
+            int total = stack->inventory.vftable->getItemsCount(&stack->inventory);
+            if (total == 0) {
+                spdlog::info("Found EMPTY Stack id={}", idToString(objId));
+                return *objId;
+            }
+        }
+    }
+
+    spdlog::warn("No empty Stack found in scenario objects!");
+    return invalidId;
+}
+static game::CMidgardID findFirstEmptyBagId(game::IMidgardObjectMap* map)
+{
+    using namespace game;
+    if (!map)
+        return invalidId;
+
+    auto& idApi = CMidgardIDApi::get();
+
+    IteratorPtr itBegin, itEnd;
+    map->vftable->begin(map, &itBegin);
+    map->vftable->end(map, &itEnd);
+
+    IMidgardObjectMap::Iterator* it = itBegin.data;
+    IMidgardObjectMap::Iterator* endIt = itEnd.data;
+
+    if (!it || !endIt)
+        return invalidId;
+
+    for (; !it->vftable->end(it, endIt); it->vftable->advance(it)) {
+        CMidgardID* objId = it->vftable->getObjectId(it);
+        if (!objId)
+            continue;
+
+        if (idApi.getType(objId) == IdType::Bag) {
+            // нашли Bag — достанем объект
+            auto obj = map->vftable->findScenarioObjectById(map, objId);
+            if (!obj)
+                continue;
+
+            auto* bag = static_cast<CMidBag*>(obj);
+            int total = bag->inventory.vftable->getItemsCount(&bag->inventory);
+            if (total == 0) {
+                spdlog::info("Found EMPTY Bag id={}", idToString(objId));
+                return *objId;
+            }
+        }
+    }
+
+    spdlog::warn("No empty Bag found in scenario objects!");
+    return invalidId;
+}
+
+
+
+#define CAT_MATCHER(name, field)                                                                   \
+    static bool name(game::IMidgardObjectMap* m, const game::CMidgardID* id)                       \
+    {                                                                                              \
+        auto c = getItemCategoryById(m, id);                                                       \
+        return c && game::ItemCategories::get().field                                              \
+               && c->id == game::ItemCategories::get().field->id;                                  \
+    }
+
+CAT_MATCHER(isArmor, armor)
+CAT_MATCHER(isJewel, jewel)
+CAT_MATCHER(isWeapon, weapon)
+CAT_MATCHER(isBanner, banner)
+CAT_MATCHER(isPotionBoost, potionBoost)
+CAT_MATCHER(isPotionHeal, potionHeal)
+CAT_MATCHER(isPotionRevive, potionRevive)
+CAT_MATCHER(isPotionPermanent, potionPermanent)
+CAT_MATCHER(isScroll, scroll)
+CAT_MATCHER(isWand, wand)
+CAT_MATCHER(isValuable, valuable)
+CAT_MATCHER(isOrb, orb)
+CAT_MATCHER(isTalisman, talisman)
+CAT_MATCHER(isTravel, travelItem)
+CAT_MATCHER(isSpecial, special)
+#undef CAT_MATCHER
+
+
+
 static bool isPotion(game::IMidgardObjectMap* objectMap, const game::CMidgardID* itemId)
 {
     using namespace game;
@@ -91,19 +222,19 @@ static bool isSpell(game::IMidgardObjectMap* objectMap, const game::CMidgardID* 
     return categories.scroll->id == id || categories.wand->id == id;
 }
 
-static bool isValuable(game::IMidgardObjectMap* objectMap, const game::CMidgardID* itemId)
-{
-    using namespace game;
-
-    auto category = getItemCategoryById(objectMap, itemId);
-    if (!category) {
-        return false;
-    }
-
-    const auto& categories = ItemCategories::get();
-
-    return categories.valuable->id == category->id;
-}
+//static bool isValuable(game::IMidgardObjectMap* objectMap, const game::CMidgardID* itemId)
+//{
+//    using namespace game;
+//
+//    auto category = getItemCategoryById(objectMap, itemId);
+//    if (!category) {
+//        return false;
+//    }
+//
+//    const auto& categories = ItemCategories::get();
+//
+//    return categories.valuable->id == category->id;
+//}
 
 /** Transfers items from src object to dst. */
 static void transferItems(const std::vector<game::CMidgardID>& items,
@@ -120,9 +251,9 @@ static void transferItems(const std::vector<game::CMidgardID>& items,
     const auto& sendExchangeItemMsg = NetMessagesApi::get().sendStackExchangeItemMsg;
 
     for (const auto& item : items) {
-        sendExchangeItemMsg(phaseGame, srcObjectId, dstObjectId, &item, 1);
+        sendExchangeItemMsg(phaseGame, srcObjectId, dstObjectId, &item, 0);
 
-        if (!exchangeItem(srcObjectId, dstObjectId, &item, objectMap, 1)) {
+        if (!exchangeItem(srcObjectId, dstObjectId, &item, objectMap, 0)) {
             spdlog::error("Failed to transfer item {:s} from {:s} {:s} to {:s} {:s}",
                           idToString(&item), srcObjectName, idToString(srcObjectId), dstObjectName,
                           idToString(dstObjectId));
@@ -161,6 +292,288 @@ static void transferCityToStack(game::CPhaseGame* phaseGame,
 
     transferItems(items, phaseGame, &fortification->stackId, "stack", cityId, "city");
 }
+
+/** Sorts city inventory by given filter (matching items go first). */
+static void sortCity(game::CPhaseGame* phaseGame, const game::CMidgardID* cityId, ItemFilter filter)
+{
+    using namespace game;
+
+    auto* objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
+    if (!objectMap)
+        return;
+
+    auto obj = objectMap->vftable->findScenarioObjectById(objectMap, cityId);
+    if (!obj) {
+        spdlog::error("Could not find city {:s}", idToString(cityId));
+        return;
+    }
+
+    auto fortification = static_cast<CFortification*>(obj);
+    if (fortification->stackId == emptyId) {
+        return;
+    }
+
+    // Собираем все предметы в городе
+    std::vector<CMidgardID> items;
+    const int total = fortification->inventory.vftable->getItemsCount(&fortification->inventory);
+    for (int i = 0; i < total; ++i) {
+        if (auto id = fortification->inventory.vftable->getItem(&fortification->inventory, i)) {
+            items.push_back(*id);
+        }
+    }
+
+    // Сохраняем исходный порядок
+    auto original = items;
+
+    // Сортируем: подходящие фильтру вперёд
+    std::stable_partition(items.begin(), items.end(),
+                          [&](const CMidgardID& id) { return filter(objectMap, &id); });
+
+    // Проверка: изменился ли порядок
+    if (items == original) {
+        spdlog::debug("City {:s}: already sorted by filter, skipping transfer", idToString(cityId));
+        return;
+    }
+
+    // Найдём первый стек с пустым инвентарём
+    CMidgardID stackId = fortification->stackId;
+    if (stackId == invalidId) {
+        spdlog::error("No empty stack found, using fortification->stackId instead");
+        return;
+    }
+
+    // город -> стек
+    transferItems(items, phaseGame, &stackId, "stack", cityId, "city");
+
+    // стек -> город
+    transferItems(items, phaseGame, cityId, "city", &stackId, "stack");
+}
+
+
+
+
+
+
+#define CITY_SORT_MATCHER(fnName, matcher)                                                         \
+    void __fastcall fnName(game::CCityStackInterf* thisptr, int)                                   \
+    {                                                                                              \
+        sortCity(thisptr->dragDropInterf.phaseGame, &thisptr->data->fortificationId, matcher);     \
+    }
+CITY_SORT_MATCHER(cityInterfSortArmor, isArmor)
+CITY_SORT_MATCHER(cityInterfSortJewel, isJewel)
+CITY_SORT_MATCHER(cityInterfSortWeapon, isWeapon)
+CITY_SORT_MATCHER(cityInterfSortBanner, isBanner)
+CITY_SORT_MATCHER(cityInterfSortPotionBoost, isPotionBoost)
+CITY_SORT_MATCHER(cityInterfSortPotionHeal, isPotionHeal)
+CITY_SORT_MATCHER(cityInterfSortPotionRevive, isPotionRevive)
+CITY_SORT_MATCHER(cityInterfSortPotionPermanent, isPotionPermanent)
+CITY_SORT_MATCHER(cityInterfSortScroll, isScroll)
+CITY_SORT_MATCHER(cityInterfSortWand, isWand)
+CITY_SORT_MATCHER(cityInterfSortValuable, isValuable)
+CITY_SORT_MATCHER(cityInterfSortOrb, isOrb)
+CITY_SORT_MATCHER(cityInterfSortTalisman, isTalisman)
+CITY_SORT_MATCHER(cityInterfSortTravel, isTravel)
+CITY_SORT_MATCHER(cityInterfSortSpecial, isSpecial)
+
+
+
+
+
+
+static std::optional<bindings::PlayerView> getFortOwner(game::CFortification* fort,
+                                                        game::IMidgardObjectMap* map)
+{
+    if (!fort || !map)
+        return std::nullopt;
+    bindings::FortView view(fort, map);
+    return view.getOwner();
+}
+
+static bool isSameOwner(const std::optional<bindings::PlayerView>& a,
+                        const std::optional<bindings::PlayerView>& b)
+{
+    if (!a || !b)
+        return false;
+
+    const auto id1 = a->getId().id;
+    const auto id2 = b->getId().id;
+
+    return memcmp(&id1, &id2, sizeof(game::CMidgardID)) == 0;
+}
+
+static game::CFortification* findCapital(game::IMidgardObjectMap* map,
+                                         const std::optional<bindings::PlayerView>& owner)
+{
+     using namespace game;
+    if (!map || !owner)
+        return nullptr;
+
+    IteratorPtr itBegin, itEnd;
+    map->vftable->begin(map, &itBegin);
+    map->vftable->end(map, &itEnd);
+
+    IMidgardObjectMap::Iterator* it = itBegin.data;
+    IMidgardObjectMap::Iterator* endIt = itEnd.data;
+
+    for (; !it->vftable->end(it, endIt); it->vftable->advance(it)) {
+        CMidgardID* objId = it->vftable->getObjectId(it);
+        if (!objId)
+            continue;
+
+        auto* obj = map->vftable->findScenarioObjectById(map, objId);
+        if (!obj || CMidgardIDApi::get().getType(objId) != IdType::Fortification)
+            continue;
+
+        auto* f = static_cast<game::CFortification*>(obj);
+        bindings::FortView view(f, map);
+        if (!view.isCapital())
+            continue;
+
+        auto capOwner = view.getOwner();
+        if (isSameOwner(capOwner, owner))
+            return f;
+    }
+
+    return nullptr;
+}
+
+static std::vector<game::CMidgardID> collectFortItems(game::CFortification* fort)
+{
+    std::vector<game::CMidgardID> items;
+    if (!fort)
+        return items;
+
+    int total = fort->inventory.vftable->getItemsCount(&fort->inventory);
+    for (int i = 0; i < total; ++i) {
+        if (auto id = fort->inventory.vftable->getItem(&fort->inventory, i))
+            items.push_back(*id);
+    }
+    return items;
+}
+
+/** Transfers city items to its capital  */
+static void transferCityToCapital(game::CPhaseGame* phaseGame,
+                              const game::CMidgardID* cityId,
+                              std::optional<ItemFilter> filter = std::nullopt)
+{
+    using namespace game;
+
+    auto* objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
+    if (!objectMap)
+        return;
+
+    auto obj = objectMap->vftable->findScenarioObjectById(objectMap, cityId);
+    if (!obj) {
+        spdlog::error("Could not find city {:s}", idToString(cityId));
+        return;
+    }
+
+    auto fortification = static_cast<CFortification*>(obj);
+
+    // Собираем все предметы
+    std::vector<CMidgardID> items;
+    const int total = fortification->inventory.vftable->getItemsCount(&fortification->inventory);
+    for (int i = 0; i < total; ++i) {
+        if (auto id = fortification->inventory.vftable->getItem(&fortification->inventory, i)) {
+            if (!filter || (*filter)(objectMap, id)) {
+                items.push_back(*id);
+            }
+        }
+    }
+    if (items.empty()) {
+        spdlog::info("No items in city {:s}", idToString(cityId));
+        return;
+    }
+
+    // владелец города
+    auto fortOwner = getFortOwner(fortification, objectMap);
+
+    // столица
+    auto* capital = findCapital(objectMap, fortOwner);
+    if (!capital) {
+        spdlog::warn("No capital found for owner={}", idToString(&fortification->ownerId));
+        return;
+    }
+    
+    CMidgardID capId = capital->id;
+
+    // город -> стек города
+    transferItems(items, phaseGame, &capId, "cityStack", cityId, "city");
+
+}
+
+void __fastcall cityTransferBtn(game::CCityStackInterf* thisptr, int)
+{
+    transferCityToCapital(thisptr->dragDropInterf.phaseGame, &thisptr->data->fortificationId);
+}
+
+
+static void __fastcall cityInterfTestReverse(game::CCityStackInterf* thisptr, int /*%edx*/)
+{
+    using namespace game;
+
+    auto phaseGame = thisptr->dragDropInterf.phaseGame;
+    if (!phaseGame || !phaseGame->data)
+        return;
+
+    auto objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
+    if (!objectMap)
+        return;
+
+    // 1) реверс предметов в инвентаре города (без clear)
+    auto cityObj = objectMap->vftable->findScenarioObjectById(objectMap,
+                                                              &thisptr->data->fortificationId);
+    if (!cityObj)
+        return;
+
+    auto fort = static_cast<CFortification*>(cityObj);
+    auto& inv = fort->inventory;
+
+    const int total = inv.vftable->getItemsCount(&inv);
+    if (total <= 1)
+        return;
+
+    std::vector<CMidgardID> items;
+    items.reserve(total);
+    for (int i = 0; i < total; ++i) {
+        if (auto id = inv.vftable->getItem(&inv, i)) {
+            items.push_back(*id);
+        }
+    }
+
+    // удаляем всё по id
+    for (int i = 0; i < total; ++i) {
+        const auto& id = items[i];
+        inv.vftable->removeItem(&inv, /*a2=*/0, &id, objectMap);
+    }
+    // добавляем в обратном порядке
+    for (int i = total - 1; i >= 0; --i) {
+        const auto& id = items[i];
+        inv.vftable->addItem(&inv, /*a2=*/0, &id, objectMap);
+    }
+
+    // 2) форс-обновление интерфейса через менеджер интерфейсов
+    //    (скрыть и сразу показать тот же интерфейс)
+    // manager можно получить из phaseGame->data->interfManager (как ты уже делал в
+    // msgbox-хендлерах)
+    auto managerImpl = phaseGame->data->interfManager.data; // CInterfManagerImpl*
+    if (!managerImpl || !managerImpl->CInterfManagerImpl::CInterfManager::vftable)
+        return;
+
+    auto mgrVt = managerImpl->CInterfManagerImpl::CInterfManager::vftable;
+    auto asIface = reinterpret_cast<CInterface*>(&thisptr->dragDropInterf); // базовый CInterface
+
+    // hide -> show (мягкий рефреш без закрытия диалога)
+    if (mgrVt->hideInterface && mgrVt->showInterface) {
+        mgrVt->hideInterface(reinterpret_cast<CInterfManager*>(managerImpl), asIface);
+        mgrVt->showInterface(reinterpret_cast<CInterfManager*>(managerImpl), asIface);
+    }
+}
+
+
+
+
+
 
 void __fastcall cityInterfTransferAllToStack(game::CCityStackInterf* thisptr, int /*%edx*/)
 {
@@ -272,6 +685,76 @@ void __fastcall cityInterfTransferValuablesToCity(game::CCityStackInterf* thispt
                         isValuable);
 }
 
+static void setupCityStackButtons(game::CCityStackInterf* thisptr, game::CDialogInterf* dialog)
+{
+    using namespace game;
+    using CB = CCityStackInterfApi::Api::ButtonCallback;
+    const auto& btn = CButtonInterfApi::get();
+    const auto& api = CCityStackInterfApi::get();
+    const auto& dlg = CDialogInterfApi::get();
+    SmartPointer fun;
+    auto free = SmartPointerApi::get().createOrFreeNoDtor;
+    CB cb{};
+    constexpr char name[] = "DLG_CITY_STACK";
+
+    auto hook = [&](const char* ctrl, CB::Callback fn) {
+        if (dlg.findControl(dialog, ctrl)) {
+            cb.callback = fn;
+            api.createButtonFunctor(&fun, 0, thisptr, &cb);
+            btn.assignFunctor(dialog, ctrl, name, &fun, 0);
+            free(&fun, nullptr);
+        }
+    };
+
+    // --- TRANSFER кнопки ---
+    hook("BTN_TRANSF_L_ALL", (CB::Callback)cityInterfTransferAllToStack);
+    hook("BTN_TRANSF_R_ALL", (CB::Callback)cityInterfTransferAllToCity);
+    hook("BTN_TRANSF_L_POTIONS", (CB::Callback)cityInterfTransferPotionsToStack);
+    hook("BTN_TRANSF_R_POTIONS", (CB::Callback)cityInterfTransferPotionsToCity);
+    hook("BTN_TRANSF_L_SPELLS", (CB::Callback)cityInterfTransferSpellsToStack);
+    hook("BTN_TRANSF_R_SPELLS", (CB::Callback)cityInterfTransferSpellsToCity);
+    hook("BTN_TRANSF_L_VALUABLES", (CB::Callback)cityInterfTransferValuablesToStack);
+    hook("BTN_TRANSF_R_VALUABLES", (CB::Callback)cityInterfTransferValuablesToCity);
+    hook("BTN_TRANSF_R_CITY_CAPITAL", (CB::Callback)cityTransferBtn);
+
+
+    // --- SORT кнопки ---
+    // 
+    // --- SORT L --- Stack
+   /* hook("BTN_CITY_SORT_L_ARMOR", (CB::Callback)cityInterfSort_L_Armor);
+    hook("BTN_CITY_SORT_L_JEWEL", (CB::Callback)cityInterfSort_L_Jewel);
+    hook("BTN_CITY_SORT_L_WEAPON", (CB::Callback)cityInterfSort_L_Weapon);
+    hook("BTN_CITY_SORT_L_BANNER", (CB::Callback)cityInterfSort_L_Banner);
+    hook("BTN_CITY_SORT_L_POTION_BOOST", (CB::Callback)cityInterfSort_L_PotionBoost);
+    hook("BTN_CITY_SORT_L_POTION_HEAL", (CB::Callback)cityInterfSort_L_PotionHeal);
+    hook("BTN_CITY_SORT_L_POTION_REVIVE", (CB::Callback)cityInterfSort_L_PotionRevive);
+    hook("BTN_CITY_SORT_L_POTION_PERM", (CB::Callback)cityInterfSort_L_PotionPermanent);
+    hook("BTN_CITY_SORT_L_SCROLL", (CB::Callback)cityInterfSort_L_Scroll);
+    hook("BTN_CITY_SORT_L_WAND", (CB::Callback)cityInterfSort_L_Wand);
+    hook("BTN_CITY_SORT_L_VALUABLE", (CB::Callback)cityInterfSort_L_Valuable);
+    hook("BTN_CITY_SORT_L_ORB", (CB::Callback)cityInterfSort_L_Orb);
+    hook("BTN_CITY_SORT_L_TALISMAN", (CB::Callback)cityInterfSort_L_Talisman);
+    hook("BTN_CITY_SORT_L_TRAVEL", (CB::Callback)cityInterfSort_L_Travel);
+    hook("BTN_CITY_SORT_L_SPECIAL", (CB::Callback)cityInterfSort_L_Special);*/
+
+     // --- SORT R --- City
+    hook("BTN_CITY_SORT_R_ARMOR", (CB::Callback)cityInterfSortArmor);
+    hook("BTN_CITY_SORT_R_JEWEL", (CB::Callback)cityInterfSortJewel);
+    hook("BTN_CITY_SORT_R_WEAPON", (CB::Callback)cityInterfSortWeapon);
+    hook("BTN_CITY_SORT_R_BANNER", (CB::Callback)cityInterfSortBanner);
+    hook("BTN_CITY_SORT_R_POTION_BOOST", (CB::Callback)cityInterfSortPotionBoost);
+    hook("BTN_CITY_SORT_R_POTION_HEAL", (CB::Callback)cityInterfSortPotionHeal);
+    hook("BTN_CITY_SORT_R_POTION_REVIVE", (CB::Callback)cityInterfSortPotionRevive);
+    hook("BTN_CITY_SORT_R_POTION_PERMAMENT", (CB::Callback)cityInterfSortPotionPermanent);
+    hook("BTN_CITY_SORT_R_SCROLL", (CB::Callback)cityInterfSortScroll);
+    hook("BTN_CITY_SORT_R_WAND", (CB::Callback)cityInterfSortWand);
+    hook("BTN_CITY_SORT_R_VALUABLE", (CB::Callback)cityInterfSortValuable);
+    hook("BTN_CITY_SORT_R_ORB", (CB::Callback)cityInterfSortOrb);
+    hook("BTN_CITY_SORT_R_TALISMAN", (CB::Callback)cityInterfSortTalisman);
+    hook("BTN_CITY_SORT_R_TRAVEL", (CB::Callback)cityInterfSortTravel);
+    hook("BTN_CITY_SORT_R_SPECIAL", (CB::Callback)cityInterfSortSpecial);
+}
+
 game::CCityStackInterf* __fastcall cityStackInterfCtorHooked(game::CCityStackInterf* thisptr,
                                                              int /*%edx*/,
                                                              void* taskOpenInterf,
@@ -282,76 +765,13 @@ game::CCityStackInterf* __fastcall cityStackInterfCtorHooked(game::CCityStackInt
 
     getOriginalFunctions().cityStackInterfCtor(thisptr, taskOpenInterf, phaseGame, cityId);
 
-    const auto& button = CButtonInterfApi::get();
-    const auto freeFunctor = SmartPointerApi::get().createOrFreeNoDtor;
-    const char dialogName[] = "DLG_CITY_STACK";
     auto dialog = CDragAndDropInterfApi::get().getDialog(&thisptr->dragDropInterf);
-
-    using ButtonCallback = CCityStackInterfApi::Api::ButtonCallback;
-    ButtonCallback callback{};
-    SmartPointer functor;
-
-    const auto& dialogApi = CDialogInterfApi::get();
-    const auto& cityStackInterf = CCityStackInterfApi::get();
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_L_ALL")) {
-        callback.callback = (ButtonCallback::Callback)cityInterfTransferAllToStack;
-        cityStackInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_L_ALL", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_R_ALL")) {
-        callback.callback = (ButtonCallback::Callback)cityInterfTransferAllToCity;
-        cityStackInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_R_ALL", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_L_POTIONS")) {
-        callback.callback = (ButtonCallback::Callback)cityInterfTransferPotionsToStack;
-        cityStackInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_L_POTIONS", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_R_POTIONS")) {
-        callback.callback = (ButtonCallback::Callback)cityInterfTransferPotionsToCity;
-        cityStackInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_R_POTIONS", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_L_SPELLS")) {
-        callback.callback = (ButtonCallback::Callback)cityInterfTransferSpellsToStack;
-        cityStackInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_L_SPELLS", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_R_SPELLS")) {
-        callback.callback = (ButtonCallback::Callback)cityInterfTransferSpellsToCity;
-        cityStackInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_R_SPELLS", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_L_VALUABLES")) {
-        callback.callback = (ButtonCallback::Callback)cityInterfTransferValuablesToStack;
-        cityStackInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_L_VALUABLES", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_R_VALUABLES")) {
-        callback.callback = (ButtonCallback::Callback)cityInterfTransferValuablesToCity;
-        cityStackInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_R_VALUABLES", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
+    setupCityStackButtons(thisptr, dialog);
 
     return thisptr;
 }
+
+
 
 /** Transfers items from stack with srcStackId to stack with dstStackId. */
 static void transferStackToStack(game::CPhaseGame* phaseGame,

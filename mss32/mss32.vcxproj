@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -611,6 +611,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\waitgenerationinterf.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="cpp.hint" />
     <None Include="module.def" />
   </ItemGroup>
   <ItemGroup>
@@ -1082,7 +1083,6 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\itemspecial.h" />
     <ClInclude Include="include\itemspell.h" />
     <ClInclude Include="include\itemtalisman.h" />
-    <ClInclude Include="include\itemtransferhooks.h" />
     <ClInclude Include="include\itemtravelitem.h" />
     <ClInclude Include="include\itemutils.h" />
     <ClInclude Include="include\itemvaluable.h" />

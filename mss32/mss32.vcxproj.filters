@@ -2019,9 +2019,6 @@
     <ClInclude Include="include\miditem.h">
       <Filter>game</Filter>
     </ClInclude>
-    <ClInclude Include="include\itemtransferhooks.h">
-      <Filter>hooks</Filter>
-    </ClInclude>
     <ClInclude Include="include\sitemerchantinterf.h">
       <Filter>game</Filter>
     </ClInclude>
@@ -3876,6 +3873,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="module.def" />
+    <None Include="cpp.hint" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="midgardid.natvis" />
