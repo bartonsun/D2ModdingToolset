@@ -84,11 +84,44 @@ struct Settings
     bool fixEffectiveHpFormula;
 
     struct AdditionalLordIncome
-    {
-        int warrior = 0;
-        int mage = 0;
-        int guildmaster = 0;
+    {   
+        struct Gold
+        {
+            int warrior = 0;
+            int mage = 0;
+            int guildmaster = 0;
+        } gold;
+        
+        struct Mana
+        {
+            int warrior = 0;
+            int mage = 0;
+            int guildmaster = 0;
+        } mana;
     } additionalLordIncome;
+
+    struct AdditionalCityIncome
+    {   
+        struct Gold
+        {
+            int capital = 0;
+            int tier1 = 0;
+            int tier2 = 0;
+            int tier3 = 0;
+            int tier4 = 0;
+            int tier5 = 0;
+        } gold;
+        
+        struct Mana
+        {
+            int capital = 0;
+            int tier1 = 0;
+            int tier2 = 0;
+            int tier3 = 0;
+            int tier4 = 0;
+            int tier5 = 0;
+        } mana;
+    } additionalCityIncome;
 
     struct UnitEncyclopedia
     {

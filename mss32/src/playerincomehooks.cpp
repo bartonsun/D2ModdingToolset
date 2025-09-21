@@ -56,50 +56,35 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
 
     const auto& races = RaceCategories::get();
     auto player = static_cast<const CMidPlayer*>(playerObj);
-    if (player->raceType->data->raceType.id == races.neutral->id) {
-        // Skip neutrals
-        return income;
-    }
-
-    // additional income for lord type
-    const auto& globalApi = GlobalDataApi::get();
-    const auto lords = (*globalApi.getGlobalData())->lords;
-    const auto lordType = (TLordType*)globalApi.findById(lords, &player->lordId);
-    const auto lordId = lordType->data->lordCategory.id;
-    int additionalLordIncome{};
-    switch (lordId) {
-    case LordId::Warrior:
-        additionalLordIncome = userSettings().additionalLordIncome.warrior;
-        break;
-    case LordId::Mage:
-        additionalLordIncome = userSettings().additionalLordIncome.mage;
-        break;
-    case LordId::Diplomat:
-        additionalLordIncome = userSettings().additionalLordIncome.guildmaster;
-        break;
-    }
-    const int goldLordIncome{income->gold + additionalLordIncome};
-    BankApi::get().set(income, CurrencyType::Gold, std::clamp(goldLordIncome, 0, 9999));
-
-    auto variables{getScenarioVariables(objectMap)};
-    if (!variables || !variables->variables.length) {
-        // No variables defined, skip
-        return income;
-    }
-
     const auto raceId = player->raceType->data->raceType.id;
     const char* racePrefix{};
+    const char* lordPrefix{};
+    CurrencyType manaType;
+    std::int32_t manaIncome;
 
-    if (raceId == races.human->id) {
+    if (raceId == races.neutral->id) {
+        // Skip neutrals
+        return income;
+    } else if (raceId == races.human->id) {
         racePrefix = "EMPIRE_";
+        manaType = CurrencyType::LifeMana;
+        manaIncome = income->lifeMana;
     } else if (raceId == races.heretic->id) {
         racePrefix = "LEGIONS_";
+        manaType = CurrencyType::InfernalMana;
+        manaIncome = income->infernalMana;
     } else if (raceId == races.dwarf->id) {
         racePrefix = "CLANS_";
+        manaType = CurrencyType::RunicMana;
+        manaIncome = income->runicMana;
     } else if (raceId == races.undead->id) {
         racePrefix = "HORDES_";
+        manaType = CurrencyType::DeathMana;
+        manaIncome = income->deathMana;
     } else if (raceId == races.elf->id) {
         racePrefix = "ELVES_";
+        manaType = CurrencyType::GroveMana;
+        manaIncome = income->groveMana;
     }
 
     if (!racePrefix) {
@@ -108,33 +93,99 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
         return income;
     }
 
-    std::array<int, 6> cityIncome = {0, 0, 0, 0, 0, 0};
+    // additional income for lord type
+    const auto& globalApi = GlobalDataApi::get();
+    const auto lords = (*globalApi.getGlobalData())->lords;
+    const auto lordType = (TLordType*)globalApi.findById(lords, &player->lordId);
+    const auto lordId = lordType->data->lordCategory.id;
+    int additionalGoldIncome{};
+    int additionalManaIncome{};
+    switch (lordId) {
+    case LordId::Warrior:
+        lordPrefix = "WARRIOR";
+        additionalGoldIncome = userSettings().additionalLordIncome.gold.warrior;
+        additionalManaIncome = userSettings().additionalLordIncome.mana.warrior;
+        break;
+    case LordId::Mage:
+        lordPrefix = "MAGE";
+        additionalGoldIncome = userSettings().additionalLordIncome.gold.mage;
+        additionalManaIncome = userSettings().additionalLordIncome.mana.mage;
+        break;
+    case LordId::Diplomat:
+        lordPrefix = "GUILDMASTER";
+        additionalGoldIncome = userSettings().additionalLordIncome.gold.guildmaster;
+        additionalManaIncome = userSettings().additionalLordIncome.mana.guildmaster;
+        break;
+    }
 
+    std::array<int, 6> cityGoldIncome = {userSettings().additionalCityIncome.gold.capital,
+                                         userSettings().additionalCityIncome.gold.tier1,
+                                         userSettings().additionalCityIncome.gold.tier2,
+                                         userSettings().additionalCityIncome.gold.tier3,
+                                         userSettings().additionalCityIncome.gold.tier4,
+                                         userSettings().additionalCityIncome.gold.tier5};
+
+    std::array<int, 6> cityManaIncome = {userSettings().additionalCityIncome.mana.capital,
+                                         userSettings().additionalCityIncome.mana.tier1,
+                                         userSettings().additionalCityIncome.mana.tier2,
+                                         userSettings().additionalCityIncome.mana.tier3,
+                                         userSettings().additionalCityIncome.mana.tier4,
+                                         userSettings().additionalCityIncome.mana.tier5};
+
+    auto variables{getScenarioVariables(objectMap)};
     spdlog::debug("Loop through {:d} scenario variables", variables->variables.length);
 
     std::uint32_t listIndex{};
     for (const auto& variable : variables->variables) {
         const auto& name = variable.second.name;
 
-        // Additional income for specific race
+        // Additional income for specific lord
+        if (!strncmp(name, lordPrefix, std::strlen(lordPrefix))) {
+            const auto expectedNameGold{fmt::format("{:s}_GOLD_INCOME", lordPrefix)};
+            const auto expectedNameMana{fmt::format("{:s}_MANA_INCOME", lordPrefix)};
+            if (!strncmp(name, expectedNameGold.c_str(), sizeof(name))) {
+                additionalGoldIncome += variable.second.value;
+                continue;
+            } else if (!strncmp(name, expectedNameMana.c_str(), sizeof(name))) {
+                additionalManaIncome += variable.second.value;
+                continue;
+            }
+        }
+
+        // Additional city income for specific race
         if (!strncmp(name, racePrefix, std::strlen(racePrefix))) {
             for (int i = 0; i < 6; ++i) {
                 const auto expectedName{fmt::format("{:s}TIER_{:d}_CITY_INCOME", racePrefix, i)};
-
+                const auto expectedNameGold{fmt::format("{:s}TIER_{:d}_CITY_GOLD_INCOME", racePrefix, i)};
+                const auto expectedNameMana{fmt::format("{:s}TIER_{:d}_CITY_MANA_INCOME", racePrefix, i)};
                 if (!strncmp(name, expectedName.c_str(), sizeof(name))) {
-                    cityIncome[i] += variable.second.value;
+                    cityGoldIncome[i] += variable.second.value;
+                    break;
+                } else if (!strncmp(name, expectedNameGold.c_str(), sizeof(name))) {
+                    cityGoldIncome[i] += variable.second.value;
+                    break;
+                } else if (!strncmp(name, expectedNameMana.c_str(), sizeof(name))) {
+                    cityManaIncome[i] += variable.second.value;
                     break;
                 }
             }
         }
 
-        // Additional income for all races
+        // Additional city income for all races
         if (!strncmp(name, "TIER", 4)) {
             for (int i = 0; i < 6; ++i) {
                 const auto expectedName{fmt::format("TIER_{:d}_CITY_INCOME", i)};
+                const auto expectedNameGold{fmt::format("TIER_{:d}_CITY_GOLD_INCOME", i)};
+                const auto expectedNameMana{fmt::format("TIER_{:d}_CITY_MANA_INCOME", i)};
 
                 if (!strncmp(name, expectedName.c_str(), sizeof(name))) {
-                    cityIncome[i] += variable.second.value;
+                    cityGoldIncome[i] += variable.second.value;
+                    break;
+                } else if (!strncmp(name, expectedNameGold.c_str(), sizeof(name))) {
+                    cityGoldIncome[i] += variable.second.value;
+                    break;
+                } else if (!strncmp(name, expectedNameMana.c_str(), sizeof(name))) {
+                    cityManaIncome[i] += variable.second.value;
                     break;
                 }
             }
@@ -145,12 +196,9 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
 
     spdlog::debug("Loop done in {:d} iterations", listIndex);
 
-    if (std::all_of(std::begin(cityIncome), std::end(cityIncome),
-                    [](int value) { return value == 0; })) {
-        return income;
-    }
-
-    auto getVillageIncome = [playerId, income, &cityIncome](const IMidScenarioObject* obj) {
+    // Custom cities income
+    auto getVillageIncome = [playerId, cityGoldIncome, cityManaIncome, &additionalGoldIncome,
+                             &additionalManaIncome](const IMidScenarioObject* obj) {
         auto fortification = static_cast<const CFortification*>(obj);
 
         if (fortification->ownerId == *playerId) {
@@ -160,8 +208,8 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
             if (category->id == FortCategories::get().village->id) {
                 auto village = static_cast<const CMidVillage*>(fortification);
 
-                const int gold{income->gold + cityIncome[village->tierLevel]};
-                BankApi::get().set(income, CurrencyType::Gold, std::clamp(gold, 0, 9999));
+                additionalGoldIncome += cityGoldIncome[village->tierLevel];
+                additionalManaIncome += cityManaIncome[village->tierLevel];
             }
         }
     };
@@ -169,8 +217,12 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
     forEachScenarioObject(objectMap, IdType::Fortification, getVillageIncome);
 
     // Custom capital city income
-    const int gold{income->gold + cityIncome[0]};
-    BankApi::get().set(income, CurrencyType::Gold, std::clamp(gold, 0, 9999));
+    additionalGoldIncome += cityGoldIncome[0];
+    additionalManaIncome += cityManaIncome[0];
+    const int totalGoldIncome = income->gold + additionalGoldIncome;
+    const int totalManaIncome = manaIncome + additionalManaIncome;
+    BankApi::get().set(income, CurrencyType::Gold, std::clamp(totalGoldIncome, 0, 9999));
+    BankApi::get().set(income, manaType, std::clamp(totalManaIncome, 0, 9999));
 
     return income;
 }

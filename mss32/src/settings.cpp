@@ -303,9 +303,64 @@ static void readAdditionalLordIncomeSettings(const sol::table& table,
         return;
     }
 
-    value.warrior = readSetting(income.value(), "warrior", def.warrior);
-    value.mage = readSetting(income.value(), "mage", def.mage);
-    value.guildmaster = readSetting(income.value(), "guildmaster", def.guildmaster);
+    auto goldTable = income.value().get<sol::optional<sol::table>>("gold");
+    if (goldTable.has_value()) {
+        value.gold.warrior = readSetting(goldTable.value(), "warrior", def.gold.warrior);
+        value.gold.mage = readSetting(goldTable.value(), "mage", def.gold.mage);
+        value.gold.guildmaster = readSetting(goldTable.value(), "guildmaster",
+                                             def.gold.guildmaster);
+    } else {
+        value.gold = def.gold;
+    }
+
+    auto manaTable = income.value().get<sol::optional<sol::table>>("mana");
+    if (manaTable.has_value()) {
+        value.mana.warrior = readSetting(manaTable.value(), "warrior", def.mana.warrior);
+        value.mana.mage = readSetting(manaTable.value(), "mage", def.mana.mage);
+        value.mana.guildmaster = readSetting(manaTable.value(), "guildmaster",
+                                             def.mana.guildmaster);
+    } else {
+        value.mana = def.mana;
+    }
+}
+
+
+static void readAdditionalCityIncomeSettings(const sol::table& table,
+                                             Settings::AdditionalCityIncome& value)
+{
+    const auto& def = defaultSettings().additionalCityIncome;
+
+    auto income = table.get<sol::optional<sol::table>>("additionalCityIncome");
+    if (!income.has_value()) {
+        value = def;
+        return;
+    }
+
+    auto goldTable = income.value().get<sol::optional<sol::table>>("gold");
+    if (goldTable.has_value()) {
+        value.gold.capital = readSetting(goldTable.value(), "capital", def.gold.capital);
+        value.gold.tier1 = readSetting(goldTable.value(), "tier1", def.gold.tier1);
+        value.gold.tier2 = readSetting(goldTable.value(), "tier2", def.gold.tier2);
+        value.gold.tier3 = readSetting(goldTable.value(), "tier3", def.gold.tier3);
+        value.gold.tier4 = readSetting(goldTable.value(), "tier4", def.gold.tier4);
+        value.gold.tier5 = readSetting(goldTable.value(), "tier5", def.gold.tier5);
+
+    } else {
+        value.gold = def.gold;
+    }
+
+    auto manaTable = income.value().get<sol::optional<sol::table>>("mana");
+    if (manaTable.has_value()) {
+        value.mana.capital = readSetting(manaTable.value(), "capital", def.mana.capital);
+        value.mana.tier1 = readSetting(manaTable.value(), "tier1", def.mana.tier1);
+        value.mana.tier2 = readSetting(manaTable.value(), "tier2", def.mana.tier2);
+        value.mana.tier3 = readSetting(manaTable.value(), "tier3", def.mana.tier3);
+        value.mana.tier4 = readSetting(manaTable.value(), "tier4", def.mana.tier4);
+        value.mana.tier5 = readSetting(manaTable.value(), "tier5", def.mana.tier5);
+
+    } else {
+        value.mana = def.mana;
+    }
 }
 
 static void readSettings(const sol::table& table, Settings& settings)
@@ -357,6 +412,7 @@ static void readSettings(const sol::table& table, Settings& settings)
     readEngineSettings(table, settings.engine);
     readBattleSettings(table, settings.battle);
     readAdditionalLordIncomeSettings(table, settings.additionalLordIncome);
+    readAdditionalCityIncomeSettings(table, settings.additionalCityIncome);
 }
 
 static void readDebugMode(Settings& settings)
