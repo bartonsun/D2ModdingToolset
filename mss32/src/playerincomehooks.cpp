@@ -232,7 +232,7 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
     static std::optional<sol::function> getIncome;
     const auto path{scriptsFolder() / "income.lua"};
     if (!env && !getIncome) {
-        getIncome = getScriptFunction(path, "getIncome", env, false, true);
+        getIncome = getScriptFunction(path, "getTurnIncome", env, false, true);
     }
     if (getIncome) {
         bindings::PlayerView playerView{player, objectMap};
