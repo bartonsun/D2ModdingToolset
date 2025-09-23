@@ -19,6 +19,7 @@
 
 #include "playerincomehooks.h"
 #include "currency.h"
+#include "currencyview.h"
 #include "fortcategory.h"
 #include "fortification.h"
 #include "game.h"
@@ -30,8 +31,10 @@
 #include "midscenvariables.h"
 #include "midvillage.h"
 #include "originalfunctions.h"
+#include "playerview.h"
 #include "racecategory.h"
 #include "racetype.h"
+#include "scripts.h"
 #include "settings.h"
 #include "utils.h"
 #include <algorithm>
@@ -221,8 +224,28 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
     additionalManaIncome += cityManaIncome[0];
     const int totalGoldIncome = income->gold + additionalGoldIncome;
     const int totalManaIncome = manaIncome + additionalManaIncome;
+
     BankApi::get().set(income, CurrencyType::Gold, std::clamp(totalGoldIncome, 0, 9999));
     BankApi::get().set(income, manaType, std::clamp(totalManaIncome, 0, 9999));
+
+    static std::optional<sol::environment> env;
+    static std::optional<sol::function> getIncome;
+    const auto path{scriptsFolder() / "income.lua"};
+    if (!env && !getIncome) {
+        getIncome = getScriptFunction(path, "getIncome", env, false, true);
+    }
+    if (getIncome) {
+        bindings::PlayerView playerView{player, objectMap};
+        bindings::CurrencyView prevValue{*income};
+        try {
+            income = (*getIncome)(playerView, prevValue);
+
+        } catch (const std::exception& e) {
+            showErrorMessageBox(fmt::format("Failed to run '{:s}' script.\n"
+                                            "Reason: '{:s}'",
+                                            path.string(), e.what()));
+        }
+    }
 
     return income;
 }
