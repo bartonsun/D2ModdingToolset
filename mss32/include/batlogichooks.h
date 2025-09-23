@@ -23,9 +23,17 @@
 namespace game {
 struct CBatLogic;
 struct CResultSender;
+struct CMidgardID;
 } // namespace game
 
 namespace hooks {
+
+void __fastcall battleTurnHooked(game::CBatLogic* thisptr,
+                                 int /*%edx*/,
+                                 game::CResultSender* resultSender,
+                                 int groupBattleCondition,
+                                 game::CMidgardID* a4,
+                                 game::CMidgardID* a5);
 
 void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
                                                  int /*%edx*/,

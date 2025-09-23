@@ -481,6 +481,8 @@ static Hooks getGameHooks()
         {CMidgardApi::get().clearNetworkStateAndService, midgardClearNetworkStateAndServiceHooked, (void**)&orig.midgardClearNetworkStateAndService},
         // Correctly untransformation at the end of battle for extracted units
         {CBatLogicApi::get().updateGroupsIfBattleIsOver, updateGroupsIfBattleIsOverHooked},
+        // Fixed an issue where a unit killed by a DoT effect was considered alive until end next action
+        {CBatLogicApi::get().battleTurn, battleTurnHooked, (void**)&orig.battleTurn},
     };
     // clang-format on
 

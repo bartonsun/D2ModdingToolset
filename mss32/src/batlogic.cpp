@@ -27,6 +27,7 @@ namespace game::CBatLogicApi {
 static std::array<Api, 3> functions = {{
     // Akella
     Api{
+        (Api::BattleTurn)0x625cda,
         (Api::UpdateGroupsIfBattleIsOver)0x62a9fc,
         (Api::IsBattleOver)0x62b3de,
         (Api::GetBattleWinnerGroupId)0x62b54f,
@@ -36,10 +37,11 @@ static std::array<Api, 3> functions = {{
         (Api::ApplyCBatAttackGroupUpgrade)0x62af01,
         (Api::ApplyCBatAttackGroupBattleCount)0x62b13e,
         (Api::RestoreLeaderPositionsAfterDuel)0x62b1d1,
-
+        (Api::UpdateUnitsBattleXp)0x626dab,
     },
     // Russobit
     Api{
+        (Api::BattleTurn)0x625cda,
         (Api::UpdateGroupsIfBattleIsOver)0x62a9fc,
         (Api::IsBattleOver)0x62b3de,
         (Api::GetBattleWinnerGroupId)0x62b54f,
@@ -49,10 +51,11 @@ static std::array<Api, 3> functions = {{
         (Api::ApplyCBatAttackGroupUpgrade)0x62af01,
         (Api::ApplyCBatAttackGroupBattleCount)0x62b13e,
         (Api::RestoreLeaderPositionsAfterDuel)0x62b1d1,
-
+        (Api::UpdateUnitsBattleXp)0x626dab,
     },
     // Gog
     Api{
+        (Api::BattleTurn)0x62481a,
         (Api::UpdateGroupsIfBattleIsOver)0x62953c,
         (Api::IsBattleOver)0x629f1e,
         (Api::GetBattleWinnerGroupId)0x62a08f,
@@ -62,6 +65,7 @@ static std::array<Api, 3> functions = {{
         (Api::ApplyCBatAttackGroupUpgrade)0x629a41,
         (Api::ApplyCBatAttackGroupBattleCount)0x629c7e,
         (Api::RestoreLeaderPositionsAfterDuel)0x629d11,
+        (Api::UpdateUnitsBattleXp)0x6258eb,
     }
 }};
 

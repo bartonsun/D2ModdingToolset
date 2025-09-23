@@ -23,6 +23,7 @@
 #include "attackimpl.h"
 #include "autodialog.h"
 #include "battlemsgdata.h"
+#include "batlogic.h"
 #include "citystackinterf.h"
 #include "commandmsg.h"
 #include "condinterf.h"
@@ -217,6 +218,8 @@ struct OriginalFunctions
     game::CCommandMsgApi::Api::Create commandMsgCreate;
 
     game::CMidObjectLockApi::Api::Constructor midObjectLockCtor;
+
+    game::CBatLogicApi::Api::BattleTurn battleTurn;
 };
 
 OriginalFunctions& getOriginalFunctions();

@@ -22,9 +22,28 @@
 #include "battlemsgdata.h"
 #include "game.h"
 #include "midunit.h"
+#include "originalfunctions.h"
+#include "unitinfolist.h"
 #include "unitinfolist.h"
 
+
 namespace hooks {
+
+void __fastcall battleTurnHooked(game::CBatLogic* thisptr,
+                                 int /*%edx*/,
+                                 game::CResultSender* resultSender,
+                                 int groupBattleCondition,
+                                 game::CMidgardID* a4,
+                                 game::CMidgardID* a5)
+{
+    using namespace game;
+
+    const auto& batLogicApi = CBatLogicApi::get();
+
+    batLogicApi.updateUnitsBattleXp(thisptr->objectMap, thisptr->battleMsgData);
+
+    getOriginalFunctions().battleTurn(thisptr, resultSender, groupBattleCondition, a4, a5);
+}
 
 void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
                                                  int /*%edx*/,
@@ -32,8 +51,7 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
 {
     using namespace game;
 
-    CBatLogic* thisPtr = thisptr;
-    if (CBatLogicApi::get().isBattleOver(thisPtr)) {
+    if (CBatLogicApi::get().isBattleOver(thisptr)) {
         const auto& batLogicApi = CBatLogicApi::get();
         const auto& battleApi = BattleMsgDataApi::get();
         const auto& fn = game::gameFunctions();

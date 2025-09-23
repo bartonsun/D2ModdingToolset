@@ -40,6 +40,13 @@ namespace CBatLogicApi {
 
 struct Api
 {
+    using BattleTurn = void*(__thiscall*)(CBatLogic* thisptr,
+                                          CResultSender* resultSender,
+                                          int groupBattleCondition,
+                                          CMidgardID* a4,
+                                          CMidgardID* a5);
+    BattleTurn battleTurn;
+
     using UpdateGroupsIfBattleIsOver = void*(__thiscall*)(CBatLogic* thisptr,
                                                           CResultSender* resultSender);
     UpdateGroupsIfBattleIsOver updateGroupsIfBattleIsOver;
@@ -84,6 +91,10 @@ struct Api
     using RestoreLeaderPositionsAfterDuel = void(__stdcall*)(IMidgardObjectMap* objectMap,
                                                              BattleMsgData* battleMsgData);
     RestoreLeaderPositionsAfterDuel restoreLeaderPositionsAfterDuel;
+
+    using UpdateUnitsBattleXp = int(__stdcall*)(IMidgardObjectMap* objectMap,
+                                                BattleMsgData* battleMsgData);
+    UpdateUnitsBattleXp updateUnitsBattleXp;
 };
 
 Api& get();
