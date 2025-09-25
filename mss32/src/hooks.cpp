@@ -1002,10 +1002,30 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
 
     auto variables{getScenarioVariables(dataCache)};
 
+    const auto& racesCat = RaceCategories::get();
+    const auto raceId = player->raceType->data->raceType.id;
+    const char* racePrefix{};
+    if (raceId == racesCat.human->id) {
+        racePrefix = "EMPIRE_";
+    } else if (raceId == racesCat.heretic->id) {
+        racePrefix = "LEGIONS_";
+    } else if (raceId == racesCat.dwarf->id) {
+        racePrefix = "CLANS_";
+    } else if (raceId == racesCat.undead->id) {
+        racePrefix = "HORDES_";
+    } else if (raceId == racesCat.elf->id) {
+        racePrefix = "ELVES_";
+    }
+
     bool hireAnyRace{false};
     for (const auto& variable : variables->variables) {
-        static const char varName[]{"UNIT_HIRE_ANY_RACE"};
-        if (!strncmp(variable.second.name, varName, sizeof(varName))) {
+        const auto expectedName{"HIRE_UNIT_ANY_RACE"};
+        const auto expectedNameRace{fmt::format("{:s}HIRE_UNIT_ANY_RACE", racePrefix)};
+        const auto& name = variable.second.name;
+        if (!strncmp(name, expectedName, sizeof(name))) {
+            hireAnyRace = (bool)variable.second.value;
+            break;
+        } else if (!strncmp(name, expectedNameRace.c_str(), sizeof(name))) {
             hireAnyRace = (bool)variable.second.value;
             break;
         }
@@ -1035,9 +1055,14 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
 
     int hireTierMax{0};
     for (const auto& variable : variables->variables) {
-        static const char varName[]{"UNIT_HIRE_TIER_MAX"};
-        if (!strncmp(variable.second.name, varName, sizeof(varName))) {
-            hireTierMax = variable.second.value;
+        const auto expectedName{"HIRE_UNIT_TIER_MAX"};
+        const auto expectedNameRace{fmt::format("{:s}HIRE_UNIT_TIER_MAX", racePrefix)};
+        const auto& name = variable.second.name;
+        if (!strncmp(name, expectedName, sizeof(name))) {
+            hireTierMax = (bool)variable.second.value;
+            break;
+        } else if (!strncmp(name, expectedNameRace.c_str(), sizeof(name))) {
+            hireTierMax = (bool)variable.second.value;
             break;
         }
     }
@@ -1514,7 +1539,7 @@ bool __stdcall buildLordSpecificBuildingsHooked(game::IMidgardObjectMap* objectM
         return fn.addCapitalBuilding(objectMap, player, buildingCategories.magic);
     }
 
-    if (userSettings().buildTempleForWarriorLord && lordCategoryId == lordCategories.warrior->id) {
+    if (userSettings().buildTempleForWarriorLord && playerInfo->controlledByHuman && lordCategoryId == lordCategories.warrior->id) {
         return fn.addCapitalBuilding(objectMap, player, buildingCategories.heal);
     }
 
@@ -2554,20 +2579,43 @@ game::BuildingStatus __stdcall getBuildingStatusHooked(const game::IMidgardObjec
             return BuildingStatus::InsufficientBank;
         }
 
-        bool multiple_build{false};
+        const auto& races = RaceCategories::get();
+        const auto raceId = player->raceType->data->raceType.id;
+        const char* racePrefix{};
+        if (raceId == races.human->id) {
+            racePrefix = "EMPIRE_";
+        } else if (raceId == races.heretic->id) {
+            racePrefix = "LEGIONS_";
+        } else if (raceId == races.dwarf->id) {
+            racePrefix = "CLANS_";
+        } else if (raceId == races.undead->id) {
+            racePrefix = "HORDES_";
+        } else if (raceId == races.elf->id) {
+            racePrefix = "ELVES_";
+        }
+
         auto variables{getScenarioVariables(objectMap)};
         if (variables && variables->variables.length) {
+            int multipleBuildValue{0}; 
             const auto expectedName{"MULTIPLE_BUILD_CAPITAL"};
+            const auto expectedNameRace{fmt::format("{:s}MULTIPLE_BUILD_CAPITAL", racePrefix)};
             for (const auto& variable : variables->variables) {
                 const auto& name = variable.second.name;
                 if (!strncmp(name, expectedName, sizeof(name))) {
-                    multiple_build = (bool)variable.second.value;
-                    break;
+                    multipleBuildValue = variable.second.value;
+                } else if (!strncmp(name, expectedNameRace.c_str(), sizeof(name))) {
+                    multipleBuildValue = variable.second.value;
                 }
+            }
+
+            if (multipleBuildValue > 0) {
+                return BuildingStatus::CanBeBuilt;
+            } else if (multipleBuildValue < 0) {
+                return BuildingStatus::PlayerAlreadyBuiltThisDay;
             }
         }
 
-        if (player->constructionTurn == scenarioInfo->currentTurn && !multiple_build) {
+        if (player->constructionTurn == scenarioInfo->currentTurn) {
             return BuildingStatus::PlayerAlreadyBuiltThisDay;
         }
     }
