@@ -1024,7 +1024,6 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
         const auto& name = variable.second.name;
         if (!strncmp(name, expectedName, sizeof(name))) {
             hireAnyRace = (bool)variable.second.value;
-            break;
         } else if (!strncmp(name, expectedNameRace.c_str(), sizeof(name))) {
             hireAnyRace = (bool)variable.second.value;
             break;
@@ -1060,7 +1059,6 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
         const auto& name = variable.second.name;
         if (!strncmp(name, expectedName, sizeof(name))) {
             hireTierMax = (bool)variable.second.value;
-            break;
         } else if (!strncmp(name, expectedNameRace.c_str(), sizeof(name))) {
             hireTierMax = (bool)variable.second.value;
             break;
@@ -2605,6 +2603,7 @@ game::BuildingStatus __stdcall getBuildingStatusHooked(const game::IMidgardObjec
                     multipleBuildValue = variable.second.value;
                 } else if (!strncmp(name, expectedNameRace.c_str(), sizeof(name))) {
                     multipleBuildValue = variable.second.value;
+                    break;
                 }
             }
 
