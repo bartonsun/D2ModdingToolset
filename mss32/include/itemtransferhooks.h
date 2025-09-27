@@ -59,6 +59,8 @@ game::CSiteMerchantInterf* __fastcall siteMerchantInterfCtorHooked(
     game::CMidgardID* stackId,
     game::CMidgardID* merchantId);
 
+void addPendingTransfer(const game::CMidgardID& cityId, int delayTurns, int currentTurn);
+void processPendingTransfers(game::CPhaseGame* phaseGame);
 } // namespace hooks
 
 #endif // ITEMTRANSFERHOOKS_H

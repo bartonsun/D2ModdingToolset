@@ -20,6 +20,8 @@
 
 #include "button.h"
 #include "listbox.h"
+#include "scenarioview.h"
+#include "scenarioinfo.h"
 #include "fortview.h"
 #include "menubase.h"
 #include "itemtransferhooks.h"
@@ -51,6 +53,7 @@
 #include <optional>
 #include <spdlog/spdlog.h>
 #include <vector>
+#include <gameutils.h>
 
 namespace hooks {
 
@@ -103,7 +106,6 @@ static game::CMidgardID findFirstEmptyStackId(game::IMidgardObjectMap* map)
             continue;
 
         if (idApi.getType(objId) == IdType::Stack) {
-            // нашли Stack — достанем объект
             auto obj = map->vftable->findScenarioObjectById(map, objId);
             if (!obj)
                 continue;
@@ -144,7 +146,6 @@ static game::CMidgardID findFirstEmptyBagId(game::IMidgardObjectMap* map)
             continue;
 
         if (idApi.getType(objId) == IdType::Bag) {
-            // нашли Bag — достанем объект
             auto obj = map->vftable->findScenarioObjectById(map, objId);
             if (!obj)
                 continue;
@@ -221,20 +222,6 @@ static bool isSpell(game::IMidgardObjectMap* objectMap, const game::CMidgardID* 
 
     return categories.scroll->id == id || categories.wand->id == id;
 }
-
-//static bool isValuable(game::IMidgardObjectMap* objectMap, const game::CMidgardID* itemId)
-//{
-//    using namespace game;
-//
-//    auto category = getItemCategoryById(objectMap, itemId);
-//    if (!category) {
-//        return false;
-//    }
-//
-//    const auto& categories = ItemCategories::get();
-//
-//    return categories.valuable->id == category->id;
-//}
 
 /** Transfers items from src object to dst. */
 static void transferItems(const std::vector<game::CMidgardID>& items,
@@ -349,11 +336,6 @@ static void sortCity(game::CPhaseGame* phaseGame, const game::CMidgardID* cityId
     transferItems(items, phaseGame, cityId, "city", &stackId, "stack");
 }
 
-
-
-
-
-
 #define CITY_SORT_MATCHER(fnName, matcher)                                                         \
     void __fastcall fnName(game::CCityStackInterf* thisptr, int)                                   \
     {                                                                                              \
@@ -374,10 +356,6 @@ CITY_SORT_MATCHER(cityInterfSortOrb, isOrb)
 CITY_SORT_MATCHER(cityInterfSortTalisman, isTalisman)
 CITY_SORT_MATCHER(cityInterfSortTravel, isTravel)
 CITY_SORT_MATCHER(cityInterfSortSpecial, isSpecial)
-
-
-
-
 
 
 static std::optional<bindings::PlayerView> getFortOwner(game::CFortification* fort,
@@ -453,14 +431,22 @@ static std::vector<game::CMidgardID> collectFortItems(game::CFortification* fort
 
 /** Transfers city items to its capital  */
 static void transferCityToCapital(game::CPhaseGame* phaseGame,
-                              const game::CMidgardID* cityId,
-                              std::optional<ItemFilter> filter = std::nullopt)
+                                  const game::CMidgardID* cityId,
+                                  std::optional<ItemFilter> filter = std::nullopt)
 {
     using namespace game;
+
+    static std::unordered_map<std::string, int> lastTurnByOwner;
 
     auto* objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
     if (!objectMap)
         return;
+
+    auto* info = hooks::getScenarioInfo(objectMap);
+    if (!info)
+        return;
+
+    int currentTurn = info->currentTurn;
 
     auto obj = objectMap->vftable->findScenarioObjectById(objectMap, cityId);
     if (!obj) {
@@ -468,9 +454,16 @@ static void transferCityToCapital(game::CPhaseGame* phaseGame,
         return;
     }
 
-    auto fortification = static_cast<CFortification*>(obj);
+    auto* fortification = static_cast<CFortification*>(obj);
+    const std::string ownerKey = idToString(&fortification->ownerId);
 
-    // Собираем все предметы
+    int& lastTurn = lastTurnByOwner[ownerKey];
+    if (lastTurn == currentTurn) {
+        spdlog::info("Transfer already used on turn {} for owner={}", currentTurn, ownerKey);
+        return;
+    }
+    lastTurn = currentTurn;
+
     std::vector<CMidgardID> items;
     const int total = fortification->inventory.vftable->getItemsCount(&fortification->inventory);
     for (int i = 0; i < total; ++i) {
@@ -485,21 +478,15 @@ static void transferCityToCapital(game::CPhaseGame* phaseGame,
         return;
     }
 
-    // владелец города
     auto fortOwner = getFortOwner(fortification, objectMap);
-
-    // столица
     auto* capital = findCapital(objectMap, fortOwner);
     if (!capital) {
         spdlog::warn("No capital found for owner={}", idToString(&fortification->ownerId));
         return;
     }
-    
+
     CMidgardID capId = capital->id;
-
-    // город -> стек города
     transferItems(items, phaseGame, &capId, "cityStack", cityId, "city");
-
 }
 
 void __fastcall cityTransferBtn(game::CCityStackInterf* thisptr, int)
@@ -1447,5 +1434,7 @@ game::CSiteMerchantInterf* __fastcall siteMerchantInterfCtorHooked(
 
     return thisptr;
 }
+
+
 
 } // namespace hooks
