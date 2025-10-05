@@ -141,13 +141,25 @@ game::INobleActionResult* createStealMarketActionResult(const game::IMidgardObje
         const GlobalVariables* variables{global->globalVariables};
 
         int maxStealAmount{variables->data->stealRmkt};
+        int minStealAmount{variables->data->stealRmktMin};
         if (!isMarketStockInfinite(market->infiniteStock, randomResource)) {
             maxStealAmount = std::min(maxStealAmount,
                                       (int)BankApi::get().get(&market->stock, randomResource));
         }
 
+        int finalAmount = 0;
+
+        if (maxStealAmount < minStealAmount) {
+
+            finalAmount = maxStealAmount;
+        } else {
+            int range = maxStealAmount - minStealAmount + 1;
+            int rnd = gameFunctions().generateRandomNumber(range);
+            finalAmount = minStealAmount + rnd;
+        }
+
         stealMarket->resource = randomResource;
-        stealMarket->amount = gameFunctions().generateRandomNumber(maxStealAmount) + 1;
+        stealMarket->amount = finalAmount;
     }
 
     return stealMarket;

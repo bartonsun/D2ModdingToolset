@@ -126,7 +126,7 @@ game::String* __stdcall getNobleActionResultDescriptionHooked(
     using namespace game;
 
     const auto& customActions{getCustomNobleActionCategories()};
-
+    
     if (customActions.stealMarket.second
         && nobleActionCat.id == customActions.stealMarket.first.id) {
         static const char fallback[]{

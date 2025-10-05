@@ -17,25 +17,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
-#include "button.h"
-#include "listbox.h"
-#include "scenarioview.h"
-#include "scenarioinfo.h"
-#include "fortview.h"
-#include "menubase.h"
 #include "itemtransferhooks.h"
+#include "button.h"
 #include "citystackinterf.h"
 #include "dialoginterf.h"
 #include "dynamiccast.h"
 #include "exchangeinterf.h"
 #include "fortification.h"
+#include "fortview.h"
 #include "globaldata.h"
 #include "interfmanager.h"
 #include "itembase.h"
 #include "itemcategory.h"
 #include "itemutils.h"
+#include "listbox.h"
 #include "mempool.h"
+#include "menubase.h"
 #include "midbag.h"
 #include "midgardmsgbox.h"
 #include "midgardobjectmap.h"
@@ -46,14 +43,16 @@
 #include "originalfunctions.h"
 #include "phasegame.h"
 #include "pickupdropinterf.h"
+#include "scenarioinfo.h"
+#include "scenarioview.h"
 #include "sitemerchantinterf.h"
 #include "textids.h"
 #include "utils.h"
 #include "visitors.h"
+#include <gameutils.h>
 #include <optional>
 #include <spdlog/spdlog.h>
 #include <vector>
-#include <gameutils.h>
 
 namespace hooks {
 
@@ -67,6 +66,16 @@ static const game::LItemCategory* getItemCategoryById(game::IMidgardObjectMap* o
     return globalItem ? globalItem->vftable->getCategory(globalItem) : nullptr;
 }
 
+static bool isItemEquipped(const game::IdVector& equippedItems, const game::CMidgardID* itemId)
+{
+    for (const game::CMidgardID* item = equippedItems.bgn; item != equippedItems.end; item++) {
+        if (*item == *itemId) {
+            return true;
+        }
+    }
+
+    return false;
+}
 static game::CFortification* getFortByCityId(game::IMidgardObjectMap* map,
                                              const game::CMidgardID* cityId)
 {
@@ -163,8 +172,6 @@ static game::CMidgardID findFirstEmptyBagId(game::IMidgardObjectMap* map)
     return invalidId;
 }
 
-
-
 #define CAT_MATCHER(name, field)                                                                   \
     static bool name(game::IMidgardObjectMap* m, const game::CMidgardID* id)                       \
     {                                                                                              \
@@ -189,8 +196,6 @@ CAT_MATCHER(isTalisman, talisman)
 CAT_MATCHER(isTravel, travelItem)
 CAT_MATCHER(isSpecial, special)
 #undef CAT_MATCHER
-
-
 
 static bool isPotion(game::IMidgardObjectMap* objectMap, const game::CMidgardID* itemId)
 {
@@ -280,84 +285,6 @@ static void transferCityToStack(game::CPhaseGame* phaseGame,
     transferItems(items, phaseGame, &fortification->stackId, "stack", cityId, "city");
 }
 
-/** Sorts city inventory by given filter (matching items go first). */
-static void sortCity(game::CPhaseGame* phaseGame, const game::CMidgardID* cityId, ItemFilter filter)
-{
-    using namespace game;
-
-    auto* objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
-    if (!objectMap)
-        return;
-
-    auto obj = objectMap->vftable->findScenarioObjectById(objectMap, cityId);
-    if (!obj) {
-        spdlog::error("Could not find city {:s}", idToString(cityId));
-        return;
-    }
-
-    auto fortification = static_cast<CFortification*>(obj);
-    if (fortification->stackId == emptyId) {
-        return;
-    }
-
-    // Собираем все предметы в городе
-    std::vector<CMidgardID> items;
-    const int total = fortification->inventory.vftable->getItemsCount(&fortification->inventory);
-    for (int i = 0; i < total; ++i) {
-        if (auto id = fortification->inventory.vftable->getItem(&fortification->inventory, i)) {
-            items.push_back(*id);
-        }
-    }
-
-    // Сохраняем исходный порядок
-    auto original = items;
-
-    // Сортируем: подходящие фильтру вперёд
-    std::stable_partition(items.begin(), items.end(),
-                          [&](const CMidgardID& id) { return filter(objectMap, &id); });
-
-    // Проверка: изменился ли порядок
-    if (items == original) {
-        spdlog::debug("City {:s}: already sorted by filter, skipping transfer", idToString(cityId));
-        return;
-    }
-
-    // Найдём первый стек с пустым инвентарём
-    CMidgardID stackId = fortification->stackId;
-    if (stackId == invalidId) {
-        spdlog::error("No empty stack found, using fortification->stackId instead");
-        return;
-    }
-
-    // город -> стек
-    transferItems(items, phaseGame, &stackId, "stack", cityId, "city");
-
-    // стек -> город
-    transferItems(items, phaseGame, cityId, "city", &stackId, "stack");
-}
-
-#define CITY_SORT_MATCHER(fnName, matcher)                                                         \
-    void __fastcall fnName(game::CCityStackInterf* thisptr, int)                                   \
-    {                                                                                              \
-        sortCity(thisptr->dragDropInterf.phaseGame, &thisptr->data->fortificationId, matcher);     \
-    }
-CITY_SORT_MATCHER(cityInterfSortArmor, isArmor)
-CITY_SORT_MATCHER(cityInterfSortJewel, isJewel)
-CITY_SORT_MATCHER(cityInterfSortWeapon, isWeapon)
-CITY_SORT_MATCHER(cityInterfSortBanner, isBanner)
-CITY_SORT_MATCHER(cityInterfSortPotionBoost, isPotionBoost)
-CITY_SORT_MATCHER(cityInterfSortPotionHeal, isPotionHeal)
-CITY_SORT_MATCHER(cityInterfSortPotionRevive, isPotionRevive)
-CITY_SORT_MATCHER(cityInterfSortPotionPermanent, isPotionPermanent)
-CITY_SORT_MATCHER(cityInterfSortScroll, isScroll)
-CITY_SORT_MATCHER(cityInterfSortWand, isWand)
-CITY_SORT_MATCHER(cityInterfSortValuable, isValuable)
-CITY_SORT_MATCHER(cityInterfSortOrb, isOrb)
-CITY_SORT_MATCHER(cityInterfSortTalisman, isTalisman)
-CITY_SORT_MATCHER(cityInterfSortTravel, isTravel)
-CITY_SORT_MATCHER(cityInterfSortSpecial, isSpecial)
-
-
 static std::optional<bindings::PlayerView> getFortOwner(game::CFortification* fort,
                                                         game::IMidgardObjectMap* map)
 {
@@ -382,7 +309,7 @@ static bool isSameOwner(const std::optional<bindings::PlayerView>& a,
 static game::CFortification* findCapital(game::IMidgardObjectMap* map,
                                          const std::optional<bindings::PlayerView>& owner)
 {
-     using namespace game;
+    using namespace game;
     if (!map || !owner)
         return nullptr;
 
@@ -413,20 +340,6 @@ static game::CFortification* findCapital(game::IMidgardObjectMap* map,
     }
 
     return nullptr;
-}
-
-static std::vector<game::CMidgardID> collectFortItems(game::CFortification* fort)
-{
-    std::vector<game::CMidgardID> items;
-    if (!fort)
-        return items;
-
-    int total = fort->inventory.vftable->getItemsCount(&fort->inventory);
-    for (int i = 0; i < total; ++i) {
-        if (auto id = fort->inventory.vftable->getItem(&fort->inventory, i))
-            items.push_back(*id);
-    }
-    return items;
 }
 
 /** Transfers city items to its capital  */
@@ -494,74 +407,6 @@ void __fastcall cityTransferBtn(game::CCityStackInterf* thisptr, int)
     transferCityToCapital(thisptr->dragDropInterf.phaseGame, &thisptr->data->fortificationId);
 }
 
-
-static void __fastcall cityInterfTestReverse(game::CCityStackInterf* thisptr, int /*%edx*/)
-{
-    using namespace game;
-
-    auto phaseGame = thisptr->dragDropInterf.phaseGame;
-    if (!phaseGame || !phaseGame->data)
-        return;
-
-    auto objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
-    if (!objectMap)
-        return;
-
-    // 1) реверс предметов в инвентаре города (без clear)
-    auto cityObj = objectMap->vftable->findScenarioObjectById(objectMap,
-                                                              &thisptr->data->fortificationId);
-    if (!cityObj)
-        return;
-
-    auto fort = static_cast<CFortification*>(cityObj);
-    auto& inv = fort->inventory;
-
-    const int total = inv.vftable->getItemsCount(&inv);
-    if (total <= 1)
-        return;
-
-    std::vector<CMidgardID> items;
-    items.reserve(total);
-    for (int i = 0; i < total; ++i) {
-        if (auto id = inv.vftable->getItem(&inv, i)) {
-            items.push_back(*id);
-        }
-    }
-
-    // удаляем всё по id
-    for (int i = 0; i < total; ++i) {
-        const auto& id = items[i];
-        inv.vftable->removeItem(&inv, /*a2=*/0, &id, objectMap);
-    }
-    // добавляем в обратном порядке
-    for (int i = total - 1; i >= 0; --i) {
-        const auto& id = items[i];
-        inv.vftable->addItem(&inv, /*a2=*/0, &id, objectMap);
-    }
-
-    // 2) форс-обновление интерфейса через менеджер интерфейсов
-    //    (скрыть и сразу показать тот же интерфейс)
-    // manager можно получить из phaseGame->data->interfManager (как ты уже делал в
-    // msgbox-хендлерах)
-    auto managerImpl = phaseGame->data->interfManager.data; // CInterfManagerImpl*
-    if (!managerImpl || !managerImpl->CInterfManagerImpl::CInterfManager::vftable)
-        return;
-
-    auto mgrVt = managerImpl->CInterfManagerImpl::CInterfManager::vftable;
-    auto asIface = reinterpret_cast<CInterface*>(&thisptr->dragDropInterf); // базовый CInterface
-
-    // hide -> show (мягкий рефреш без закрытия диалога)
-    if (mgrVt->hideInterface && mgrVt->showInterface) {
-        mgrVt->hideInterface(reinterpret_cast<CInterfManager*>(managerImpl), asIface);
-        mgrVt->showInterface(reinterpret_cast<CInterfManager*>(managerImpl), asIface);
-    }
-}
-
-
-
-
-
-
 void __fastcall cityInterfTransferAllToStack(game::CCityStackInterf* thisptr, int /*%edx*/)
 {
     transferCityToStack(thisptr->dragDropInterf.phaseGame, &thisptr->data->fortificationId);
@@ -583,17 +428,6 @@ void __fastcall cityInterfTransferValuablesToStack(game::CCityStackInterf* thisp
 {
     transferCityToStack(thisptr->dragDropInterf.phaseGame, &thisptr->data->fortificationId,
                         isValuable);
-}
-
-static bool isItemEquipped(const game::IdVector& equippedItems, const game::CMidgardID* itemId)
-{
-    for (const game::CMidgardID* item = equippedItems.bgn; item != equippedItems.end; item++) {
-        if (*item == *itemId) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 /** Transfers visiting stack items to city. */
@@ -649,6 +483,662 @@ static void transferStackToCity(game::CPhaseGame* phaseGame,
     transferItems(items, phaseGame, cityId, "city", &fortification->stackId, "stack");
 }
 
+static void sortInterfaceAuto(game::CPhaseGame* phaseGame,
+                              const game::CMidgardID* leftId,
+                              const game::CMidgardID* rightId,
+                              const std::vector<ItemFilter>& filters,
+                              bool modeR)
+{
+    using namespace game;
+
+    if (!phaseGame || !leftId || !rightId)
+        return;
+
+    auto* map = CPhaseApi::get().getDataCache(&phaseGame->phase);
+    if (!map)
+        return;
+
+    const auto& idApi = CMidgardIDApi::get();
+
+    const CMidgardID* srcId = modeR ? rightId : leftId;
+    const CMidgardID* dstId = modeR ? leftId : rightId;
+
+    if (!srcId || !dstId || *srcId == invalidId || *srcId == emptyId || *dstId == invalidId
+        || *dstId == emptyId)
+        return;
+
+    auto srcObj = map->vftable->findScenarioObjectById(map, srcId);
+    auto dstObj = map->vftable->findScenarioObjectById(map, dstId);
+    if (!srcObj || !dstObj)
+        return;
+
+    IdType srcType = idApi.getType(srcId);
+    IdType dstType = idApi.getType(dstId);
+
+    std::vector<CMidgardID> items;
+
+    auto collectItems = [&](IMidScenarioObject* obj, IdType type, bool excludeEquipped) {
+        std::vector<CMidgardID> result;
+        if (!obj)
+            return result;
+
+        if (type == IdType::Fortification) {
+            auto* fort = static_cast<CFortification*>(obj);
+            auto& inv = fort->inventory;
+            int total = inv.vftable->getItemsCount(&inv);
+            for (int i = 0; i < total; ++i)
+                if (auto id = inv.vftable->getItem(&inv, i))
+                    result.push_back(*id);
+        } else if (type == IdType::Stack) {
+            auto* stack = static_cast<CMidStack*>(obj);
+            auto& inv = stack->inventory;
+            int total = inv.vftable->getItemsCount(&inv);
+            for (int i = 0; i < total; ++i)
+                if (auto id = inv.vftable->getItem(&inv, i))
+                    if (!excludeEquipped || !isItemEquipped(stack->leaderEquippedItems, id))
+                        result.push_back(*id);
+        } else if (type == IdType::Bag) {
+            auto* bag = static_cast<CMidBag*>(obj);
+            auto& inv = bag->inventory;
+            int total = inv.vftable->getItemsCount(&inv);
+            for (int i = 0; i < total; ++i)
+                if (auto id = inv.vftable->getItem(&inv, i))
+                    result.push_back(*id);
+        }
+        return result;
+    };
+
+    bool excludeEquipped = (srcType == IdType::Stack);
+    items = collectItems(srcObj, srcType, excludeEquipped);
+
+    if (items.empty())
+        return;
+
+    auto original = items;
+
+    std::stable_sort(items.begin(), items.end(), [&](const CMidgardID& a, const CMidgardID& b) {
+        for (auto& f : filters) {
+            bool aMatch = f(map, &a);
+            bool bMatch = f(map, &b);
+            if (aMatch != bMatch)
+                return aMatch && !bMatch;
+        }
+        return false;
+    });
+
+    if (items == original) {
+        spdlog::debug("sortInterfaceAuto: already sorted, skipping {}", idToString(srcId));
+        return;
+    }
+
+    transferItems(items, phaseGame, dstId, "dst", srcId, "src");
+    transferItems(items, phaseGame, srcId, "src", dstId, "dst");
+}
+
+static void sortCityInterface(game::CCityStackInterf* thisptr,
+                              std::vector<ItemFilter> filters,
+                              bool modeR)
+{
+    using namespace game;
+
+    auto* phase = thisptr->dragDropInterf.phaseGame;
+    auto* map = CPhaseApi::get().getDataCache(&phase->phase);
+    if (!map)
+        return;
+
+    auto* city = static_cast<CFortification*>(
+        map->vftable->findScenarioObjectById(map, &thisptr->data->fortificationId));
+    if (!city || city->stackId == emptyId)
+        return;
+
+    sortInterfaceAuto(phase,
+                      &thisptr->data->fortificationId, // left = city
+                      &city->stackId,                  // right = stack
+                      filters, modeR);
+}
+
+static void sortPickupInterface(game::CPickUpDropInterf* thisptr,
+                                std::vector<ItemFilter> filters,
+                                bool modeR)
+{
+    using namespace game;
+    auto* phase = thisptr->dragDropInterf.phaseGame;
+    if (!phase)
+        return;
+
+    sortInterfaceAuto(phase,
+                      &thisptr->data->stackId, // левый объект (stack)
+                      &thisptr->data->bagId,   // правый объект (bag)
+                      filters, modeR);
+}
+
+static void sortExchangeInterface(game::CExchangeInterf* thisptr,
+                                  std::vector<ItemFilter> filters,
+                                  bool modeR)
+{
+    using namespace game;
+    auto* phase = thisptr->dragDropInterf.phaseGame;
+    if (!phase)
+        return;
+
+    sortInterfaceAuto(phase,
+                      &thisptr->data->stackLeftSideId,  // левый стек
+                      &thisptr->data->stackRightSideId, // правый стек
+                      filters, modeR);
+}
+template <typename T>
+static void sortInterface(T* thisptr, std::vector<hooks::ItemFilter> filters, bool modeR)
+{
+    using namespace game;
+
+    auto* phase = thisptr->dragDropInterf.phaseGame;
+    if (!phase)
+        return;
+
+    const CMidgardID* leftId = nullptr;
+    const CMidgardID* rightId = nullptr;
+
+    // Determine the interface type and corresponding object IDs
+    if constexpr (std::is_same_v<T, CCityStackInterf>) {
+        auto* map = CPhaseApi::get().getDataCache(&phase->phase);
+        if (!map)
+            return;
+
+        auto* city = static_cast<CFortification*>(
+            map->vftable->findScenarioObjectById(map, &thisptr->data->fortificationId));
+        if (!city || city->stackId == emptyId)
+            return;
+
+        leftId = &thisptr->data->fortificationId;
+        rightId = &city->stackId;
+    } else if constexpr (std::is_same_v<T, CExchangeInterf>) {
+        leftId = &thisptr->data->stackLeftSideId;
+        rightId = &thisptr->data->stackRightSideId;
+    } else if constexpr (std::is_same_v<T, CPickUpDropInterf>) {
+        leftId = &thisptr->data->stackId;
+        rightId = &thisptr->data->bagId;
+    } else {
+        spdlog::error("sortInterface: unsupported interface type");
+        return;
+    }
+
+    sortInterfaceAuto(phase, leftId, rightId, filters, modeR);
+}
+
+// Universal macro for creating a sorting function
+#define SORT_MATCHER(prefix, fnSuffix, InterfaceType, sortFn, modeR, ...)                          \
+    namespace {                                                                                    \
+    static void __fastcall prefix##_##fnSuffix(InterfaceType* thisptr, int)                        \
+    {                                                                                              \
+        std::vector<hooks::ItemFilter> filters = {__VA_ARGS__};                                    \
+        sortFn(thisptr, filters, modeR);                                                           \
+    }                                                                                              \
+    }
+
+// Universal sorting function
+// ---- City sort matchers ----
+SORT_MATCHER(sortCity, L_Armor, game::CCityStackInterf, sortCityInterface, true, isArmor)
+SORT_MATCHER(sortCity, R_Armor, game::CCityStackInterf, sortCityInterface, false, isArmor)
+SORT_MATCHER(sortCity, L_Jewel, game::CCityStackInterf, sortCityInterface, true, isJewel)
+SORT_MATCHER(sortCity, R_Jewel, game::CCityStackInterf, sortCityInterface, false, isJewel)
+SORT_MATCHER(sortCity, L_Weapon, game::CCityStackInterf, sortCityInterface, true, isWeapon)
+SORT_MATCHER(sortCity, R_Weapon, game::CCityStackInterf, sortCityInterface, false, isWeapon)
+SORT_MATCHER(sortCity, L_Banner, game::CCityStackInterf, sortCityInterface, true, isBanner)
+SORT_MATCHER(sortCity, R_Banner, game::CCityStackInterf, sortCityInterface, false, isBanner)
+
+SORT_MATCHER(sortCity,
+             L_PotionBoost,
+             game::CCityStackInterf,
+             sortCityInterface,
+             true,
+             isPotionBoost)
+SORT_MATCHER(sortCity,
+             R_PotionBoost,
+             game::CCityStackInterf,
+             sortCityInterface,
+             false,
+             isPotionBoost)
+SORT_MATCHER(sortCity, L_PotionHeal, game::CCityStackInterf, sortCityInterface, true, isPotionHeal)
+SORT_MATCHER(sortCity, R_PotionHeal, game::CCityStackInterf, sortCityInterface, false, isPotionHeal)
+SORT_MATCHER(sortCity,
+             L_PotionRevive,
+             game::CCityStackInterf,
+             sortCityInterface,
+             true,
+             isPotionRevive)
+SORT_MATCHER(sortCity,
+             R_PotionRevive,
+             game::CCityStackInterf,
+             sortCityInterface,
+             false,
+             isPotionRevive)
+SORT_MATCHER(sortCity,
+             L_PotionPerm,
+             game::CCityStackInterf,
+             sortCityInterface,
+             true,
+             isPotionPermanent)
+SORT_MATCHER(sortCity,
+             R_PotionPerm,
+             game::CCityStackInterf,
+             sortCityInterface,
+             false,
+             isPotionPermanent)
+
+SORT_MATCHER(sortCity, L_Scroll, game::CCityStackInterf, sortCityInterface, true, isScroll)
+SORT_MATCHER(sortCity, R_Scroll, game::CCityStackInterf, sortCityInterface, false, isScroll)
+SORT_MATCHER(sortCity, L_Wand, game::CCityStackInterf, sortCityInterface, true, isWand)
+SORT_MATCHER(sortCity, R_Wand, game::CCityStackInterf, sortCityInterface, false, isWand)
+
+SORT_MATCHER(sortCity, L_Valuable, game::CCityStackInterf, sortCityInterface, true, isValuable)
+SORT_MATCHER(sortCity, R_Valuable, game::CCityStackInterf, sortCityInterface, false, isValuable)
+SORT_MATCHER(sortCity, L_Orb, game::CCityStackInterf, sortCityInterface, true, isOrb)
+SORT_MATCHER(sortCity, R_Orb, game::CCityStackInterf, sortCityInterface, false, isOrb)
+SORT_MATCHER(sortCity, L_Talisman, game::CCityStackInterf, sortCityInterface, true, isTalisman)
+SORT_MATCHER(sortCity, R_Talisman, game::CCityStackInterf, sortCityInterface, false, isTalisman)
+SORT_MATCHER(sortCity, L_Travel, game::CCityStackInterf, sortCityInterface, true, isTravel)
+SORT_MATCHER(sortCity, R_Travel, game::CCityStackInterf, sortCityInterface, false, isTravel)
+SORT_MATCHER(sortCity, L_Special, game::CCityStackInterf, sortCityInterface, true, isSpecial)
+SORT_MATCHER(sortCity, R_Special, game::CCityStackInterf, sortCityInterface, false, isSpecial)
+
+// Example of a combined filter
+SORT_MATCHER(sortCity,
+             L_ArmorWeapon,
+             game::CCityStackInterf,
+             sortCityInterface,
+             true,
+             isArmor,
+             isWeapon)
+SORT_MATCHER(sortCity,
+             R_ArmorWeapon,
+             game::CCityStackInterf,
+             sortCityInterface,
+             false,
+             isArmor,
+             isWeapon)
+
+SORT_MATCHER(sortCity,
+             L_PotionRevivePotionHeal,
+             game::CCityStackInterf,
+             sortCityInterface,
+             true,
+             isPotionRevive,
+             isPotionHeal)
+SORT_MATCHER(sortCity,
+             R_PotionRevivePotionHeal,
+             game::CCityStackInterf,
+             sortCityInterface,
+             false,
+             isPotionRevive,
+             isPotionHeal)
+
+// ---- Exchange sort matchers ----
+SORT_MATCHER(sortExchange, L_Armor, game::CExchangeInterf, sortExchangeInterface, false, isArmor)
+SORT_MATCHER(sortExchange, R_Armor, game::CExchangeInterf, sortExchangeInterface, true, isArmor)
+SORT_MATCHER(sortExchange, L_Jewel, game::CExchangeInterf, sortExchangeInterface, false, isJewel)
+SORT_MATCHER(sortExchange, R_Jewel, game::CExchangeInterf, sortExchangeInterface, true, isJewel)
+SORT_MATCHER(sortExchange, L_Weapon, game::CExchangeInterf, sortExchangeInterface, false, isWeapon)
+SORT_MATCHER(sortExchange, R_Weapon, game::CExchangeInterf, sortExchangeInterface, true, isWeapon)
+SORT_MATCHER(sortExchange, L_Banner, game::CExchangeInterf, sortExchangeInterface, false, isBanner)
+SORT_MATCHER(sortExchange, R_Banner, game::CExchangeInterf, sortExchangeInterface, true, isBanner)
+
+SORT_MATCHER(sortExchange,
+             L_PotionBoost,
+             game::CExchangeInterf,
+             sortExchangeInterface,
+             false,
+             isPotionBoost)
+SORT_MATCHER(sortExchange,
+             R_PotionBoost,
+             game::CExchangeInterf,
+             sortExchangeInterface,
+             true,
+             isPotionBoost)
+SORT_MATCHER(sortExchange,
+             L_PotionHeal,
+             game::CExchangeInterf,
+             sortExchangeInterface,
+             false,
+             isPotionHeal)
+SORT_MATCHER(sortExchange,
+             R_PotionHeal,
+             game::CExchangeInterf,
+             sortExchangeInterface,
+             true,
+             isPotionHeal)
+SORT_MATCHER(sortExchange,
+             L_PotionRevive,
+             game::CExchangeInterf,
+             sortExchangeInterface,
+             false,
+             isPotionRevive)
+SORT_MATCHER(sortExchange,
+             R_PotionRevive,
+             game::CExchangeInterf,
+             sortExchangeInterface,
+             true,
+             isPotionRevive)
+SORT_MATCHER(sortExchange,
+             L_PotionPerm,
+             game::CExchangeInterf,
+             sortExchangeInterface,
+             false,
+             isPotionPermanent)
+SORT_MATCHER(sortExchange,
+             R_PotionPerm,
+             game::CExchangeInterf,
+             sortExchangeInterface,
+             true,
+             isPotionPermanent)
+
+SORT_MATCHER(sortExchange, L_Scroll, game::CExchangeInterf, sortExchangeInterface, false, isScroll)
+SORT_MATCHER(sortExchange, R_Scroll, game::CExchangeInterf, sortExchangeInterface, true, isScroll)
+SORT_MATCHER(sortExchange, L_Wand, game::CExchangeInterf, sortExchangeInterface, false, isWand)
+SORT_MATCHER(sortExchange, R_Wand, game::CExchangeInterf, sortExchangeInterface, true, isWand)
+
+SORT_MATCHER(sortExchange,
+             L_Valuable,
+             game::CExchangeInterf,
+             sortExchangeInterface,
+             false,
+             isValuable)
+SORT_MATCHER(sortExchange,
+             R_Valuable,
+             game::CExchangeInterf,
+             sortExchangeInterface,
+             true,
+             isValuable)
+SORT_MATCHER(sortExchange, L_Orb, game::CExchangeInterf, sortExchangeInterface, false, isOrb)
+SORT_MATCHER(sortExchange, R_Orb, game::CExchangeInterf, sortExchangeInterface, true, isOrb)
+SORT_MATCHER(sortExchange,
+             L_Talisman,
+             game::CExchangeInterf,
+             sortExchangeInterface,
+             false,
+             isTalisman)
+SORT_MATCHER(sortExchange,
+             R_Talisman,
+             game::CExchangeInterf,
+             sortExchangeInterface,
+             true,
+             isTalisman)
+SORT_MATCHER(sortExchange, L_Travel, game::CExchangeInterf, sortExchangeInterface, false, isTravel)
+SORT_MATCHER(sortExchange, R_Travel, game::CExchangeInterf, sortExchangeInterface, true, isTravel)
+SORT_MATCHER(sortExchange,
+             L_Special,
+             game::CExchangeInterf,
+             sortExchangeInterface,
+             false,
+             isSpecial)
+SORT_MATCHER(sortExchange, R_Special, game::CExchangeInterf, sortExchangeInterface, true, isSpecial)
+
+// ---- Pickup/Drop sort matchers ----
+SORT_MATCHER(sortPickup, L_Armor, game::CPickUpDropInterf, sortPickupInterface, false, isArmor)
+SORT_MATCHER(sortPickup, R_Armor, game::CPickUpDropInterf, sortPickupInterface, true, isArmor)
+SORT_MATCHER(sortPickup, L_Jewel, game::CPickUpDropInterf, sortPickupInterface, false, isJewel)
+SORT_MATCHER(sortPickup, R_Jewel, game::CPickUpDropInterf, sortPickupInterface, true, isJewel)
+SORT_MATCHER(sortPickup, L_Weapon, game::CPickUpDropInterf, sortPickupInterface, false, isWeapon)
+SORT_MATCHER(sortPickup, R_Weapon, game::CPickUpDropInterf, sortPickupInterface, true, isWeapon)
+SORT_MATCHER(sortPickup, L_Banner, game::CPickUpDropInterf, sortPickupInterface, false, isBanner)
+SORT_MATCHER(sortPickup, R_Banner, game::CPickUpDropInterf, sortPickupInterface, true, isBanner)
+
+SORT_MATCHER(sortPickup,
+             L_PotionBoost,
+             game::CPickUpDropInterf,
+             sortPickupInterface,
+             false,
+             isPotionBoost)
+SORT_MATCHER(sortPickup,
+             R_PotionBoost,
+             game::CPickUpDropInterf,
+             sortPickupInterface,
+             true,
+             isPotionBoost)
+SORT_MATCHER(sortPickup,
+             L_PotionHeal,
+             game::CPickUpDropInterf,
+             sortPickupInterface,
+             false,
+             isPotionHeal)
+SORT_MATCHER(sortPickup,
+             R_PotionHeal,
+             game::CPickUpDropInterf,
+             sortPickupInterface,
+             true,
+             isPotionHeal)
+SORT_MATCHER(sortPickup,
+             L_PotionRevive,
+             game::CPickUpDropInterf,
+             sortPickupInterface,
+             false,
+             isPotionRevive)
+SORT_MATCHER(sortPickup,
+             R_PotionRevive,
+             game::CPickUpDropInterf,
+             sortPickupInterface,
+             true,
+             isPotionRevive)
+SORT_MATCHER(sortPickup,
+             L_PotionPerm,
+             game::CPickUpDropInterf,
+             sortPickupInterface,
+             false,
+             isPotionPermanent)
+SORT_MATCHER(sortPickup,
+             R_PotionPerm,
+             game::CPickUpDropInterf,
+             sortPickupInterface,
+             true,
+             isPotionPermanent)
+
+SORT_MATCHER(sortPickup, L_Scroll, game::CPickUpDropInterf, sortPickupInterface, false, isScroll)
+SORT_MATCHER(sortPickup, R_Scroll, game::CPickUpDropInterf, sortPickupInterface, true, isScroll)
+SORT_MATCHER(sortPickup, L_Wand, game::CPickUpDropInterf, sortPickupInterface, false, isWand)
+SORT_MATCHER(sortPickup, R_Wand, game::CPickUpDropInterf, sortPickupInterface, true, isWand)
+
+SORT_MATCHER(sortPickup,
+             L_Valuable,
+             game::CPickUpDropInterf,
+             sortPickupInterface,
+             false,
+             isValuable)
+SORT_MATCHER(sortPickup, R_Valuable, game::CPickUpDropInterf, sortPickupInterface, true, isValuable)
+SORT_MATCHER(sortPickup, L_Orb, game::CPickUpDropInterf, sortPickupInterface, false, isOrb)
+SORT_MATCHER(sortPickup, R_Orb, game::CPickUpDropInterf, sortPickupInterface, true, isOrb)
+SORT_MATCHER(sortPickup,
+             L_Talisman,
+             game::CPickUpDropInterf,
+             sortPickupInterface,
+             false,
+             isTalisman)
+SORT_MATCHER(sortPickup, R_Talisman, game::CPickUpDropInterf, sortPickupInterface, true, isTalisman)
+SORT_MATCHER(sortPickup, L_Travel, game::CPickUpDropInterf, sortPickupInterface, false, isTravel)
+SORT_MATCHER(sortPickup, R_Travel, game::CPickUpDropInterf, sortPickupInterface, true, isTravel)
+SORT_MATCHER(sortPickup, L_Special, game::CPickUpDropInterf, sortPickupInterface, false, isSpecial)
+SORT_MATCHER(sortPickup, R_Special, game::CPickUpDropInterf, sortPickupInterface, true, isSpecial)
+
+static void setupCitySortButtons(const game::CCityStackInterfApi::Api& api,
+                                 const game::CButtonInterfApi::Api& btn,
+                                 const game::CDialogInterfApi::Api& dlg,
+                                 game::CCityStackInterf* thisptr,
+                                 game::CDialogInterf* dialog,
+                                 game::SmartPointer& fun,
+                                 game::CCityStackInterfApi::Api::ButtonCallback& cb,
+                                 void(__thiscall* freeFn)(game::SmartPointer*, void*),
+                                 const char* name)
+{
+    using Callback = game::CCityStackInterfApi::Api::ButtonCallback::Callback;
+
+    struct Pair
+    {
+        const char* suffix;
+        Callback left;
+        Callback right;
+    };
+
+    const Pair pairs[] = {
+        {"ARMOR", (Callback)sortCity_L_Armor, (Callback)sortCity_R_Armor},
+        {"JEWEL", (Callback)sortCity_L_Jewel, (Callback)sortCity_R_Jewel},
+        {"WEAPON", (Callback)sortCity_L_Weapon, (Callback)sortCity_R_Weapon},
+        {"BANNER", (Callback)sortCity_L_Banner, (Callback)sortCity_R_Banner},
+        {"POTION_BOOST", (Callback)sortCity_L_PotionBoost, (Callback)sortCity_R_PotionBoost},
+        {"POTION_HEAL", (Callback)sortCity_L_PotionHeal, (Callback)sortCity_R_PotionHeal},
+        {"POTION_REVIVE", (Callback)sortCity_L_PotionRevive, (Callback)sortCity_R_PotionRevive},
+        {"POTION_PERM", (Callback)sortCity_L_PotionPerm, (Callback)sortCity_R_PotionPerm},
+        {"SCROLL", (Callback)sortCity_L_Scroll, (Callback)sortCity_R_Scroll},
+        {"WAND", (Callback)sortCity_L_Wand, (Callback)sortCity_R_Wand},
+        {"VALUABLE", (Callback)sortCity_L_Valuable, (Callback)sortCity_R_Valuable},
+        {"ORB", (Callback)sortCity_L_Orb, (Callback)sortCity_R_Orb},
+        {"TALISMAN", (Callback)sortCity_L_Talisman, (Callback)sortCity_R_Talisman},
+        {"TRAVEL", (Callback)sortCity_L_Travel, (Callback)sortCity_R_Travel},
+        {"SPECIAL", (Callback)sortCity_L_Special, (Callback)sortCity_R_Special},
+        {"ARMOR_WEAPON", (Callback)sortCity_L_ArmorWeapon, (Callback)sortCity_R_ArmorWeapon},
+        {"POTION_REVIVE_POTION_HEAL", (Callback)sortCity_L_PotionRevivePotionHeal,
+         (Callback)sortCity_R_PotionRevivePotionHeal},
+    };
+
+    for (auto& p : pairs) {
+        std::string left = "BTN_SORT_L_" + std::string(p.suffix);
+        std::string right = "BTN_SORT_R_" + std::string(p.suffix);
+
+        if (dlg.findControl(dialog, left.c_str())) {
+            cb.callback = p.left;
+            api.createButtonFunctor(&fun, 0, thisptr, &cb);
+            btn.assignFunctor(dialog, left.c_str(), name, &fun, 0);
+            freeFn(&fun, nullptr);
+        }
+
+        if (dlg.findControl(dialog, right.c_str())) {
+            cb.callback = p.right;
+            api.createButtonFunctor(&fun, 0, thisptr, &cb);
+            btn.assignFunctor(dialog, right.c_str(), name, &fun, 0);
+            freeFn(&fun, nullptr);
+        }
+    }
+}
+
+static void setupExchangeSortButtons(const game::CExchangeInterfApi::Api& api,
+                                     const game::CButtonInterfApi::Api& btn,
+                                     const game::CDialogInterfApi::Api& dlg,
+                                     game::CExchangeInterf* thisptr,
+                                     game::CDialogInterf* dialog,
+                                     game::SmartPointer& fun,
+                                     game::CExchangeInterfApi::Api::ButtonCallback& cb,
+                                     void(__thiscall* freeFn)(game::SmartPointer*, void*),
+                                     const char* name)
+{
+    using Callback = game::CExchangeInterfApi::Api::ButtonCallback::Callback;
+
+    struct Pair
+    {
+        const char* suffix;
+        Callback left;
+        Callback right;
+    };
+
+    const Pair pairs[] = {
+        {"ARMOR", (Callback)sortExchange_L_Armor, (Callback)sortExchange_R_Armor},
+        {"JEWEL", (Callback)sortExchange_L_Jewel, (Callback)sortExchange_R_Jewel},
+        {"WEAPON", (Callback)sortExchange_L_Weapon, (Callback)sortExchange_R_Weapon},
+        {"BANNER", (Callback)sortExchange_L_Banner, (Callback)sortExchange_R_Banner},
+        {"POTION_BOOST", (Callback)sortExchange_L_PotionBoost,
+         (Callback)sortExchange_R_PotionBoost},
+        {"POTION_HEAL", (Callback)sortExchange_L_PotionHeal, (Callback)sortExchange_R_PotionHeal},
+        {"POTION_REVIVE", (Callback)sortExchange_L_PotionRevive,
+         (Callback)sortExchange_R_PotionRevive},
+        {"POTION_PERM", (Callback)sortExchange_L_PotionPerm, (Callback)sortExchange_R_PotionPerm},
+        {"SCROLL", (Callback)sortExchange_L_Scroll, (Callback)sortExchange_R_Scroll},
+        {"WAND", (Callback)sortExchange_L_Wand, (Callback)sortExchange_R_Wand},
+        {"VALUABLE", (Callback)sortExchange_L_Valuable, (Callback)sortExchange_R_Valuable},
+        {"ORB", (Callback)sortExchange_L_Orb, (Callback)sortExchange_R_Orb},
+        {"TALISMAN", (Callback)sortExchange_L_Talisman, (Callback)sortExchange_R_Talisman},
+        {"TRAVEL", (Callback)sortExchange_L_Travel, (Callback)sortExchange_R_Travel},
+        {"SPECIAL", (Callback)sortExchange_L_Special, (Callback)sortExchange_R_Special},
+        {"ARMOR_WEAPON", (Callback)sortCity_L_ArmorWeapon, (Callback)sortCity_R_ArmorWeapon},
+        {"POTION_REVIVE_POTION_HEAL", (Callback)sortCity_L_PotionRevivePotionHeal,
+         (Callback)sortCity_R_PotionRevivePotionHeal},
+    };
+
+    for (auto& p : pairs) {
+        std::string left = "BTN_SORT_L_" + std::string(p.suffix);
+        std::string right = "BTN_SORT_R_" + std::string(p.suffix);
+
+        if (dlg.findControl(dialog, left.c_str())) {
+            cb.callback = p.left;
+            api.createButtonFunctor(&fun, 0, thisptr, &cb);
+            btn.assignFunctor(dialog, left.c_str(), name, &fun, 0);
+            freeFn(&fun, nullptr);
+        }
+
+        if (dlg.findControl(dialog, right.c_str())) {
+            cb.callback = p.right;
+            api.createButtonFunctor(&fun, 0, thisptr, &cb);
+            btn.assignFunctor(dialog, right.c_str(), name, &fun, 0);
+            freeFn(&fun, nullptr);
+        }
+    }
+}
+
+static void setupPickupSortButtons(const game::CPickUpDropInterfApi::Api& api,
+                                   const game::CButtonInterfApi::Api& btn,
+                                   const game::CDialogInterfApi::Api& dlg,
+                                   game::CPickUpDropInterf* thisptr,
+                                   game::CDialogInterf* dialog,
+                                   game::SmartPointer& fun,
+                                   game::CPickUpDropInterfApi::Api::ButtonCallback& cb,
+                                   void(__thiscall* freeFn)(game::SmartPointer*, void*),
+                                   const char* name)
+{
+    using Callback = game::CPickUpDropInterfApi::Api::ButtonCallback::Callback;
+
+    struct Pair
+    {
+        const char* suffix;
+        Callback left;
+        Callback right;
+    };
+
+    const Pair pairs[] = {
+        {"ARMOR", (Callback)sortPickup_L_Armor, (Callback)sortPickup_R_Armor},
+        {"JEWEL", (Callback)sortPickup_L_Jewel, (Callback)sortPickup_R_Jewel},
+        {"WEAPON", (Callback)sortPickup_L_Weapon, (Callback)sortPickup_R_Weapon},
+        {"BANNER", (Callback)sortPickup_L_Banner, (Callback)sortPickup_R_Banner},
+        {"POTION_BOOST", (Callback)sortPickup_L_PotionBoost, (Callback)sortPickup_R_PotionBoost},
+        {"POTION_HEAL", (Callback)sortPickup_L_PotionHeal, (Callback)sortPickup_R_PotionHeal},
+        {"POTION_REVIVE", (Callback)sortPickup_L_PotionRevive, (Callback)sortPickup_R_PotionRevive},
+        {"POTION_PERM", (Callback)sortPickup_L_PotionPerm, (Callback)sortPickup_R_PotionPerm},
+        {"SCROLL", (Callback)sortPickup_L_Scroll, (Callback)sortPickup_R_Scroll},
+        {"WAND", (Callback)sortPickup_L_Wand, (Callback)sortPickup_R_Wand},
+        {"VALUABLE", (Callback)sortPickup_L_Valuable, (Callback)sortPickup_R_Valuable},
+        {"ORB", (Callback)sortPickup_L_Orb, (Callback)sortPickup_R_Orb},
+        {"TALISMAN", (Callback)sortPickup_L_Talisman, (Callback)sortPickup_R_Talisman},
+        {"TRAVEL", (Callback)sortPickup_L_Travel, (Callback)sortPickup_R_Travel},
+        {"SPECIAL", (Callback)sortPickup_L_Special, (Callback)sortPickup_R_Special},
+        {"ARMOR_WEAPON", (Callback)sortCity_L_ArmorWeapon, (Callback)sortCity_R_ArmorWeapon},
+        {"POTION_REVIVE_POTION_HEAL", (Callback)sortCity_L_PotionRevivePotionHeal,
+         (Callback)sortCity_R_PotionRevivePotionHeal},
+    };
+
+    for (auto& p : pairs) {
+        std::string left = "BTN_SORT_L_" + std::string(p.suffix);
+        std::string right = "BTN_SORT_R_" + std::string(p.suffix);
+
+        if (dlg.findControl(dialog, left.c_str())) {
+            cb.callback = p.left;
+            api.createButtonFunctor(&fun, 0, thisptr, &cb);
+            btn.assignFunctor(dialog, left.c_str(), name, &fun, 0);
+            freeFn(&fun, nullptr);
+        }
+
+        if (dlg.findControl(dialog, right.c_str())) {
+            cb.callback = p.right;
+            api.createButtonFunctor(&fun, 0, thisptr, &cb);
+            btn.assignFunctor(dialog, right.c_str(), name, &fun, 0);
+            freeFn(&fun, nullptr);
+        }
+    }
+}
+
 void __fastcall cityInterfTransferAllToCity(game::CCityStackInterf* thisptr, int /*%edx*/)
 {
     transferStackToCity(thisptr->dragDropInterf.phaseGame, &thisptr->data->fortificationId);
@@ -676,6 +1166,7 @@ static void setupCityStackButtons(game::CCityStackInterf* thisptr, game::CDialog
 {
     using namespace game;
     using CB = CCityStackInterfApi::Api::ButtonCallback;
+    using Callback = CB::Callback;
     const auto& btn = CButtonInterfApi::get();
     const auto& api = CCityStackInterfApi::get();
     const auto& dlg = CDialogInterfApi::get();
@@ -693,7 +1184,7 @@ static void setupCityStackButtons(game::CCityStackInterf* thisptr, game::CDialog
         }
     };
 
-    // --- TRANSFER кнопки ---
+    // --- TRANSFER buttons ---
     hook("BTN_TRANSF_L_ALL", (CB::Callback)cityInterfTransferAllToStack);
     hook("BTN_TRANSF_R_ALL", (CB::Callback)cityInterfTransferAllToCity);
     hook("BTN_TRANSF_L_POTIONS", (CB::Callback)cityInterfTransferPotionsToStack);
@@ -704,42 +1195,8 @@ static void setupCityStackButtons(game::CCityStackInterf* thisptr, game::CDialog
     hook("BTN_TRANSF_R_VALUABLES", (CB::Callback)cityInterfTransferValuablesToCity);
     hook("BTN_TRANSF_R_CITY_CAPITAL", (CB::Callback)cityTransferBtn);
 
-
-    // --- SORT кнопки ---
-    // 
-    // --- SORT L --- Stack
-   /* hook("BTN_CITY_SORT_L_ARMOR", (CB::Callback)cityInterfSort_L_Armor);
-    hook("BTN_CITY_SORT_L_JEWEL", (CB::Callback)cityInterfSort_L_Jewel);
-    hook("BTN_CITY_SORT_L_WEAPON", (CB::Callback)cityInterfSort_L_Weapon);
-    hook("BTN_CITY_SORT_L_BANNER", (CB::Callback)cityInterfSort_L_Banner);
-    hook("BTN_CITY_SORT_L_POTION_BOOST", (CB::Callback)cityInterfSort_L_PotionBoost);
-    hook("BTN_CITY_SORT_L_POTION_HEAL", (CB::Callback)cityInterfSort_L_PotionHeal);
-    hook("BTN_CITY_SORT_L_POTION_REVIVE", (CB::Callback)cityInterfSort_L_PotionRevive);
-    hook("BTN_CITY_SORT_L_POTION_PERM", (CB::Callback)cityInterfSort_L_PotionPermanent);
-    hook("BTN_CITY_SORT_L_SCROLL", (CB::Callback)cityInterfSort_L_Scroll);
-    hook("BTN_CITY_SORT_L_WAND", (CB::Callback)cityInterfSort_L_Wand);
-    hook("BTN_CITY_SORT_L_VALUABLE", (CB::Callback)cityInterfSort_L_Valuable);
-    hook("BTN_CITY_SORT_L_ORB", (CB::Callback)cityInterfSort_L_Orb);
-    hook("BTN_CITY_SORT_L_TALISMAN", (CB::Callback)cityInterfSort_L_Talisman);
-    hook("BTN_CITY_SORT_L_TRAVEL", (CB::Callback)cityInterfSort_L_Travel);
-    hook("BTN_CITY_SORT_L_SPECIAL", (CB::Callback)cityInterfSort_L_Special);*/
-
-     // --- SORT R --- City
-    hook("BTN_CITY_SORT_R_ARMOR", (CB::Callback)cityInterfSortArmor);
-    hook("BTN_CITY_SORT_R_JEWEL", (CB::Callback)cityInterfSortJewel);
-    hook("BTN_CITY_SORT_R_WEAPON", (CB::Callback)cityInterfSortWeapon);
-    hook("BTN_CITY_SORT_R_BANNER", (CB::Callback)cityInterfSortBanner);
-    hook("BTN_CITY_SORT_R_POTION_BOOST", (CB::Callback)cityInterfSortPotionBoost);
-    hook("BTN_CITY_SORT_R_POTION_HEAL", (CB::Callback)cityInterfSortPotionHeal);
-    hook("BTN_CITY_SORT_R_POTION_REVIVE", (CB::Callback)cityInterfSortPotionRevive);
-    hook("BTN_CITY_SORT_R_POTION_PERMAMENT", (CB::Callback)cityInterfSortPotionPermanent);
-    hook("BTN_CITY_SORT_R_SCROLL", (CB::Callback)cityInterfSortScroll);
-    hook("BTN_CITY_SORT_R_WAND", (CB::Callback)cityInterfSortWand);
-    hook("BTN_CITY_SORT_R_VALUABLE", (CB::Callback)cityInterfSortValuable);
-    hook("BTN_CITY_SORT_R_ORB", (CB::Callback)cityInterfSortOrb);
-    hook("BTN_CITY_SORT_R_TALISMAN", (CB::Callback)cityInterfSortTalisman);
-    hook("BTN_CITY_SORT_R_TRAVEL", (CB::Callback)cityInterfSortTravel);
-    hook("BTN_CITY_SORT_R_SPECIAL", (CB::Callback)cityInterfSortSpecial);
+    // --- Sor buttons ---
+    setupCitySortButtons(api, btn, dlg, thisptr, dialog, fun, cb, free, name);
 }
 
 game::CCityStackInterf* __fastcall cityStackInterfCtorHooked(game::CCityStackInterf* thisptr,
@@ -757,8 +1214,6 @@ game::CCityStackInterf* __fastcall cityStackInterfCtorHooked(game::CCityStackInt
 
     return thisptr;
 }
-
-
 
 /** Transfers items from stack with srcStackId to stack with dstStackId. */
 static void transferStackToStack(game::CPhaseGame* phaseGame,
@@ -848,89 +1303,6 @@ void __fastcall exchangeTransferValuablesToRightStack(game::CExchangeInterf* thi
 {
     transferStackToStack(thisptr->dragDropInterf.phaseGame, &thisptr->data->stackRightSideId,
                          &thisptr->data->stackLeftSideId, isValuable);
-}
-
-game::CExchangeInterf* __fastcall exchangeInterfCtorHooked(game::CExchangeInterf* thisptr,
-                                                           int /*%edx*/,
-                                                           void* taskOpenInterf,
-                                                           game::CPhaseGame* phaseGame,
-                                                           game::CMidgardID* stackLeftSide,
-                                                           game::CMidgardID* stackRightSide)
-{
-    using namespace game;
-
-    getOriginalFunctions().exchangeInterfCtor(thisptr, taskOpenInterf, phaseGame, stackLeftSide,
-                                              stackRightSide);
-
-    const auto& button = CButtonInterfApi::get();
-    const auto freeFunctor = SmartPointerApi::get().createOrFreeNoDtor;
-    const char dialogName[] = "DLG_EXCHANGE";
-    auto dialog = CDragAndDropInterfApi::get().getDialog(&thisptr->dragDropInterf);
-
-    using ButtonCallback = CExchangeInterfApi::Api::ButtonCallback;
-    ButtonCallback callback{};
-    SmartPointer functor;
-
-    const auto& dialogApi = CDialogInterfApi::get();
-    const auto& exchangeInterf = CExchangeInterfApi::get();
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_L_ALL")) {
-        callback.callback = (ButtonCallback::Callback)exchangeTransferAllToLeftStack;
-        exchangeInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_L_ALL", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_R_ALL")) {
-        callback.callback = (ButtonCallback::Callback)exchangeTransferAllToRightStack;
-        exchangeInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_R_ALL", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_L_POTIONS")) {
-        callback.callback = (ButtonCallback::Callback)exchangeTransferPotionsToLeftStack;
-        exchangeInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_L_POTIONS", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_R_POTIONS")) {
-        callback.callback = (ButtonCallback::Callback)exchangeTransferPotionsToRightStack;
-        exchangeInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_R_POTIONS", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_L_SPELLS")) {
-        callback.callback = (ButtonCallback::Callback)exchangeTransferSpellsToLeftStack;
-        exchangeInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_L_SPELLS", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_R_SPELLS")) {
-        callback.callback = (ButtonCallback::Callback)exchangeTransferSpellsToRightStack;
-        exchangeInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_R_SPELLS", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_L_VALUABLES")) {
-        callback.callback = (ButtonCallback::Callback)exchangeTransferValuablesToLeftStack;
-        exchangeInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_L_VALUABLES", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_R_VALUABLES")) {
-        callback.callback = (ButtonCallback::Callback)exchangeTransferValuablesToRightStack;
-        exchangeInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_R_VALUABLES", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    return thisptr;
 }
 
 /** Transfers bag items to stack. */
@@ -1052,6 +1424,98 @@ void __fastcall pickupTransferValuablesToBag(game::CPickUpDropInterf* thisptr, i
                        &thisptr->data->bagId, isValuable);
 }
 
+static void setupPickupButtons(game::CPickUpDropInterf* thisptr, game::CDialogInterf* dialog)
+{
+    using namespace game;
+    using CB = CPickUpDropInterfApi::Api::ButtonCallback;
+    using Callback = CB::Callback;
+
+    const auto& btn = CButtonInterfApi::get();
+    const auto& api = CPickUpDropInterfApi::get();
+    const auto& dlg = CDialogInterfApi::get();
+    SmartPointer fun;
+    auto free = SmartPointerApi::get().createOrFreeNoDtor;
+    CB cb{};
+    constexpr char name[] = "DLG_PICKUP_DROP";
+
+    auto hook = [&](const char* ctrl, Callback fn) {
+        if (dlg.findControl(dialog, ctrl)) {
+            cb.callback = fn;
+            api.createButtonFunctor(&fun, 0, thisptr, &cb);
+            btn.assignFunctor(dialog, ctrl, name, &fun, 0);
+            free(&fun, nullptr);
+        }
+    };
+
+    // --- TRANSFER buttons ---
+    hook("BTN_TRANSF_L_ALL", (Callback)pickupTransferAllToStack);
+    hook("BTN_TRANSF_R_ALL", (Callback)pickupTransferAllToBag);
+    hook("BTN_TRANSF_L_POTIONS", (Callback)pickupTransferPotionsToStack);
+    hook("BTN_TRANSF_R_POTIONS", (Callback)pickupTransferPotionsToBag);
+    hook("BTN_TRANSF_L_SPELLS", (Callback)pickupTransferSpellsToStack);
+    hook("BTN_TRANSF_R_SPELLS", (Callback)pickupTransferSpellsToBag);
+    hook("BTN_TRANSF_L_VALUABLES", (Callback)pickupTransferValuablesToStack);
+    hook("BTN_TRANSF_R_VALUABLES", (Callback)pickupTransferValuablesToBag);
+
+    // --- SORT buttons ---
+    setupPickupSortButtons(api, btn, dlg, thisptr, dialog, fun, cb, free, name);
+}
+
+static void setupExchangeButtons(game::CExchangeInterf* thisptr, game::CDialogInterf* dialog)
+{
+    using namespace game;
+    using CB = CExchangeInterfApi::Api::ButtonCallback;
+    using Callback = CB::Callback;
+
+    const auto& btn = CButtonInterfApi::get();
+    const auto& api = CExchangeInterfApi::get();
+    const auto& dlg = CDialogInterfApi::get();
+    SmartPointer fun;
+    auto free = SmartPointerApi::get().createOrFreeNoDtor;
+    CB cb{};
+    constexpr char name[] = "DLG_EXCHANGE";
+
+    auto hook = [&](const char* ctrl, Callback fn) {
+        if (dlg.findControl(dialog, ctrl)) {
+            cb.callback = fn;
+            api.createButtonFunctor(&fun, 0, thisptr, &cb);
+            btn.assignFunctor(dialog, ctrl, name, &fun, 0);
+            free(&fun, nullptr);
+        }
+    };
+
+    // --- TRANSFER buttons ---
+    hook("BTN_TRANSF_L_ALL", (Callback)exchangeTransferAllToLeftStack);
+    hook("BTN_TRANSF_R_ALL", (Callback)exchangeTransferAllToRightStack);
+    hook("BTN_TRANSF_L_POTIONS", (Callback)exchangeTransferPotionsToLeftStack);
+    hook("BTN_TRANSF_R_POTIONS", (Callback)exchangeTransferPotionsToRightStack);
+    hook("BTN_TRANSF_L_SPELLS", (Callback)exchangeTransferSpellsToLeftStack);
+    hook("BTN_TRANSF_R_SPELLS", (Callback)exchangeTransferSpellsToRightStack);
+    hook("BTN_TRANSF_L_VALUABLES", (Callback)exchangeTransferValuablesToLeftStack);
+    hook("BTN_TRANSF_R_VALUABLES", (Callback)exchangeTransferValuablesToRightStack);
+
+    // --- SORT buttons ---
+    setupExchangeSortButtons(api, btn, dlg, thisptr, dialog, fun, cb, free, name);
+}
+
+game::CExchangeInterf* __fastcall exchangeInterfCtorHooked(game::CExchangeInterf* thisptr,
+                                                           int /*%edx*/,
+                                                           void* taskOpenInterf,
+                                                           game::CPhaseGame* phaseGame,
+                                                           game::CMidgardID* stackLeftSide,
+                                                           game::CMidgardID* stackRightSide)
+{
+    using namespace game;
+
+    getOriginalFunctions().exchangeInterfCtor(thisptr, taskOpenInterf, phaseGame, stackLeftSide,
+                                              stackRightSide);
+
+    auto dialog = CDragAndDropInterfApi::get().getDialog(&thisptr->dragDropInterf);
+    setupExchangeButtons(thisptr, dialog);
+
+    return thisptr;
+}
+
 game::CPickUpDropInterf* __fastcall pickupDropInterfCtorHooked(game::CPickUpDropInterf* thisptr,
                                                                int /*%edx*/,
                                                                void* taskOpenInterf,
@@ -1062,74 +1526,8 @@ game::CPickUpDropInterf* __fastcall pickupDropInterfCtorHooked(game::CPickUpDrop
     using namespace game;
 
     getOriginalFunctions().pickupDropInterfCtor(thisptr, taskOpenInterf, phaseGame, stackId, bagId);
-
-    const auto& button = CButtonInterfApi::get();
-    const auto freeFunctor = SmartPointerApi::get().createOrFreeNoDtor;
-    const char dialogName[] = "DLG_PICKUP_DROP";
     auto dialog = CDragAndDropInterfApi::get().getDialog(&thisptr->dragDropInterf);
-
-    using ButtonCallback = CPickUpDropInterfApi::Api::ButtonCallback;
-    ButtonCallback callback{};
-    SmartPointer functor;
-
-    const auto& dialogApi = CDialogInterfApi::get();
-    const auto& pickupInterf = CPickUpDropInterfApi::get();
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_L_ALL")) {
-        callback.callback = (ButtonCallback::Callback)pickupTransferAllToStack;
-        pickupInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_L_ALL", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_R_ALL")) {
-        callback.callback = (ButtonCallback::Callback)pickupTransferAllToBag;
-        pickupInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_R_ALL", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_L_POTIONS")) {
-        callback.callback = (ButtonCallback::Callback)pickupTransferPotionsToStack;
-        pickupInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_L_POTIONS", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_R_POTIONS")) {
-        callback.callback = (ButtonCallback::Callback)pickupTransferPotionsToBag;
-        pickupInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_R_POTIONS", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_L_SPELLS")) {
-        callback.callback = (ButtonCallback::Callback)pickupTransferSpellsToStack;
-        pickupInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_L_SPELLS", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_R_SPELLS")) {
-        callback.callback = (ButtonCallback::Callback)pickupTransferSpellsToBag;
-        pickupInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_R_SPELLS", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_L_VALUABLES")) {
-        callback.callback = (ButtonCallback::Callback)pickupTransferValuablesToStack;
-        pickupInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_L_VALUABLES", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
-
-    if (dialogApi.findControl(dialog, "BTN_TRANSF_R_VALUABLES")) {
-        callback.callback = (ButtonCallback::Callback)pickupTransferValuablesToBag;
-        pickupInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
-        button.assignFunctor(dialog, "BTN_TRANSF_R_VALUABLES", dialogName, &functor, 0);
-        freeFunctor(&functor, nullptr);
-    }
+    setupPickupButtons(thisptr, dialog);
 
     return thisptr;
 }
@@ -1179,8 +1577,12 @@ static void sellItemsToMerchant(game::CPhaseGame* phaseGame,
     const int itemsTotal = inventory.vftable->getItemsCount(&inventory);
 
     std::vector<CMidgardID> itemsToSell;
-    for (int i = 0; i < itemsTotal; ++i) {
+    for (int i = 0; i < itemsTotal; i++) {
         auto item = inventory.vftable->getItem(&inventory, i);
+        if (isItemEquipped(stack->leaderEquippedItems, item)) {
+            continue;
+        }
+
         if (!itemFilter || (itemFilter && (*itemFilter)(objectMap, item))) {
             itemsToSell.push_back(*item);
         }
@@ -1322,6 +1724,10 @@ static game::Bank computeItemsSellPrice(game::IMidgardObjectMap* objectMap,
     Bank sellPrice{};
     for (int i = 0; i < itemsTotal; ++i) {
         auto item = inventory.vftable->getItem(&inventory, i);
+        if (isItemEquipped(stack->leaderEquippedItems, item)) {
+            continue;
+        }
+
         if (!itemFilter || (itemFilter && (*itemFilter)(objectMap, item))) {
             Bank price{};
             getSellingPrice(&price, objectMap, item);
@@ -1434,7 +1840,5 @@ game::CSiteMerchantInterf* __fastcall siteMerchantInterfCtorHooked(
 
     return thisptr;
 }
-
-
 
 } // namespace hooks
