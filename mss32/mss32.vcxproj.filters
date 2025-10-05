@@ -3865,6 +3865,9 @@
     <ClInclude Include="include\resultsender.h">
       <Filter>game</Filter>
     </ClInclude>
+	<ClInclude Include="include\itemtransferhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="mss32.rc">

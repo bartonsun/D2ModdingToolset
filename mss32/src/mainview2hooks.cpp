@@ -39,7 +39,6 @@
 #include "taskmanager.h"
 #include "togglebutton.h"
 #include <spdlog/spdlog.h>
-#include "itemtransferhooks.h"
 
 namespace hooks {
 

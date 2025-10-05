@@ -1083,6 +1083,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\itemspecial.h" />
     <ClInclude Include="include\itemspell.h" />
     <ClInclude Include="include\itemtalisman.h" />
+	<ClInclude Include="include\itemtransferhooks.h" />
     <ClInclude Include="include\itemtravelitem.h" />
     <ClInclude Include="include\itemutils.h" />
     <ClInclude Include="include\itemvaluable.h" />
