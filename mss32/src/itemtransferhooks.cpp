@@ -607,8 +607,8 @@ static void sortPickupInterface(game::CPickUpDropInterf* thisptr,
         return;
 
     sortInterfaceAuto(phase,
-                      &thisptr->data->stackId, // левый объект (stack)
-                      &thisptr->data->bagId,   // правый объект (bag)
+                      &thisptr->data->stackId, // left = stack
+                      &thisptr->data->bagId,   // right = bag
                       filters, modeR);
 }
 
@@ -622,8 +622,8 @@ static void sortExchangeInterface(game::CExchangeInterf* thisptr,
         return;
 
     sortInterfaceAuto(phase,
-                      &thisptr->data->stackLeftSideId,  // левый стек
-                      &thisptr->data->stackRightSideId, // правый стек
+                      &thisptr->data->stackLeftSideId,  // left = stack
+                      &thisptr->data->stackRightSideId, // right = stack
                       filters, modeR);
 }
 template <typename T>
