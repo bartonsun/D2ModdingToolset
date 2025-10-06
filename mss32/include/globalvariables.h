@@ -165,6 +165,12 @@ struct GlobalVariablesDataHooked : public GlobalVariablesData
 {
     /** Maximum amount of resource the noble can steal from resource market. 'STEAL_RMKT' */
     int stealRmkt;
+
+    // Minimum amount of resource the noble can steal from resource market. 'S_RMKT_MIN' */
+    int stealRmktMin;
+    /** If true, any noble can steal item. 'S_ITEM_ALL' */
+    bool stealItemAll;
+
     /** Minimal resource market riot duration in days. 'RMKT_RIOT_MIN' */
     int rmktRiotMin;
     /** Maximal resource market riot duration in days. 'RMKT_RIOT_MAX' */
