@@ -1054,10 +1054,13 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
 
     int hireTierMax{0};
     for (const auto& variable : variables->variables) {
+        const auto expectedNameLegacy{"UNIT_HIRE_TIER_MAX"};
         const auto expectedName{"HIRE_UNIT_TIER_MAX"};
         const auto expectedNameRace{fmt::format("{:s}HIRE_UNIT_TIER_MAX", racePrefix)};
         const auto& name = variable.second.name;
-        if (!strncmp(name, expectedName, sizeof(name))) {
+        if (!strncmp(name, expectedNameLegacy, sizeof(name))) {
+            hireTierMax = variable.second.value;
+        } else if (!strncmp(name, expectedName, sizeof(name))) {
             hireTierMax = variable.second.value;
         } else if (!strncmp(name, expectedNameRace.c_str(), sizeof(name))) {
             hireTierMax = variable.second.value;
