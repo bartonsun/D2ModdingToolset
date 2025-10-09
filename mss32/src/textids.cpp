@@ -209,6 +209,7 @@ void readInterfTextIds(const sol::table& table, TextIds::Interf& value)
     value.infiniteAttack = interf.value().get_or("infiniteAttack", std::string());
     value.infiniteText = interf.value().get_or("infiniteText", std::string());
     value.removedAttackWard = interf.value().get_or("removedAttackWard", std::string());
+    value.currentTurn = interf.value().get_or("currentTurn", std::string());
 }
 
 void initialize(TextIds& value)
