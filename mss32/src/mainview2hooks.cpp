@@ -17,14 +17,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "mainview2hooks.h"
 #include "cmdstackvisitmsg.h"
+#include "d2string.h"
 #include "dialoginterf.h"
 #include "dynamiccast.h"
 #include "gameimages.h"
 #include "gameutils.h"
 #include "isolayers.h"
 #include "mainview2.h"
+#include "mainview2hooks.h"
 #include "mapgraphics.h"
 #include "midclient.h"
 #include "midclientcore.h"
@@ -37,8 +38,12 @@
 #include "scenarioinfo.h"
 #include "sitecategoryhooks.h"
 #include "taskmanager.h"
+#include "textboxinterf.h"
 #include "togglebutton.h"
+
 #include <spdlog/spdlog.h>
+#include <textids.h>
+#include <utils.h>
 
 namespace hooks {
 
@@ -134,6 +139,51 @@ void __fastcall mainView2ShowIsoDialogHooked(game::CMainView2* thisptr, int /*%e
     SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
 
     buttonApi.setChecked(toggleButton, gridVisible);
+
+    static const char turnTextName[]{"TXT_TURN"};
+    const auto& textApi = CTextBoxInterfApi::get();
+
+    auto textBox = dialogApi.findTextBox(dialog, turnTextName);
+    if (textBox && textBox->data) {
+        auto objectMap = CPhaseApi::get().getDataCache(&thisptr->phaseGame->phase);
+        auto scenarioInfo = getScenarioInfo(objectMap);
+
+        if (scenarioInfo) {
+            // Extract the current text from the DLG
+            std::string text = textBox->data->text.string ? textBox->data->text.string : "";
+            spdlog::debug("Current turn text before update: '{}'", text);
+
+            // If the text is empty or does not contain the %TURN% placeholder
+            if (text.empty() || text.find("%TURN%") == std::string::npos) {
+                // Try to load the text ID from textids.lua
+                std::string textId = hooks::textIds().interf.currentTurn;
+                if (!textId.empty()) {
+                    auto idText = getInterfaceText(textId.c_str());
+                    if (!idText.empty()) {
+                        text = idText;
+                        spdlog::debug(
+                            "TXT_TURN fallback loaded from textIds().interf.currentTurn = '{}'",
+                            textId);
+                    }
+                }
+
+                // If both the DLG and Lua values are missing, use the default template
+                if (text.empty()) {
+                    spdlog::debug("TXT_TURN missing or no placeholder — using default template");
+                    text = "Current turn %TURN%";
+                }
+            }
+
+            // Replace the %TURN% placeholder with the current turn number
+            replace(text, "%TURN%", fmt::format("{}", scenarioInfo->currentTurn));
+
+            // Set the text back to the UI element
+            textApi.setString(textBox, text.c_str());
+            spdlog::debug("TXT_TURN updated to: '{}'", text);
+        }
+    } else {
+        spdlog::warn("TXT_TURN not found in dialog");
+    }
 }
 
 void __fastcall mainView2HandleCmdStackVisitMsgHooked(game::CMainView2* thisptr,

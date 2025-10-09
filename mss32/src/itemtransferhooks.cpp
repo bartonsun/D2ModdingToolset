@@ -675,6 +675,7 @@ static void sortInterface(T* thisptr, std::vector<hooks::ItemFilter> filters, bo
     }                                                                                              \
     }
 
+// clang-format off
 // Universal sorting function
 // ---- City sort matchers ----
 SORT_MATCHER(sortCity, L_Armor, game::CCityStackInterf, sortCityInterface, true, isArmor)
@@ -685,51 +686,18 @@ SORT_MATCHER(sortCity, L_Weapon, game::CCityStackInterf, sortCityInterface, true
 SORT_MATCHER(sortCity, R_Weapon, game::CCityStackInterf, sortCityInterface, false, isWeapon)
 SORT_MATCHER(sortCity, L_Banner, game::CCityStackInterf, sortCityInterface, true, isBanner)
 SORT_MATCHER(sortCity, R_Banner, game::CCityStackInterf, sortCityInterface, false, isBanner)
-
-SORT_MATCHER(sortCity,
-             L_PotionBoost,
-             game::CCityStackInterf,
-             sortCityInterface,
-             true,
-             isPotionBoost)
-SORT_MATCHER(sortCity,
-             R_PotionBoost,
-             game::CCityStackInterf,
-             sortCityInterface,
-             false,
-             isPotionBoost)
+SORT_MATCHER(sortCity, L_PotionBoost, game::CCityStackInterf, sortCityInterface, true, isPotionBoost)
+SORT_MATCHER(sortCity, R_PotionBoost, game::CCityStackInterf, sortCityInterface, false, isPotionBoost)
 SORT_MATCHER(sortCity, L_PotionHeal, game::CCityStackInterf, sortCityInterface, true, isPotionHeal)
 SORT_MATCHER(sortCity, R_PotionHeal, game::CCityStackInterf, sortCityInterface, false, isPotionHeal)
-SORT_MATCHER(sortCity,
-             L_PotionRevive,
-             game::CCityStackInterf,
-             sortCityInterface,
-             true,
-             isPotionRevive)
-SORT_MATCHER(sortCity,
-             R_PotionRevive,
-             game::CCityStackInterf,
-             sortCityInterface,
-             false,
-             isPotionRevive)
-SORT_MATCHER(sortCity,
-             L_PotionPerm,
-             game::CCityStackInterf,
-             sortCityInterface,
-             true,
-             isPotionPermanent)
-SORT_MATCHER(sortCity,
-             R_PotionPerm,
-             game::CCityStackInterf,
-             sortCityInterface,
-             false,
-             isPotionPermanent)
-
+SORT_MATCHER(sortCity, L_PotionRevive, game::CCityStackInterf, sortCityInterface, true, isPotionRevive)
+SORT_MATCHER(sortCity, R_PotionRevive, game::CCityStackInterf, sortCityInterface, false, isPotionRevive)
+SORT_MATCHER(sortCity, L_PotionPerm, game::CCityStackInterf, sortCityInterface, true, isPotionPermanent)
+SORT_MATCHER(sortCity, R_PotionPerm, game::CCityStackInterf, sortCityInterface, false, isPotionPermanent)
 SORT_MATCHER(sortCity, L_Scroll, game::CCityStackInterf, sortCityInterface, true, isScroll)
 SORT_MATCHER(sortCity, R_Scroll, game::CCityStackInterf, sortCityInterface, false, isScroll)
 SORT_MATCHER(sortCity, L_Wand, game::CCityStackInterf, sortCityInterface, true, isWand)
 SORT_MATCHER(sortCity, R_Wand, game::CCityStackInterf, sortCityInterface, false, isWand)
-
 SORT_MATCHER(sortCity, L_Valuable, game::CCityStackInterf, sortCityInterface, true, isValuable)
 SORT_MATCHER(sortCity, R_Valuable, game::CCityStackInterf, sortCityInterface, false, isValuable)
 SORT_MATCHER(sortCity, L_Orb, game::CCityStackInterf, sortCityInterface, true, isOrb)
@@ -740,37 +708,10 @@ SORT_MATCHER(sortCity, L_Travel, game::CCityStackInterf, sortCityInterface, true
 SORT_MATCHER(sortCity, R_Travel, game::CCityStackInterf, sortCityInterface, false, isTravel)
 SORT_MATCHER(sortCity, L_Special, game::CCityStackInterf, sortCityInterface, true, isSpecial)
 SORT_MATCHER(sortCity, R_Special, game::CCityStackInterf, sortCityInterface, false, isSpecial)
-
-// Example of a combined filter
-SORT_MATCHER(sortCity,
-             L_ArmorWeapon,
-             game::CCityStackInterf,
-             sortCityInterface,
-             true,
-             isArmor,
-             isWeapon)
-SORT_MATCHER(sortCity,
-             R_ArmorWeapon,
-             game::CCityStackInterf,
-             sortCityInterface,
-             false,
-             isArmor,
-             isWeapon)
-
-SORT_MATCHER(sortCity,
-             L_PotionRevivePotionHeal,
-             game::CCityStackInterf,
-             sortCityInterface,
-             true,
-             isPotionRevive,
-             isPotionHeal)
-SORT_MATCHER(sortCity,
-             R_PotionRevivePotionHeal,
-             game::CCityStackInterf,
-             sortCityInterface,
-             false,
-             isPotionRevive,
-             isPotionHeal)
+SORT_MATCHER(sortCity, L_ArmorWeapon, game::CCityStackInterf, sortCityInterface, true, isArmor, isWeapon)
+SORT_MATCHER(sortCity, R_ArmorWeapon, game::CCityStackInterf, sortCityInterface, false, isArmor, isWeapon)
+SORT_MATCHER(sortCity, L_PotionRevivePotionHeal, game::CCityStackInterf, sortCityInterface, true, isPotionRevive, isPotionHeal)
+SORT_MATCHER(sortCity, R_PotionRevivePotionHeal, game::CCityStackInterf, sortCityInterface, false, isPotionRevive, isPotionHeal)
 
 // ---- Exchange sort matchers ----
 SORT_MATCHER(sortExchange, L_Armor, game::CExchangeInterf, sortExchangeInterface, false, isArmor)
@@ -781,96 +722,32 @@ SORT_MATCHER(sortExchange, L_Weapon, game::CExchangeInterf, sortExchangeInterfac
 SORT_MATCHER(sortExchange, R_Weapon, game::CExchangeInterf, sortExchangeInterface, true, isWeapon)
 SORT_MATCHER(sortExchange, L_Banner, game::CExchangeInterf, sortExchangeInterface, false, isBanner)
 SORT_MATCHER(sortExchange, R_Banner, game::CExchangeInterf, sortExchangeInterface, true, isBanner)
-
-SORT_MATCHER(sortExchange,
-             L_PotionBoost,
-             game::CExchangeInterf,
-             sortExchangeInterface,
-             false,
-             isPotionBoost)
-SORT_MATCHER(sortExchange,
-             R_PotionBoost,
-             game::CExchangeInterf,
-             sortExchangeInterface,
-             true,
-             isPotionBoost)
-SORT_MATCHER(sortExchange,
-             L_PotionHeal,
-             game::CExchangeInterf,
-             sortExchangeInterface,
-             false,
-             isPotionHeal)
-SORT_MATCHER(sortExchange,
-             R_PotionHeal,
-             game::CExchangeInterf,
-             sortExchangeInterface,
-             true,
-             isPotionHeal)
-SORT_MATCHER(sortExchange,
-             L_PotionRevive,
-             game::CExchangeInterf,
-             sortExchangeInterface,
-             false,
-             isPotionRevive)
-SORT_MATCHER(sortExchange,
-             R_PotionRevive,
-             game::CExchangeInterf,
-             sortExchangeInterface,
-             true,
-             isPotionRevive)
-SORT_MATCHER(sortExchange,
-             L_PotionPerm,
-             game::CExchangeInterf,
-             sortExchangeInterface,
-             false,
-             isPotionPermanent)
-SORT_MATCHER(sortExchange,
-             R_PotionPerm,
-             game::CExchangeInterf,
-             sortExchangeInterface,
-             true,
-             isPotionPermanent)
-
+SORT_MATCHER(sortExchange, L_PotionBoost, game::CExchangeInterf, sortExchangeInterface, false, isPotionBoost)
+SORT_MATCHER(sortExchange, R_PotionBoost, game::CExchangeInterf, sortExchangeInterface, true, isPotionBoost)
+SORT_MATCHER(sortExchange, L_PotionHeal, game::CExchangeInterf, sortExchangeInterface, false, isPotionHeal)
+SORT_MATCHER(sortExchange, R_PotionHeal, game::CExchangeInterf, sortExchangeInterface, true, isPotionHeal)
+SORT_MATCHER(sortExchange, L_PotionRevive, game::CExchangeInterf, sortExchangeInterface, false, isPotionRevive)
+SORT_MATCHER(sortExchange, R_PotionRevive, game::CExchangeInterf, sortExchangeInterface, true, isPotionRevive)
+SORT_MATCHER(sortExchange, L_PotionPerm, game::CExchangeInterf, sortExchangeInterface, false, isPotionPermanent)
+SORT_MATCHER(sortExchange, R_PotionPerm, game::CExchangeInterf, sortExchangeInterface, true, isPotionPermanent)
 SORT_MATCHER(sortExchange, L_Scroll, game::CExchangeInterf, sortExchangeInterface, false, isScroll)
 SORT_MATCHER(sortExchange, R_Scroll, game::CExchangeInterf, sortExchangeInterface, true, isScroll)
 SORT_MATCHER(sortExchange, L_Wand, game::CExchangeInterf, sortExchangeInterface, false, isWand)
 SORT_MATCHER(sortExchange, R_Wand, game::CExchangeInterf, sortExchangeInterface, true, isWand)
-
-SORT_MATCHER(sortExchange,
-             L_Valuable,
-             game::CExchangeInterf,
-             sortExchangeInterface,
-             false,
-             isValuable)
-SORT_MATCHER(sortExchange,
-             R_Valuable,
-             game::CExchangeInterf,
-             sortExchangeInterface,
-             true,
-             isValuable)
+SORT_MATCHER(sortExchange, L_Valuable, game::CExchangeInterf, sortExchangeInterface, false, isValuable)
+SORT_MATCHER(sortExchange, R_Valuable, game::CExchangeInterf, sortExchangeInterface, true, isValuable)
 SORT_MATCHER(sortExchange, L_Orb, game::CExchangeInterf, sortExchangeInterface, false, isOrb)
 SORT_MATCHER(sortExchange, R_Orb, game::CExchangeInterf, sortExchangeInterface, true, isOrb)
-SORT_MATCHER(sortExchange,
-             L_Talisman,
-             game::CExchangeInterf,
-             sortExchangeInterface,
-             false,
-             isTalisman)
-SORT_MATCHER(sortExchange,
-             R_Talisman,
-             game::CExchangeInterf,
-             sortExchangeInterface,
-             true,
-             isTalisman)
+SORT_MATCHER(sortExchange, L_Talisman, game::CExchangeInterf, sortExchangeInterface, false, isTalisman)
+SORT_MATCHER(sortExchange, R_Talisman, game::CExchangeInterf, sortExchangeInterface, true, isTalisman)
 SORT_MATCHER(sortExchange, L_Travel, game::CExchangeInterf, sortExchangeInterface, false, isTravel)
 SORT_MATCHER(sortExchange, R_Travel, game::CExchangeInterf, sortExchangeInterface, true, isTravel)
-SORT_MATCHER(sortExchange,
-             L_Special,
-             game::CExchangeInterf,
-             sortExchangeInterface,
-             false,
-             isSpecial)
+SORT_MATCHER(sortExchange, L_Special, game::CExchangeInterf, sortExchangeInterface, false, isSpecial)
 SORT_MATCHER(sortExchange, R_Special, game::CExchangeInterf, sortExchangeInterface, true, isSpecial)
+SORT_MATCHER(sortExchange, L_ArmorWeapon, game::CExchangeInterf, sortExchangeInterface, false, isArmor, isWeapon)
+SORT_MATCHER(sortExchange, R_ArmorWeapon, game::CExchangeInterf, sortExchangeInterface, true, isArmor, isWeapon)
+SORT_MATCHER(sortExchange, L_PotionRevivePotionHeal, game::CExchangeInterf, sortExchangeInterface, false, isPotionRevive, isPotionHeal)
+SORT_MATCHER(sortExchange, R_PotionRevivePotionHeal, game::CExchangeInterf, sortExchangeInterface, true, isPotionRevive, isPotionHeal)
 
 // ---- Pickup/Drop sort matchers ----
 SORT_MATCHER(sortPickup, L_Armor, game::CPickUpDropInterf, sortPickupInterface, false, isArmor)
@@ -881,81 +758,35 @@ SORT_MATCHER(sortPickup, L_Weapon, game::CPickUpDropInterf, sortPickupInterface,
 SORT_MATCHER(sortPickup, R_Weapon, game::CPickUpDropInterf, sortPickupInterface, true, isWeapon)
 SORT_MATCHER(sortPickup, L_Banner, game::CPickUpDropInterf, sortPickupInterface, false, isBanner)
 SORT_MATCHER(sortPickup, R_Banner, game::CPickUpDropInterf, sortPickupInterface, true, isBanner)
-
-SORT_MATCHER(sortPickup,
-             L_PotionBoost,
-             game::CPickUpDropInterf,
-             sortPickupInterface,
-             false,
-             isPotionBoost)
-SORT_MATCHER(sortPickup,
-             R_PotionBoost,
-             game::CPickUpDropInterf,
-             sortPickupInterface,
-             true,
-             isPotionBoost)
-SORT_MATCHER(sortPickup,
-             L_PotionHeal,
-             game::CPickUpDropInterf,
-             sortPickupInterface,
-             false,
-             isPotionHeal)
-SORT_MATCHER(sortPickup,
-             R_PotionHeal,
-             game::CPickUpDropInterf,
-             sortPickupInterface,
-             true,
-             isPotionHeal)
-SORT_MATCHER(sortPickup,
-             L_PotionRevive,
-             game::CPickUpDropInterf,
-             sortPickupInterface,
-             false,
-             isPotionRevive)
-SORT_MATCHER(sortPickup,
-             R_PotionRevive,
-             game::CPickUpDropInterf,
-             sortPickupInterface,
-             true,
-             isPotionRevive)
-SORT_MATCHER(sortPickup,
-             L_PotionPerm,
-             game::CPickUpDropInterf,
-             sortPickupInterface,
-             false,
-             isPotionPermanent)
-SORT_MATCHER(sortPickup,
-             R_PotionPerm,
-             game::CPickUpDropInterf,
-             sortPickupInterface,
-             true,
-             isPotionPermanent)
-
+SORT_MATCHER(sortPickup, L_PotionBoost, game::CPickUpDropInterf, sortPickupInterface, false, isPotionBoost)
+SORT_MATCHER(sortPickup, R_PotionBoost, game::CPickUpDropInterf, sortPickupInterface, true, isPotionBoost)
+SORT_MATCHER(sortPickup, L_PotionHeal, game::CPickUpDropInterf, sortPickupInterface, false, isPotionHeal)
+SORT_MATCHER(sortPickup, R_PotionHeal, game::CPickUpDropInterf, sortPickupInterface, true, isPotionHeal)
+SORT_MATCHER(sortPickup, L_PotionRevive, game::CPickUpDropInterf, sortPickupInterface, false, isPotionRevive)
+SORT_MATCHER(sortPickup, R_PotionRevive, game::CPickUpDropInterf, sortPickupInterface, true, isPotionRevive)
+SORT_MATCHER(sortPickup, L_PotionPerm, game::CPickUpDropInterf, sortPickupInterface, false, isPotionPermanent)
+SORT_MATCHER(sortPickup, R_PotionPerm, game::CPickUpDropInterf, sortPickupInterface, true, isPotionPermanent)
 SORT_MATCHER(sortPickup, L_Scroll, game::CPickUpDropInterf, sortPickupInterface, false, isScroll)
 SORT_MATCHER(sortPickup, R_Scroll, game::CPickUpDropInterf, sortPickupInterface, true, isScroll)
 SORT_MATCHER(sortPickup, L_Wand, game::CPickUpDropInterf, sortPickupInterface, false, isWand)
 SORT_MATCHER(sortPickup, R_Wand, game::CPickUpDropInterf, sortPickupInterface, true, isWand)
-
-SORT_MATCHER(sortPickup,
-             L_Valuable,
-             game::CPickUpDropInterf,
-             sortPickupInterface,
-             false,
-             isValuable)
+SORT_MATCHER(sortPickup, L_Valuable, game::CPickUpDropInterf, sortPickupInterface, false, isValuable)
 SORT_MATCHER(sortPickup, R_Valuable, game::CPickUpDropInterf, sortPickupInterface, true, isValuable)
 SORT_MATCHER(sortPickup, L_Orb, game::CPickUpDropInterf, sortPickupInterface, false, isOrb)
 SORT_MATCHER(sortPickup, R_Orb, game::CPickUpDropInterf, sortPickupInterface, true, isOrb)
-SORT_MATCHER(sortPickup,
-             L_Talisman,
-             game::CPickUpDropInterf,
-             sortPickupInterface,
-             false,
-             isTalisman)
+SORT_MATCHER(sortPickup, L_Talisman, game::CPickUpDropInterf, sortPickupInterface, false, isTalisman)
 SORT_MATCHER(sortPickup, R_Talisman, game::CPickUpDropInterf, sortPickupInterface, true, isTalisman)
 SORT_MATCHER(sortPickup, L_Travel, game::CPickUpDropInterf, sortPickupInterface, false, isTravel)
 SORT_MATCHER(sortPickup, R_Travel, game::CPickUpDropInterf, sortPickupInterface, true, isTravel)
 SORT_MATCHER(sortPickup, L_Special, game::CPickUpDropInterf, sortPickupInterface, false, isSpecial)
 SORT_MATCHER(sortPickup, R_Special, game::CPickUpDropInterf, sortPickupInterface, true, isSpecial)
+SORT_MATCHER(sortPickup, L_ArmorWeapon, game::CPickUpDropInterf, sortPickupInterface, false, isArmor, isWeapon)
+SORT_MATCHER(sortPickup, R_ArmorWeapon, game::CPickUpDropInterf, sortPickupInterface, true, isArmor, isWeapon)
+SORT_MATCHER(sortPickup, L_PotionRevivePotionHeal, game::CPickUpDropInterf, sortPickupInterface, false, isPotionRevive, isPotionHeal)
+SORT_MATCHER(sortPickup, R_PotionRevivePotionHeal, game::CPickUpDropInterf, sortPickupInterface, true, isPotionRevive, isPotionHeal)
+
+// clang-format on
+
 
 static void setupCitySortButtons(const game::CCityStackInterfApi::Api& api,
                                  const game::CButtonInterfApi::Api& btn,
@@ -1054,9 +885,10 @@ static void setupExchangeSortButtons(const game::CExchangeInterfApi::Api& api,
         {"TALISMAN", (Callback)sortExchange_L_Talisman, (Callback)sortExchange_R_Talisman},
         {"TRAVEL", (Callback)sortExchange_L_Travel, (Callback)sortExchange_R_Travel},
         {"SPECIAL", (Callback)sortExchange_L_Special, (Callback)sortExchange_R_Special},
-        {"ARMOR_WEAPON", (Callback)sortCity_L_ArmorWeapon, (Callback)sortCity_R_ArmorWeapon},
-        {"POTION_REVIVE_POTION_HEAL", (Callback)sortCity_L_PotionRevivePotionHeal,
-         (Callback)sortCity_R_PotionRevivePotionHeal},
+        {"ARMOR_WEAPON", (Callback)sortExchange_L_ArmorWeapon,
+         (Callback)sortExchange_R_ArmorWeapon},
+        {"POTION_REVIVE_POTION_HEAL", (Callback)sortExchange_L_PotionRevivePotionHeal,
+         (Callback)sortExchange_R_PotionRevivePotionHeal},
     };
 
     for (auto& p : pairs) {
@@ -1114,9 +946,9 @@ static void setupPickupSortButtons(const game::CPickUpDropInterfApi::Api& api,
         {"TALISMAN", (Callback)sortPickup_L_Talisman, (Callback)sortPickup_R_Talisman},
         {"TRAVEL", (Callback)sortPickup_L_Travel, (Callback)sortPickup_R_Travel},
         {"SPECIAL", (Callback)sortPickup_L_Special, (Callback)sortPickup_R_Special},
-        {"ARMOR_WEAPON", (Callback)sortCity_L_ArmorWeapon, (Callback)sortCity_R_ArmorWeapon},
-        {"POTION_REVIVE_POTION_HEAL", (Callback)sortCity_L_PotionRevivePotionHeal,
-         (Callback)sortCity_R_PotionRevivePotionHeal},
+        {"ARMOR_WEAPON", (Callback)sortPickup_L_ArmorWeapon, (Callback)sortPickup_R_ArmorWeapon},
+        {"POTION_REVIVE_POTION_HEAL", (Callback)sortPickup_L_PotionRevivePotionHeal,
+         (Callback)sortPickup_R_PotionRevivePotionHeal},
     };
 
     for (auto& p : pairs) {
