@@ -53,11 +53,42 @@
 #include <optional>
 #include <spdlog/spdlog.h>
 #include <vector>
+#include <windows.h>
 
 namespace hooks {
 
 using ItemFilter = std::function<bool(game::IMidgardObjectMap* objectMap,
                                       const game::CMidgardID* itemId)>;
+
+inline bool isCtrlPressed()
+{
+    return (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+}
+
+inline bool isAltPressed()
+{
+    // VK_MENU == Alt key (both Left and Right)
+    return (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+}
+
+enum class SellMode
+{
+    Normal,          // no modifiers
+    IncludeEquipped, // Ctrl only
+    InstantAll       // Alt (or Ctrl+Alt)
+};
+
+inline SellMode getSellMode()
+{
+    const bool ctrl = isCtrlPressed();
+    const bool alt = isAltPressed();
+
+    if (alt) // Alt has priority over Ctrl
+        return SellMode::InstantAll;
+    if (ctrl)
+        return SellMode::IncludeEquipped;
+    return SellMode::Normal;
+}
 
 static const game::LItemCategory* getItemCategoryById(game::IMidgardObjectMap* objectMap,
                                                       const game::CMidgardID* itemId)
@@ -1367,6 +1398,7 @@ game::CPickUpDropInterf* __fastcall pickupDropInterfCtorHooked(game::CPickUpDrop
 struct SellItemsMsgBoxHandler : public game::CMidMsgBoxButtonHandler
 {
     game::CSiteMerchantInterf* merchantInterf;
+    bool includeEquipped;
 };
 
 void __fastcall sellItemsMsgBoxHandlerDtor(SellItemsMsgBoxHandler* thisptr,
@@ -1381,10 +1413,12 @@ void __fastcall sellItemsMsgBoxHandlerDtor(SellItemsMsgBoxHandler* thisptr,
     }
 }
 
+/** Sends sell-item messages to the server. */
 static void sellItemsToMerchant(game::CPhaseGame* phaseGame,
                                 const game::CMidgardID* merchantId,
                                 const game::CMidgardID* stackId,
-                                std::optional<ItemFilter> itemFilter = std::nullopt)
+                                std::optional<ItemFilter> itemFilter = std::nullopt,
+                                bool includeEquipped = false)
 {
     using namespace game;
 
@@ -1401,7 +1435,7 @@ static void sellItemsToMerchant(game::CPhaseGame* phaseGame,
     auto stack = (CMidStack*)dynamicCast(stackObj, 0, rtti.IMidScenarioObjectType,
                                          rtti.CMidStackType, 0);
     if (!stack) {
-        spdlog::error("Failed to cast scenario oject {:s} to stack", idToString(stackId));
+        spdlog::error("Failed to cast scenario object {:s} to stack", idToString(stackId));
         return;
     }
 
@@ -1411,19 +1445,16 @@ static void sellItemsToMerchant(game::CPhaseGame* phaseGame,
     std::vector<CMidgardID> itemsToSell;
     for (int i = 0; i < itemsTotal; i++) {
         auto item = inventory.vftable->getItem(&inventory, i);
-        if (isItemEquipped(stack->leaderEquippedItems, item)) {
+        if (!includeEquipped && isItemEquipped(stack->leaderEquippedItems, item))
             continue;
-        }
 
-        if (!itemFilter || (itemFilter && (*itemFilter)(objectMap, item))) {
+        if (!itemFilter || (*itemFilter)(objectMap, item))
             itemsToSell.push_back(*item);
-        }
     }
 
     const auto& sendSellItemMsg = NetMessagesApi::get().sendSiteSellItemMsg;
-    for (const auto& item : itemsToSell) {
+    for (const auto& item : itemsToSell)
         sendSellItemMsg(phaseGame, merchantId, stackId, &item);
-    }
 }
 
 void __fastcall sellValuablesMsgBoxHandlerFunction(SellItemsMsgBoxHandler* thisptr,
@@ -1454,29 +1485,33 @@ game::CMidMsgBoxButtonHandlerVftable sellValuablesMsgBoxHandlerVftable{
     (game::CMidMsgBoxButtonHandlerVftable::Destructor)sellItemsMsgBoxHandlerDtor,
     (game::CMidMsgBoxButtonHandlerVftable::Handler)sellValuablesMsgBoxHandlerFunction};
 
+/** Handles the “Sell all items” confirmation box. */
 void __fastcall sellAllItemsMsgBoxHandlerFunction(SellItemsMsgBoxHandler* thisptr,
                                                   int /*%edx*/,
                                                   game::CMidgardMsgBox* msgBox,
                                                   bool okPressed)
 {
     using namespace game;
-
     auto merchant = thisptr->merchantInterf;
     auto phaseGame = merchant->dragDropInterf.phaseGame;
 
     if (okPressed) {
         auto data = merchant->data;
-        sellItemsToMerchant(phaseGame, &data->merchantId, &data->stackId);
+        if (thisptr->includeEquipped) {
+            spdlog::info("[Merchant] Selling ALL items including equipped (CTRL pressed)");
+            sellItemsToMerchant(phaseGame, &data->merchantId, &data->stackId, std::nullopt, true);
+        } else {
+            spdlog::info("[Merchant] Selling unequipped items only");
+            sellItemsToMerchant(phaseGame, &data->merchantId, &data->stackId);
+        }
     }
 
     auto manager = phaseGame->data->interfManager.data;
-    auto vftable = manager->CInterfManagerImpl::CInterfManager::vftable;
-    vftable->hideInterface(manager, msgBox);
-
-    if (msgBox) {
+    manager->CInterfManagerImpl::CInterfManager::vftable->hideInterface(manager, msgBox);
+    if (msgBox)
         msgBox->vftable->destructor(msgBox, 1);
-    }
 }
+
 
 game::CMidMsgBoxButtonHandlerVftable sellAllItemsMsgBoxHandlerVftable{
     (game::CMidMsgBoxButtonHandlerVftable::Destructor)sellItemsMsgBoxHandlerDtor,
@@ -1526,9 +1561,11 @@ static std::string bankToPriceMessage(const game::Bank& bank)
     return priceText;
 }
 
+/** Computes total selling price for all items matching filter. */
 static game::Bank computeItemsSellPrice(game::IMidgardObjectMap* objectMap,
                                         const game::CMidgardID* stackId,
-                                        std::optional<ItemFilter> itemFilter = std::nullopt)
+                                        std::optional<ItemFilter> itemFilter = std::nullopt,
+                                        bool includeEquipped = false)
 {
     using namespace game;
 
@@ -1540,11 +1577,10 @@ static game::Bank computeItemsSellPrice(game::IMidgardObjectMap* objectMap,
 
     const auto dynamicCast = RttiApi::get().dynamicCast;
     const auto& rtti = RttiApi::rtti();
-
     auto stack = (CMidStack*)dynamicCast(stackObj, 0, rtti.IMidScenarioObjectType,
                                          rtti.CMidStackType, 0);
     if (!stack) {
-        spdlog::error("Failed to cast scenario oject {:s} to stack", idToString(stackId));
+        spdlog::error("Failed to cast scenario object {:s} to stack", idToString(stackId));
         return {};
     }
 
@@ -1556,11 +1592,9 @@ static game::Bank computeItemsSellPrice(game::IMidgardObjectMap* objectMap,
     Bank sellPrice{};
     for (int i = 0; i < itemsTotal; ++i) {
         auto item = inventory.vftable->getItem(&inventory, i);
-        if (isItemEquipped(stack->leaderEquippedItems, item)) {
+        if (!includeEquipped && isItemEquipped(stack->leaderEquippedItems, item))
             continue;
-        }
-
-        if (!itemFilter || (itemFilter && (*itemFilter)(objectMap, item))) {
+        if (!itemFilter || (*itemFilter)(objectMap, item)) {
             Bank price{};
             getSellingPrice(&price, objectMap, item);
             bankAdd(&sellPrice, &price);
@@ -1570,6 +1604,7 @@ static game::Bank computeItemsSellPrice(game::IMidgardObjectMap* objectMap,
     return sellPrice;
 }
 
+/** Merchant: “Sell all valuables” button callback. */
 void __fastcall merchantSellValuables(game::CSiteMerchantInterf* thisptr, int /*%edx*/)
 {
     using namespace game;
@@ -1578,29 +1613,44 @@ void __fastcall merchantSellValuables(game::CSiteMerchantInterf* thisptr, int /*
     auto objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
     auto stackId = &thisptr->data->stackId;
 
-    const auto sellPrice = computeItemsSellPrice(objectMap, stackId, isValuable);
-    if (BankApi::get().isZero(&sellPrice)) {
-        // No items to sell
+    const SellMode mode = getSellMode();
+    const bool instantSell = (mode == SellMode::InstantAll);
+
+    // ---- Instant sell (Alt or Ctrl+Alt) ----
+    if (instantSell) {
+        spdlog::info("[Merchant] ALT pressed — instant sell of ALL valuables");
+        sellItemsToMerchant(phaseGame, &thisptr->data->merchantId, stackId, isValuable);
         return;
     }
 
+    // ---- Confirmation dialog ----
+    const auto sellPrice = computeItemsSellPrice(objectMap, stackId, isValuable);
+    if (BankApi::get().isZero(&sellPrice))
+        return;
+
     const auto priceText = bankToPriceMessage(sellPrice);
-    auto message = getInterfaceText(textIds().interf.sellAllValuables.c_str());
-    if (!message.empty()) {
+    std::string message;
+
+    message = getInterfaceText(textIds().interf.sellAllValuables.c_str());
+    if (!message.empty())
         replace(message, "%PRICE%", priceText);
-    } else {
-        // Fallback in case of interface text could not be found
+    else
         message = fmt::format("Do you want to sell all valuables? Revenue will be:\n{:s}",
                               priceText);
-    }
 
     auto memAlloc = Memory::get().allocate;
     auto handler = (SellItemsMsgBoxHandler*)memAlloc(sizeof(SellItemsMsgBoxHandler));
     handler->vftable = &sellValuablesMsgBoxHandlerVftable;
     handler->merchantInterf = thisptr;
+    handler->includeEquipped = false; // redundant, but harmless
+
     hooks::showMessageBox(message, handler, true);
 }
 
+
+
+
+/** Merchant: “Sell all items” button callback. */
 void __fastcall merchantSellAll(game::CSiteMerchantInterf* thisptr, int /*%edx*/)
 {
     using namespace game;
@@ -1609,28 +1659,55 @@ void __fastcall merchantSellAll(game::CSiteMerchantInterf* thisptr, int /*%edx*/
     auto objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
     auto stackId = &thisptr->data->stackId;
 
-    const auto sellPrice = computeItemsSellPrice(objectMap, stackId);
-    if (BankApi::get().isZero(&sellPrice)) {
-        // No items to sell
+    const SellMode mode = getSellMode();
+    const bool includeEquipped = (mode != SellMode::Normal);
+    const bool instantSell = (mode == SellMode::InstantAll);
+
+    // ---- Instant sell (Alt or Ctrl+Alt) ----
+    if (instantSell) {
+        spdlog::info("[Merchant] ALT pressed — instant sell of ALL items (including equipped)");
+        sellItemsToMerchant(phaseGame, &thisptr->data->merchantId, stackId, std::nullopt, true);
         return;
     }
 
+    // ---- Confirmation dialog ----
+    const auto sellPrice = computeItemsSellPrice(objectMap, stackId, std::nullopt, includeEquipped);
+    if (BankApi::get().isZero(&sellPrice))
+        return;
+
     const auto priceText = bankToPriceMessage(sellPrice);
-    auto message = getInterfaceText(textIds().interf.sellAllItems.c_str());
-    if (!message.empty()) {
-        replace(message, "%PRICE%", priceText);
+    std::string message;
+
+    if (includeEquipped) {
+        // Try to use specific text id for equipped sale
+        message = getInterfaceText(textIds().interf.sellAllItems.c_str());
+        if (!message.empty())
+            replace(message, "%PRICE%", priceText);
+        else
+            message = fmt::format(
+                "Do you want to sell ALL items (including equipped)? Revenue will be:\n{:s}",
+                priceText);
     } else {
-        // Fallback in case of interface text could not be found
-        message = fmt::format("Do you want to sell all items? Revenue will be:\n{:s}", priceText);
+        message = getInterfaceText(textIds().interf.sellAllItemsUnequipped.c_str());
+        if (!message.empty())
+            replace(message, "%PRICE%", priceText);
+        else
+            message = fmt::format(
+                "Do you want to sell all unequipped items? Revenue will be:\n{:s}", priceText);
     }
 
     auto memAlloc = Memory::get().allocate;
     auto handler = (SellItemsMsgBoxHandler*)memAlloc(sizeof(SellItemsMsgBoxHandler));
     handler->vftable = &sellAllItemsMsgBoxHandlerVftable;
     handler->merchantInterf = thisptr;
+    handler->includeEquipped = includeEquipped;
+
     hooks::showMessageBox(message, handler, true);
 }
 
+
+
+/** Hook merchant interface constructor and assign buttons. */
 game::CSiteMerchantInterf* __fastcall siteMerchantInterfCtorHooked(
     game::CSiteMerchantInterf* thisptr,
     int /*%edx*/,
@@ -1654,18 +1731,18 @@ game::CSiteMerchantInterf* __fastcall siteMerchantInterfCtorHooked(
     SmartPointer functor;
 
     const auto& dialogApi = CDialogInterfApi::get();
-    const auto& merchantInterf = CSiteMerchantInterfApi::get();
+    const auto& merchantApi = CSiteMerchantInterfApi::get();
 
     if (dialogApi.findControl(dialog, "BTN_SELL_ALL_VALUABLES")) {
         callback.callback = (ButtonCallback::Callback)merchantSellValuables;
-        merchantInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
+        merchantApi.createButtonFunctor(&functor, 0, thisptr, &callback);
         button.assignFunctor(dialog, "BTN_SELL_ALL_VALUABLES", dialogName, &functor, 0);
         freeFunctor(&functor, nullptr);
     }
 
     if (dialogApi.findControl(dialog, "BTN_SELL_ALL")) {
         callback.callback = (ButtonCallback::Callback)merchantSellAll;
-        merchantInterf.createButtonFunctor(&functor, 0, thisptr, &callback);
+        merchantApi.createButtonFunctor(&functor, 0, thisptr, &callback);
         button.assignFunctor(dialog, "BTN_SELL_ALL", dialogName, &functor, 0);
         freeFunctor(&functor, nullptr);
     }
