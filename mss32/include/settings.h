@@ -224,8 +224,6 @@ struct Settings
     } battle;
 
     bool debugMode;
-<<<<<<< Updated upstream
-=======
 
     bool alchemistKeepsAttackCount;
     bool instantBuffRemoval;
@@ -244,7 +242,7 @@ struct Settings
         bool boostdamageCanAffectHealer;
 
     } extendedBattle;
->>>>>>> Stashed changes
+
 };
 
 const Settings& baseSettings();

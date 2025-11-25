@@ -28,6 +28,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <batviewer.h>
 
 namespace game {
 struct DialogScriptData;
@@ -138,6 +139,13 @@ bool __fastcall giveAttackCanPerformHooked(game::CBatAttackGiveAttack* thisptr,
                                            game::IMidgardObjectMap* objectMap,
                                            game::BattleMsgData* battleMsgData,
                                            game::CMidgardID* unitId);
+
+void __fastcall giveAttackOnHitHooked(game::CBatAttackShatter* thisptr,
+                                      int /*%edx*/,
+                                      game::IMidgardObjectMap* objectMap,
+                                      game::BattleMsgData* battleMsgData,
+                                      game::CMidgardID* unitId,
+                                      game::BattleAttackInfo** attackInfo);
 
 bool __fastcall shatterCanPerformHooked(game::CBatAttackShatter* thisptr,
                                         int /*%edx*/,
@@ -323,8 +331,6 @@ game::String* __stdcall getSiteSoundHooked(game::String* soundName, const game::
 
 bool __stdcall siteHasSoundHooked(const game::CMidSite* site);
 
-<<<<<<< Updated upstream
-=======
 void __fastcall setUnitStatusHooked(const game::BattleMsgData* thisptr,
                            int /*%edx*/,
                            const game::CMidgardID* unitId,
@@ -344,8 +350,6 @@ bool __fastcall lowerDamageCanPerformHooked(game::CBatAttackLowerDamage* thisptr
                                             game::IMidgardObjectMap* objectMap,
                                             game::BattleMsgData* battleMsgData,
                                             game::CMidgardID* unitId);
-
->>>>>>> Stashed changes
 } // namespace hooks
 
 #endif // HOOKS_H

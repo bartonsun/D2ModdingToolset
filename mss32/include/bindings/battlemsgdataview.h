@@ -136,8 +136,6 @@ public:
     int getUnitTransformRound(const UnitView& unit) const;
     int getUnitTransformRoundById(const IdView& unitId) const;
 
-<<<<<<< Updated upstream
-=======
     int getUnitAttackCount(const IdView& unitId) const;
     UnitView getUnitTurn() const;
     bool setUnitAttackCount(const IdView& unitId, int value);
@@ -155,7 +153,6 @@ public:
 
     void setRevivedStatus(const IdView& unitId, bool status);
 
->>>>>>> Stashed changes
 protected:
     template <typename T>
     static void bindAccessMethods(T& view)
@@ -211,12 +208,8 @@ protected:
         view["getUnitBlisterRound"] = sol::overload<>(&BattleMsgDataView::getUnitBlisterRound,
                                                       &BattleMsgDataView::getUnitBlisterRoundById);
 
-        view["getUnitTransformRound"] = sol::overload<>(
-            &BattleMsgDataView::getUnitTransformRound,
-            &BattleMsgDataView::getUnitTransformRoundById);
-<<<<<<< Updated upstream
-=======
-
+        view["getUnitTransformRound"] = sol::overload<>(&BattleMsgDataView::getUnitTransformRound,
+                                                        &BattleMsgDataView::getUnitTransformRoundById);
         view["GetUnitAttackCount"] = &BattleMsgDataView::getUnitAttackCount;
         view["GetUnitTurn"] = &BattleMsgDataView::getUnitTurn;
         view["SetUnitAttackCount"] = &BattleMsgDataView::setUnitAttackCount;
@@ -230,7 +223,6 @@ protected:
         view["RemoveAttackSourceWard"] = &BattleMsgDataView::removeAttackSourceWard;
         view["RemoveAttackClassWard"] = &BattleMsgDataView::removeAttackClassWard;
         view["SetRevivedStatus"] = &BattleMsgDataView::setRevivedStatus;
->>>>>>> Stashed changes
     }
 
 private:

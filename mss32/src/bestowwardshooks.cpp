@@ -27,8 +27,7 @@
 #include "midgardobjectmap.h"
 #include "modifierutils.h"
 #include "usunit.h"
-<<<<<<< Updated upstream
-=======
+
 #include "ussoldier.h"
 #include <attackutils.h>
 #include <sol/sol.hpp>
@@ -36,7 +35,6 @@
 #include <batattackboostdamage.h>
 #include <batattackheal.h>
 #include <visitors.h>
->>>>>>> Stashed changes
 
 namespace hooks {
 
@@ -147,16 +145,10 @@ void __fastcall bestowWardsAttackOnHitHooked(game::CBatAttackBestowWards* thispt
 {
     using namespace game;
 
+    auto& fn = gameFunctions();
+
     auto targetUnit = static_cast<CMidUnit*>(
         objectMap->vftable->findScenarioObjectByIdForChange(objectMap, targetUnitId));
-
-    int qtyHealed = 0;
-    if (BattleMsgDataApi::get().unitCanBeHealed(objectMap, battleMsgData, targetUnitId)) {
-        const auto attack = thisptr->attackImpl;
-        const auto qtyHeal = attack->vftable->getQtyHeal(attack);
-        if (qtyHeal > 0)
-            qtyHealed = heal(objectMap, battleMsgData, targetUnit, qtyHeal);
-    }
 
     if (unitCanBeModified(battleMsgData, targetUnitId)) {
         const auto attack = thisptr->attackImpl;
@@ -168,8 +160,7 @@ void __fastcall bestowWardsAttackOnHitHooked(game::CBatAttackBestowWards* thispt
             }
         }
     }
-<<<<<<< Updated upstream
-=======
+
     //Prevents healing if the target has Heal resistance
     bool healResistance = false;
 
@@ -196,7 +187,6 @@ void __fastcall bestowWardsAttackOnHitHooked(game::CBatAttackBestowWards* thispt
         if (qtyHeal > 0)
             qtyHealed = heal(objectMap, battleMsgData, targetUnit, qtyHeal);
     }
->>>>>>> Stashed changes
 
     BattleAttackUnitInfo info{};
     info.unitId = targetUnit->id;
@@ -212,8 +202,6 @@ bool __fastcall bestowWardsMethod15Hooked(game::CBatAttackBestowWards* thisptr,
     return true;
 }
 
-<<<<<<< Updated upstream
-=======
 bool __fastcall bestowWardsAttackIsImmuneHooked(game::CBatAttackBestowWards* thisptr,
                                                 int /*%edx*/,
                                                 game::IMidgardObjectMap* objectMap,
@@ -388,5 +376,4 @@ void __fastcall healAttackOnHitHooked(game::CBatAttackHeal* thisptr,
     BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
 }
 
->>>>>>> Stashed changes
 } // namespace hooks

@@ -531,13 +531,10 @@ const Settings& baseSettings()
         settings.movementCost.show = false;
         settings.battle.fallbackAction = game::BattleAction::Defend;
         settings.debugMode = false;
-<<<<<<< Updated upstream
-=======
 
         settings.alchemistKeepsAttackCount = false;
         settings.instantBuffRemoval = false;
         settings.reviveUsesQtyHeal = false;
->>>>>>> Stashed changes
 
         settings.extendedBattle.dotDamageCanStack = false;
         settings.extendedBattle.blisterDamageID = "g202aa";

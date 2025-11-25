@@ -49,8 +49,6 @@ bool __fastcall bestowWardsMethod15Hooked(game::CBatAttackBestowWards* thisptr,
                                           int /*%edx*/,
                                           game::BattleMsgData* battleMsgData);
 
-<<<<<<< Updated upstream
-=======
 bool __fastcall bestowWardsAttackIsImmuneHooked(game::CBatAttackBestowWards* thisptr,
                                                 int /*%edx*/,
                                                 game::IMidgardObjectMap* objectMap,
@@ -76,7 +74,6 @@ void __fastcall healAttackOnHitHooked(game::CBatAttackHeal* thisptr,
                                       game::BattleMsgData* battleMsgData,
                                       game::CMidgardID* targetUnitId,
                                       game::BattleAttackInfo** attackInfo);
->>>>>>> Stashed changes
 } // namespace hooks
 
 #endif // BESTOWWARDSHOOKS_H

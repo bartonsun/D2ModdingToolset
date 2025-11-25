@@ -28,6 +28,11 @@
 #include "playerview.h"
 #include "stackview.h"
 #include <sol/sol.hpp>
+#include <modifierutils.h>
+#include <settings.h>
+#include <visitors.h>
+#include <midunit.h>
+#include <ussoldier.h>
 
 namespace bindings {
 
@@ -260,10 +265,20 @@ bool BattleMsgDataView::isUnitResistantToSourceById(const IdView& unitId, int so
 {
     using namespace game;
 
+    auto& fn = gameFunctions();
+
     auto attackSource{hooks::getAttackSourceById(static_cast<game::AttackSourceId>(sourceId))};
     if (!attackSource) {
         return false;
     }
+
+    const CMidUnit* targetUnit = fn.findUnitById(objectMap, &unitId.id);
+    const IUsSoldier* targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
+    const LImmuneCat* immuneCat = targetSoldier->vftable->getImmuneByAttackSource(targetSoldier,
+                                                                                  attackSource);
+
+    if (immuneCat->id == ImmuneCategories::get().always->id)
+        return true;
 
     return !BattleMsgDataApi::get().isUnitAttackSourceWardRemoved(battleMsgData, &unitId.id,
                                                                   attackSource);
@@ -278,10 +293,20 @@ bool BattleMsgDataView::isUnitResistantToClassById(const IdView& unitId, int cla
 {
     using namespace game;
 
+    auto& fn = gameFunctions();
+
     auto attackClass{hooks::getAttackClassById(static_cast<AttackClassId>(classId))};
     if (!attackClass) {
         return false;
     }
+
+    const CMidUnit* targetUnit = fn.findUnitById(objectMap, &unitId.id);
+    const IUsSoldier* targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
+    const LImmuneCat* immuneCat = targetSoldier->vftable->getImmuneByAttackClass(targetSoldier,
+                                                                                 attackClass);
+
+    if (immuneCat->id == ImmuneCategories::get().always->id)
+        return true;
 
     return BattleMsgDataApi::get().isUnitAttackClassWardRemoved(battleMsgData, &unitId.id,
                                                                 attackClass);
@@ -417,8 +442,6 @@ std::optional<PlayerView> BattleMsgDataView::getPlayer(const game::CMidgardID& p
     return PlayerView{player, objectMap};
 }
 
-<<<<<<< Updated upstream
-=======
 int BattleMsgDataView::getUnitAttackCount(const IdView& unitId) const
 {
     int attackCount = 0;
@@ -752,5 +775,5 @@ void BattleMsgDataView::setRevivedStatus(const IdView& unitId, bool status)
     info->unitFlags.parts.revived = status;
 
 }
->>>>>>> Stashed changes
+
 } // namespace bindings

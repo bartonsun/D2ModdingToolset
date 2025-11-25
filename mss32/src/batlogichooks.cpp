@@ -24,8 +24,12 @@
 #include "midunit.h"
 #include "originalfunctions.h"
 #include "unitinfolist.h"
-#include "unitinfolist.h"
 
+#include "battlemsgdataviewmutable.h"
+#include "gameutils.h"
+#include "groupview.h"
+#include "scripts.h"
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -71,7 +75,8 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
 
             CMidUnit* unit = fn.findUnitById(thisptr->objectMap, &unitId);
             if (unit) {
-                if (battleApi.getUnitStatus(thisptr->battleMsgData, &unitId, BattleStatus::Summon)) {
+                if (battleApi.getUnitStatus(thisptr->battleMsgData, &unitId,
+                                            BattleStatus::Summon)) {
                     batLogicApi.applyCBatAttackUnsummonEffect(thisptr->objectMap, &unitId,
                                                               thisptr->battleMsgData, resultSender);
 
@@ -86,7 +91,6 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
             }
         }
 
-        
         CMidgardID winnerGroup1Id;
         batLogicApi.getBattleWinnerGroupId(thisptr, &winnerGroup1Id);
 
@@ -100,13 +104,30 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
         CMidgardID winnerGroup2Id;
         batLogicApi.getBattleWinnerGroupId(thisptr, &winnerGroup2Id);
 
-
         batLogicApi.applyCBatAttackGroupBattleCount(thisptr->objectMap, &winnerGroup2Id,
                                                     battleMsgData2, resultSender);
 
         batLogicApi.restoreLeaderPositionsAfterDuel(thisptr->objectMap, thisptr->battleMsgData);
 
         listApi.destructor(&unitInfos);
+
+        std::optional<sol::environment> env;
+        auto f = getScriptFunction(scriptsFolder() / "hooks/hooks.lua", "OnBattleEnd", env, false,
+                                   true);
+        if (f) {
+            try {
+                auto objectMap = hooks::getObjectMap();
+                // const bindings::BattleMsgDataView battleMsg{battleMsgData2, objectMap};
+                const auto winnerGroup = hooks::getGroup(objectMap, &winnerGroup2Id);
+                const bindings::GroupView win{winnerGroup, objectMap, &winnerGroup2Id};
+
+                (*f)(win);
+            } catch (const std::exception& e) {
+                showErrorMessageBox(fmt::format("Failed to run 'OnBattleEnd' script.\n"
+                                                "Reason: '{:s}'",
+                                                e.what()));
+            }
+        }
     }
 }
 

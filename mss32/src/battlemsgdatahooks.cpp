@@ -402,6 +402,50 @@ void __fastcall beforeBattleRoundHooked(game::BattleMsgData* thisptr, int /*%edx
     freeTransformSelf.unitId = emptyId;
     freeTransformSelf.turnCount = 0;
     freeTransformSelf.used = false;
+
+    // Fixed a bug where the buff wouldn't disappear after the support died
+    auto objectMap = const_cast<game::IMidgardObjectMap*>(hooks::getObjectMap());
+
+    auto attackers = hooks::getGroup(objectMap, &thisptr->attackerGroupId, false);
+    auto defenders = hooks::getGroup(objectMap, &thisptr->defenderGroupId, false);
+    auto attUnits = attackers->units;
+    auto defUnits = defenders->units;
+
+    for (game::CMidgardID* it = attUnits.bgn; it != attUnits.end; it++) {
+        if (BattleMsgDataApi::get().getUnitStatus(thisptr, it, BattleStatus::Dead)) {
+            auto unitInfo = BattleMsgDataApi::get().getUnitInfoById(thisptr, it);
+            auto modifiedUnitIds = getModifiedUnitIds(unitInfo);
+            for (auto it = modifiedUnitIds.begin(); it != modifiedUnitIds.end(); it++)
+                removeModifiers(thisptr, objectMap, unitInfo, &(*it));
+            resetModifiedUnitsInfo(unitInfo);
+        }
+    }
+
+    for (game::CMidgardID* it = defUnits.bgn; it != defUnits.end; it++) {
+        if (BattleMsgDataApi::get().getUnitStatus(thisptr, it, BattleStatus::Dead)) {
+            auto unitInfo = BattleMsgDataApi::get().getUnitInfoById(thisptr, it);
+            auto modifiedUnitIds = getModifiedUnitIds(unitInfo);
+            for (auto it = modifiedUnitIds.begin(); it != modifiedUnitIds.end(); it++)
+                removeModifiers(thisptr, objectMap, unitInfo, &(*it));
+            resetModifiedUnitsInfo(unitInfo);
+        }
+    }
+
+    // Hooks
+    std::optional<sol::environment> env;
+    auto f = getScriptFunction(scriptsFolder() / "hooks/hooks.lua", "OnBeforeBattleRound", env,
+                               false, true);
+    if (f) {
+        try {
+            const bindings::BattleMsgDataView battleMsg{thisptr, getObjectMap()};
+
+            (*f)(battleMsg);
+        } catch (const std::exception& e) {
+            showErrorMessageBox(fmt::format("Failed to run 'OnBeforeBattleRound' script.\n"
+                                            "Reason: '{:s}'",
+                                            e.what()));
+        }
+    }
 }
 
 void __stdcall aiChooseBattleActionHooked(const game::IMidgardObjectMap* objectMap,

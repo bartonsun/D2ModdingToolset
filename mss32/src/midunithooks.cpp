@@ -38,6 +38,9 @@
 #include "usunit.h"
 #include "usunitimpl.h"
 #include <spdlog/spdlog.h>
+#include <gameutils.h>
+#include <version.h>
+#include "modifierview.h"
 
 namespace hooks {
 
@@ -55,12 +58,35 @@ bool __fastcall removeModifierHooked(game::CMidUnit* thisptr,
     using namespace game;
 
     const auto& umModifierApi = CUmModifierApi::get();
+    auto version = gameVersion();
 
     if (!thisptr) {
         return false;
     }
 
+    bool OnRemoveModifier = true;
+    const bindings::UnitView target{thisptr};
+    const auto unitModifier = getUnitModifier(modifierId);
+    const bindings::ModifierView mods{unitModifier->vftable->createModifier(unitModifier)};
+
+    std::optional<sol::environment> env;
+    auto hookOnRemoveModifier = getScriptFunction(scriptsFolder() / "hooks/modifiers.lua",
+                                                  "OnRemoveModifier", env, false, true);
+    if (version != GameVersion::ScenarioEditor && hookOnRemoveModifier) {
+        try {
+            OnRemoveModifier = (*hookOnRemoveModifier)(target, mods);
+        } catch (const std::exception& e) {
+            showErrorMessageBox(fmt::format("Failed to run 'OnRemoveModifier' script.\n"
+                                            "Reason: '{:s}'",
+                                            e.what()));
+            OnRemoveModifier = true;
+        }
+    }
+    if (!OnRemoveModifier)
+        return false;
+
     CUmModifier* modifier = nullptr;
+    int maxHpBefore = getUnitHpMax(thisptr);
     for (auto curr = thisptr->unitImpl; curr; curr = modifier->data->prev) {
         modifier = castUnitToUmModifier(curr);
         if (!modifier) {
@@ -85,8 +111,6 @@ bool __fastcall removeModifierHooked(game::CMidUnit* thisptr,
                 notifyModifiersChanged(thisptr->unitImpl);
             }
 
-<<<<<<< Updated upstream
-=======
             /* We realy dont need this
             auto ModifierRemoved = getScriptFunction(scriptsFolder() / "hooks/modifiers.lua",
                                                      "ModifierRemoved",
@@ -103,13 +127,13 @@ bool __fastcall removeModifierHooked(game::CMidUnit* thisptr,
             */
             int maxHp = getUnitHpMax(thisptr);
 
-            if (version != GameVersion::ScenarioEditor && maxHp > maxHpBefore)
+            if (gameVersion() != GameVersion::ScenarioEditor && maxHp > maxHpBefore)
             {
                 int diff = maxHp - maxHpBefore;
                 game::IMidgardObjectMap* objectMap = const_cast<game::IMidgardObjectMap*>(hooks::getObjectMap());
                 VisitorApi::get().changeUnitHp(&thisptr->id, diff, objectMap, 1);
             } 
-            else if (version != GameVersion::ScenarioEditor && maxHp < maxHpBefore)
+            else if (gameVersion() != GameVersion::ScenarioEditor && maxHp < maxHpBefore)
             {
                 int diff = maxHp - maxHpBefore;
                 int curHp = thisptr->currentHp - diff;
@@ -119,7 +143,6 @@ bool __fastcall removeModifierHooked(game::CMidUnit* thisptr,
                 VisitorApi::get().changeUnitHp(&thisptr->id, diff, objectMap, 1);
             }
 
->>>>>>> Stashed changes
             modifier->vftable->destructor(modifier, true);
             return true;
         }

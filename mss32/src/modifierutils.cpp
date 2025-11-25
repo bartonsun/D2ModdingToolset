@@ -35,6 +35,12 @@
 #include "umunit.h"
 #include "unitmodifier.h"
 #include "ussoldier.h"
+#include "version.h"
+#include "unitutils.h"
+#include "visitors.h"
+#include "modifierview.h"
+#include "gameutils.h"
+#include <fmt/format.h>
 
 namespace hooks {
 
@@ -454,10 +460,14 @@ bool applyModifier(const game::CMidgardID* unitId,
 {
     using namespace game;
 
+    // Fixed situation, when OnAddModifier return false, but battle modifier can be applied on unit
+    bool applyed = CMidUnitApi::get().addModifier(targetUnit, modifierId);
+    if (!applyed) {
+        return false;
+    }
+
     if (!addModifiedUnitInfo(unitId, battleMsgData, targetUnit, modifierId))
         return false;
-
-    CMidUnitApi::get().addModifier(targetUnit, modifierId);
 
     // Fixes modifiers getting lost after modified unit is untransformed
     if (targetUnit->transformed)
@@ -475,6 +485,9 @@ bool applyModifier(const game::CMidgardID* unitId,
             resetUnitAttackClassWard(battleMsgData, &targetUnit->id, umUnit);
     }
 
+    // Unit HP adjustment
+    BattleMsgDataApi::get().setUnitHp(battleMsgData, &targetUnit->id, targetUnit->currentHp);
+
     return true;
 }
 
@@ -487,12 +500,20 @@ void removeModifier(game::BattleMsgData* battleMsgData,
     if (unit == nullptr) // Prevents the same crash with summoners that appears in removeModifier
         return;
 
-    CMidUnitApi::get().removeModifier(unit, modifierId);
+    bool removed = CMidUnitApi::get().removeModifier(
+        unit, modifierId); // Prevent next steps if we dont want remove modifier
 
-    // Fixes modifiers becoming permanent after modified unit is transformed
-    removeIdFromList(unit->origModifiers, modifierId);
+    if (removed) {
+        // Fixes modifiers becoming permanent after modified unit is transformed
+        removeIdFromList(unit->origModifiers, modifierId);
 
-    BattleMsgDataApi::get().resetUnitModifierInfo(battleMsgData, &unit->id, modifierId);
+        BattleMsgDataApi::get().resetUnitModifierInfo(battleMsgData, &unit->id, modifierId);
+
+        // Unit HP adjustment
+        int maxHp = getUnitHpMax(unit);
+        if (unit->currentHp > maxHp)
+            BattleMsgDataApi::get().setUnitHp(battleMsgData, &unit->id, maxHp);
+    }
 }
 
 void removeModifiers(game::BattleMsgData* battleMsgData,
@@ -736,8 +757,6 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
         return false;
     }
 
-<<<<<<< Updated upstream
-=======
     bool OnAddModifier = true;
     std::optional<sol::environment> env;
 
@@ -748,7 +767,7 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
     const bindings::UnitView target{unit};
     const bindings::ModifierView mods{unitModifier->vftable->createModifier(unitModifier)};
 
-    if (version != GameVersion::ScenarioEditor &&  BeforeAddModifier) {
+    if (gameVersion() != GameVersion::ScenarioEditor &&  BeforeAddModifier) {
         try {
             OnAddModifier = (*BeforeAddModifier)(target, mods);
         } catch (const std::exception& e) {
@@ -765,7 +784,6 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
     const int maxHpBefore = getUnitHpMax(unit);
     const int curHp = unit->currentHp;
 
->>>>>>> Stashed changes
     auto modifier = unitModifier->vftable->createModifier(unitModifier);
 
     auto prevModifier = castUnitToUmModifier(unit->unitImpl);
@@ -784,20 +802,19 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
         notifyModifiersChanged(unit->unitImpl);
     }
 
-<<<<<<< Updated upstream
-=======
     const int maxHp = getUnitHpMax(unit);
 
     //Prevent crash in Scenario Editor
     //Add extra HP if got +maxHp and remove if -maxHp
-    if (version != GameVersion::ScenarioEditor && (maxHp > maxHpBefore || (maxHp < maxHpBefore && unit->currentHp > maxHp)))
+    if (gameVersion() != GameVersion::ScenarioEditor
+        && (maxHp > maxHpBefore || (maxHp < maxHpBefore && unit->currentHp > maxHp)))
     {
         int diff = maxHp - maxHpBefore;
         game::IMidgardObjectMap* objectMap = const_cast<game::IMidgardObjectMap*>(hooks::getObjectMap());
         VisitorApi::get().changeUnitHp(&unit->id, diff, objectMap, 1);
     }
 
-    if (version != GameVersion::ScenarioEditor &&  ModifierApplyed) {
+    if (gameVersion() != GameVersion::ScenarioEditor && ModifierApplyed) {
         try {
             (*ModifierApplyed)(target, mods);
         } catch (const std::exception& e) {
@@ -807,7 +824,6 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
         }
     }
 
->>>>>>> Stashed changes
     return true;
 }
 

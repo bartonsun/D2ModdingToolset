@@ -230,8 +230,6 @@
 #include <spdlog/spdlog.h>
 #include <string>
 
-<<<<<<< Updated upstream
-=======
 #include "battlemsgdataview.h"
 #include <sol/sol.hpp>
 #include <scripts.h>
@@ -249,7 +247,6 @@
 
 #include "taskspell.h"
 
->>>>>>> Stashed changes
 namespace hooks {
 
 /** Hooks that used only in game. */
@@ -273,7 +270,25 @@ static Hooks getGameHooks()
         {CBuildingBranchApi::get().constructor, buildingBranchCtorHooked},
         // Allow alchemists to buff retreating units
         {CBatAttackGiveAttackApi::vftable()->canPerform, giveAttackCanPerformHooked},
+
+        //////////////////////////////////////////////////////
+        //Custom DOT damage
+        //{CBatAttackBlisterApi::vftable()->canPerform, blisterCanPerformHooked},
+        //{CBatAttackBlisterApi::vftable()->onHit, blisterOnHitHooked},
+        //{CBatAttackFrostbiteApi::vftable()->canPerform, frostbiteCanPerformHooked},
+        //{CBatAttackFrostbiteApi::vftable()->onHit, frostbiteOnHitHooked},
+        //{CBatAttackPoisonApi::vftable()->canPerform, poisonCanPerformHooked},
+        //{CBatAttackPoisonApi::vftable()->onHit, poisonOnHitHooked},
+
+        //{CBatAttackBoostDamageApi::vftable()->canPerform, boostDamageCanPerformHooked},
+        //{CBatAttackBoostDamageApi::vftable()->onHit, boostDamageOnHitHooked},
+
+        //LowerDamage can hit healers
+        //{CBatAttackLowerDamageApi::vftable()->canPerform, lowerDamageCanPerformHooked},
+
         {CBatAttackHealApi::vftable()->onHit, healAttackOnHitHooked},
+        //////////////////////////////////////////////////////
+        
         // Random scenario generator
         {CMenuNewSkirmishSingleApi::get().constructor, menuNewSkirmishSingleCtorHooked, (void**)&orig.menuNewSkirmishSingleCtor},
         {CMenuNewSkirmishHotseatApi::get().constructor, menuNewSkirmishHotseatCtorHooked, (void**)&orig.menuNewSkirmishHotseatCtor},
@@ -507,8 +522,6 @@ static Hooks getGameHooks()
     };
     // clang-format on
 
-<<<<<<< Updated upstream
-=======
     //Extended battle options
     if (userSettings().extendedBattle.dotDamageCanStack != baseSettings().extendedBattle.dotDamageCanStack) {
         hooks.emplace_back(
@@ -551,7 +564,6 @@ static Hooks getGameHooks()
             HookInfo{battle.unitCanBeCured, unitCanBeCuredHooked, (void**)&orig.unitCanBeCured});
     }
 
->>>>>>> Stashed changes
     if (userSettings().engine.sendRefreshInfoObjectCountLimit) {
         // Fix incomplete scenario loading when its object size exceed network message buffer size
         // of 512 KB
@@ -1473,6 +1485,49 @@ bool __fastcall giveAttackCanPerformHooked(game::CBatAttackGiveAttack* thisptr,
     return secondAttackClass->id != attackCategories.giveAttack->id;
 }
 
+void __fastcall giveAttackOnHitHooked(game::CBatAttackShatter* thisptr,
+                                      int /*%edx*/,
+                                      game::IMidgardObjectMap* objectMap,
+                                      game::BattleMsgData* battleMsgData,
+                                      game::CMidgardID* unitId,
+                                      game::BattleAttackInfo** attackInfo)
+{
+    using namespace game;
+    auto& fn = gameFunctions();
+
+    const auto unit = gameFunctions().findUnitById(objectMap, unitId);
+
+    const auto soldier = gameFunctions().castUnitImplToSoldier(unit->unitImpl);
+    bool attackTwice = soldier && soldier->vftable->getAttackTwice(soldier);
+
+    auto& turns = battleMsgData->turnsOrder;
+
+    int attackCount = 0;
+
+    for (int i = 0; i < sizeof(turns) / sizeof(turns[0]); i++) {
+        if (turns[i].unitId == *unitId) {
+            attackCount = turns[i].attackCount;
+            break;
+        }
+    }
+
+    turns[0].unitId = *unitId;
+
+    if (attackCount == 0) {
+        if (attackTwice)
+            turns[0].attackCount = 2;
+        else
+            turns[0].attackCount = 1;
+    } else
+        turns[0].attackCount = attackCount;
+
+    BattleAttackUnitInfo info{};
+    info.unitId = *unitId;
+    info.unitImplId = unit->unitImpl->id;
+
+    BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+}
+
 bool __fastcall shatterCanPerformHooked(game::CBatAttackShatter* thisptr,
                                         int /*%edx*/,
                                         game::IMidgardObjectMap* objectMap,
@@ -1841,12 +1896,42 @@ void __stdcall afterBattleTurnHooked(game::BattleMsgData* battleMsgData,
 {
     using namespace game;
 
+    const auto& fn = gameFunctions();
+    const auto& battle = BattleMsgDataApi::get();
+
     if (*unitId != *nextUnitId) {
         battleMsgData->battleStateFlags2.parts.shouldUpdateUnitEffects = true;
-        BattleMsgDataApi::get().removeFiniteBoostLowerDamage(battleMsgData, unitId);
+        battle.removeFiniteBoostLowerDamage(battleMsgData, unitId);
+    }
+
+    // Disable Wait/Defend/Retreat for SetUnitAttackCount
+    auto unitInfo = battle.getUnitInfoById(battleMsgData, nextUnitId);
+    if (*nextUnitId == *unitId
+        && !battle.getUnitStatus(battleMsgData, unitId, BattleStatus::Defend)) {
+        if (unitInfo)
+            unitInfo->unitFlags.parts.attackedOnceOfTwice = true;
     }
 
     currUnitId = *unitId;
+
+    std::optional<sol::environment> env;
+    auto f = getScriptFunction(scriptsFolder() / "hooks/hooks.lua", "OnAfterBattleTurn", env, false,
+                               true);
+    if (f) {
+        try {
+            CMidUnit* cMidUnit = fn.findUnitById(getObjectMap(), unitId);
+            CMidUnit* cMidUnitNext = fn.findUnitById(getObjectMap(), nextUnitId);
+            const bindings::BattleMsgDataView battleMsg{battleMsgData, getObjectMap()};
+            const bindings::UnitView unit{cMidUnit};
+            const bindings::UnitView unitNext{cMidUnitNext};
+
+            (*f)(battleMsg, unit, unitNext);
+        } catch (const std::exception& e) {
+            showErrorMessageBox(fmt::format("Failed to run 'OnAfterBattleTurn' script.\n"
+                                            "Reason: '{:s}'",
+                                            e.what()));
+        }
+    }
 }
 
 void __stdcall beforeBattleTurnHooked(game::BattleMsgData* battleMsgData,
@@ -1855,7 +1940,9 @@ void __stdcall beforeBattleTurnHooked(game::BattleMsgData* battleMsgData,
 {
     using namespace game;
 
+    const auto& fn = gameFunctions();
     const auto& battle = BattleMsgDataApi::get();
+
     battle.setUnitStatus(battleMsgData, unitId, BattleStatus::Defend, false);
 
     // Fix bestow wards with double attack where modifiers granted by first attack are removed
@@ -1884,6 +1971,23 @@ void __stdcall beforeBattleTurnHooked(game::BattleMsgData* battleMsgData,
             unitInfo->unitFlags.parts.attackedOnceOfTwice = true;
     }
     freeTransformSelf.turnCount++;
+
+    std::optional<sol::environment> env;
+    auto f = getScriptFunction(scriptsFolder() / "hooks/hooks.lua", "OnBeforeBattleTurn", env,
+                               false, true);
+    if (f) {
+        try {
+            CMidUnit* cMidUnit = fn.findUnitById(objectMap, unitId);
+            const bindings::BattleMsgDataView battleMsg{battleMsgData, objectMap};
+            const bindings::UnitView unit{cMidUnit};
+
+            (*f)(battleMsg, unit);
+        } catch (const std::exception& e) {
+            showErrorMessageBox(fmt::format("Failed to run 'OnBeforeBattleTurn' script.\n"
+                                            "Reason: '{:s}'",
+                                            e.what()));
+        }
+    }
 }
 
 void __stdcall throwExceptionHooked(const game::os_exception* thisptr, const void* throwInfo)
@@ -2844,9 +2948,6 @@ bool __stdcall siteHasSoundHooked(const game::CMidSite* site)
     return false;
 }
 
-<<<<<<< Updated upstream
-=======
-
 void __fastcall setUnitStatusHooked(const game::BattleMsgData* battleMsgData,
                            int /*%edx*/,
                            const game::CMidgardID* unitId,
@@ -3073,7 +3174,4 @@ bool __fastcall lowerDamageCanPerformHooked(game::CBatAttackLowerDamage* thisptr
 
     return true;
 }
-
-
->>>>>>> Stashed changes
 } // namespace hooks
