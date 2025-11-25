@@ -217,6 +217,11 @@ public:
     void forEachTrainer(const std::function<void(const TrainerView&)>& callback) const;
     void forEachMarket(const std::function<void(const ResourceMarketView&)>& callback) const;
 
+    int addUnitXP(const IdView& unitId, int value);
+    bool heal(const IdView& unitId, int value);
+    bool addUnitModifier(const IdView& unitId, const std::string& modifierId);
+    bool removeUnitModifier(const IdView& unitId, const std::string& modifierId);
+
 private:
     const game::CMidgardID* getObjectId(int x, int y, game::IdType type) const;
 

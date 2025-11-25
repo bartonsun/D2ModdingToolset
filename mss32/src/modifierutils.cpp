@@ -748,6 +748,8 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
 {
     using namespace game;
 
+    const auto version = gameVersion();
+
     const auto unitModifier = getUnitModifier(modifierId);
     if (!unitModifier) {
         return false;
@@ -767,7 +769,7 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
     const bindings::UnitView target{unit};
     const bindings::ModifierView mods{unitModifier->vftable->createModifier(unitModifier)};
 
-    if (gameVersion() != GameVersion::ScenarioEditor &&  BeforeAddModifier) {
+    if (version != GameVersion::ScenarioEditor && BeforeAddModifier) {
         try {
             OnAddModifier = (*BeforeAddModifier)(target, mods);
         } catch (const std::exception& e) {
@@ -806,7 +808,7 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
 
     //Prevent crash in Scenario Editor
     //Add extra HP if got +maxHp and remove if -maxHp
-    if (gameVersion() != GameVersion::ScenarioEditor
+    if (version != GameVersion::ScenarioEditor
         && (maxHp > maxHpBefore || (maxHp < maxHpBefore && unit->currentHp > maxHp)))
     {
         int diff = maxHp - maxHpBefore;
@@ -814,7 +816,7 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
         VisitorApi::get().changeUnitHp(&unit->id, diff, objectMap, 1);
     }
 
-    if (gameVersion() != GameVersion::ScenarioEditor && ModifierApplyed) {
+    if (version != GameVersion::ScenarioEditor && ModifierApplyed) {
         try {
             (*ModifierApplyed)(target, mods);
         } catch (const std::exception& e) {

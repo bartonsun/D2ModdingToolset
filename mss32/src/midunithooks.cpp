@@ -127,13 +127,13 @@ bool __fastcall removeModifierHooked(game::CMidUnit* thisptr,
             */
             int maxHp = getUnitHpMax(thisptr);
 
-            if (gameVersion() != GameVersion::ScenarioEditor && maxHp > maxHpBefore)
+            if (version != GameVersion::ScenarioEditor && maxHp > maxHpBefore)
             {
                 int diff = maxHp - maxHpBefore;
                 game::IMidgardObjectMap* objectMap = const_cast<game::IMidgardObjectMap*>(hooks::getObjectMap());
                 VisitorApi::get().changeUnitHp(&thisptr->id, diff, objectMap, 1);
             } 
-            else if (gameVersion() != GameVersion::ScenarioEditor && maxHp < maxHpBefore)
+            else if (version != GameVersion::ScenarioEditor && maxHp < maxHpBefore)
             {
                 int diff = maxHp - maxHpBefore;
                 int curHp = thisptr->currentHp - diff;
