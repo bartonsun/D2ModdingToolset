@@ -363,6 +363,29 @@ static void readAdditionalCityIncomeSettings(const sol::table& table,
     }
 }
 
+static void readExtandedBattleSettings(const sol::table& table, Settings::ExtendedBattle& value)
+{
+    const auto& def = defaultSettings().extendedBattle;
+
+    auto category = table.get<sol::optional<sol::table>>("extendedBattle");
+    if (!category.has_value()) {
+        value = def;
+        return;
+    }
+
+    value.dotDamageCanStack = readSetting(category.value(), "dotDamageCasStack", def.dotDamageCanStack);
+    value.blisterDamageID = readSetting(category.value(), "blisterDamageID", def.blisterDamageID);
+    value.frostbiteDamageID = readSetting(category.value(), "frostbiteDamageID",
+                                          def.frostbiteDamageID);
+    value.poisonDamageID = readSetting(category.value(), "poisonDamageID", def.poisonDamageID);
+    value.maxDotDamage = readSetting(category.value(), "maxDotDamage", def.maxDotDamage, 1);
+
+    value.lowerdamageCanAffectHealer = readSetting(category.value(), "lowerdamageCanAffectHealer",
+                                                   def.lowerdamageCanAffectHealer);
+    value.boostdamageCanAffectHealer = readSetting(category.value(), "boostdamageCanAffectHealer",
+                                                   def.boostdamageCanAffectHealer);
+}
+
 static void readSettings(const sol::table& table, Settings& settings)
 {
     // clang-format off
@@ -413,6 +436,7 @@ static void readSettings(const sol::table& table, Settings& settings)
     readBattleSettings(table, settings.battle);
     readAdditionalLordIncomeSettings(table, settings.additionalLordIncome);
     readAdditionalCityIncomeSettings(table, settings.additionalCityIncome);
+    readExtandedBattleSettings(table, settings.extendedBattle);
 }
 
 static void readDebugMode(Settings& settings)
@@ -507,6 +531,21 @@ const Settings& baseSettings()
         settings.movementCost.show = false;
         settings.battle.fallbackAction = game::BattleAction::Defend;
         settings.debugMode = false;
+<<<<<<< Updated upstream
+=======
+
+        settings.alchemistKeepsAttackCount = false;
+        settings.instantBuffRemoval = false;
+        settings.reviveUsesQtyHeal = false;
+>>>>>>> Stashed changes
+
+        settings.extendedBattle.dotDamageCanStack = false;
+        settings.extendedBattle.blisterDamageID = "g202aa";
+        settings.extendedBattle.frostbiteDamageID = "g201aa";
+        settings.extendedBattle.poisonDamageID = "g200aa";
+        settings.extendedBattle.maxDotDamage = 300;
+        settings.extendedBattle.lowerdamageCanAffectHealer = false;
+        settings.extendedBattle.boostdamageCanAffectHealer = false;
 
         initialized = true;
     }

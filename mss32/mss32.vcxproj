@@ -63,6 +63,7 @@
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <AdditionalIncludeDirectories>$(ProjectDir)..\Detours\src;$(ProjectDir)..\GSL\include;$(ProjectDir)..\fmt\include;$(ProjectDir)include;$(ProjectDir)include\dbf;$(ProjectDir)..\lua;$(ProjectDir)..\sol2\single\include;$(ProjectDir)..\spdlog\include;$(ProjectDir)include\bindings;$(ProjectDir)..\SLikeNet\Source;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2\Rooms;$(ProjectDir)..\D2RSG\ScenarioGenerator\src;$(ProjectDir)..\D2RSG\ScenarioGenerator\src\scenario;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -92,6 +93,7 @@ call ..\buildDetours.bat ..\Detours
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)..\Detours\src;$(ProjectDir)..\GSL\include;$(ProjectDir)..\fmt\include;$(ProjectDir)include;$(ProjectDir)include\dbf;$(ProjectDir)..\lua;$(ProjectDir)..\sol2\single\include;$(ProjectDir)..\spdlog\include;$(ProjectDir)include\bindings;$(ProjectDir)..\SLikeNet\Source;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2\Rooms;$(ProjectDir)..\D2RSG\ScenarioGenerator\src;$(ProjectDir)..\D2RSG\ScenarioGenerator\src\scenario;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -175,6 +177,13 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\autodialoghooks.cpp" />
     <ClCompile Include="src\autoptr.cpp" />
     <ClCompile Include="src\batattackbestowwards.cpp" />
+    <ClCompile Include="src\batattackblister.cpp" />
+    <ClCompile Include="src\batattackfrostbite.cpp" />
+    <ClCompile Include="src\batattackpoison.cpp" />
+    <ClCompile Include="src\dotattackhooks.cpp" />
+    <ClCompile Include="src\batattacklowerdamage.cpp" />
+    <ClCompile Include="src\batattackboostdamage.cpp" />
+    <ClCompile Include="src\batattackheal.cpp" />
     <ClCompile Include="src\batattackdoppelganger.cpp" />
     <ClCompile Include="src\batattackdrain.cpp" />
     <ClCompile Include="src\batattackdrainlevel.cpp" />
@@ -702,6 +711,13 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\avoidflickerimage.h" />
     <ClInclude Include="include\batattack.h" />
     <ClInclude Include="include\batattackbestowwards.h" />
+    <ClInclude Include="include\batattackblister.h" />
+    <ClInclude Include="include\batattackfrostbite.h" />
+    <ClInclude Include="include\batattackpoison.h" />
+    <ClInclude Include="include\dotattackhooks.h" />
+    <ClInclude Include="include\batattacklowerdamage.h" />
+    <ClInclude Include="include\batattackboostdamage.h" />
+    <ClInclude Include="include\batattackheal.h" />
     <ClInclude Include="include\batattackdoppelganger.h" />
     <ClInclude Include="include\batattackdrain.h" />
     <ClInclude Include="include\batattackdrainlevel.h" />

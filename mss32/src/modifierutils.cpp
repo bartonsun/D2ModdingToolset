@@ -736,6 +736,36 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
         return false;
     }
 
+<<<<<<< Updated upstream
+=======
+    bool OnAddModifier = true;
+    std::optional<sol::environment> env;
+
+    auto BeforeAddModifier = getScriptFunction(scriptsFolder() / "hooks/modifiers.lua", "OnAddModifier", env,
+                                           false, true);
+    auto ModifierApplyed = getScriptFunction(scriptsFolder() / "hooks/modifiers.lua", "ModifierApplyed", env, false, true);
+
+    const bindings::UnitView target{unit};
+    const bindings::ModifierView mods{unitModifier->vftable->createModifier(unitModifier)};
+
+    if (version != GameVersion::ScenarioEditor &&  BeforeAddModifier) {
+        try {
+            OnAddModifier = (*BeforeAddModifier)(target, mods);
+        } catch (const std::exception& e) {
+            showErrorMessageBox(fmt::format("Failed to run 'OnAddModifier' script.\n"
+                                            "Reason: '{:s}'",
+                                            e.what()));
+            OnAddModifier = true;
+        }
+    }
+
+    if (!OnAddModifier)
+        return false;
+
+    const int maxHpBefore = getUnitHpMax(unit);
+    const int curHp = unit->currentHp;
+
+>>>>>>> Stashed changes
     auto modifier = unitModifier->vftable->createModifier(unitModifier);
 
     auto prevModifier = castUnitToUmModifier(unit->unitImpl);
@@ -754,6 +784,30 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
         notifyModifiersChanged(unit->unitImpl);
     }
 
+<<<<<<< Updated upstream
+=======
+    const int maxHp = getUnitHpMax(unit);
+
+    //Prevent crash in Scenario Editor
+    //Add extra HP if got +maxHp and remove if -maxHp
+    if (version != GameVersion::ScenarioEditor && (maxHp > maxHpBefore || (maxHp < maxHpBefore && unit->currentHp > maxHp)))
+    {
+        int diff = maxHp - maxHpBefore;
+        game::IMidgardObjectMap* objectMap = const_cast<game::IMidgardObjectMap*>(hooks::getObjectMap());
+        VisitorApi::get().changeUnitHp(&unit->id, diff, objectMap, 1);
+    }
+
+    if (version != GameVersion::ScenarioEditor &&  ModifierApplyed) {
+        try {
+            (*ModifierApplyed)(target, mods);
+        } catch (const std::exception& e) {
+            showErrorMessageBox(fmt::format("Failed to run 'ModifierApplyed' script.\n"
+                                            "Reason: '{:s}'",
+                                            e.what()));
+        }
+    }
+
+>>>>>>> Stashed changes
     return true;
 }
 

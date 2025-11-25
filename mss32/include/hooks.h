@@ -71,6 +71,8 @@ struct LSiteCategory;
 struct CMidSite;
 struct CTextBoxInterf;
 
+struct CBatAttackLowerDamage;
+
 template <typename T>
 struct CInterfaceT;
 struct CInterfaceVftable;
@@ -321,6 +323,29 @@ game::String* __stdcall getSiteSoundHooked(game::String* soundName, const game::
 
 bool __stdcall siteHasSoundHooked(const game::CMidSite* site);
 
+<<<<<<< Updated upstream
+=======
+void __fastcall setUnitStatusHooked(const game::BattleMsgData* thisptr,
+                           int /*%edx*/,
+                           const game::CMidgardID* unitId,
+                           const int status,
+                           bool enable);
+
+void __fastcall battleEndHooked(game::IBatViewer* thisptr,
+                                int /*%edx*/,
+                                const game::BattleMsgData* battleMsgData,
+                                const game::CMidgardID* a3);
+
+bool __stdcall unitCanBeCuredHooked(const game::BattleMsgData* battleMsgData,
+                                     const game::CMidgardID* unitId);
+
+bool __fastcall lowerDamageCanPerformHooked(game::CBatAttackLowerDamage* thisptr,
+                                            int /*%edx*/,
+                                            game::IMidgardObjectMap* objectMap,
+                                            game::BattleMsgData* battleMsgData,
+                                            game::CMidgardID* unitId);
+
+>>>>>>> Stashed changes
 } // namespace hooks
 
 #endif // HOOKS_H

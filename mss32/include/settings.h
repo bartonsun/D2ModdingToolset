@@ -224,6 +224,27 @@ struct Settings
     } battle;
 
     bool debugMode;
+<<<<<<< Updated upstream
+=======
+
+    bool alchemistKeepsAttackCount;
+    bool instantBuffRemoval;
+    bool reviveUsesQtyHeal;
+    bool advancedCure;
+
+    struct ExtendedBattle
+    {
+        bool dotDamageCanStack;
+        std::string blisterDamageID;
+        std::string frostbiteDamageID;
+        std::string poisonDamageID;
+        int maxDotDamage;
+
+        bool lowerdamageCanAffectHealer;
+        bool boostdamageCanAffectHealer;
+
+    } extendedBattle;
+>>>>>>> Stashed changes
 };
 
 const Settings& baseSettings();

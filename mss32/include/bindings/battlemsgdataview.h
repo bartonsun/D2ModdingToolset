@@ -136,6 +136,26 @@ public:
     int getUnitTransformRound(const UnitView& unit) const;
     int getUnitTransformRoundById(const IdView& unitId) const;
 
+<<<<<<< Updated upstream
+=======
+    int getUnitAttackCount(const IdView& unitId) const;
+    UnitView getUnitTurn() const;
+    bool setUnitAttackCount(const IdView& unitId, int value);
+    bool addUnitModifier(const IdView& unitId, const IdView& unitId2, const std::string& modifierId);
+    int heal(const IdView& unitId, int value);
+    int setHealth(const IdView& unitId, int value);
+    bool setShatteredArmor(const IdView& unitId, int value);
+
+    int getStatusDamage(const IdView& unitId, const int status);
+    bool setStatus(const IdView& unitId, int status, int value, bool isLong);
+    bool cure(const IdView& unitId);
+
+    void removeAttackSourceWard(const IdView& unitId, int attackSourceId);
+    void removeAttackClassWard(const IdView& unitId, int attackClassId);
+
+    void setRevivedStatus(const IdView& unitId, bool status);
+
+>>>>>>> Stashed changes
 protected:
     template <typename T>
     static void bindAccessMethods(T& view)
@@ -194,6 +214,23 @@ protected:
         view["getUnitTransformRound"] = sol::overload<>(
             &BattleMsgDataView::getUnitTransformRound,
             &BattleMsgDataView::getUnitTransformRoundById);
+<<<<<<< Updated upstream
+=======
+
+        view["GetUnitAttackCount"] = &BattleMsgDataView::getUnitAttackCount;
+        view["GetUnitTurn"] = &BattleMsgDataView::getUnitTurn;
+        view["SetUnitAttackCount"] = &BattleMsgDataView::setUnitAttackCount;
+        view["AddUnitModifier"] = &BattleMsgDataView::addUnitModifier;
+        view["Heal"] = &BattleMsgDataView::heal;
+        view["SetHealth"] = &BattleMsgDataView::setHealth;
+        view["SetShatteredArmor"] = &BattleMsgDataView::setShatteredArmor;
+        view["GetStatusDamage"] = &BattleMsgDataView::getStatusDamage;
+        view["SetStatus"] = &BattleMsgDataView::setStatus;
+        view["Cure"] = &BattleMsgDataView::cure;
+        view["RemoveAttackSourceWard"] = &BattleMsgDataView::removeAttackSourceWard;
+        view["RemoveAttackClassWard"] = &BattleMsgDataView::removeAttackClassWard;
+        view["SetRevivedStatus"] = &BattleMsgDataView::setRevivedStatus;
+>>>>>>> Stashed changes
     }
 
 private:
