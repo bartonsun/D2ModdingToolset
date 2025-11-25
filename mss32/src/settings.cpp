@@ -373,7 +373,7 @@ static void readExtandedBattleSettings(const sol::table& table, Settings::Extend
         return;
     }
 
-    value.dotDamageCanStack = readSetting(category.value(), "dotDamageCasStack", def.dotDamageCanStack);
+    value.dotDamageCanStack = readSetting(category.value(), "dotDamageCanStack", def.dotDamageCanStack);
     value.blisterDamageID = readSetting(category.value(), "blisterDamageID", def.blisterDamageID);
     value.frostbiteDamageID = readSetting(category.value(), "frostbiteDamageID",
                                           def.frostbiteDamageID);
