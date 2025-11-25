@@ -271,23 +271,8 @@ static Hooks getGameHooks()
         // Allow alchemists to buff retreating units
         {CBatAttackGiveAttackApi::vftable()->canPerform, giveAttackCanPerformHooked},
 
-        //////////////////////////////////////////////////////
-        //Custom DOT damage
-        //{CBatAttackBlisterApi::vftable()->canPerform, blisterCanPerformHooked},
-        //{CBatAttackBlisterApi::vftable()->onHit, blisterOnHitHooked},
-        //{CBatAttackFrostbiteApi::vftable()->canPerform, frostbiteCanPerformHooked},
-        //{CBatAttackFrostbiteApi::vftable()->onHit, frostbiteOnHitHooked},
-        //{CBatAttackPoisonApi::vftable()->canPerform, poisonCanPerformHooked},
-        //{CBatAttackPoisonApi::vftable()->onHit, poisonOnHitHooked},
-
-        //{CBatAttackBoostDamageApi::vftable()->canPerform, boostDamageCanPerformHooked},
-        //{CBatAttackBoostDamageApi::vftable()->onHit, boostDamageOnHitHooked},
-
-        //LowerDamage can hit healers
-        //{CBatAttackLowerDamageApi::vftable()->canPerform, lowerDamageCanPerformHooked},
-
+        // For boost and lower damage
         {CBatAttackHealApi::vftable()->onHit, healAttackOnHitHooked},
-        //////////////////////////////////////////////////////
         
         // Random scenario generator
         {CMenuNewSkirmishSingleApi::get().constructor, menuNewSkirmishSingleCtorHooked, (void**)&orig.menuNewSkirmishSingleCtor},
@@ -351,6 +336,8 @@ static Hooks getGameHooks()
          */
         // Fixes modifiers getting lost after modified unit is untransformed
         {CBatAttackBestowWardsApi::vftable()->onHit, bestowWardsAttackOnHitHooked},
+        // Create immune to heal
+        {CBatAttackBestowWardsApi::vftable()->isImmune, bestowWardsAttackIsImmuneHooked},
         // Fix bestow wards with double attack where modifiers granted by first attack are removed
         {battle.afterBattleTurn, afterBattleTurnHooked},
         // Allow any attack with QTY_HEAL > 0 to heal units when battle ends (just like ordinary heal does)
@@ -519,6 +506,10 @@ static Hooks getGameHooks()
         {CBatLogicApi::get().updateGroupsIfBattleIsOver, updateGroupsIfBattleIsOverHooked},
         // Fixed an issue where a unit killed by a DoT effect was considered alive until end next action
         {CBatLogicApi::get().battleTurn, battleTurnHooked, (void**)&orig.battleTurn},
+        //Fixed an issue where a unit with "attackCount" 3 or more incorrectly reduce its attack count.
+        {battle.setUnitStatus, setUnitStatusHooked, (void**)&orig.setUnitStatus},
+        //For future updates
+        {BattleViewerInterfApi::vftable()->battleEnd, battleEndHooked, (void**)&orig.battleEnd},
     };
     // clang-format on
 
