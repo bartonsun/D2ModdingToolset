@@ -210,6 +210,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\bindings\gameview.cpp" />
     <ClCompile Include="src\bindings\globalvariablesview.cpp" />
     <ClCompile Include="src\bindings\globalview.cpp" />
+    <ClCompile Include="src\bindings\landmarkview.cpp" />
     <ClCompile Include="src\bindings\merchantview.cpp" />
     <ClCompile Include="src\bindings\mercsview.cpp" />
     <ClCompile Include="src\bindings\resourcemarketview.cpp" />
@@ -328,6 +329,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\enclayoutstack.cpp" />
     <ClCompile Include="src\isoview.cpp" />
     <ClCompile Include="src\isoviewhooks.cpp" />
+    <ClCompile Include="src\landmarkutils.cpp" />
     <ClCompile Include="src\logutils.cpp" />
     <ClCompile Include="src\managestkinterf.cpp" />
     <ClCompile Include="src\managestkinterfhooks.cpp" />
@@ -744,6 +746,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\bindings\gameview.h" />
     <ClInclude Include="include\bindings\globalvariablesview.h" />
     <ClInclude Include="include\bindings\globalview.h" />
+    <ClInclude Include="include\bindings\landmarkview.h" />
     <ClInclude Include="include\bindings\merchantview.h" />
     <ClInclude Include="include\bindings\mercsview.h" />
     <ClInclude Include="include\bindings\resourcemarketview.h" />
@@ -803,6 +806,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\functordispatchmemfunc3.h" />
     <ClInclude Include="include\gameversion.h" />
     <ClInclude Include="include\image2dupweak.h" />
+    <ClInclude Include="include\landmarkutils.h" />
     <ClInclude Include="include\logfile.h" />
     <ClInclude Include="include\menucustomloadskirmishmulti.h" />
     <ClInclude Include="include\menucustomnewskirmishmulti.h" />
@@ -1083,7 +1087,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\itemspecial.h" />
     <ClInclude Include="include\itemspell.h" />
     <ClInclude Include="include\itemtalisman.h" />
-	<ClInclude Include="include\itemtransferhooks.h" />
+    <ClInclude Include="include\itemtransferhooks.h" />
     <ClInclude Include="include\itemtravelitem.h" />
     <ClInclude Include="include\itemutils.h" />
     <ClInclude Include="include\itemvaluable.h" />

@@ -1550,6 +1550,12 @@
     <ClCompile Include="src\resultsender.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\bindings\landmarkview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="src\landmarkutils.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -2019,7 +2025,7 @@
     <ClInclude Include="include\miditem.h">
       <Filter>game</Filter>
     </ClInclude>
-	<ClInclude Include="include\itemtransferhooks.h">
+    <ClInclude Include="include\itemtransferhooks.h">
       <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\sitemerchantinterf.h">
@@ -3867,6 +3873,12 @@
     </ClInclude>
     <ClInclude Include="include\resultsender.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\landmarkview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\landmarkutils.h">
+      <Filter>utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
