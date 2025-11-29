@@ -181,6 +181,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\batattackdrainoverflow.cpp" />
     <ClCompile Include="src\batattackgiveattack.cpp" />
     <ClCompile Include="src\batattackgroupupgrade.cpp" />
+    <ClCompile Include="src\batattackheal.cpp" />
     <ClCompile Include="src\batattackshatter.cpp" />
     <ClCompile Include="src\batattacksummon.cpp" />
     <ClCompile Include="src\batattacktransformother.cpp" />
@@ -281,6 +282,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\globalvariables.cpp" />
     <ClCompile Include="src\globalvariableshooks.cpp" />
     <ClCompile Include="src\groupupgradehooks.cpp" />
+    <ClCompile Include="src\batattackhealhooks.cpp" />
     <ClCompile Include="src\image2memory.cpp" />
     <ClCompile Include="src\intintmap.cpp" />
     <ClCompile Include="src\intvector.cpp" />
@@ -710,6 +712,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\batattackdrainoverflow.h" />
     <ClInclude Include="include\batattackgiveattack.h" />
     <ClInclude Include="include\batattackgroupupgrade.h" />
+    <ClInclude Include="include\batattackheal.h" />
     <ClInclude Include="include\batattackitem.h" />
     <ClInclude Include="include\batattackshatter.h" />
     <ClInclude Include="include\batattacksummon.h" />
@@ -805,6 +808,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\fontshooks.h" />
     <ClInclude Include="include\functordispatchmemfunc3.h" />
     <ClInclude Include="include\gameversion.h" />
+    <ClInclude Include="include\batattackhealhooks.h" />
     <ClInclude Include="include\image2dupweak.h" />
     <ClInclude Include="include\landmarkutils.h" />
     <ClInclude Include="include\logfile.h" />

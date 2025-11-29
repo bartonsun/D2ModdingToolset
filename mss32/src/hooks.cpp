@@ -32,6 +32,8 @@
 #include "batattackdrainoverflow.h"
 #include "batattackgiveattack.h"
 #include "batattackgroupupgrade.h"
+#include "batattackheal.h"
+#include "batattackhealhooks.h"
 #include "batattackshatter.h"
 #include "batattacksummon.h"
 #include "batattacktransformother.h"
@@ -483,6 +485,8 @@ static Hooks getGameHooks()
         {CBatLogicApi::get().updateGroupsIfBattleIsOver, updateGroupsIfBattleIsOverHooked},
         // Fixed an issue where a unit killed by a DoT effect was considered alive until end next action
         {CBatLogicApi::get().battleTurn, battleTurnHooked, (void**)&orig.battleTurn},
+        // Prevent crash when defending side selects empty position as target
+        {CBatAttackHealApi::vftable()->canPerform, healAttackCanPerformHooked},
     };
     // clang-format on
 
@@ -1367,6 +1371,10 @@ bool __fastcall giveAttackCanPerformHooked(game::CBatAttackGiveAttack* thisptr,
 {
     using namespace game;
 
+    if (*unitId == emptyId || *unitId == invalidId) {
+        return false;
+    }
+
     CMidgardID targetGroupId{};
     thisptr->vftable->getTargetGroupId(thisptr, &targetGroupId, battleMsgData);
 
@@ -1385,6 +1393,10 @@ bool __fastcall giveAttackCanPerformHooked(game::CBatAttackGiveAttack* thisptr,
     }
 
     CMidUnit* unit = fn.findUnitById(objectMap, unitId);
+    if (!unit) {
+        return false;
+    }
+
     auto soldier = fn.castUnitImplToSoldier(unit->unitImpl);
 
     auto attack = soldier->vftable->getAttackById(soldier);
