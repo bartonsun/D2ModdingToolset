@@ -26,6 +26,7 @@
 #include "generatorsettings.h"
 #include "globaldata.h"
 #include "itembase.h"
+#include "itemequipment.h"
 #include "itemcategory.h"
 #include "itemtypelist.h"
 #include "landmark.h"
@@ -489,6 +490,9 @@ bool NativeGameInfo::readItemsInfo()
     const GlobalData* global{*GlobalDataApi::get().getGlobalData()};
     const auto& items{global->itemTypes->data->data};
 
+    const auto& rtti = RttiApi::rtti();
+    const auto dynamicCast = RttiApi::get().dynamicCast;
+
     for (const auto* i = items.bgn; i != items.end; ++i) {
         const CItemBase* item{i->second};
 
@@ -499,11 +503,23 @@ bool NativeGameInfo::readItemsInfo()
         int value{bankToValue(*bank)};
 
         if (itemType == rsg::ItemType::Talisman) {
-            // Talisman value is specified for a single charge, adjust it
             value *= 5;
         }
 
-        auto itemInfo{std::make_unique<NativeItemInfo>(itemId, value, itemType)};
+        rsg::CMidgardID modEquipId = rsg::emptyId;
+
+        auto itemEquipment = (CItemEquipment*)dynamicCast(item, 0, rtti.IItemType,
+                                                          rtti.CItemEquipmentType, 0);
+
+        if (itemEquipment) {
+            modEquipId = idToRsgId(itemEquipment->modEquipId);
+
+            rsg::CMidgardID::String modIdStr;
+            modEquipId.toString(modIdStr);
+            auto modType = modEquipId.getType();
+        }
+
+        auto itemInfo{std::make_unique<NativeItemInfo>(itemId, modEquipId, value, itemType)};
 
         allItems.push_back(itemInfo.get());
         itemsByType[itemType].push_back(itemInfo.get());

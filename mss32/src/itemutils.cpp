@@ -73,6 +73,22 @@ game::CMidgardID getAttackId(const game::IItem* item)
     return emptyId;
 }
 
+game::CMidgardID getModEquipId(const game::IItem* item)
+{
+    using namespace game;
+
+    const auto& rtti = RttiApi::rtti();
+    const auto dynamicCast = RttiApi::get().dynamicCast;
+
+    auto itemEquipment = (CItemEquipment*)dynamicCast(item, 0, rtti.IItemType,
+                                                      rtti.CItemEquipmentType, 0);
+    if (itemEquipment) {
+        return itemEquipment->modEquipId;
+    }
+
+    return emptyId;
+}
+
 game::IItemExtension* castItem(const game::IItem* item, const game::TypeDescriptor* type)
 {
     using namespace game;

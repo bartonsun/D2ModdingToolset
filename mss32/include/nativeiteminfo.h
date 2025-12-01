@@ -28,8 +28,12 @@ namespace hooks {
 class NativeItemInfo final : public rsg::ItemInfo
 {
 public:
-    NativeItemInfo(const rsg::CMidgardID& itemId, int value, rsg::ItemType itemType)
+    NativeItemInfo(const rsg::CMidgardID& itemId,
+                   const rsg::CMidgardID& modEquipId,
+                   int value,
+                   rsg::ItemType itemType)
         : itemId{itemId}
+        , modEquipId{modEquipId}
         , value{value}
         , itemType{itemType}
     { }
@@ -39,6 +43,11 @@ public:
     const rsg::CMidgardID& getItemId() const override
     {
         return itemId;
+    }
+
+    const rsg::CMidgardID& getModEquipId() const override
+    {
+        return modEquipId;
     }
 
     rsg::ItemType getItemType() const override
@@ -53,6 +62,7 @@ public:
 
 private:
     rsg::CMidgardID itemId;
+    rsg::CMidgardID modEquipId;
     int value{};
     rsg::ItemType itemType{rsg::ItemType::Valuable};
 };
