@@ -144,7 +144,12 @@ public:
     int setHealth(const IdView& unitId, int value);
     bool setShatteredArmor(const IdView& unitId, int value);
 
+
+    int getStatusDamageExtended(const IdView& unitId, const int status);
+    int getStatusDamageBase(const IdView& unitId, const int status);
     int getStatusDamage(const IdView& unitId, const int status);
+
+
     bool setStatus(const IdView& unitId, int status, int value, bool isLong);
     bool cure(const IdView& unitId);
 

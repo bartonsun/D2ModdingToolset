@@ -33,6 +33,7 @@
 #include <visitors.h>
 #include <midunit.h>
 #include <ussoldier.h>
+#include "attackimpl.h"
 
 namespace bindings {
 
@@ -577,14 +578,24 @@ bool BattleMsgDataView::setShatteredArmor(const IdView& unitId, int value)
 
     return true;
 }
-
+//////////////////////////////////////////////////////////////////////////////
 int BattleMsgDataView::getStatusDamage(const IdView& unitId, const int status)
+{
+    using namespace hooks;
+    if (userSettings().extendedBattle.dotDamageCanStack != baseSettings().extendedBattle.dotDamageCanStack)
+    {
+        return getStatusDamageExtended(unitId, status);
+    }
+    return getStatusDamageBase(unitId, status);
+}
+
+int BattleMsgDataView::getStatusDamageExtended(const IdView& unitId, const int status)
 {
     using namespace game;
     
     auto info = BattleMsgDataApi::get().getUnitInfoById(battleMsgData, &unitId.id);
     if (!info) {
-        return false;
+        return 0;
     }
 
     switch (BattleStatus(status))
@@ -596,11 +607,7 @@ int BattleMsgDataView::getStatusDamage(const IdView& unitId, const int status)
             if (poisonId == game::emptyId)
                 return 0;
 
-            std::string poisonIDstr = hooks::idToString(&poisonId, true);
-            std::string damage = poisonIDstr.substr(6);
-            int cur = std::stoi(damage);
-
-            return cur;
+            return info->dotInfo.poisonDamage;
         }
         case BattleStatus::Frostbite: {
             CMidgardID frostbiteId = info->frostbiteAttackId;
@@ -608,11 +615,7 @@ int BattleMsgDataView::getStatusDamage(const IdView& unitId, const int status)
             if (frostbiteId == game::emptyId)
                 return 0;
 
-            std::string frostbiteIDstr = hooks::idToString(&frostbiteId, true);
-            std::string damage = frostbiteIDstr.substr(6);
-            int cur = std::stoi(damage);
-
-            return cur;
+            return info->dotInfo.frostbiteDamage;
         }
         case BattleStatus::Blister: {
             CMidgardID blisterId = info->blisterAttackId;
@@ -620,17 +623,53 @@ int BattleMsgDataView::getStatusDamage(const IdView& unitId, const int status)
             if (blisterId == game::emptyId)
                 return 0;
 
-            std::string blisterIDstr = hooks::idToString(&blisterId, true);
-            std::string damage = blisterIDstr.substr(6);
-            int cur = std::stoi(damage);
-
-            return cur;
+            return info->dotInfo.blisterDamage;
         }
     }
 
     return 0;
 }
+int BattleMsgDataView::getStatusDamageBase(const IdView& unitId, const int status)
+{
+    using namespace game;
+    const auto& fn = gameFunctions();
+    auto objectMap = hooks::getObjectMap();
 
+    auto info = BattleMsgDataApi::get().getUnitInfoById(battleMsgData, &unitId.id);
+    if (!info) {
+        return 0;
+    }
+
+    switch (BattleStatus(status)) {
+        case BattleStatus::Poison: {
+            CMidgardID poisonId = info->poisonAttackId;
+            if (poisonId == game::emptyId)
+                return 0;
+
+            game::CAttackImpl* attackImpl = hooks::getAttackImpl(&poisonId);
+            return attackImpl->data->qtyDamage;
+        }
+        case BattleStatus::Frostbite: {
+            CMidgardID frostbiteId = info->frostbiteAttackId;
+            if (frostbiteId == game::emptyId)
+                return 0;
+
+            game::CAttackImpl* attackImpl = hooks::getAttackImpl(&frostbiteId);
+            return attackImpl->data->qtyDamage;
+        }
+        case BattleStatus::Blister: {
+            CMidgardID blisterId = info->blisterAttackId;
+            if (blisterId == game::emptyId)
+                return 0;
+
+            game::CAttackImpl* attackImpl = hooks::getAttackImpl(&blisterId);
+            return attackImpl->data->qtyDamage;
+        }
+    }
+
+    return 0;
+}
+//////////////////////////////////////////////////////////////////////////////
 bool BattleMsgDataView::setStatus(const IdView& unitId, int status, int value, bool isLong)
 {
     using namespace game;
@@ -640,46 +679,52 @@ bool BattleMsgDataView::setStatus(const IdView& unitId, int status, int value, b
         return false;
     }
 
-    std::string dmg = std::to_string(std::clamp(value, 1, hooks::userSettings().extendedBattle.maxDotDamage));
-    dmg.insert(0, 4 - dmg.length(), '0');
+    int dmg = std::clamp(value, 0, hooks::userSettings().extendedBattle.maxDotDamage);
+    IdView poisonAttack = IdView{hooks::userSettings().extendedBattle.poisonDamageID};
+    IdView frostbiteAttack = IdView{hooks::userSettings().extendedBattle.frostbiteDamageID};
+    IdView blisterAttack = IdView{hooks::userSettings().extendedBattle.blisterDamageID};
 
     switch (BattleStatus(status))
     {
         case BattleStatus::Poison:
         {
-        auto attack = IdView{hooks::userSettings().extendedBattle.poisonDamageID + dmg};
-            info->poisonAttackId = attack.id;
-            info->poisonAppliedRound = battleMsgData->currentRound;
+            info->poisonAttackId = poisonAttack.id;
+            info->dotInfo.poisonDamage = dmg;
 
             BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Poison,
                                                   true);
             BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id, BattleStatus::PoisonLong,
                                                   isLong);
+            if (isLong)
+                info->poisonAppliedRound = battleMsgData->currentRound;
+
             return true;
         }
         case BattleStatus::Frostbite:
         {
-            auto attack = IdView{hooks::userSettings().extendedBattle.frostbiteDamageID + dmg};
-            info->frostbiteAttackId = attack.id;
-            info->frostbiteAppliedRound = battleMsgData->currentRound;
+            info->frostbiteAttackId = frostbiteAttack.id;
+            info->dotInfo.frostbiteDamage = dmg;
 
             BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id,
                                                   BattleStatus::Frostbite, true);
             BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id,
                                                   BattleStatus::FrostbiteLong, isLong);
+            if (isLong)
+                info->frostbiteAppliedRound = battleMsgData->currentRound;
 
             return true;
         }
         case BattleStatus::Blister:
         {
-            auto attack = IdView{hooks::userSettings().extendedBattle.blisterDamageID + dmg};
-            info->blisterAttackId = attack.id;
-            info->blisterAppliedRound = battleMsgData->currentRound;
+            info->blisterAttackId = blisterAttack.id;
+            info->dotInfo.blisterDamage = dmg;
 
             BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Blister,
                                                   true);
             BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id,
                                                   BattleStatus::BlisterLong, isLong);
+            if (isLong)
+                info->blisterAppliedRound = battleMsgData->currentRound;
 
             return true;
         }

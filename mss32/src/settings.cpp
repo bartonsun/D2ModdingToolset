@@ -375,10 +375,9 @@ static void readExtandedBattleSettings(const sol::table& table, Settings::Extend
 
     value.dotDamageCanStack = readSetting(category.value(), "dotDamageCanStack", def.dotDamageCanStack);
     value.blisterDamageID = readSetting(category.value(), "blisterDamageID", def.blisterDamageID);
-    value.frostbiteDamageID = readSetting(category.value(), "frostbiteDamageID",
-                                          def.frostbiteDamageID);
+    value.frostbiteDamageID = readSetting(category.value(), "frostbiteDamageID", def.frostbiteDamageID);
     value.poisonDamageID = readSetting(category.value(), "poisonDamageID", def.poisonDamageID);
-    value.maxDotDamage = readSetting(category.value(), "maxDotDamage", def.maxDotDamage, 1);
+    value.maxDotDamage = readSetting(category.value(), "maxDotDamage", def.maxDotDamage, 0, 32767);
 
     value.lowerdamageCanAffectHealer = readSetting(category.value(), "lowerdamageCanAffectHealer",
                                                    def.lowerdamageCanAffectHealer);

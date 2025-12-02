@@ -1890,13 +1890,37 @@ void __stdcall afterBattleTurnHooked(game::BattleMsgData* battleMsgData,
     const auto& fn = gameFunctions();
     const auto& battle = BattleMsgDataApi::get();
 
+    auto unitInfo = battle.getUnitInfoById(battleMsgData, nextUnitId);
+    auto unitInfo2 = battle.getUnitInfoById(battleMsgData, unitId);
+
     if (*unitId != *nextUnitId) {
+        // battleMsgData->battleStateFlags2.parts.shouldUpdateUnitEffects = true;
+        if (userSettings().extendedBattle.dotDamageCanStack != baseSettings().extendedBattle.dotDamageCanStack && unitInfo) {
+            game::CMidgardID blisterAttack = unitInfo->blisterAttackId;
+            game::CMidgardID frostbiteAttack = unitInfo->frostbiteAttackId;
+            game::CMidgardID poisonAttack = unitInfo->poisonAttackId;
+
+            if (blisterAttack != game::emptyId) {
+                game::CAttackImpl* tempAttackImpl = getAttackImpl(&blisterAttack);
+                tempAttackImpl->data->qtyDamage = unitInfo->dotInfo.blisterDamage;
+            }
+
+            if (frostbiteAttack != game::emptyId) {
+                game::CAttackImpl* tempAttackImpl = getAttackImpl(&frostbiteAttack);
+                tempAttackImpl->data->qtyDamage = unitInfo->dotInfo.frostbiteDamage;
+            }
+
+            if (poisonAttack != game::emptyId) {
+                game::CAttackImpl* tempAttackImpl = getAttackImpl(&poisonAttack);
+                tempAttackImpl->data->qtyDamage = unitInfo->dotInfo.poisonDamage;
+            }
+        }
         battleMsgData->battleStateFlags2.parts.shouldUpdateUnitEffects = true;
         battle.removeFiniteBoostLowerDamage(battleMsgData, unitId);
     }
 
     // Disable Wait/Defend/Retreat for SetUnitAttackCount
-    auto unitInfo = battle.getUnitInfoById(battleMsgData, nextUnitId);
+    //auto unitInfo = battle.getUnitInfoById(battleMsgData, nextUnitId);
     if (*nextUnitId == *unitId
         && !battle.getUnitStatus(battleMsgData, unitId, BattleStatus::Defend)) {
         if (unitInfo)
@@ -3052,6 +3076,7 @@ void __fastcall setUnitStatusHooked(const game::BattleMsgData* battleMsgData,
             return;
         }
         info->blisterAttackId = game::emptyId;
+        info->dotInfo.blisterDamage = 0;
         return;
     }
     if (BattleStatus(status) == BattleStatus::Frostbite && !enable) {
@@ -3060,6 +3085,7 @@ void __fastcall setUnitStatusHooked(const game::BattleMsgData* battleMsgData,
             return;
         }
         info->frostbiteAttackId = game::emptyId;
+        info->dotInfo.frostbiteDamage = 0;
         return;
     }
     if (BattleStatus(status) == BattleStatus::Poison && !enable) {
@@ -3068,6 +3094,7 @@ void __fastcall setUnitStatusHooked(const game::BattleMsgData* battleMsgData,
             return;
         }
         info->poisonAttackId = game::emptyId;
+        info->dotInfo.poisonDamage = 0;
         return;
     }
 }
@@ -3161,7 +3188,8 @@ bool __fastcall lowerDamageCanPerformHooked(game::CBatAttackLowerDamage* thisptr
     else if (battle.getUnitStatus(battleMsgData, unitId, BattleStatus::BoostDamageLvl1))
         curLvl = 2;
 
-    if (curLvl <= level)
+    if (curLvl >= level)
+        return false;
 
     return true;
 }
