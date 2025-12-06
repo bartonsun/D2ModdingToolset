@@ -40,6 +40,7 @@ public:
 
     static void bind(sol::state& lua);
 
+    std::vector<ScenarioVariableView> getItems() const;
     std::optional<ScenarioVariableView> getScenarioVariable(const std::string& name) const;
 
 private:

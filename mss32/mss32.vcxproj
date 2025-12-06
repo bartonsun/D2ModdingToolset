@@ -615,7 +615,9 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\waitgenerationinterf.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="cpp.hint" />
+    <None Include="..\CONTRIBUTORS.md" />
+    <None Include="..\luaApi.md" />
+    <None Include="..\README.md" />
     <None Include="module.def" />
   </ItemGroup>
   <ItemGroup>

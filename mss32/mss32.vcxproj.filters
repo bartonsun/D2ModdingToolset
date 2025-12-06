@@ -3900,7 +3900,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="module.def" />
-    <None Include="cpp.hint" />
+    <None Include="..\CONTRIBUTORS.md" />
+    <None Include="..\luaApi.md" />
+    <None Include="..\README.md" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="midgardid.natvis" />
