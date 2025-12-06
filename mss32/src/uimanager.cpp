@@ -24,7 +24,7 @@
 namespace game::CUIManagerApi {
 
 // clang-format off
-static std::array<Api, 3> functions = {{
+static std::array<Api, 4> functions = {{
     // Akella
     Api{
         (Api::Get)0x561afc,
@@ -41,6 +41,7 @@ static std::array<Api, 3> functions = {{
         (Api::CreateMessageEvent)0x561ccb,
         (Api::GetMousePosition)0x561c4f,
         (Api::RegisterMessage)0x561c1c,
+        (Api::PostWndMessage)0x561c9f,
     },
     // Russobit
     Api{
@@ -58,6 +59,7 @@ static std::array<Api, 3> functions = {{
         (Api::CreateMessageEvent)0x561ccb,
         (Api::GetMousePosition)0x561c4f,
         (Api::RegisterMessage)0x561c1c,
+        (Api::PostWndMessage)0x561c9f,
     },
     // Gog
     Api{
@@ -75,6 +77,25 @@ static std::array<Api, 3> functions = {{
         (Api::CreateMessageEvent)0x561468,
         (Api::GetMousePosition)0x5613ec,
         (Api::RegisterMessage)0x5613b9,
+        (Api::PostWndMessage)0x56143c,
+    },
+    // Scenario Editor
+    Api{
+        (Api::Get)0x486dd7,
+        (Api::CreateTimerEventFunctor)0,
+        (Api::CreateTimerEvent)0,
+        (Api::CreateUpdateEventFunctor)0,
+        (Api::CreateUiEvent)0,
+        (Api::CreateUiEvent)0,
+        (Api::CreateUiEvent)0,
+        (Api::CreateUiEvent)0,
+        (Api::CreateUiEvent)0,
+        (Api::CreateUiEvent)0,
+        (Api::CreateMessageEventFunctor)0,
+        (Api::CreateMessageEvent)0,
+        (Api::GetMousePosition)0,
+        (Api::RegisterMessage)0,
+        (Api::PostWndMessage)0x486f64,
     },
 }};
 // clang-format on

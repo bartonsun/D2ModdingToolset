@@ -52,7 +52,7 @@ struct ScenarioData
     CMidgardID campaignId;
     RaceCategoryList races;
     LRaceCategory race;
-    int unknown2;
+    int suggestedLevel;
 };
 
 assert_size(ScenarioData, 128);

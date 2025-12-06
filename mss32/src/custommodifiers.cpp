@@ -19,10 +19,9 @@
 
 #include "custommodifiers.h"
 #include "dbffile.h"
-#include "log.h"
 #include "unitutils.h"
 #include "utils.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -41,8 +40,8 @@ void fillNativeModifiers(CustomModifiers::NativeMap& value)
     for (std::uint32_t i = 0; i < recordsTotal; ++i) {
         utils::DbfRecord record;
         if (!dbf.record(record, i)) {
-            logError("mssProxyError.log", fmt::format("Could not read record {:d} from {:s}", i,
-                                                      dbfFilePath.filename().string()));
+            spdlog::error("Could not read record {:d} from {:s}", i,
+                          dbfFilePath.filename().string());
             return;
         }
 
@@ -54,9 +53,8 @@ void fillNativeModifiers(CustomModifiers::NativeMap& value)
 
         CMidgardID unitId;
         if (*idApi.fromString(&unitId, tmp.c_str()) == invalidId) {
-            logError("mssProxyError.log",
-                     fmt::format("Could not read unit id '{:s}' from {:s}", tmp.c_str(),
-                                 dbfFilePath.filename().string()));
+            spdlog::error("Could not read unit id '{:s}' from {:s}", tmp.c_str(),
+                          dbfFilePath.filename().string());
             continue;
         }
 
@@ -71,9 +69,8 @@ void fillNativeModifiers(CustomModifiers::NativeMap& value)
 
             CMidgardID modifierId;
             if (*idApi.fromString(&modifierId, tmp.c_str()) == invalidId) {
-                logError("mssProxyError.log",
-                         fmt::format("Could not read modifier id '{:s}' from {:s}", tmp.c_str(),
-                                     dbfFilePath.filename().string()));
+                spdlog::error("Could not read modifier id '{:s}' from {:s}", tmp.c_str(),
+                              dbfFilePath.filename().string());
                 break;
             }
 

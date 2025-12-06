@@ -31,10 +31,14 @@
 namespace game {
 
 struct CInterfManager;
-struct CInterface;
 struct CTooltipImpl;
 struct CCursorImpl;
 struct IInterfBorderDisplay;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 
 using GlobalKeyPressDispatch = CBFunctorDispatch2wRet<unsigned short, unsigned short, bool>;
 using GlobalKeyPressDispatchPtr = SmartPtr<GlobalKeyPressDispatch>;
@@ -51,7 +55,7 @@ struct CInterfManagerVftable
 
     /** Returns topmost interface or nullptr if interfaces list is empty. */
     using GetInterface = CInterface*(__thiscall*)(CInterfManager* thisptr);
-    GetInterface getInterface;
+    GetInterface getTopmostInterface;
 
     /**
      * Returns next interface in list after specified one or nullptr.

@@ -21,6 +21,7 @@
 #define MQNETSYSTEM_H
 
 #include "d2assert.h"
+#include <cstdint>
 
 namespace game {
 
@@ -36,7 +37,7 @@ struct IMqNetSystemVftable
     using Destructor = void(__thiscall*)(IMqNetSystem* thisptr, char flags);
     Destructor destructor;
 
-    using OnConnectionChanged = void(__thiscall*)(IMqNetSystem* thisptr, int netPlayerId);
+    using OnConnectionChanged = void(__thiscall*)(IMqNetSystem* thisptr, std::uint32_t netPlayerId);
 
     /** Called from IMqNetPlayer::ReceiveMessage to notify about player connection. */
     OnConnectionChanged onPlayerConnected;

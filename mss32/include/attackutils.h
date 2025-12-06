@@ -24,14 +24,21 @@ namespace game {
 struct CMidgardID;
 struct IAttack;
 struct CAttackImpl;
+struct LAttackSource;
+struct LAttackClass;
 
 enum class AttackClassId : int;
 enum class AttackReachId : int;
+enum class AttackSourceId : int;
 } // namespace game
 
 namespace hooks {
 
-game::IAttack* getGlobalAttack(const game::CMidgardID* attackId);
+/** Returns global attack implementation (from Gattacks.dbf). */
+game::CAttackImpl* getGlobalAttackImpl(const game::CMidgardID* attackId);
+/** Returns either global (from Gattacks.dbf) or generated (leveled) attack implementation. */
+game::CAttackImpl* getAttackImpl(const game::CMidgardID* attackId);
+/** Returns either global (from Gattacks.dbf) or generated (leveled) attack implementation. */
 game::CAttackImpl* getAttackImpl(const game::IAttack* attack);
 int getBoostDamage(int level);
 int getLowerDamage(int level);
@@ -60,6 +67,9 @@ bool isNormalDamageAttack(game::AttackClassId id);
 
 /** Attack uses modifiable value of IAttack::getQtyDamage. */
 bool isModifiableDamageAttack(game::AttackClassId id);
+
+const game::LAttackSource* getAttackSourceById(game::AttackSourceId id);
+const game::LAttackClass* getAttackClassById(game::AttackClassId id);
 
 } // namespace hooks
 

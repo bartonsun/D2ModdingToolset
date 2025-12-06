@@ -26,18 +26,18 @@
 namespace game {
 
 struct CMidMsgBoxButtonHandler;
-struct CMidMsgBoxActHandler;
+struct CMidMsgBoxUpdateHandler;
 
 struct CMidgardMsgBoxData
 {
-    CDialogInterf* dialog;
+    CDialogInterf* dialogInterf;
     UiEvent updateEvent;
+    int updateCounter;
     int unknown;
-    void* userData;
-    bool confirmButtonOnly;
+    bool okButtonOnly;
     char padding[3];
     CMidMsgBoxButtonHandler* buttonHandler;
-    CMidMsgBoxActHandler* actHandler;
+    CMidMsgBoxUpdateHandler* updateHandler;
 };
 
 assert_size(CMidgardMsgBoxData, 48);
@@ -62,18 +62,21 @@ struct Api
      * Creates message box.
      * @param[in] thisptr message box to initialize.
      * @param[in] message text to show.
-     * @param showCancelButton if set to 1, creates message box with cancel button.
+     * @param showYesNoButtons if set to 1, creates message box with 'BTN_YES' and 'BTN_NO' buttons
+     * instead of 'BTN_OK'.
      * @param[in] buttonHandler handler logic to execute upon message box closing.
      * Handler object destroyed and its memory freed in message box destructor.
-     * @param[in] actHandler action handler logic. Used in Scenario Editor for map import/export.
-     * @param dialogName name of the custom dialog ui element to show instead of default,
-     * or nullptr. Default dialog is 'DLG_MESSAGE_BOX' from Interf.dlg.
+     * @param[in] updateHandler handler to call when update UIEvent is triggered 10 times. Seems to
+     * be unused (nullptr) in the game code.
+     * @param[in] dialogName name of the custom dialog ui element to show instead of default,
+     * or nullptr. Default dialog is 'DLG_MESSAGE_BOX' from Interf.dlg. Seems to be unused (nullptr)
+     * in the game code.
      */
     using Constructor = CMidgardMsgBox*(__thiscall*)(CMidgardMsgBox* thisptr,
                                                      const char* message,
-                                                     int showCancelButton,
+                                                     int showYesNoButtons,
                                                      CMidMsgBoxButtonHandler* buttonHandler,
-                                                     CMidMsgBoxActHandler* actHandler,
+                                                     CMidMsgBoxUpdateHandler* updateHandler,
                                                      const char* dialogName);
     Constructor constructor;
 };

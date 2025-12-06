@@ -64,6 +64,9 @@ struct Api
     using Constructor = CMenuProtocol*(__thiscall*)(CMenuProtocol* thisptr, CMenuPhase* menuPhase);
     Constructor constructor;
 
+    using Destructor = void(__thiscall*)(CMenuProtocol* thisptr);
+    Destructor destructor;
+
     /** Shows existing network protocols. */
     using DisplayCallback = void(__thiscall*)(CMenuProtocol* thisptr,
                                               String* string,

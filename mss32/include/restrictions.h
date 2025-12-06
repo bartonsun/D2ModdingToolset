@@ -64,6 +64,12 @@ struct GameRestrictions
     // No dedicated game variable for this, see implementation of DBReadPercentFieldWithBoundsCheck
     // (Akella 0x596A86)
     Restriction<int> percentValue;
+
+    std::uint32_t* playerNameMaxLength;
+    // No dedicated game variables for this, see implementation of CMenuNewSkirmishMultiCtor
+    // (Akella 0x4EA0D6)
+    std::uint32_t gameNameMaxLength;
+    std::uint32_t passwordMaxLength;
 };
 
 GameRestrictions& gameRestrictions();

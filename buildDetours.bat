@@ -22,10 +22,10 @@
 CALL VsDevCmd
 :: Build Detours library, ignore build errors. We only need detours.lib
 cd %1
-nmake 2>nul
+nmake > nul 2>&1
 :: Copy built library into project folder
 if exist %1\lib.X86\detours.lib (
-xcopy %1\lib.X86\detours.lib "%~dp0\mss32\" /y
+xcopy %1\lib.X86\detours.* "%~dp0\mss32\Lib\" /i /y
 ) else (
 echo "Could not find detours.lib, please check for build errors."
 exit 1

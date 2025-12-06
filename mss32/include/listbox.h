@@ -20,7 +20,9 @@
 #ifndef LISTBOX_H
 #define LISTBOX_H
 
+#include "d2string.h"
 #include "functordispatch1.h"
+#include "functordispatchmemfunc3.h"
 #include "interface.h"
 #include "mqpoint.h"
 #include "smartptr.h"
@@ -31,6 +33,9 @@ namespace game {
 struct CDialogInterf;
 struct CImage2TextBackground;
 struct CListBoxInterfData;
+struct CListBoxDisplayText;
+struct CImage2Text;
+struct CImage2DupWeak;
 
 /**
  * List box ui element.
@@ -40,10 +45,22 @@ struct CListBoxInterf : public CInterface
 {
     CListBoxInterfData* listBoxData;
 
-    /** Assumption: interface for list box elements rendering. */
+    struct LBDisplayVftable
+    {
+        using Destructor = void(__thiscall*)(CInterface* thisptr, char flags);
+        Destructor destructor;
+
+        using Display = CImage2DupWeak*(__thiscall*)(CListBoxDisplayText* thisptr,
+                                                     const CMqRect* textArea,
+                                                     unsigned int index,
+                                                     bool selected);
+        Display display;
+    };
+    assert_vftable_size(LBDisplayVftable, 2);
+
     struct LBDisplay
     {
-        const void* vftable;
+        LBDisplayVftable* vftable;
     };
 };
 
@@ -77,7 +94,11 @@ assert_size(CListBoxInterfData, 148);
 
 struct CListBoxDisplayTextData
 {
-    char unknown[48];
+    SmartPtr<CBFunctorDispatchMemFunc3<String*, bool, int>> functor;
+    char* selectedTextFormat;
+    char* normalTextFormat;
+    Vector<SmartPtr<CImage2Text>> itemTexts;
+    String shortenedMark;
 };
 
 assert_size(CListBoxDisplayTextData, 48);

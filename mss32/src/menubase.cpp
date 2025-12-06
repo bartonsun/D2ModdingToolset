@@ -39,6 +39,7 @@ static std::array<Api, 3> functions = {{
         (Api::CreateListBoxFunctor)0x4ea8da,
         (Api::CreateSpinButtonFunctor)0x4e5867,
         (Api::CreatePictureFunctor)0x492cb0,
+        (Api::CreateRadioButtonFunctor)0x4e833a,
     },
     // Russobit
     Api{
@@ -54,6 +55,7 @@ static std::array<Api, 3> functions = {{
         (Api::CreateListBoxFunctor)0x4ea8da,
         (Api::CreateSpinButtonFunctor)0x4e5867,
         (Api::CreatePictureFunctor)0x492cb0,
+        (Api::CreateRadioButtonFunctor)0x4e833a,
     },
     // Gog
     Api{
@@ -69,16 +71,17 @@ static std::array<Api, 3> functions = {{
         (Api::CreateListBoxFunctor)0x4e9d75,
         (Api::CreateSpinButtonFunctor)0x4e4f74,
         (Api::CreatePictureFunctor)0x492766,
+        (Api::CreateRadioButtonFunctor)0x4e7839,
     },
 }};
 
-static std::array<CInterfaceVftable*, 3> vftables = {{
+static std::array<CMenuBaseVftable*, 3> vftables = {{
     // Akella
-    (CInterfaceVftable*)0x6dd294,
+    (CMenuBaseVftable*)0x6dd294,
     // Russobit
-    (CInterfaceVftable*)0x6dd294,
+    (CMenuBaseVftable*)0x6dd294,
     // Gog
-    (CInterfaceVftable*)0x6db234,
+    (CMenuBaseVftable*)0x6db234,
 }};
 // clang-format on
 
@@ -87,7 +90,7 @@ Api& get()
     return functions[static_cast<int>(hooks::gameVersion())];
 }
 
-const CInterfaceVftable* vftable()
+const CMenuBaseVftable* vftable()
 {
     return vftables[static_cast<int>(hooks::gameVersion())];
 }

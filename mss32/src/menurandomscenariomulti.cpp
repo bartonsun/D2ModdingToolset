@@ -24,21 +24,12 @@
 #include "mempool.h"
 #include "menunewskirmishmulti.h"
 #include "menuphase.h"
-#include "menurandomscenario.h"
 #include "midgard.h"
+#include "restrictions.h"
 
 namespace hooks {
 
 static constexpr const char dialogName[] = "DLG_RANDOM_SCENARIO_MULTI";
-static constexpr const int gameNameMaxLength{40};
-static constexpr const int playerNameMaxLength{15};
-static constexpr const int passwordMaxLength{8};
-
-struct CMenuRandomScenarioMulti : public CMenuRandomScenario
-{
-    CMenuRandomScenarioMulti(game::CMenuPhase* menuPhase);
-    ~CMenuRandomScenarioMulti() = default;
-};
 
 static void startScenarioNet(CMenuRandomScenario* menu)
 {
@@ -48,7 +39,8 @@ static void startScenarioNet(CMenuRandomScenario* menu)
 
     // Setup game host: reuse original game logic that creates player server and client
     if (CMenuNewSkirmishMultiApi::get().createServer(menu)) {
-        CMenuPhaseApi::get().setTransition(menu->menuBaseData->menuPhase, 0);
+        CMenuPhaseApi::get().switchPhase(menu->menuBaseData->menuPhase,
+                                         MenuTransition::RandomScenarioMulti2LobbyHost);
     }
 }
 
@@ -60,11 +52,13 @@ CMenuRandomScenarioMulti::CMenuRandomScenarioMulti(game::CMenuPhase* menuPhase)
     const auto& menuBase{CMenuBaseApi::get()};
     const auto& dialogApi{CDialogInterfApi::get()};
     const auto& editBoxApi{CEditBoxInterfApi::get()};
+    const auto& restrictions{gameRestrictions()};
 
     CDialogInterf* dialog{menuBase.getDialogInterface(this)};
 
     CEditBoxInterf* editName{editBoxApi.setFilterAndLength(dialog, "EDIT_NAME", dialogName,
-                                                           EditFilter::Names, playerNameMaxLength)};
+                                                           EditFilter::Names,
+                                                           *restrictions.playerNameMaxLength)};
     if (editName) {
         const CMidgard* midgard{CMidgardApi::get().instance()};
         const GameSettings* settings{*midgard->data->settings};
@@ -73,9 +67,9 @@ CMenuRandomScenarioMulti::CMenuRandomScenarioMulti(game::CMenuPhase* menuPhase)
     }
 
     editBoxApi.setFilterAndLength(dialog, "EDIT_GAME", dialogName, EditFilter::Names,
-                                  gameNameMaxLength);
+                                  restrictions.gameNameMaxLength);
     editBoxApi.setFilterAndLength(dialog, "EDIT_PASSWORD", dialogName, EditFilter::Names,
-                                  passwordMaxLength);
+                                  restrictions.passwordMaxLength);
 }
 
 game::CMenuBase* __stdcall createMenuRandomScenarioMulti(game::CMenuPhase* menuPhase)

@@ -21,8 +21,12 @@
 #include "attackclasscat.h"
 #include "attacksourcecat.h"
 #include "borderedimg.h"
+#include "button.h"
 #include "categorylist.h"
 #include "customattacks.h"
+#include "dialoginterf.h"
+#include "editboxinterf.h"
+#include "editor.h"
 #include "encunitdescriptor.h"
 #include "leaderunitdescriptor.h"
 #include "mempool.h"
@@ -36,7 +40,6 @@
 #include "unitutils.h"
 #include "usunitimpl.h"
 #include "utils.h"
-#include <editor.h>
 #include <fmt/format.h>
 
 namespace hooks {
@@ -75,6 +78,29 @@ const game::CLeaderUnitDescriptor* castToLeaderUnitDescriptor(
     return (const game::CLeaderUnitDescriptor*)dynamicCast(descriptor, 0,
                                                            rtti.IEncUnitDescriptorType,
                                                            rtti.CLeaderUnitDescriptorType, 0);
+}
+
+const game::CMidUnit* getUnit(const game::IEncUnitDescriptor* descriptor)
+{
+    auto midUnitDescriptor = castToMidUnitDescriptor(descriptor);
+    return midUnitDescriptor ? midUnitDescriptor->unit : nullptr;
+}
+
+const game::IUsUnit* getModifiedUnitImpl(const game::IEncUnitDescriptor* descriptor)
+{
+    auto midUnitDescriptor = castToMidUnitDescriptor(descriptor);
+    if (midUnitDescriptor) {
+        return midUnitDescriptor->unit->unitImpl;
+    }
+
+    auto unitTypeDescriptor = castToUnitTypeDescriptor(descriptor);
+    if (unitTypeDescriptor) {
+        return getUnitImpl(&unitTypeDescriptor->unitImplId);
+    }
+
+    // Modified implementation is unavailable for CLeaderUnitDescriptor because it retains modified
+    // unit stats in its fields.
+    return nullptr;
 }
 
 const game::TUsUnitImpl* getUnitImpl(const game::IEncUnitDescriptor* descriptor)
@@ -424,6 +450,78 @@ game::CBorderedImg* createBorderedImage(game::IMqImage2* image, game::BorderType
     borderedImgApi.addImage(result, image);
 
     return result;
+}
+
+void setButtonCallback(game::CDialogInterf* dialog,
+                       const char* buttonName,
+                       void* callback,
+                       void* callbackParam)
+{
+    using namespace game;
+
+    SmartPointer functor;
+    CMenuBaseApi::get().createButtonFunctor(&functor, 0, (CMenuBase*)callbackParam,
+                                            (game::CMenuBaseApi::Api::ButtonCallback*)&callback);
+    CButtonInterfApi::get().assignFunctor(dialog, buttonName, dialog->data->dialogName, &functor,
+                                          0);
+    SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
+}
+
+void setButtonCallback(game::CButtonInterf* button, void* callback, void* callbackParam)
+{
+    using namespace game;
+
+    SmartPointer functor;
+    CMenuBaseApi::get().createButtonFunctor(&functor, 0, (CMenuBase*)callbackParam,
+                                            (game::CMenuBaseApi::Api::ButtonCallback*)&callback);
+    button->vftable->setOnClickedFunctor(button, &functor);
+    SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
+}
+
+void setEditBoxData(game::CDialogInterf* dialog,
+                    const char* editName,
+                    game::EditFilter filter,
+                    int length,
+                    bool password)
+{
+    using namespace game;
+
+    auto editBox = CEditBoxInterfApi::get().setFilterAndLength(dialog, editName,
+                                                               dialog->data->dialogName, filter,
+                                                               length);
+    if (editBox) {
+        editBox->data->editBoxData.patched.isPassword = password;
+    }
+}
+
+const char* getEditBoxText(game::CDialogInterf* dialog, const char* editName)
+{
+    using namespace game;
+
+    auto edit = CDialogInterfApi::get().findEditBox(dialog, editName);
+    return edit ? edit->data->editBoxData.inputString.string : nullptr;
+}
+
+void setEditBoxText(game::CDialogInterf* dialog,
+                    const char* editName,
+                    const char* text,
+                    bool moveCursorPos)
+{
+    using namespace game;
+
+    const auto& editBoxApi = CEditBoxInterfApi::get();
+
+    auto editBox = CDialogInterfApi::get().findEditBox(dialog, editName);
+    editBoxApi.setString(editBox, text);
+
+    if (moveCursorPos) {
+        auto textLength = text ? strlen(text) : 0;
+        if (textLength) {
+            editBox->data->editBoxData.textCursorPosIdx = textLength;
+            editBoxApi.resetCursorBlink(editBox->data->editBoxFocus.data);
+            editBoxApi.update(editBox);
+        }
+    }
 }
 
 } // namespace hooks

@@ -55,9 +55,16 @@ struct IFormattedTextVftable
                                         int a6);
     Draw draw;
 
-    using Method2 =
-        int*(__thiscall*)(IFormattedText* thisptr, int a2, char* str, unsigned int a4, int a5);
-    Method2 method2;
+    /**
+     * cursorPosPtr should point to the same string as text, otherwise you will end up with
+     * out-of-memory.
+     */
+    using GetTextCursorPos = CMqPoint*(__thiscall*)(IFormattedText* thisptr,
+                                                    CMqPoint* cursorPos,
+                                                    const char* text,
+                                                    const char* cursorPosPtr,
+                                                    CMqRect* area);
+    GetTextCursorPos getTextCursorPos;
 
     using Method3 = unsigned int(__thiscall*)(IFormattedText* thisptr,
                                               int a2,

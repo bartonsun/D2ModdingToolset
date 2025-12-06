@@ -22,62 +22,84 @@
 
 #include "mqnetplayerserver.h"
 #include "netcustomplayer.h"
-#include <NatPunchthroughClient.h>
-#include <list>
-#include <utility>
-#include <vector>
+#include "netcustomservice.h"
 
 namespace hooks {
 
-struct CNetCustomPlayerServer;
-
-class PlayerServerCallbacks : public NetworkPeerCallbacks
+class CNetCustomPlayerServer : public CNetCustomPlayer
 {
 public:
-    PlayerServerCallbacks(CNetCustomPlayerServer* playerServer)
-        : playerServer{playerServer}
-    { }
+    CNetCustomPlayerServer(CNetCustomSession* session,
+                           game::IMqNetSystem* system,
+                           game::IMqNetReception* reception);
+    ~CNetCustomPlayerServer();
 
-    virtual ~PlayerServerCallbacks() = default;
+    bool addClient(const SLNet::RakNetGUID& guid, const SLNet::RakString& name);
+    bool removeClient(const SLNet::RakNetGUID& guid);
+    bool removeClient(const SLNet::RakString& name);
 
-    void onPacketReceived(DefaultMessageIDTypes type,
-                          SLNet::RakPeerInterface* peer,
-                          const SLNet::Packet* packet) override;
+protected:
+    // IMqNetPlayerClient
+    static void __fastcall destructor(CNetCustomPlayerServer* thisptr, int /*%edx*/, char flags);
+    static bool __fastcall sendMessage(CNetCustomPlayerServer* thisptr,
+                                       int /*%edx*/,
+                                       std::uint32_t idTo,
+                                       const game::NetMessageHeader* message);
+    static bool __fastcall destroyPlayer(CNetCustomPlayerServer* thisptr,
+                                         int /*%edx*/,
+                                         int playerId);
+    static bool __fastcall setMaxPlayers(CNetCustomPlayerServer* thisptr,
+                                         int /*%edx*/,
+                                         int maxPlayers);
+    static bool __fastcall setAllowJoin(CNetCustomPlayerServer* thisptr,
+                                        int /*%edx*/,
+                                        bool allowJoin);
 
 private:
-    CNetCustomPlayerServer* playerServer;
-};
+    RemoteClients getRemoteClients() const;
+    SLNet::RakNetGUID getRemoteClientGuid(std::uint32_t id) const;
 
-struct CNetCustomPlayerServer : public game::IMqNetPlayerServer
-{
-    CNetCustomPlayerServer(CNetCustomSession* session,
-                           game::IMqNetSystem* netSystem,
-                           game::IMqNetReception* netReception,
-                           NetworkPeer::PeerPtr&& peer);
-
-    ~CNetCustomPlayerServer() = default;
-
-    auto getPeer()
+    class PeerCallback : public NetPeerCallback
     {
-        return player.getPeer();
-    }
+    public:
+        PeerCallback(CNetCustomPlayerServer* player)
+            : m_player{player}
+        { }
 
-    bool notifyHostClientConnected();
+        void onPacketReceived(DefaultMessageIDTypes type,
+                              SLNet::RakPeerInterface* peer,
+                              const SLNet::Packet* packet) override;
 
-    CNetCustomPlayer player;
-    PlayerServerCallbacks callbacks;
-    SLNet::NatPunchthroughClient natClient;
+    private:
+        CNetCustomPlayerServer* m_player;
+    };
 
-    using NetMessagePtr = std::unique_ptr<unsigned char[]>;
-    using IdMessagePair = std::pair<std::uint32_t, NetMessagePtr>;
+    class RoomsCallback : public SLNet::RoomsCallback
+    {
+    public:
+        RoomsCallback(CNetCustomPlayerServer* player)
+            : m_player{player}
+        { }
 
-    std::list<IdMessagePair> messages;
-    std::vector<SLNet::RakNetGUID> connectedIds;
+        void RoomMemberLeftRoom_Callback(
+            const SLNet::SystemAddress& senderAddress,
+            SLNet::RoomMemberLeftRoom_Notification* notification) override;
+
+        void RoomMemberJoinedRoom_Callback(
+            const SLNet::SystemAddress& senderAddress,
+            SLNet::RoomMemberJoinedRoom_Notification* notification) override;
+
+    private:
+        CNetCustomPlayerServer* m_player;
+    };
+
+    PeerCallback m_peerCallback;
+    RoomsCallback m_roomsCallback;
+    RemoteClients m_remoteClients;
+    mutable std::mutex m_remoteClientsMutex;
 };
 
-game::IMqNetPlayerServer* createCustomPlayerServer(CNetCustomSession* session,
-                                                   game::IMqNetSystem* netSystem,
-                                                   game::IMqNetReception* netReception);
+assert_offset(CNetCustomPlayerServer, vftable, 0);
 
 } // namespace hooks
 

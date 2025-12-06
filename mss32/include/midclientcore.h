@@ -20,22 +20,27 @@
 #ifndef MIDCLIENTCORE_H
 #define MIDCLIENTCORE_H
 
+#include "midcommandqueue2.h"
 #include "mqnetsystem.h"
 
 namespace game {
 
 struct CMidgard;
-struct IMidgardObjectMap;
-struct CMidCommandQueue2;
+struct CMidDataCache2;
 struct CoreCommandUpdate;
 struct CCommandCanIgnore;
 struct CMidHotseatManager;
+
+template <typename T>
+struct CNetMsgT;
+struct CNetMsgVftable;
+using CNetMsg = CNetMsgT<CNetMsgVftable>;
 
 struct CMidClientCoreData
 {
     CMidgard* midgard;
     int unknown;
-    IMidgardObjectMap* objectMap;
+    CMidDataCache2* dataCache;
     int unknown3;
     CMidCommandQueue2* commandQueue;
     CoreCommandUpdate* coreCommandUpdate;
@@ -50,11 +55,27 @@ struct CMidClientCore : public IMqNetSystem
     CMidClientCoreData* data;
 };
 
+assert_size(CMidClientCore, 8);
+
+struct CoreCommandUpdate : public CMidCommandQueue2::IUpdate
+{
+    CMidClientCore* midClientCore;
+};
+
+assert_size(CoreCommandUpdate, 8);
+
+struct CCommandCanIgnore : public CMidCommandQueue2::ICanIgnore
+{
+    CMidClientCore* midClientCore;
+};
+
+assert_size(CCommandCanIgnore, 8);
+
 namespace CMidClientCoreApi {
 
 struct Api
 {
-    using GetObjectMap = IMidgardObjectMap*(__thiscall*)(CMidClientCore* thisptr);
+    using GetObjectMap = CMidDataCache2*(__thiscall*)(CMidClientCore* thisptr);
     GetObjectMap getObjectMap;
 };
 

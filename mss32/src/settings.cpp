@@ -18,13 +18,15 @@
  */
 
 #include "settings.h"
-#include "log.h"
+#include "battlemsgdata.h"
 #include "scripts.h"
 #include "utils.h"
 #include <algorithm>
-#include <fmt/format.h>
 #include <limits>
+#include <spdlog/spdlog.h>
 #include <string>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 namespace hooks {
 
@@ -104,6 +106,12 @@ static void readUnitEncyclopediaSettings(const sol::table& table, Settings::Unit
     value.displayCriticalHitTextInAttackName = readSetting(category.value(),
                                                            "displayCriticalHitTextInAttackName",
                                                            def.displayCriticalHitTextInAttackName);
+    value.updateOnShiftKeyPress = readSetting(category.value(), "updateOnShiftKeyPress",
+                                              def.updateOnShiftKeyPress);
+    value.updateOnCtrlKeyPress = readSetting(category.value(), "updateOnCtrlKeyPress",
+                                             def.updateOnCtrlKeyPress);
+    value.updateOnAltKeyPress = readSetting(category.value(), "updateOnAltKeyPress",
+                                            def.updateOnAltKeyPress);
 }
 
 static void readModifierSettings(const sol::table& table, Settings::Modifiers& value)
@@ -279,9 +287,13 @@ static void readBattleSettings(const sol::table& table, Settings::Battle& value)
                                            def.carryXpOverUpgrade);
     value.allowMultiUpgrade = readSetting(category.value(), "allowMultiUpgrade",
                                           def.allowMultiUpgrade);
+    value.debugAi = readSetting(category.value(), "debugAi", def.debugAi);
+    value.fallbackAction = readSetting(category.value(), "fallbackAction", def.fallbackAction,
+                                       game::BattleAction::Attack, game::BattleAction::UseItem);
 }
 
-static void readAdditionalLordIncomeSettings(const sol::table& table, Settings::AdditionalLordIncome& value)
+static void readAdditionalLordIncomeSettings(const sol::table& table,
+                                             Settings::AdditionalLordIncome& value)
 {
     const auto& def = defaultSettings().additionalLordIncome;
 
@@ -331,7 +343,8 @@ static void readSettings(const sol::table& table, Settings& settings)
     settings.freeTransformSelfAttack = readSetting(table, "freeTransformSelfAttack", defaultSettings().freeTransformSelfAttack);
     settings.freeTransformSelfAttackInfinite = readSetting(table, "freeTransformSelfAttackInfinite", defaultSettings().freeTransformSelfAttackInfinite);
     settings.fixEffectiveHpFormula = readSetting(table, "fixEffectiveHpFormula", defaultSettings().fixEffectiveHpFormula);
-    settings.debugMode = readSetting(table, "debugHooks", defaultSettings().debugMode);
+    // People keep forgetting to turn this off in release packages
+    //settings.debugMode = readSetting(table, "debugHooks", defaultSettings().debugMode);
     // clang-format on
 
     readAiAttackPowerSettings(table, settings.aiAttackPowerBonus);
@@ -344,6 +357,24 @@ static void readSettings(const sol::table& table, Settings& settings)
     readEngineSettings(table, settings.engine);
     readBattleSettings(table, settings.battle);
     readAdditionalLordIncomeSettings(table, settings.additionalLordIncome);
+}
+
+static void readDebugMode(Settings& settings)
+{
+#ifdef _DEBUG
+    settings.debugMode = true;
+    return;
+#endif
+
+    settings.debugMode = defaultSettings().debugMode;
+
+    char commandLine[256];
+    strncpy(commandLine, GetCommandLine(), 256);
+    commandLine[255] = 0;
+    // Similar to built-in -GAMESPY and -NOCRASH
+    if (strstr(commandLine, "-DEBUG")) {
+        settings.debugMode = true;
+    }
 }
 
 const Settings& baseSettings()
@@ -394,6 +425,10 @@ const Settings& baseSettings()
         settings.unitEncyclopedia.displayBonusHp = false;
         settings.unitEncyclopedia.displayBonusXp = false;
         settings.unitEncyclopedia.displayInfiniteAttackIndicator = false;
+        settings.unitEncyclopedia.displayCriticalHitTextInAttackName = false;
+        settings.unitEncyclopedia.updateOnShiftKeyPress = false;
+        settings.unitEncyclopedia.updateOnCtrlKeyPress = false;
+        settings.unitEncyclopedia.updateOnAltKeyPress = false;
         settings.fixEffectiveHpFormula = false;
         settings.modifiers.cumulativeUnitRegeneration = false;
         settings.modifiers.notifyModifiersChanged = false;
@@ -414,6 +449,7 @@ const Settings& baseSettings()
         settings.movementCost.plain.onRoad = 1;
         settings.movementCost.textColor = Color{200, 200, 200};
         settings.movementCost.show = false;
+        settings.battle.fallbackAction = game::BattleAction::Defend;
         settings.debugMode = false;
 
         initialized = true;
@@ -453,11 +489,12 @@ void initializeUserSettings(Settings& value)
     const auto path{scriptsFolder() / "settings.lua"};
     try {
         const auto env{executeScriptFile(path)};
-        if (!env)
-            return;
+        if (env) {
+            const sol::table& table = (*env)["settings"];
+            readSettings(table, value);
+        }
 
-        const sol::table& table = (*env)["settings"];
-        readSettings(table, value);
+        readDebugMode(value);
     } catch (const std::exception& e) {
         showErrorMessageBox(fmt::format("Failed to read script '{:s}'.\n"
                                         "Reason: '{:s}'",
@@ -465,7 +502,7 @@ void initializeUserSettings(Settings& value)
     }
 }
 
-const Settings& userSettings()
+Settings& getUserSettings()
 {
     static Settings settings;
     static bool initialized = false;
@@ -476,6 +513,16 @@ const Settings& userSettings()
     }
 
     return settings;
+}
+
+const Settings& userSettings()
+{
+    return getUserSettings();
+}
+
+Settings::Lobby& lobbySettings()
+{
+    return getUserSettings().lobby;
 }
 
 } // namespace hooks

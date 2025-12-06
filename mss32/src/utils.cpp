@@ -20,19 +20,24 @@
 #include "utils.h"
 #include "game.h"
 #include "interfmanager.h"
-#include "log.h"
 #include "mempool.h"
 #include "midgardmsgbox.h"
 #include "midgardobjectmap.h"
 #include "midmsgboxbuttonhandlerstd.h"
 #include "midscenvariables.h"
+#include "mquikernelsimple.h"
 #include "smartptr.h"
+#include "sounds.h"
 #include "uimanager.h"
-#include <Windows.h>
-#include <fmt/format.h>
 #include <fstream>
 #include <random>
+#include <spdlog/spdlog.h>
 #include <wincrypt.h>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <commdlg.h>
+
+extern HMODULE library;
 
 namespace hooks {
 
@@ -86,6 +91,18 @@ const std::filesystem::path& templatesFolder()
 const std::filesystem::path& exportsFolder()
 {
     static const std::filesystem::path folder{gameFolder() / "Exports"};
+    return folder;
+}
+
+const std::filesystem::path& interfFolder()
+{
+    static const std::filesystem::path folder{gameFolder() / "Interf"};
+    return folder;
+}
+
+const std::filesystem::path& scenDataFolder()
+{
+    static const std::filesystem::path folder{gameFolder() / "ScenData"};
     return folder;
 }
 
@@ -216,7 +233,26 @@ bool readUserSelectedFile(std::string& contents, const char* filter, const char*
     ofn.lpstrFileTitle = NULL;
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
-    ofn.hwndOwner = FindWindowEx(nullptr, nullptr, "MQ_UIManager", nullptr);
+    // Handle DisciplesGL wrapper window presence.
+    // Wrapper creates its own window for the fullscreen mode
+    // and it should be used as owner for open dialog box to be displayed correctly.
+    static const char disciplesGlClassName[] = "7903f211-51ca-4a51-9ec5-e1301db2d24d";
+    HWND disciplesGlWindow = FindWindowEx(nullptr, nullptr, disciplesGlClassName, nullptr);
+    if (disciplesGlWindow) {
+        ofn.hwndOwner = disciplesGlWindow;
+    } else {
+        // Use original game window handle if there is no wrapper
+        // or wrapper works in a windowed mode.
+        using namespace game;
+
+        UIManagerPtr manager;
+        CUIManagerApi::get().get(&manager);
+        const auto* kernel = manager.data->data->uiKernel;
+
+        ofn.hwndOwner = kernel->vftable->getWindowHandle(kernel);
+
+        SmartPointerApi::get().createOrFree((game::SmartPointer*)&manager, nullptr);
+    }
 
     if (!GetOpenFileName(&ofn)) {
         return false;
@@ -269,7 +305,7 @@ void showMessageBox(const std::string& message,
 
 void showErrorMessageBox(const std::string& message)
 {
-    logError("mssProxyError.log", message);
+    spdlog::error(message);
     MessageBox(NULL, message.c_str(), "mss32.dll proxy", MB_OK);
 }
 
@@ -329,7 +365,7 @@ std::uint32_t createMessageEvent(game::UiEvent* messageEvent,
     return messageId;
 }
 
-bool computeHash(const std::filesystem::path& folder, std::string& hash)
+std::string computeHash(std::vector<std::filesystem::path> filenames)
 {
     struct HashGuard
     {
@@ -344,33 +380,25 @@ bool computeHash(const std::filesystem::path& folder, std::string& hash)
         HCRYPTHASH hash{};
     };
 
-    std::vector<std::filesystem::path> filenames;
-    for (const auto& entry : std::filesystem::directory_iterator(folder)) {
-        filenames.push_back(entry.path());
-    }
-
     std::sort(filenames.begin(), filenames.end());
 
     HashGuard guard;
     if (!CryptAcquireContext(&guard.provider, nullptr, nullptr, PROV_RSA_FULL,
                              CRYPT_VERIFYCONTEXT)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not acquire context, reason {:d}", GetLastError()));
-        return false;
+        spdlog::error("Could not acquire context, reason {:d}", GetLastError());
+        return "";
     }
 
     if (!CryptCreateHash(guard.provider, CALG_MD5, 0, 0, &guard.hash)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not create hash, reason {:d}", GetLastError()));
-        return false;
+        spdlog::error("Could not create hash, reason {:d}", GetLastError());
+        return "";
     }
 
     for (const auto& file : filenames) {
         std::ifstream stream{file, std::ios_base::binary};
         if (!stream) {
-            logError("mssProxyError.log",
-                     fmt::format("Could not open file '{:s}'", file.filename().string()));
-            return false;
+            spdlog::error("Could not open file '{:s}'", file.filename().string());
+            return "";
         }
 
         const auto size = static_cast<size_t>(std::filesystem::file_size(file));
@@ -380,9 +408,8 @@ bool computeHash(const std::filesystem::path& folder, std::string& hash)
         stream.close();
 
         if (!CryptHashData(guard.hash, contents.data(), size, 0)) {
-            logError("mssProxyError.log",
-                     fmt::format("Compute hash failed, reason {:d}", GetLastError()));
-            return false;
+            spdlog::error("Compute hash failed, reason {:d}", GetLastError());
+            return "";
         }
     }
 
@@ -391,23 +418,20 @@ bool computeHash(const std::filesystem::path& folder, std::string& hash)
     unsigned char md5Hash[md5Length] = {0};
 
     if (!CryptGetHashParam(guard.hash, HP_HASHVAL, md5Hash, &length, 0)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not get hash value, reason {:d}", GetLastError()));
-        return false;
+        spdlog::error("Could not get hash value, reason {:d}", GetLastError());
+        return "";
     }
 
-    hash.clear();
-
+    std::string hash;
     static const char hexDigits[] = "0123456789abcdef";
     for (DWORD i = 0; i < length; ++i) {
         hash += hexDigits[md5Hash[i] >> 4];
         hash += hexDigits[md5Hash[i] & 0xf];
     }
-
-    return true;
+    return hash;
 }
 
-void forEachScenarioObject(game::IMidgardObjectMap* objectMap,
+void forEachScenarioObject(const game::IMidgardObjectMap* objectMap,
                            game::IdType idType,
                            const std::function<void(const game::IMidScenarioObject*)>& func)
 {
@@ -435,6 +459,85 @@ void forEachScenarioObject(game::IMidgardObjectMap* objectMap,
 
     free((SmartPointer*)&current, nullptr);
     free((SmartPointer*)&end, nullptr);
+}
+
+void allocateString(char** dest, const char* src)
+{
+    auto& memory = game::Memory::get();
+
+    if (*dest) {
+        memory.freeNonZero(*dest);
+        *dest = nullptr;
+    }
+
+    if (src && *src) {
+        const auto length = std::strlen(src);
+        *dest = (char*)memory.allocate(length + 1);
+        std::strncpy(*dest, src, length);
+        (*dest)[length] = 0;
+    }
+}
+
+bool writeResourceToFile(HANDLE file, int resourceId)
+{
+    HRSRC resourceInfo = ::FindResource(library, MAKEINTRESOURCE(resourceId), RT_RCDATA);
+    if (resourceInfo == NULL) {
+        return false;
+    }
+
+    DWORD resourceSize = ::SizeofResource(library, resourceInfo);
+    if (resourceSize == 0) {
+        return false;
+    }
+
+    HGLOBAL resource = ::LoadResource(library, resourceInfo);
+    if (resource == NULL) {
+        return false;
+    }
+
+    DWORD written;
+    auto data = reinterpret_cast<const char*>(::LockResource(resource));
+    if (!::WriteFile(file, data, resourceSize, &written, NULL) || written != resourceSize) {
+        return false;
+    }
+
+    return true;
+}
+
+bool writeResourceToFile(const std::filesystem::path& path, int resourceId, bool rewriteExisting)
+{
+    if (!rewriteExisting) {
+        auto attr = GetFileAttributes(path.string().c_str());
+        if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+            return true;
+        }
+    }
+
+    auto file = ::CreateFile(path.string().c_str(), GENERIC_WRITE, 0, NULL, OPEN_ALWAYS,
+                             FILE_ATTRIBUTE_NORMAL, NULL);
+    if (file == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    bool result = writeResourceToFile(file, resourceId);
+    ::CloseHandle(file);
+    return result;
+}
+
+void playSoundEffect(game::SoundEffect effect)
+{
+    using namespace game;
+
+    const auto& api{SoundsApi::get()};
+
+    SmartPtr<Sounds> sounds{};
+    api.instance(&sounds);
+
+    SmartPointer functor{};
+    api.playSound(sounds.data, effect, -1, &functor);
+
+    SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
+    api.soundsPtrSetData(&sounds, nullptr);
 }
 
 } // namespace hooks

@@ -22,7 +22,8 @@ Scripts folder itself should be placed in the game folder.
 - getSelectedTargetAndTwoChainedRandom.lua - contains attack targeting logic for random chain attack reach
 - getSelectedTargetAndOneRandom.lua - contains attack targeting logic for additional random target
 - getWoundedFemaleGreenskinTargets.lua - contains targeting logic that only allows to reach wounded female greenskins
-- [Scripts/Modifiers](Scripts/Modifiers) contain custom modifier script examples
+- [Scripts/Modifiers](Scripts/Modifiers) - contains custom modifier script examples
+- unitEncyclopedia.lua - contains custom display functions for unit encyclopedia
 
 ### API reference
 
@@ -42,15 +43,33 @@ The function only accessible to scripts where scenario access is appropriate:
 - `drainLevel.lua`
 - custom attack reach scripts
 - custom unit modifier script
+- AI battle actions script
 
 `checkEventCondition` has `scenario` as its argument so `getScenario` is not bound to it.
 ```lua
 getScenario():getUnit(unitId)
 ```
+##### randomNumber
+Generates random number in range \[0 : maxValue) using ingame generator
+```lua
+local n = randomNumber(100)
+```
+##### getGlobal
+Returns [global data storage](luaApi.md#global) used by game.
+```lua
+local data = getGlobal()
+local variables = data.variables
+```
+##### getGame
+Returns [game](luaApi.md#game) restrictions and constants.
+```lua
+getGame().unitMaxDamage
+```
 
 ---
 
 #### Enumerations
+
 ##### Race
 ```lua
 Race = { Human, Undead, Heretic, Dwarf, Neutral, Elf }
@@ -167,9 +186,92 @@ BattleStatus = {
 }
 ```
 
+##### BattleAction
+```
+BattleAction = { Attack, Skip, Retreat, Wait, Defend, Auto, UseItem }
+```
+
+##### Retreat
+```
+Retreat = { NoRetreat, CoverAndRetreat, FullRetreat }
+```
+
 ##### Relation
 ```
 Relation = { War, Neutral, Peace }
+```
+
+##### Order
+```
+Order = { Normal, Stand, Guard, AttackStack, DefendStack, SecureCity,
+          Roam, MoveToLocation, DefendLocation, Bezerk, Assist, Steal, DefendCity }
+```
+
+##### IdType
+```
+IdType = {
+    Empty,              -- Empty id
+    ApplicationText,    -- Entries of TApp.dbf and TAppEdit.dbf
+    Building,           -- Entries of GBuild.dbf
+    Race,               -- Entries of GRace.dbf
+    Lord,               -- Entries of GLord.dbf
+    Spell,              -- Entries of GSpells.dbf
+    UnitGlobal,         -- Unit implementations, entries of GUnits.dbf
+    UnitGenerated,      -- Runtime-generated unit implementations
+    UnitModifier,       -- Unit modifiers, entries of GModif.dbf
+    Attack,             -- Attacks, entries of GAttacks.dbf
+    TextGlobal,         -- Entries of TGlobal.dbf
+    LandmarkGlobal,     -- Entries of GLmark.dbf
+    ItemGlobal,         -- Base items, entries of GItem.dbf
+    NobleAction,        -- Noble (thief) actions, entries of GAction.dbf
+    DynamicUpgrade,     -- Dynamic upgrade rules, entries of GDynUpgr.dbf
+    DynamicAttack,      -- Runtime-generated unit primary attacks
+    DynamicAltAttack,   -- Runtime-generated unit primary alternative attacks
+    DynamicAttack2,     -- Runtime-generated unit secondary attacks
+    DynamicAltAttack2,  -- Runtime-generated unit secondary alternative attacks
+    CampaignFile,       -- Campaign files
+    Plan,               -- Utility for fast object lookup by map coordinates
+    ObjectCount,        -- Number of objects in scenario file
+    ScenarioFile,       -- Scenario files
+    Map,                -- Scenario map
+    MapBlock,           -- Blocks of scenario map
+    ScenarioInfo,       -- Scenario information
+    SpellEffects,
+    Fortification,      -- Capitals and villages
+    Player,             -- Players in scenario
+    PlayerKnownSpells,  -- Spells known by player in scenario
+    Fog,                -- Fog of war for player in scenario
+    PlayerBuildings,    -- Capital buildings
+    Road,               -- Roads on scenario map
+    Stack,              -- Stacks in scenario
+    Unit,               -- Units in scenario
+    Landmark,           -- Landmarks in scenario
+    Item,               -- Items in scenario
+    Bag,                -- Bags in scenario
+    Site,               -- Sites in scenario
+    Ruin,               -- Ruins in scenario
+    Tomb,               -- Grave markers in scenario
+    Rod,                -- Rods in scenario
+    Crystal,            -- Gold mines and mana sources in scenario
+    Diplomacy,          -- Diplomacy rules in scenario
+    SpellCast,
+    Location,           -- Location on scenario map
+    StackTemplate,      -- Stack templates in scenario
+    Event,              -- Events in scenario
+    StackDestroyed,     -- Information about stacks defeated in scenario
+    TalismanCharges,    -- Talisman charges counter in scenario
+    Mountains,          -- Mountains in scenario
+    SubRace,            -- Subraces in scenario
+    SubRaceType,        -- Entries of GSubRace.dbf
+    QuestLog,           -- Scenario quest log
+    TurnSummary,        -- Brief information about last turn in scenario
+    ScenarioVariable    -- Scenario variables
+}
+```
+
+##### Resource
+```
+Resource = { Gold, InfernalMana, LifeMana, DeathMana, RunicMana, GroveMana }
 ```
 
 ---
@@ -214,6 +316,213 @@ id.value
 -- Can be used as Lua table key for best performance.
 id.typeIndex
 ```
+##### type
+Returns [type](luaApi.md#idtype) of identifier.
+Identifier type can help to distinguish one object from another.
+```lua
+id.type
+```
+##### summonId
+Creates special id for summoning units in battle using specified position in group.
+Position in group should be in \[0 : 5\] range.
+```lua
+Id.summonId(possibleTarget)
+```
+
+---
+
+#### Game
+Represents game restrictions and constants.
+Allows to access `settings.lua`.
+
+Methods:
+##### unitMaxDamage
+Maximum damage unit attack can inflict in battle. `unitMaxDamage` from `settings.lua`.
+```lua
+game.unitMaxDamage
+```
+##### unitMinDamage
+Minimum damage unit attack can inflict in battle. Currently 1.
+```lua
+game.unitMinDamage
+```
+##### unitMaxArmor
+Maximum armor unit can have. `unitMaxArmor` from `settings.lua`.
+```lua
+game.unitMaxArmor
+```
+##### leaderAdditionalDamage
+Additional damage granted by leader ability `Heavy strike`. Currently 100.
+```lua
+game.leaderAdditionalDamage
+```
+
+---
+
+#### Global
+Represents global data storage used by game.
+Allows to access contents of dbf files in 'Globals' folder of the game.
+
+Methods:
+##### variables
+Returns [global variables](luaApi.md#global-variables).
+```lua
+local v = getGlobal().variables
+```
+
+---
+
+#### Global Variables
+Allows to access contents of `GVars.dbf`.
+
+Methods:
+```lua
+-- Instructor skill bonus experience, 'WEAPN_MSTR'
+variables.weapnMstr
+-- Max additional initiative points that randomly added to unit in battle. 'BAT_INIT'
+variables.batInit
+-- Max additional damage points that randomly added to unit damage in battle. 'BAT_DAMAGE'
+variables.batDamage
+-- 'BAT_ROUND'
+variables.batRound
+-- 'BAT_BREAK'
+variables.batBreak
+-- 'BAT_BMODIF'
+variables.batBModif
+-- Initiative debuff. 'BATLOWERI'
+variables.batLoweri
+-- Maximum number of abilities leader can learn. 'LDRMAXABIL'
+variables.ldrMaxAbil
+-- Spy discovery chance per turn. 'SPY_DISCOV'
+variables.spyDiscov
+-- Damage from thief action 'poison city'. 'POISON_C'
+variables.poisonC
+-- Damage from thief action 'poison stack'. 'POISON_S'
+variables.poisonS
+-- Bribe multiplier. 'BRIBE'
+variables.bribe
+-- 'STEAL_RACE'
+variables.stealRace
+-- 'STEAL_NEUT'
+variables.stealNeut
+-- Minimal riot duration in days. 'RIOT_MIN'
+variables.riotMin
+-- Maximal riot duration in days. 'RIOT_MAX'
+variables.riotMax
+-- Percentage of riot damage. 'RIOT_DMG'
+variables.riotDmg
+-- Percentage of the original price of the items at sale. 'SELL_RATIO'
+variables.sellRatio
+-- Land transformation after city capture. 'T_CAPTURE'
+variables.tCapture
+-- Land transformation per turn by capital. 'T_CAPITAL'
+variables.tCapital
+-- Range of land transformation by rod per turn. 'ROD_RANGE'
+variables.rodRange
+-- Profit per mana crystal or gold mine per turn. 'CRYSTAL_P'
+variables.crystalP
+-- 'CONST_URG'
+variables.constUrg
+-- Bonus per day regeneration for fighter leader. 'REGEN_LWAR'
+variables.regenLwar
+-- Bonus per day regeneration for units in ruins. 'REGEN_RUIN'
+variables.regenRuin
+-- Diplomacy level representing peace. 'D_PEACE'
+variables.dPeace
+-- Diplomacy level representing war. 'D_WAR'
+variables.dWar
+-- Diplomacy level representing neutrality. 'D_NEUTRAL'
+variables.dNeutral
+-- 'D_GOLD'
+variables.dGold
+-- 'D_MK_ALLY'
+variables.dMkAlly
+-- 'D_ATTACK_SC'
+variables.dAttakSc
+-- 'D_ATTACK_FO'
+variables.dAttakFo
+-- 'D_ATTACK_PC'
+variables.dAttakPc
+-- 'D_ROD'
+variables.dRod
+-- 'D_REF_ALLY'
+variables.dRefAlly
+-- 'D_BK_ALLY'
+variables.dBkAlly
+-- 'D_NOBLE'
+variables.dNoble
+-- 'D_BKA_CHANCE'
+variables.dBkaChnc
+-- 'D_BKA_TURN'
+variables.dBkaTurn
+-- Capital protection. 'PROT_CAP'
+variables.protCap
+-- Additional gold on easy difficulty. 'BONUS_E'
+variables.bonusE
+-- Additional gold on average difficulty. 'BONUS_A'
+variables.bonusA
+-- Additional gold on hard difficulty. 'BONUS_H'
+variables.bonusH
+-- Additional gold on very hard difficulty. 'BONUS_V'
+variables.bonusV
+-- Income increase on easy difficulty. 'INCOME_E'
+variables.incomeE
+-- Income increase on average difficulty. 'INCOME_A'
+variables.incomeA
+-- Income increase on hard difficulty. 'INCOME_H'
+variables.incomeH
+-- Income increase on very hard difficulty. 'INCOME_V'
+variables.incomeV
+-- 'GU_RANGE'
+variables.guRange
+-- 'PA_RANGE'
+variables.paRange
+-- 'LO_RANGE'
+variables.loRange
+-- Armor bonus when unit uses defend in battle. 'DFENDBONUS'
+variables.defendBonus
+-- 'TALIS_CHRG'
+variables.talisChrg
+-- Chance to get spells with capture of a capital. 'GAIN_SPELL'
+variables.gainSpell
+```
+##### rodCost
+Rod placement [cost](luaApi.md#currency). `ROD_COST`
+```lua
+variables.rodCost
+```
+##### morale
+Input tier values must be in range \[1 : 6\]. `MORALE_n`
+```lua
+variables:morale(1)
+```
+##### batBoostd
+Damage boost values for various levels. Levels must be in range \[1 : 4\]. `BATBOOSTDn`
+```lua
+variables:batBoostd(4)
+```
+##### batLowerd
+Damage debuff values for various levels. Levels must be in range \[1 : 2\]. `BATLOWERDn`
+```lua
+variables:batLowerd(1)
+```
+##### tCity
+Land transformation per turn by cities of different tiers. Tier must be in range \[1 : 5\]. `T_CITYn`
+```lua
+variables:tCity(1)
+```
+##### prot
+City protection values for various tier levels. Tier must be in range \[1 : 6\]. In case of tier 6, returns `protCap`. `PROT_n`
+```lua
+variables:prot(3)
+```
+##### splPwr
+Input tier values must be in range \[1 : 5\]. `SPLPWR_n`
+```lua
+variables:splPwr(2)
+```
+
+---
 
 #### Modifier
 Represents unit modifier. Modifiers wrap [unit implementation](luaApi.md#unit-implementation).
@@ -425,6 +734,31 @@ Returns [immune type](luaApi.md#immune) for specified [attack source](luaApi.md#
 ```lua
 impl:getImmuneToAttackSource(Source.Water)
 ```
+##### damageMax
+Returns maximum damage that this implementation is allowed to inflict by a single attack. For example, fighter leader in vanilla can inflict 400 damage while any other unit has a maximum of 300.
+```lua
+impl.damageMax
+```
+##### negotiate
+Returns negotiate value (always 0 if unit is not a leader) that is a factor of resistance from Thief's actions.
+```lua
+impl.negotiate
+```
+##### fastRetreat
+Returns whether this implementation can instantly retreat from battle (always false if unit is not a leader).
+```lua
+impl.fastRetreat
+```
+##### lowerCost
+Returns a percentage value (always 0 if unit is not a leader) of discount that this implementation gets from merchants.
+```lua
+impl.lowerCost
+```
+##### abilityName
+Returns an ability name (always an empty string if unit is not a leader). `ABIL_TXT` from `Gunits.dbf`.
+```lua
+impl.abilityName
+```
 
 ---
 
@@ -482,6 +816,18 @@ Returns true if group has specified [unit](luaApi.md#unit-1) or [unit id](luaApi
 ```lua
 group:hasUnit(unit)
 group:hasUnit(Id.new('S143UN0001'))
+```
+##### getUnitPosition
+Returns unit position in group, or -1 if unit not found.
+```lua
+group:getUnitPosition(unit)
+group:getUnitPosition(unit.id)
+```
+##### subrace
+Returns group [subrace](luaApi.md#subrace).
+In case of group inside [ruin](luaApi.md#ruin), returns -1 since ruins do not belong to subraces.
+```lua
+group.subrace
 ```
 
 ---
@@ -594,6 +940,21 @@ Returns equipped [item](luaApi.md#item-2) by [equipment](luaApi.md#equipment) va
 ```lua
 stack:getEquippedItem(Equipment.Boots)
 ```
+##### order
+Returns stack [order](luaApi.md#order).
+```lua
+stack.order
+```
+##### orderTargetId
+Returns stack's order target [id](luaApi.md#id).
+```lua
+stack.orderTargetId
+```
+##### aiOrder
+Returns stack [AI order](luaApi.md#order).
+```lua
+stack.aiOrder
+```
 ```lua
 --- Returns stack current movement points.
 stack.movement
@@ -619,6 +980,11 @@ fort.id
 Returns fort position as a [point](luaApi.md#point).
 ```lua
 fort.position
+```
+##### entrance
+Return fort entrance coordinates as a [point](luaApi.md#point).
+```lua
+fort.entrance
 ```
 ##### owner
 Returns [player](luaApi.md#player) that owns the fort. Neutral forts are owned by neutral player.
@@ -654,6 +1020,121 @@ fort.capital
 Returns fort tier (level). Tiers are in range \[1 : 6\]. Tier 6 corresponds to the capital city.
 ```lua
 fort.tier
+```
+
+---
+
+#### Merchant item
+Represents item sold by [merchant](luaApi.md#merchant).
+
+Methods:
+##### base
+Returns [base item](luaApi.md#item-base).
+```lua
+merchantItem.base
+```
+##### amount
+Returns amount of items in merchant stock.
+```lua
+merchantItem.amount
+```
+
+---
+
+#### Merchant
+Represents Merchant on a map.
+
+Methods:
+##### id
+Returns merchant [id](luaApi.md#id). The value is unique for every merchant on scenario map.
+```lua
+merchant.id
+```
+##### position
+Returns merchant position as a [point](luaApi.md#point).
+```lua
+merchant.position
+```
+##### visitors
+Returns list of [players](luaApi.md#player) that have visited the merchant.
+```lua
+merchant.visitors
+```
+##### items
+Returns list of [merchant items](luaApi.md#merchant-item).
+```lua
+merchant.items
+```
+##### temple
+Returns true if merchant can be used as a temple for AI to heal.
+```lua
+merchant.temple
+```
+
+---
+
+#### Mercenary unit
+Represents unit for hire in mercenary camp.
+
+Methods:
+##### impl
+Returns [unit implementation](luaApi.md#unit-implementation).
+```lua
+mercenary.impl
+```
+##### unique
+Returns true is unit can be hired only once.
+```lua
+mercenaryUnit.unique
+```
+
+---
+
+#### Mercenary
+Represents Mercenary camp on a map.
+
+Methods:
+##### id
+Returns mercenary camp [id](luaApi.md#id). The value is unique for every mercenary camp on scenario map.
+```lua
+mercenary.id
+```
+##### position
+Returns mercenary camp position as a [point](luaApi.md#point).
+```lua
+mercenary.position
+```
+##### visitors
+Returns list of [players](luaApi.md#player) that have visited the mercenary camp.
+```lua
+mercenary.visitors
+```
+##### units
+Returns list of [mercenary units](luaApi.md#mercenary-unit).
+```lua
+mercenary.units
+```
+
+---
+
+#### Trainer
+Represents Trainer on a map.
+
+Methods:
+##### id
+Returns trainer [id](luaApi.md#id). The value is unique for every trainer on scenario map.
+```lua
+trainer.id
+```
+##### position
+Returns trainer position as a [point](luaApi.md#point).
+```lua
+trainer.position
+```
+##### visitors
+Returns list of [players](luaApi.md#player) that have visited the trainer.
+```lua
+trainer.visitors
 ```
 
 ---
@@ -717,13 +1198,111 @@ rod.owner
 
 ---
 
+#### Crystal
+Represents gold mine or mana source on a map.
+
+Methods:
+##### id
+Returns crystal [id](luaApi.md#id).
+```lua
+crystal.id
+```
+##### position
+Returns crystal position as a [point](luaApi.md#point).
+```lua
+crystal.position
+```
+##### resource
+Returns crystal [resource](luaApi.md#resource) type.
+```lua
+crystal.resource
+```
+
+---
+
 #### Dynamic upgrade
 Represents rules that applied when unit makes its progress gaining levels. Records in GDynUpgr.dbf are dynamic upgrades.
 
 Methods:
+##### id
+Returns upgrade [identifier](luaApi.md#id).
 ```lua
--- Returns number of experience points added with each dynamic upgrade. XP_NEXT value from GDynUpgr.dbf.
+dynUpgrade.id
+```
+##### enrollCost
+Returns [value](luaApi.md#currency) added to enroll cost with each dynamic upgrade. `ENROLL_C` value from `GDynUpgr.dbf`.
+```lua
+dynUpgrade.enrollCost
+```
+##### hp
+Returns hp added with each dynamic upgrade. `HIT_POINT` value from `GDynUpgr.dbf`.
+```lua
+dynUpgrade.hp
+```
+##### armor
+Returns armor added with each dynamic upgrade. `ARMOR` value from `GDynUpgr.dbf`.
+```lua
+dynUpgrade.armor
+```
+##### regen
+Returns regen added with each dynamic upgrade. `REGEN` value from `GDynUpgr.dbf`.
+```lua
+dynUpgrade.regen
+```
+##### reviveCost
+Returns [value](luaApi.md#currency) added to revive cost with each dynamic upgrade. `REVIVE_C` value from `GDynUpgr.dbf`.
+```lua
+dynUpgrade.reviveCost
+```
+##### healCost
+Returns [value](luaApi.md#currency) added to heal cost with each dynamic upgrade. `HEAL_C` value from `GDynUpgr.dbf`.
+```lua
+dynUpgrade.healCost
+```
+##### trainingCost
+Returns [value](luaApi.md#currency) added to training cost with each dynamic upgrade. `TRAINING_C` value from `GDynUpgr.dbf`.
+```lua
+dynUpgrade.trainingCost
+```
+##### xpKilled
+Returns xp for killing added with each dynamic upgrade. `XP_KILLED` value from `GDynUpgr.dbf`.
+```lua
+dynUpgrade.xpKilled
+```
+##### xpNext
+Returns xp for level-up added with each dynamic upgrade. `XP_NEXT` value from `GDynUpgr.dbf`.
+```lua
 dynUpgrade.xpNext
+```
+##### move
+Returns move points added with each dynamic upgrade. `MOVE` value from `GDynUpgr.dbf`.
+```lua
+dynUpgrade.move
+```
+##### negotiate
+Returns negotiate points added with each dynamic upgrade. `NEGOTIATE` value from `GDynUpgr.dbf`.
+```lua
+dynUpgrade.negotiate
+```
+##### initiative
+Returns attack initiative added with each dynamic upgrade. `INITIATIVE` value from `GDynUpgr.dbf`.
+```lua
+dynUpgrade.initiative
+```
+##### power
+Returns attack power added with each dynamic upgrade. `POWER` value from `GDynUpgr.dbf`.
+```lua
+dynUpgrade.power
+```
+##### damage
+Returns attack damage added with each dynamic upgrade. `DAMAGE` value from `GDynUpgr.dbf`.
+```lua
+dynUpgrade.damage
+```
+##### heal
+Returns attack heal added with each dynamic upgrade. `HEAL` value from `GDynUpgr.dbf`.
+```lua
+dynUpgrade.heal
 ```
 
 ---
@@ -942,6 +1521,70 @@ if (unit == nil) then
     return
 end
 ```
+##### getItem
+Searches for [item](luaApi.md#item-2) by id string or item [id](luaApi.md#id), returns `nil` if not found.
+```lua
+local item = scenario:getItem('S143IM0001')
+if not item then
+  return
+end
+```
+##### getCrystal
+Searches for [crystal](luaApi.md#crystal) by:
+- id string
+- [id](luaApi.md#id)
+- pair of coordinates
+- [point](luaApi.md#point)
+
+Returns `nil` if not found.
+```lua
+local crystal = scenario:getCrystal('S143CR0003')
+if not crystal then
+  return
+end
+```
+##### getMerchant
+Searches for [merchant](luaApi.md#merchant) by:
+- id string
+- [id](luaApi.md#id)
+- pair of coordinates
+- [point](luaApi.md#point)
+
+Returns `nil` if not found.
+```lua
+local merchant = scenario:getMerchant('S143SI0001')
+if not merchant then
+  return
+end
+```
+##### getMercenary
+Searches for [mercenary camp](luaApi.md#mercenary) by:
+- id string
+- [id](luaApi.md#id)
+- pair of coordinates
+- [point](luaApi.md#point)
+
+Returns `nil` if not found.
+```lua
+local mercenary = scenario:getMercenary('S143SI0002')
+if not mercenary then
+  return
+end
+```
+##### getTrainer
+Searches for [trainer](luaApi.md#trainer) by:
+- id string
+- [id](luaApi.md#id)
+- pair of coordinates
+- [point](luaApi.md#point)
+
+Returns `nil` if not found.
+```lua
+local trainer = scenario:getTrainer('S143SI0005')
+if not trainer then
+  return
+end
+```
 ##### findStackByUnit
 Searches for [stack](luaApi.md#stack) that has specified [unit](luaApi.md#unit-1) among all the stacks in the whole [scenario](luaApi.md#scenario).
 You can also use unit id string or [id](luaApi.md#id).
@@ -976,6 +1619,26 @@ if ruin == nil then
 end
 ```
 **Note** that this search is heavy in terms of performance, so you probably want to minimize excessive calls and use variables to store its results.
+##### name
+Returns scenario name or empty string if scenario is unnamed.
+```lua
+scenario.name
+```
+##### description
+Returns scenario description or empty string if scenario has no description.
+```lua
+scenario.description
+```
+##### author
+Returns scenario author or empty string if no author specified.
+```lua
+scenario.author
+```
+##### seed
+Returns scenario initial seed used by random generator.
+```lua
+scenario.seed
+```
 ##### day
 Returns number of current day in game.
 ```lua
@@ -995,6 +1658,83 @@ if diplomacy == nil then
     return
 end
 ```
+##### forEachStack
+Searches for every [stack](luaApi.md#stack) on a map and calls specified function on it.
+```lua
+scenario:forEachStack(function (stack)
+  log('Visit stack ' .. tostring(stack.id))
+end)
+```
+##### forEachLocation
+Searches for every [location](luaApi.md#location) on a map and calls specified function on it.
+```lua
+scenario:forEachLocation(function (location)
+  log('Visit location ' .. tostring(location.id))
+end)
+```
+##### forEachFort
+Searches for every [fort](luaApi.md#fort) on a map and calls specified function on it.
+```lua
+scenario:forEachFort(function (city)
+  log('Visit city ' .. tostring(city.id))
+end)
+```
+##### forEachRuin
+Searches for every [ruin](luaApi.md#ruin) on a map and calls specified function on it.
+```lua
+scenario:forEachRuin(function (ruin)
+  log('Visit ruin ' .. tostring(ruin.id))
+end)
+```
+##### forEachRod
+Searches for every [rod](luaApi.md#rod) on a map and calls specified function on it.
+```lua
+scenario:forEachRod(function (rod)
+  log('Visit rod ' .. tostring(rod.id))
+end)
+```
+##### forEachPlayer
+Searches for every [player](luaApi.md#player) on a map and calls specified function on it.
+```lua
+scenario:forEachPlayer(function (player)
+  log('Visit player ' .. tostring(player.id))
+end)
+```
+##### forEachUnit
+Searches for every [unit](luaApi.md#unit-1) on a map and calls specified function on it.
+```lua
+scenario:forEachUnit(function (unit)
+  log('Visit unit ' .. tostring(unit.id))
+end)
+```
+##### forEachCrystal
+Searches for every [crystal](luaApi.md#crystal) on a map and calls specified function on it.
+```lua
+scenario:forEachCrystal(function (crystal)
+  log('Visit crystal ' .. tostring(crystal.id))
+end)
+```
+##### forEachMerchant
+Searches for every [merchant](luaApi.md#merchant) on a map and calls specified function on it.
+```lua
+scenario:forEachMerchant(function (merchant)
+  log('Visit merchant ' .. tostring(merchant.id))
+end)
+```
+##### forEachMercenary
+Searches for every [mercenary camp](luaApi.md#mercenary) on a map and calls specified function on it.
+```lua
+scenario:forEachMercenary(function (mercenary)
+  log('Visit mercenary ' .. tostring(mercenary.id))
+end)
+```
+##### forEachTrainer
+Searches for every [trainer](luaApi.md#trainer) on a map and calls specified function on it.
+```lua
+scenario:forEachTrainer(function (trainer)
+  log('Visit trainer ' .. tostring(trainer.id))
+end)
+```
 
 ---
 
@@ -1006,6 +1746,16 @@ Methods:
 Returns attack [id](luaApi.md#id). This is different for every dynamic upgrade unit gets.
 ```lua
 attack.id
+```
+##### name
+Returns attack name. A string from `Tglobal.dbf` reffered by `NAME_TXT` from `Gattacks.dbf`.
+```lua
+attack.name
+```
+##### description
+Returns attack description. A string from `Tglobal.dbf` reffered by `DESC_TXT` from `Gattacks.dbf`.
+```lua
+attack.description
 ```
 ##### type
 Returns attack [type](luaApi.md#attack).
@@ -1026,6 +1776,22 @@ attack.reach
 Returns array of [modifiers](luaApi.md#modifier) applied by bestow wards attack.
 ```lua
 attack.wards
+```
+##### getDrain
+Returns a portion of the specified damage that will be returned as health to attacker. Does not count additional drain from Drain or DrainOverflow attacks.
+```lua
+attack:getDrain(damage)
+```
+##### global
+Returns global [attack](luaApi.md#attack-1) - a record from `Gattacks.dbf`.
+```lua
+attack.global
+```
+##### generated
+Returns generated [attack](luaApi.md#attack-1).
+Equals `global` plus upgrades from `GDynUpgr.dbf` according to unit's level.
+```lua
+attack.generated
 ```
 ```lua
 --- Returns attack initiative value.
@@ -1159,6 +1925,24 @@ item.sellValue
 
 ---
 
+#### Battle Turn
+Represents unit action inside battle round.
+
+Methods:
+##### unit
+Returns [unit](luaApi.md#unit-1) that performs the turn.
+```lua
+turn.unit
+```
+##### attackCount
+Returns number of attacks unit can perform in its turn.
+Units with double attack (`turn.unit.impl.attacksTwice`) will have 2 in `attackCount`.
+```lua
+turn.attackCount
+```
+
+---
+
 #### Battle
 Represents battle information.
 
@@ -1180,13 +1964,19 @@ Returns true if autobattle mode is turned on.
 ```lua
 battle.autoBattle
 ```
+##### fastBattle
+Returns true if fast battle is turned on.
+When fast battle is active, [auto battle](luaApi.md#autobattle) is active too.
+```lua
+battle.fastBattle
+```
 ##### attackerPlayer
-Returns [player](luaApi.md#player) that started battle.
+Returns [player](luaApi.md#player) that started battle or `nil` if not found.
 ```lua
 battle.attackerPlayer
 ```
 ##### defenderPlayer
-Returns [player](luaApi.md#player) that was attacked.
+Returns [player](luaApi.md#player) that was attacked or `nil` if not found.
 ```lua
 battle.defenderPlayer
 ```
@@ -1199,9 +1989,151 @@ battle.attacker
 ##### defender
 Returns [group](luaApi.md#group) that was attacked.
 Defender group can represent units of a [stack](luaApi.md#stack), [fort](luaApi.md#fort) or [ruin](luaApi.md#ruin).
-Use `group.id` to get actual type of a group.
+Use `group.id.type` to get actual type of a group.
 ```lua
 battle.defender
+```
+##### isUnitAttacker
+Returns true if [unit](luaApi.md#unit-1) belongs to attacker group.
+Method also accepts unit [ids](luaApi.md#id).
+```lua
+battle:isUnitAttacker(unit)
+-- Same check with unit id
+battle:isUnitAttacker(unit.id)
+```
+##### getUnitActions
+Returns possible actions and attack options for specified [unit](luaApi.md#unit-1).
+Method also accepts unit [ids](luaApi.md#id).
+Returns:
+- list of [battle actions](luaApi.md#BattleAction) that unit can perform.
+- [group](luaApi.md#group) that is a target for a unit attack.
+- list of unit attack targets, indices of attack target group slots. 
+- [group](luaApi.md#group) that is a target for a `Battle1` equipped item in case of leader unit.
+- list of `Battle1` equipped item targets, indices of group slots.
+- [group](luaApi.md#group) that is a target for a `Battle2` equipped item in case of leader unit.
+- list of `Battle2` equipped item targets, indices of group slots.
+```lua
+local actions,
+    attackTargetGroup,
+    attackTargets,
+    item1TargetGroup,
+    item1Targets,
+    item2TargetGroup,
+    item2Targets = battle:getUnitActions(unit)
+```
+##### getRetreatStatus
+Returns [retreat status](luaApi.md#Retreat) of attacker or defender group.
+```lua
+local attackerStatus = battle:getRetreatStatus(true)
+local defenderStatus = battle:getRetreatStatus(false)
+```
+##### decidedToRetreat
+Returns true if decision about groups retreat was made and should not be reconsidered.
+```lua
+battle.decidedToRetreat
+```
+##### afterBattle
+Returns true if battle is over but healers can make one more turn to heal allies.
+```lua
+battle.afterBattle
+```
+##### duel
+Returns true if battle is a duel between thief and a stack leader.
+All units except leaders are marked with `Hidden` [battle status](luaApi.md#battlestatus).
+```lua
+battle.duel
+```
+##### turnsOrder
+Returns list of [battle turns](luaApi.md#battle-turn) remaining in the current round of battle.
+Position of elements in the list corresponds to order of remaining turns in current round.
+In other words, at the start of a round, battle turns in the list are sorted according to units initiative, including an additional random initiative.
+```lua
+battle.turnsOrder
+```
+##### isUnitRevived
+Returns true if specified [unit](luaApi.md#unit-1) was revived during battle.
+Method also accepts unit [ids](luaApi.md#id).
+```lua
+battle:isUnitRevived(unit)
+```
+##### isUnitWaiting
+Returns true if specified [unit](luaApi.md#unit-1) skipped its turn and waiting.
+Method also accepts unit [ids](luaApi.md#id).
+```lua
+battle:isUnitWaiting(battle.attacker.leader)
+```
+##### getUnitShatteredArmor
+Returns amount of unit armor shattered in battle so far.
+Method also accepts unit [ids](luaApi.md#id).
+```lua
+battle:getUnitShatteredArmor(unit)
+-- Same but using id
+battle:getUnitShatteredArmor(unit.id)
+```
+##### getUnitFortificationArmor
+Returns armor that is granted to unit by fortification, if any.
+Method also accepts unit [ids](luaApi.md#id).
+```lua
+battle:getUnitFortificationArmor(unit)
+-- Same but using id
+battle:getUnitFortificationArmor(unit.id)
+```
+##### isUnitResistantToSource
+Returns true if specified unit is resistant to [attack source](luaApi.md#source).
+Method also accepts unit [ids](luaApi.md#id).
+```lua
+battle:isUnitResistantToSource(unit, attackSource)
+```
+##### isUnitResistantToClass
+Returns true if specified unit is resistant to [attack class](luaApi.md#attack).
+Method also accepts unit [ids](luaApi.md#id).
+```lua
+battle:isUnitResistantToClass(unit, attackSource)
+```
+##### getUnitDisableRound
+Returns round when paralyze, petrify or fear was applied to [unit](luaApi.md#unit-1). Returns 0 if unit is not disabled.
+Method also accepts unit [ids](luaApi.md#id).
+```lua
+battle:getUnitDisableRound(unit.id)
+```
+##### getUnitPoisonRound
+Returns round when long poison was applied to [unit](luaApi.md#unit-1). Returns 0 if unit is not poisoned.
+Method also accepts unit [ids](luaApi.md#id).
+```lua
+battle:getUnitPoisonRound(unit)
+```
+##### getUnitFrostbiteRound
+Returns round when long frostbite was applied to [unit](luaApi.md#unit-1). Returns 0 if unit is not frozen.
+Method also accepts unit [ids](luaApi.md#id).
+```lua
+battle:getUnitFrostbiteRound(unit)
+```
+##### getUnitBlisterRound
+Returns round when long blister was applied to [unit](luaApi.md#unit-1). Returns 0 if unit is not burning.
+Method also accepts unit [ids](luaApi.md#id).
+```lua
+battle:getUnitBlisterRound(unit)
+```
+##### getUnitTransformRound
+Returns round when long transform was applied to [unit](luaApi.md#unit-1). Returns 0 if unit is not transformed.
+Method also accepts unit [ids](luaApi.md#id).
+```lua
+battle:getUnitTransformRound(unit)
+```
+##### setRetreatStatus
+Sets [retreat status](luaApi.md#Retreat) of attacker or defender group.
+This method can be only used in AI battle action script.
+```lua
+-- Attacker group is going to fully retreat
+battle:setRetreatStatus(true, Retreat.FullRetreat)
+-- Do not retreat defender group 
+battle:setRetreatStatus(false, Retreat.NoRetreat)
+```
+##### setDecidedToRetreat
+Notifies battle state that the decision about groups retreat was made and it is final.
+This method can be only used in AI battle action script.
+```lua
+battle:setDecidedToRetreat()
 ```
 
 ---

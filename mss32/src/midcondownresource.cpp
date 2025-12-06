@@ -26,7 +26,6 @@
 #include "eventconditioncathooks.h"
 #include "game.h"
 #include "interfmanager.h"
-#include "log.h"
 #include "mempool.h"
 #include "midevcondition.h"
 #include "midevent.h"
@@ -40,7 +39,7 @@
 #include "textids.h"
 #include "togglebutton.h"
 #include "utils.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 

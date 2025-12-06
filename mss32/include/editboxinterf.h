@@ -20,9 +20,11 @@
 #ifndef EDITBOXINTERF_H
 #define EDITBOXINTERF_H
 
+#include "d2set.h"
 #include "d2string.h"
 #include "interface.h"
 #include "mqpoint.h"
+#include "uievent.h"
 
 namespace game {
 
@@ -49,19 +51,36 @@ struct EditBoxData
     int maxInputLength; /**< Allowed range is [1 : 4096]. */
     String formatString;
     String inputString;
-    int editCursorPos;
-    bool allowEnter;
-    char padding[3];
+    std::uint32_t textCursorPosIdx;
+    union
+    {
+        struct
+        {
+            bool allowEnter;
+            char padding[3];
+        } original;
+        struct
+        {
+            bool allowEnter;
+            bool isPassword;
+            char padding[2];
+        } patched;
+    };
 };
+
+assert_size(EditBoxData, 56);
 
 struct CEditBoxInterfData
 {
     SmartPtr<CEditBoxFocus> editBoxFocus;
     int textBoxChildIndex;
-    int unknown2;
+    // Differs from enabled because the control can still receive input focus
+    bool editable;
+    char padding[3];
     EditBoxData editBoxData;
-    CImage2Fill* image2Fill;
-    char unknown[12];
+    CImage2Fill* textCursor;
+    CMqPoint textCursorPos;
+    int textCursorHeight;
     CImage2TextBackground* background;
     CMqPoint bgndImagePos;
 };
@@ -78,6 +97,25 @@ struct CEditBoxInterf : public CInterface
 };
 
 assert_size(CEditBoxInterf, 12);
+
+struct CEditBoxFocus
+{
+    Set<CInterface*> dialogs;
+    CInterface* unknown28;
+    /**
+     * Has timeout of 200ms.
+     * Increments cursor counter until it reaches 2, then drops it to -3 and continues.
+     */
+    UiEvent cursorBlinkEvent;
+    /**
+     * Being reset to 0 on mouse click or keyboard input to a focused edit box.
+     * Assumption: the cursor is hidden while the counter is negative.
+     */
+    int cursorBlinkCounter;
+};
+
+assert_size(CEditBoxFocus, 60);
+assert_offset(CEditBoxFocus, unknown28, 28);
 
 namespace CEditBoxInterfApi {
 
@@ -107,12 +145,32 @@ struct Api
     using Update = void(__thiscall*)(CEditBoxInterf* thisptr);
     Update update;
 
-    /** Meaning and name are assumed*/
-    using UpdateFocus = void(__thiscall*)(CEditBoxFocus* thisptr);
-    UpdateFocus updateFocus;
-
     using IsCharValid = bool(__thiscall*)(const EditBoxData* thisptr, char ch);
     IsCharValid isCharValid;
+
+    using EditBoxDataCtor = EditBoxData*(__thiscall*)(EditBoxData* thisptr);
+    EditBoxDataCtor editBoxDataCtor;
+
+    using GetTextCursorPosIdx = std::uint32_t(__thiscall*)(EditBoxData* thisptr);
+    GetTextCursorPosIdx getTextCursorPosIdx;
+
+    using SetEditable = void(__thiscall*)(CEditBoxInterf* thisptr, bool value);
+    SetEditable setEditable;
+
+    using SetFocus = void(__thiscall*)(CEditBoxInterf* thisptr);
+    SetFocus setFocus;
+
+    /** Resets blink counter to 0 making cursor visible for a while. */
+    using ResetCursorBlink = void(__thiscall*)(CEditBoxFocus* thisptr);
+    ResetCursorBlink resetCursorBlink;
+
+    using IsFocused = bool(__thiscall*)(CEditBoxFocus* thisptr, const CEditBoxInterf* editBox);
+    IsFocused isFocused;
+
+    using SetFocused = void(__thiscall*)(CEditBoxFocus* thisptr, const CEditBoxInterf* editBox);
+    SetFocused setFocused;
+    SetFocused focusNext;
+    SetFocused focusPrev;
 };
 
 Api& get();

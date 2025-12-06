@@ -27,9 +27,6 @@ struct CMenuPhase;
 
 namespace hooks {
 
-bool __fastcall menuNewSkirmishMultiCreateServerHooked(game::CMenuNewSkirmishMulti* thisptr,
-                                                       int /*%edx*/);
-
 game::CMenuNewSkirmishMulti* __fastcall menuNewSkirmishMultiCtorHooked(
     game::CMenuNewSkirmishMulti* thisptr,
     int /*%edx*/,

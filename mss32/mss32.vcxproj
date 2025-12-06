@@ -57,11 +57,11 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;MSS32_EXPORTS;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;NOMINMAX;__INTEGRATE_LOBBY2_WITH_ROOMS_PLUGIN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;MSS32_EXPORTS;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;NOMINMAX;__INTEGRATE_LOBBY2_WITH_ROOMS_PLUGIN;SOL_NO_CHECK_NUMBER_PRECISION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\Detours\src;$(ProjectDir)..\GSL\include;$(ProjectDir)..\fmt\include;$(ProjectDir)include;$(ProjectDir)include\dbf;$(ProjectDir)..\lua;$(ProjectDir)..\sol2\single\include;$(ProjectDir)include\bindings;$(ProjectDir)..\SLikeNet\Source;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2\Rooms;$(ProjectDir)..\D2RSG\ScenarioGenerator\src;$(ProjectDir)..\D2RSG\ScenarioGenerator\src\scenario;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Detours\src;$(ProjectDir)..\GSL\include;$(ProjectDir)..\fmt\include;$(ProjectDir)include;$(ProjectDir)include\dbf;$(ProjectDir)..\lua;$(ProjectDir)..\sol2\single\include;$(ProjectDir)..\spdlog\include;$(ProjectDir)include\bindings;$(ProjectDir)..\SLikeNet\Source;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2\Rooms;$(ProjectDir)..\D2RSG\ScenarioGenerator\src;$(ProjectDir)..\D2RSG\ScenarioGenerator\src\scenario;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -69,10 +69,10 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <ModuleDefinitionFile>module.def</ModuleDefinitionFile>
-      <AdditionalDependencies>$(SolutionDir)Lib\SLikeNet_LibStatic_Debug_Win32.lib;ws2_32.lib;$(SolutionDir)$(Configuration)\ScenarioGenerator.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)Lib\SLikeNet_LibStatic_$(Configuration)_$(Platform).lib;$(SolutionDir)Lib\ScenarioGenerator_$(Configuration)_$(Platform).lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
-      <Command>if not exist detours.lib (
+      <Command>if not exist Lib\detours.lib (
 call ..\buildDetours.bat ..\Detours
 )</Command>
     </PreBuildEvent>
@@ -90,7 +90,7 @@ call ..\buildDetours.bat ..\Detours
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\Detours\src;$(ProjectDir)..\GSL\include;$(ProjectDir)..\fmt\include;$(ProjectDir)include;$(ProjectDir)include\dbf;$(ProjectDir)..\lua;$(ProjectDir)..\sol2\single\include;$(ProjectDir)include\bindings;$(ProjectDir)..\SLikeNet\Source;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2\Rooms;$(ProjectDir)..\D2RSG\ScenarioGenerator\src;$(ProjectDir)..\D2RSG\ScenarioGenerator\src\scenario;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Detours\src;$(ProjectDir)..\GSL\include;$(ProjectDir)..\fmt\include;$(ProjectDir)include;$(ProjectDir)include\dbf;$(ProjectDir)..\lua;$(ProjectDir)..\sol2\single\include;$(ProjectDir)..\spdlog\include;$(ProjectDir)include\bindings;$(ProjectDir)..\SLikeNet\Source;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2\Rooms;$(ProjectDir)..\D2RSG\ScenarioGenerator\src;$(ProjectDir)..\D2RSG\ScenarioGenerator\src\scenario;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -100,10 +100,10 @@ call ..\buildDetours.bat ..\Detours
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <ModuleDefinitionFile>module.def</ModuleDefinitionFile>
-      <AdditionalDependencies>$(SolutionDir)Lib\SLikeNet_LibStatic_Release_Win32.lib;ws2_32.lib;$(SolutionDir)$(Configuration)\ScenarioGenerator.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)Lib\SLikeNet_LibStatic_$(Configuration)_$(Platform).lib;$(SolutionDir)Lib\ScenarioGenerator_$(Configuration)_$(Platform).lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
-      <Command>if not exist detours.lib (
+      <Command>if not exist Lib\detours.lib (
 call ..\buildDetours.bat ..\Detours
 )</Command>
     </PreBuildEvent>
@@ -155,6 +155,8 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="..\SLikeNet\DependentExtensions\Lobby2\Rooms\RoomsErrorCodes.cpp" />
     <ClCompile Include="..\SLikeNet\DependentExtensions\Lobby2\Rooms\RoomsPlugin.cpp" />
     <ClCompile Include="..\SLikeNet\DependentExtensions\Lobby2\Rooms\RoomTypes.cpp" />
+    <ClCompile Include="src\aiattitudescat.cpp" />
+    <ClCompile Include="src\aiattitudestable.cpp" />
     <ClCompile Include="src\aigiveitemsaction.cpp" />
     <ClCompile Include="src\aigiveitemsactionhooks.cpp" />
     <ClCompile Include="src\aimovestackaction.cpp" />
@@ -169,6 +171,8 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\attacksourcelist.cpp" />
     <ClCompile Include="src\attackutils.cpp" />
     <ClCompile Include="src\autodialog.cpp" />
+    <ClCompile Include="src\autodialogfile.cpp" />
+    <ClCompile Include="src\autodialoghooks.cpp" />
     <ClCompile Include="src\autoptr.cpp" />
     <ClCompile Include="src\batattackbestowwards.cpp" />
     <ClCompile Include="src\batattackdoppelganger.cpp" />
@@ -195,9 +199,20 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\batviewer2dengine.cpp" />
     <ClCompile Include="src\bindings\attackview.cpp" />
     <ClCompile Include="src\bindings\battlemsgdataview.cpp" />
+    <ClCompile Include="src\bindings\battlemsgdataviewmutable.cpp" />
+    <ClCompile Include="src\bindings\buildingview.cpp" />
+    <ClCompile Include="src\bindings\crystalview.cpp" />
     <ClCompile Include="src\bindings\currencyview.cpp" />
     <ClCompile Include="src\bindings\diplomacyview.cpp" />
     <ClCompile Include="src\bindings\fogview.cpp" />
+    <ClCompile Include="src\bindings\gameview.cpp" />
+    <ClCompile Include="src\bindings\globalvariablesview.cpp" />
+    <ClCompile Include="src\bindings\globalview.cpp" />
+    <ClCompile Include="src\bindings\merchantview.cpp" />
+    <ClCompile Include="src\bindings\mercsview.cpp" />
+    <ClCompile Include="src\bindings\resourcemarketview.cpp" />
+    <ClCompile Include="src\bindings\siteview.cpp" />
+    <ClCompile Include="src\bindings\trainerview.cpp" />
     <ClCompile Include="src\bindings\unitviewdummy.cpp" />
     <ClCompile Include="src\bindings\dynupgradeview.cpp" />
     <ClCompile Include="src\bindings\fortview.cpp" />
@@ -227,10 +242,22 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\buildingtype.cpp" />
     <ClCompile Include="src\chatinterf.cpp" />
     <ClCompile Include="src\citystackinterfhooks.cpp" />
+    <ClCompile Include="src\cmdmovestackendmsg.cpp" />
+    <ClCompile Include="src\customaibattle.cpp" />
     <ClCompile Include="src\custombuildingcategories.cpp" />
+    <ClCompile Include="src\customunitencyclopedia.cpp" />
+    <ClCompile Include="src\customunitencyclopediafunctions.cpp" />
+    <ClCompile Include="src\dialogdescriptor.cpp" />
+    <ClCompile Include="src\customnobleactioncategories.cpp" />
+    <ClCompile Include="src\customnobleactionhooks.cpp" />
+    <ClCompile Include="src\ddstackgroup.cpp" />
+    <ClCompile Include="src\ddstackinventorydisplay.cpp" />
     <ClCompile Include="src\diplomacyhooks.cpp" />
     <ClCompile Include="src\displayd3d.cpp" />
     <ClCompile Include="src\displayddraw.cpp" />
+    <ClCompile Include="src\editboxinterfhooks.cpp" />
+    <ClCompile Include="src\effectgiveresources.cpp" />
+    <ClCompile Include="src\effectstealmarket.cpp" />
     <ClCompile Include="src\enclayoutcity.cpp" />
     <ClCompile Include="src\enclayoutcityhooks.cpp" />
     <ClCompile Include="src\enclayoutruin.cpp" />
@@ -238,12 +265,18 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\enclayoutstackhooks.cpp" />
     <ClCompile Include="src\encparambase.cpp" />
     <ClCompile Include="src\encparambasehooks.cpp" />
+    <ClCompile Include="src\encparamidplayer.cpp" />
     <ClCompile Include="src\encyclopediapopup.cpp" />
     <ClCompile Include="src\exchangeinterfhooks.cpp" />
+    <ClCompile Include="src\exchangeresourcesmsg.cpp" />
     <ClCompile Include="src\fonts.cpp" />
     <ClCompile Include="src\fontshooks.cpp" />
     <ClCompile Include="src\formattedtext.cpp" />
+    <ClCompile Include="src\gameimagedata.cpp" />
+    <ClCompile Include="src\gamesettings.cpp" />
     <ClCompile Include="src\generationresultinterf.cpp" />
+    <ClCompile Include="src\globalvariables.cpp" />
+    <ClCompile Include="src\globalvariableshooks.cpp" />
     <ClCompile Include="src\groupupgradehooks.cpp" />
     <ClCompile Include="src\image2memory.cpp" />
     <ClCompile Include="src\intintmap.cpp" />
@@ -291,10 +324,27 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\editor.cpp" />
     <ClCompile Include="src\interfaceutils.cpp" />
     <ClCompile Include="src\enclayoutstack.cpp" />
+    <ClCompile Include="src\isoview.cpp" />
+    <ClCompile Include="src\isoviewhooks.cpp" />
     <ClCompile Include="src\logutils.cpp" />
     <ClCompile Include="src\managestkinterf.cpp" />
     <ClCompile Include="src\managestkinterfhooks.cpp" />
+    <ClCompile Include="src\menucustombase.cpp" />
+    <ClCompile Include="src\menucustomloadskirmishmulti.cpp" />
+    <ClCompile Include="src\menucustomnewskirmishmulti.cpp" />
+    <ClCompile Include="src\menucustommain.cpp" />
+    <ClCompile Include="src\menucustomrandomscenariomulti.cpp" />
+    <ClCompile Include="src\menuloadhooks.cpp" />
+    <ClCompile Include="src\menuloadskirmishmulti.cpp" />
+    <ClCompile Include="src\menumain.cpp" />
+    <ClCompile Include="src\menumainhooks.cpp" />
+    <ClCompile Include="src\midautodlgimages.cpp" />
+    <ClCompile Include="src\midautodlgimageshooks.cpp" />
+    <ClCompile Include="src\midcommandqueue2.cpp" />
+    <ClCompile Include="src\midcommandqueue2hooks.cpp" />
+    <ClCompile Include="src\middatacache.cpp" />
     <ClCompile Include="src\middiplomacy.cpp" />
+    <ClCompile Include="src\middragdropinterf.cpp" />
     <ClCompile Include="src\middragdropinterfhooks.cpp" />
     <ClCompile Include="src\menunewskirmishhotseat.cpp" />
     <ClCompile Include="src\menunewskirmishhotseathooks.cpp" />
@@ -303,15 +353,42 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\menurandomscenario.cpp" />
     <ClCompile Include="src\menurandomscenariomulti.cpp" />
     <ClCompile Include="src\menurandomscenariosingle.cpp" />
+    <ClCompile Include="src\midfreetask.cpp" />
+    <ClCompile Include="src\midgardhooks.cpp" />
     <ClCompile Include="src\midgardmapfog.cpp" />
     <ClCompile Include="src\midgardscenariomap.cpp" />
+    <ClCompile Include="src\midobjectlock.cpp" />
+    <ClCompile Include="src\midobjectlockhooks.cpp" />
     <ClCompile Include="src\midserver.cpp" />
     <ClCompile Include="src\midserverlogichooks.cpp" />
+    <ClCompile Include="src\midsite.cpp" />
+    <ClCompile Include="src\midsitemage.cpp" />
+    <ClCompile Include="src\midsitemerchant.cpp" />
+    <ClCompile Include="src\midsitemercs.cpp" />
+    <ClCompile Include="src\midsiteresourcemarket.cpp" />
+    <ClCompile Include="src\midsitetrainer.cpp" />
+    <ClCompile Include="src\midstart.cpp" />
+    <ClCompile Include="src\midtaskopeninterfparamresmarket.cpp" />
+    <ClCompile Include="src\midunitgroupadapter.cpp" />
     <ClCompile Include="src\mqimage2surface16.cpp" />
     <ClCompile Include="src\mqpresentationmanager.cpp" />
+    <ClCompile Include="src\netcustompeer.cpp" />
+    <ClCompile Include="src\netmsgmapentrycmdmovestackendmsg.cpp" />
+    <ClCompile Include="src\netmsgmapentryexchangeresourcesmsg.cpp" />
     <ClCompile Include="src\netsingleplayer.cpp" />
     <ClCompile Include="src\netsingleplayerhooks.cpp" />
     <ClCompile Include="src\nativegameinfo.cpp" />
+    <ClCompile Include="src\nobleactioncat.cpp" />
+    <ClCompile Include="src\nobleactioncategoryset.cpp" />
+    <ClCompile Include="src\nobleactionresult.cpp" />
+    <ClCompile Include="src\nobleactionresultstealmarket.cpp" />
+    <ClCompile Include="src\objectinterf.cpp" />
+    <ClCompile Include="src\objectinterfhooks.cpp" />
+    <ClCompile Include="src\paperdollchildinterf.cpp" />
+    <ClCompile Include="src\phasegame.cpp" />
+    <ClCompile Include="src\phasegamehooks.cpp" />
+    <ClCompile Include="src\resourcemarketinterface.cpp" />
+    <ClCompile Include="src\resourcetype.cpp" />
     <ClCompile Include="src\scenarioobjectstreams.cpp" />
     <ClCompile Include="src\scenariotemplates.cpp" />
     <ClCompile Include="src\refreshinfo.cpp" />
@@ -357,10 +434,6 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\leaderabilitycat.cpp" />
     <ClCompile Include="src\listbox.cpp" />
     <ClCompile Include="src\idlistutils.cpp" />
-    <ClCompile Include="src\lobbycallbacks.cpp" />
-    <ClCompile Include="src\lobbyclient.cpp" />
-    <ClCompile Include="src\log.cpp" />
-    <ClCompile Include="src\loginaccountinterf.cpp" />
     <ClCompile Include="src\lordcat.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\mainview2.cpp" />
@@ -372,17 +445,14 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\menucustomlobby.cpp" />
     <ClCompile Include="src\menuflashwait.cpp" />
     <ClCompile Include="src\menuload.cpp" />
-    <ClCompile Include="src\menuloadskirmishmultihooks.cpp" />
     <ClCompile Include="src\menulord.cpp" />
     <ClCompile Include="src\menunewmap.cpp" />
     <ClCompile Include="src\menunewskirmish.cpp" />
-    <ClCompile Include="src\menunewskirmishhooks.cpp" />
     <ClCompile Include="src\menunewskirmishmulti.cpp" />
     <ClCompile Include="src\menunewskirmishsingle.cpp" />
     <ClCompile Include="src\menuphase.cpp" />
     <ClCompile Include="src\menuphasehooks.cpp" />
     <ClCompile Include="src\menuprotocol.cpp" />
-    <ClCompile Include="src\menuprotocolhooks.cpp" />
     <ClCompile Include="src\menurace.cpp" />
     <ClCompile Include="src\draganddropinterf.cpp" />
     <ClCompile Include="src\midclientcore.cpp" />
@@ -432,7 +502,6 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\netmsghooks.cpp" />
     <ClCompile Include="src\netmsgmapentry.cpp" />
     <ClCompile Include="src\netmsgutils.cpp" />
-    <ClCompile Include="src\networkpeer.cpp" />
     <ClCompile Include="src\ordercat.cpp" />
     <ClCompile Include="src\originalfunctions.cpp" />
     <ClCompile Include="src\pathinfolist.cpp" />
@@ -444,29 +513,33 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\racecategory.cpp" />
     <ClCompile Include="src\racelist.cpp" />
     <ClCompile Include="src\radiobuttoninterf.cpp" />
-    <ClCompile Include="src\registeraccountinterf.cpp" />
     <ClCompile Include="src\rendererimpl.cpp" />
     <ClCompile Include="src\restrictions.cpp" />
-    <ClCompile Include="src\roomclientjoin.cpp" />
-    <ClCompile Include="src\roompasswordinterf.cpp" />
-    <ClCompile Include="src\roomscallback.cpp" />
-    <ClCompile Include="src\roomservercreation.cpp" />
     <ClCompile Include="src\scenariodata.cpp" />
     <ClCompile Include="src\scenariodataarray.cpp" />
     <ClCompile Include="src\scenarioheader.cpp" />
+    <ClCompile Include="src\scenedithooks.cpp" />
+    <ClCompile Include="src\scenpropinterf.cpp" />
+    <ClCompile Include="src\scenpropinterfhooks.cpp" />
     <ClCompile Include="src\scripts.cpp" />
     <ClCompile Include="src\scriptutils.cpp" />
     <ClCompile Include="src\settings.cpp" />
     <ClCompile Include="src\sitecategories.cpp" />
+    <ClCompile Include="src\sitecategoryhooks.cpp" />
     <ClCompile Include="src\sitemerchantinterf.cpp" />
     <ClCompile Include="src\sitemerchantinterfhooks.cpp" />
+    <ClCompile Include="src\siteresourcemarketinterf.cpp" />
     <ClCompile Include="src\smartptr.cpp" />
     <ClCompile Include="src\movepathhooks.cpp" />
     <ClCompile Include="src\capitalraceset.cpp" />
     <ClCompile Include="src\pointset.cpp" />
     <ClCompile Include="src\raceset.cpp" />
+    <ClCompile Include="src\sounds.cpp" />
     <ClCompile Include="src\spinbuttoninterf.cpp" />
     <ClCompile Include="src\stackbattleactionmsg.cpp" />
+    <ClCompile Include="src\stackmovemsg.cpp" />
+    <ClCompile Include="src\stacktemplatecache.cpp" />
+    <ClCompile Include="src\streambits.cpp" />
     <ClCompile Include="src\streamutils.cpp" />
     <ClCompile Include="src\stringandid.cpp" />
     <ClCompile Include="src\stringarray.cpp" />
@@ -478,17 +551,30 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\surfacedecompressdata.cpp" />
     <ClCompile Include="src\targetslistutils.cpp" />
     <ClCompile Include="src\taskchangecolor.cpp" />
+    <ClCompile Include="src\taskmanager.cpp" />
+    <ClCompile Include="src\taskobjaddsite.cpp" />
+    <ClCompile Include="src\taskobjaddsitehooks.cpp" />
+    <ClCompile Include="src\taskobjerase.cpp" />
+    <ClCompile Include="src\taskobjmove.cpp" />
+    <ClCompile Include="src\taskobjprop.cpp" />
+    <ClCompile Include="src\taskobjprophooks.cpp" />
     <ClCompile Include="src\terraincat.cpp" />
     <ClCompile Include="src\terraincountmap.cpp" />
     <ClCompile Include="src\terrainnamemap.cpp" />
     <ClCompile Include="src\testcondition.cpp" />
     <ClCompile Include="src\testconditionhooks.cpp" />
+    <ClCompile Include="src\testkillstackhooks.cpp" />
+    <ClCompile Include="src\testleaderownitemhooks.cpp" />
+    <ClCompile Include="src\testleadertozonehooks.cpp" />
+    <ClCompile Include="src\testownitemhooks.cpp" />
+    <ClCompile Include="src\teststackexistshooks.cpp" />
     <ClCompile Include="src\textboxinterf.cpp" />
     <ClCompile Include="src\textids.cpp" />
     <ClCompile Include="src\tileindices.cpp" />
     <ClCompile Include="src\tileprefixes.cpp" />
     <ClCompile Include="src\tilevariation.cpp" />
     <ClCompile Include="src\togglebutton.cpp" />
+    <ClCompile Include="src\trainingcampinterf.cpp" />
     <ClCompile Include="src\transformotherhooks.cpp" />
     <ClCompile Include="src\transformselfhooks.cpp" />
     <ClCompile Include="src\uievent.cpp" />
@@ -516,6 +602,8 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\usstackleader.cpp" />
     <ClCompile Include="src\utils.cpp" />
     <ClCompile Include="src\version.cpp" />
+    <ClCompile Include="src\visitorcreatesite.cpp" />
+    <ClCompile Include="src\visitorcreatesitehooks.cpp" />
     <ClCompile Include="src\visitors.cpp" />
     <ClCompile Include="src\waitgenerationinterf.cpp" />
   </ItemGroup>
@@ -568,6 +656,8 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\2denginemap.h" />
     <ClInclude Include="include\2denginemapimpl.h" />
     <ClInclude Include="include\aiattitudes.h" />
+    <ClInclude Include="include\aiattitudescat.h" />
+    <ClInclude Include="include\aiattitudestable.h" />
     <ClInclude Include="include\aiblockingstats.h" />
     <ClInclude Include="include\aigiveitemsaction.h" />
     <ClInclude Include="include\aigiveitemsactionhooks.h" />
@@ -602,6 +692,8 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\attacksourcelist.h" />
     <ClInclude Include="include\attackutils.h" />
     <ClInclude Include="include\autodialog.h" />
+    <ClInclude Include="include\autodialogfile.h" />
+    <ClInclude Include="include\autodialoghooks.h" />
     <ClInclude Include="include\autoptr.h" />
     <ClInclude Include="include\avoidflickerimage.h" />
     <ClInclude Include="include\batattack.h" />
@@ -637,9 +729,20 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\batviewerutils.h" />
     <ClInclude Include="include\bindings\attackview.h" />
     <ClInclude Include="include\bindings\battlemsgdataview.h" />
+    <ClInclude Include="include\bindings\battlemsgdataviewmutable.h" />
+    <ClInclude Include="include\bindings\buildingview.h" />
+    <ClInclude Include="include\bindings\crystalview.h" />
     <ClInclude Include="include\bindings\currencyview.h" />
     <ClInclude Include="include\bindings\diplomacyview.h" />
     <ClInclude Include="include\bindings\fogview.h" />
+    <ClInclude Include="include\bindings\gameview.h" />
+    <ClInclude Include="include\bindings\globalvariablesview.h" />
+    <ClInclude Include="include\bindings\globalview.h" />
+    <ClInclude Include="include\bindings\merchantview.h" />
+    <ClInclude Include="include\bindings\mercsview.h" />
+    <ClInclude Include="include\bindings\resourcemarketview.h" />
+    <ClInclude Include="include\bindings\siteview.h" />
+    <ClInclude Include="include\bindings\trainerview.h" />
     <ClInclude Include="include\bindings\unitviewdummy.h" />
     <ClInclude Include="include\bindings\dynupgradeview.h" />
     <ClInclude Include="include\bindings\fortview.h" />
@@ -670,17 +773,49 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\buildingtype.h" />
     <ClInclude Include="include\chatinterf.h" />
     <ClInclude Include="include\citystackinterfhooks.h" />
+    <ClInclude Include="include\cmdmovestackendmsg.h" />
+    <ClInclude Include="include\cmdstackvisitmsg.h" />
+    <ClInclude Include="include\customaibattle.h" />
     <ClInclude Include="include\custombuildingcategories.h" />
+    <ClInclude Include="include\customunitencyclopedia.h" />
+    <ClInclude Include="include\customunitencyclopediafunctions.h" />
+    <ClInclude Include="include\customnobleactioncategories.h" />
+    <ClInclude Include="include\customnobleactionhooks.h" />
     <ClInclude Include="include\d2unorderedmap.h" />
+    <ClInclude Include="include\ddfoldedinv.h" />
+    <ClInclude Include="include\ddfoldedinvdisplay.h" />
     <ClInclude Include="include\ddstackgroup.h" />
+    <ClInclude Include="include\ddstackinventorydisplay.h" />
     <ClInclude Include="include\ddunitgroup.h" />
+    <ClInclude Include="include\dialogdescriptor.h" />
     <ClInclude Include="include\diplomacyhooks.h" />
+    <ClInclude Include="include\effectgiveresources.h" />
+    <ClInclude Include="include\effectstealmarket.h" />
+    <ClInclude Include="include\eventeffectbase.h" />
     <ClInclude Include="include\fonts.h" />
     <ClInclude Include="include\fontshooks.h" />
+    <ClInclude Include="include\functordispatchmemfunc3.h" />
+    <ClInclude Include="include\gameversion.h" />
+    <ClInclude Include="include\image2dupweak.h" />
+    <ClInclude Include="include\logfile.h" />
+    <ClInclude Include="include\menucustomloadskirmishmulti.h" />
+    <ClInclude Include="include\menucustomnewskirmishmulti.h" />
+    <ClInclude Include="include\menucustomrandomscenariomulti.h" />
+    <ClInclude Include="include\menuloadhooks.h" />
+    <ClInclude Include="include\menuloadskirmishmulti.h" />
+    <ClInclude Include="include\menumain.h" />
+    <ClInclude Include="include\menumainhooks.h" />
+    <ClInclude Include="include\midautodlgimages.h" />
+    <ClInclude Include="include\midautodlgimageshooks.h" />
+    <ClInclude Include="include\globalvariableshooks.h" />
+    <ClInclude Include="include\midcommandqueue2hooks.h" />
+    <ClInclude Include="include\midcrystal.h" />
     <ClInclude Include="include\middiplomacy.h" />
+    <ClInclude Include="include\midgardhooks.h" />
     <ClInclude Include="include\midgardmapfog.h" />
     <ClInclude Include="include\displayd3d.h" />
     <ClInclude Include="include\displayddraw.h" />
+    <ClInclude Include="include\editboxinterfhooks.h" />
     <ClInclude Include="include\enclayoutcity.h" />
     <ClInclude Include="include\enclayoutcityhooks.h" />
     <ClInclude Include="include\enclayoutruin.h" />
@@ -689,6 +824,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\encparambasehooks.h" />
     <ClInclude Include="include\encyclopediapopup.h" />
     <ClInclude Include="include\exchangeinterfhooks.h" />
+    <ClInclude Include="include\exchangeresourcesmsg.h" />
     <ClInclude Include="include\faceimg.h" />
     <ClInclude Include="include\faceimgimpl.h" />
     <ClInclude Include="include\factoryimage2.h" />
@@ -752,6 +888,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\imageptrvector.h" />
     <ClInclude Include="include\interfborderdisplay.h" />
     <ClInclude Include="include\interfaceutils.h" />
+    <ClInclude Include="include\isoviewhooks.h" />
     <ClInclude Include="include\itemextension.h" />
     <ClInclude Include="include\itemtypelist.h" />
     <ClInclude Include="include\leaderunitdescriptor.h" />
@@ -759,6 +896,8 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\lovechat.h" />
     <ClInclude Include="include\managestkinterf.h" />
     <ClInclude Include="include\managestkinterfhooks.h" />
+    <ClInclude Include="include\menucustombase.h" />
+    <ClInclude Include="include\menucustommain.h" />
     <ClInclude Include="include\menunewskirmishhotseat.h" />
     <ClInclude Include="include\menunewskirmishhotseathooks.h" />
     <ClInclude Include="include\menunewskirmishmultihooks.h" />
@@ -773,18 +912,41 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\middropsource.h" />
     <ClInclude Include="include\middropsourceext.h" />
     <ClInclude Include="include\middroptarget.h" />
+    <ClInclude Include="include\midmsgboxupdatehandler.h" />
+    <ClInclude Include="include\miditemext.h" />
     <ClInclude Include="include\midobjectlock.h" />
+    <ClInclude Include="include\midobjectlockhooks.h" />
     <ClInclude Include="include\midpopupinterf.h" />
     <ClInclude Include="include\midrod.h" />
     <ClInclude Include="include\midserverlogichooks.h" />
+    <ClInclude Include="include\midsitemage.h" />
+    <ClInclude Include="include\midsitemerchant.h" />
+    <ClInclude Include="include\midsitemercs.h" />
+    <ClInclude Include="include\midsiteresourcemarket.h" />
+    <ClInclude Include="include\midsitetrainer.h" />
+    <ClInclude Include="include\midstackdestroyed.h" />
+    <ClInclude Include="include\midstart.h" />
+    <ClInclude Include="include\midtaskopeninterfparam.h" />
+    <ClInclude Include="include\midtaskopeninterfparamresmarket.h" />
     <ClInclude Include="include\midunitext.h" />
     <ClInclude Include="include\midunitgroupadapter.h" />
     <ClInclude Include="include\mqdb.h" />
     <ClInclude Include="include\mqdbpackedimage.h" />
+    <ClInclude Include="include\mqnetreceptionwnd.h" />
+    <ClInclude Include="include\netcustompeer.h" />
+    <ClInclude Include="include\netmsgmapentrycmdmovestackendmsg.h" />
+    <ClInclude Include="include\netmsgmapentryexchangeresourcesmsg.h" />
     <ClInclude Include="include\netsingleplayer.h" />
     <ClInclude Include="include\netsingleplayerhooks.h" />
+    <ClInclude Include="include\nobleactioncat.h" />
+    <ClInclude Include="include\nobleactioncategoryset.h" />
+    <ClInclude Include="include\nobleactionresult.h" />
+    <ClInclude Include="include\nobleactionresultstealmarket.h" />
     <ClInclude Include="include\notifyplayerlist.h" />
     <ClInclude Include="include\objectinterf.h" />
+    <ClInclude Include="include\objectinterfhooks.h" />
+    <ClInclude Include="include\paperdollchildinterf.h" />
+    <ClInclude Include="include\phasegamehooks.h" />
     <ClInclude Include="include\playerlistentry.h" />
     <ClInclude Include="include\quickstring.h" />
     <ClInclude Include="include\refreshinfo.h" />
@@ -794,6 +956,8 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\nativeraceinfo.h" />
     <ClInclude Include="include\nativespellinfo.h" />
     <ClInclude Include="include\nativeunitinfo.h" />
+    <ClInclude Include="include\resourcemarketinterface.h" />
+    <ClInclude Include="include\resourcetype.h" />
     <ClInclude Include="include\scenarioobjectstreams.h" />
     <ClInclude Include="include\scenariotemplates.h" />
     <ClInclude Include="include\scenedit.h" />
@@ -925,10 +1089,6 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\d2list.h" />
     <ClInclude Include="include\listbox.h" />
     <ClInclude Include="include\idlistutils.h" />
-    <ClInclude Include="include\lobbycallbacks.h" />
-    <ClInclude Include="include\lobbyclient.h" />
-    <ClInclude Include="include\log.h" />
-    <ClInclude Include="include\loginaccountinterf.h" />
     <ClInclude Include="include\lordcat.h" />
     <ClInclude Include="include\lordtype.h" />
     <ClInclude Include="include\mapelement.h" />
@@ -940,17 +1100,14 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\menucustomlobby.h" />
     <ClInclude Include="include\menuflashwait.h" />
     <ClInclude Include="include\menuload.h" />
-    <ClInclude Include="include\menuloadskirmishmultihooks.h" />
     <ClInclude Include="include\menulord.h" />
     <ClInclude Include="include\menunewmap.h" />
     <ClInclude Include="include\menunewskirmish.h" />
-    <ClInclude Include="include\menunewskirmishhooks.h" />
     <ClInclude Include="include\menunewskirmishmulti.h" />
     <ClInclude Include="include\menunewskirmishsingle.h" />
     <ClInclude Include="include\menuphase.h" />
     <ClInclude Include="include\menuphasehooks.h" />
     <ClInclude Include="include\menuprotocol.h" />
-    <ClInclude Include="include\menuprotocolhooks.h" />
     <ClInclude Include="include\menurace.h" />
     <ClInclude Include="include\midbag.h" />
     <ClInclude Include="include\midcampaign.h" />
@@ -1062,7 +1219,6 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\netmsgutils.h" />
     <ClInclude Include="include\mqnetplayerclient.h" />
     <ClInclude Include="include\netplayerinfo.h" />
-    <ClInclude Include="include\networkpeer.h" />
     <ClInclude Include="include\objectselection.h" />
     <ClInclude Include="include\ordercat.h" />
     <ClInclude Include="include\originalfunctions.h" />
@@ -1080,25 +1236,25 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\racelist.h" />
     <ClInclude Include="include\racetype.h" />
     <ClInclude Include="include\radiobuttoninterf.h" />
-    <ClInclude Include="include\registeraccountinterf.h" />
     <ClInclude Include="include\rendererimpl.h" />
     <ClInclude Include="include\rendertypes.h" />
     <ClInclude Include="include\resetstackext.h" />
     <ClInclude Include="include\restrictions.h" />
-    <ClInclude Include="include\roomclientjoin.h" />
-    <ClInclude Include="include\roompasswordinterf.h" />
-    <ClInclude Include="include\roomscallback.h" />
-    <ClInclude Include="include\roomservercreation.h" />
     <ClInclude Include="include\scenariodata.h" />
     <ClInclude Include="include\scenariodataarray.h" />
     <ClInclude Include="include\scenarioheader.h" />
     <ClInclude Include="include\scenarioinfo.h" />
+    <ClInclude Include="include\scenedithooks.h" />
+    <ClInclude Include="include\scenpropinterf.h" />
+    <ClInclude Include="include\scenpropinterfhooks.h" />
     <ClInclude Include="include\scripts.h" />
     <ClInclude Include="include\scriptutils.h" />
     <ClInclude Include="include\settings.h" />
     <ClInclude Include="include\sitecategories.h" />
+    <ClInclude Include="include\sitecategoryhooks.h" />
     <ClInclude Include="include\sitemerchantinterf.h" />
     <ClInclude Include="include\sitemerchantinterfhooks.h" />
+    <ClInclude Include="include\siteresourcemarketinterf.h" />
     <ClInclude Include="include\sitetrainingcampinterf.h" />
     <ClInclude Include="include\smartptr.h" />
     <ClInclude Include="include\capitalraceset.h" />
@@ -1109,9 +1265,33 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\sounds.h" />
     <ClInclude Include="include\soundsystemsample.h" />
     <ClInclude Include="include\soundsystemstream.h" />
+    <ClInclude Include="include\stackmovemsg.h" />
+    <ClInclude Include="include\stacktemplatecache.h" />
+    <ClInclude Include="include\streambits.h" />
     <ClInclude Include="include\streamholder.h" />
     <ClInclude Include="include\streamregister.h" />
+    <ClInclude Include="include\taskobj.h" />
+    <ClInclude Include="include\taskobjaddsite.h" />
+    <ClInclude Include="include\taskobjaddsitehooks.h" />
+    <ClInclude Include="include\taskobjerase.h" />
+    <ClInclude Include="include\taskobjmove.h" />
+    <ClInclude Include="include\taskobjprop.h" />
+    <ClInclude Include="include\taskobjprophooks.h" />
+    <ClInclude Include="include\testkillstack.h" />
+    <ClInclude Include="include\testkillstackhooks.h" />
+    <ClInclude Include="include\testleaderownitem.h" />
+    <ClInclude Include="include\testleaderownitemhooks.h" />
+    <ClInclude Include="include\testleadertozone.h" />
+    <ClInclude Include="include\testleadertozonehooks.h" />
+    <ClInclude Include="include\testownitem.h" />
+    <ClInclude Include="include\testownitemhooks.h" />
+    <ClInclude Include="include\teststackexists.h" />
+    <ClInclude Include="include\teststackexistshooks.h" />
     <ClInclude Include="include\textmessage.h" />
+    <ClInclude Include="include\timer.h" />
+    <ClInclude Include="include\trainingcampinterf.h" />
+    <ClInclude Include="include\visitorcreatesite.h" />
+    <ClInclude Include="include\visitorcreatesitehooks.h" />
     <ClInclude Include="include\wavstore.h" />
     <ClInclude Include="include\spellcat.h" />
     <ClInclude Include="include\spinbuttoninterf.h" />
@@ -1205,6 +1385,11 @@ call ..\buildDetours.bat ..\Detours
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="mss32.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="midgardid.natvis">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+    </Natvis>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

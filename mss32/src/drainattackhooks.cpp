@@ -25,7 +25,6 @@
 #include "battlemsgdata.h"
 #include "game.h"
 #include "hooks.h"
-#include "log.h"
 #include "midgardobjectmap.h"
 #include "midunit.h"
 #include "midunitgroup.h"
@@ -33,7 +32,7 @@
 #include "usunitimpl.h"
 #include "utils.h"
 #include "visitors.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 

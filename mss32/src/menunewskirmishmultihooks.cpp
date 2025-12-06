@@ -20,11 +20,11 @@
 #include "menunewskirmishmultihooks.h"
 #include "button.h"
 #include "dialoginterf.h"
-#include "log.h"
 #include "netcustomplayerserver.h"
 #include "netcustomservice.h"
 #include "netcustomsession.h"
 #include "originalfunctions.h"
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -35,43 +35,8 @@ static void __fastcall showMenuRandomScenarioMulti(game::CMenuNewSkirmishMulti* 
 
     // Transfer to a new random scenario generation menu, from state 6 to 41
     CMenuPhase* menuPhase{thisptr->menuBaseData->menuPhase};
-    CMenuPhaseApi::get().setTransition(menuPhase, 2);
-}
-
-bool __fastcall menuNewSkirmishMultiCreateServerHooked(game::CMenuNewSkirmishMulti* thisptr,
-                                                       int /*%edx*/)
-{
-    logDebug("lobby.log", "CMenuNewSkirmishMulti::CreateServer");
-
-    const auto result{getOriginalFunctions().menuNewSkirmishMultiCreateServer(thisptr)};
-    if (!result) {
-        // Game failed to initialize session, server or host client
-        logDebug("lobby.log", "Failed to create server");
-        return false;
-    }
-
-    auto service{getNetService()};
-    if (!service) {
-        // Current net service is not custom lobby, use default game logic
-        return result;
-    }
-
-    auto session{service->session};
-    if (!session) {
-        logDebug("lobby.log", "Session is null");
-        return false;
-    }
-
-    auto playerServer{session->server};
-    if (!playerServer) {
-        logDebug("lobby.log", "Player server is null");
-        return false;
-    }
-
-    logDebug("lobby.log", "Notify player server about host client connection");
-    // Notify server about host player client connection.
-    // The other clients that connect later will be handled in a usual way using net peer callbacks
-    return playerServer->notifyHostClientConnected();
+    CMenuPhaseApi::get().switchPhase(menuPhase,
+                                     MenuTransition::NewSkirmishMulti2RandomScenarioMulti);
 }
 
 game::CMenuNewSkirmishMulti* __fastcall menuNewSkirmishMultiCtorHooked(

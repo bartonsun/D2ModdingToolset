@@ -28,14 +28,22 @@
 
 namespace game {
 
+struct CInterfaceData;
 struct CInterfaceVftable;
 struct CInterfManagerImpl;
-struct CInterface;
 struct IMqRenderer2;
 struct CMqPoint;
 struct Tooltip;
 struct CursorHandle;
 
+/** Base class for all ui elements. */
+template <typename T>
+struct CInterfaceT
+{
+    T* vftable;
+    CInterfaceData* interfaceData;
+};
+using CInterface = CInterfaceT<CInterfaceVftable>;
 using CursorHandlePtr = SmartPtr<CursorHandle>;
 using TooltipPtr = SmartPtr<Tooltip>;
 
@@ -52,26 +60,13 @@ struct CInterfaceData
 assert_size(CInterfaceData, 64);
 assert_offset(CInterfaceData, childs, 28);
 
-template <typename T>
-struct CInterfaceT
-{
-    T* vftable;
-    CInterfaceData* interfaceData;
-};
-
-/** Base class for all ui elements. */
-struct CInterface : public CInterfaceT<CInterfaceVftable>
-{ };
-
 struct CInterfaceVftable
 {
     using Destructor = void(__thiscall*)(CInterface* thisptr, char flags);
     Destructor destructor;
 
-    /** Draws childs of specified root element. */
-    using Draw = void(__thiscall*)(CInterface* thisptr,
-                                   CInterface* rootElement,
-                                   IMqRenderer2* renderer);
+    /** Draws interface element and its children. */
+    using Draw = void(__stdcall*)(CInterface* thisptr, IMqRenderer2* renderer);
     Draw draw;
 
     /** Handles mouse position changes. */
@@ -131,8 +126,13 @@ struct CInterfaceVftable
     using ShouldIgnoreScaling = bool(__thiscall*)(const CInterface* thisptr);
     ShouldIgnoreScaling shouldIgnoreScaling;
 
-    using Method11 = int(__thiscall*)(CInterface* thisptr);
-    Method11 method11;
+    /**
+     * Goes through parent chain and compares each parent against
+     * CInterfManager::getTopmostInterface.
+     * Returns true if the interface itself or one of its parents is the topmost one.
+     */
+    using IsOnTop = bool(__thiscall*)(CInterface* thisptr);
+    IsOnTop isOnTop;
 
     using GetArea = CMqRect*(__thiscall*)(const CInterface* thisptr);
     GetArea getArea;

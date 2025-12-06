@@ -30,7 +30,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <fmt/format.h>
+
 #include <vector>
 
 namespace hooks {

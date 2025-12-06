@@ -21,11 +21,10 @@
 #include "globaldata.h"
 #include "itembattle.h"
 #include "itemequipment.h"
-#include "log.h"
 #include "midgardobjectmap.h"
 #include "miditem.h"
 #include "utils.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -37,7 +36,7 @@ const game::CItemBase* getGlobalItemById(const game::IMidgardObjectMap* objectMa
     auto item = static_cast<CMidItem*>(
         objectMap->vftable->findScenarioObjectById(objectMap, itemId));
     if (!item) {
-        logError("mssProxyError.log", fmt::format("Could not find item {:s}", idToString(itemId)));
+        spdlog::error("Could not find item {:s}", idToString(itemId));
         return nullptr;
     }
 
@@ -46,8 +45,7 @@ const game::CItemBase* getGlobalItemById(const game::IMidgardObjectMap* objectMa
 
     auto globalItem = global.findItemById(globalData->itemTypes, &item->globalItemId);
     if (!globalItem) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not find global item {:s}", idToString(&item->globalItemId)));
+        spdlog::error("Could not find global item {:s}", idToString(&item->globalItemId));
         return nullptr;
     }
 

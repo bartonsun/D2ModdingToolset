@@ -18,10 +18,9 @@
  */
 
 #include "textids.h"
-#include "log.h"
 #include "scripts.h"
 #include "utils.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -101,14 +100,36 @@ void readLobbyTextIds(const sol::table& table, TextIds::Lobby& value)
         return;
 
     auto& lobby = lobbyTable.value();
+    value.gameVersion = lobby.get_or("gameVersion", std::string());
     value.serverName = lobby.get_or("serverName", std::string());
-    value.serverNotResponding = lobby.get_or("serverNotResponding", std::string());
+    value.connectStartFailed = lobby.get_or("connectStartFailed", std::string());
     value.connectAttemptFailed = lobby.get_or("connectAttemptFailed", std::string());
     value.serverIsFull = lobby.get_or("serverIsFull", std::string());
-    value.computeHashFailed = lobby.get_or("computeHashFailed", std::string());
-    value.requestHashCheckFailed = lobby.get_or("requestHashCheckFailed", std::string());
-    value.wrongHash = lobby.get_or("wrongHash", std::string());
+    value.checkFilesFailed = lobby.get_or("checkFilesFailed", std::string());
     value.wrongRoomPassword = lobby.get_or("wrongRoomPassword", std::string());
+    value.confirmBack = lobby.get_or("confirmBack", std::string());
+    value.invalidAccountNameOrPassword = lobby.get_or("invalidAccountNameOrPassword",
+                                                      std::string());
+    value.noSuchAccountOrWrongPassword = lobby.get_or("noSuchAccountOrWrongPassword",
+                                                      std::string());
+    value.accountIsBanned = lobby.get_or("accountIsBanned", std::string());
+    value.accountNameAlreadyInUse = lobby.get_or("accountNameAlreadyInUse", std::string());
+    value.unableToLogin = lobby.get_or("unableToLogin", std::string());
+    value.unableToLoginAfterRegistration = lobby.get_or("unableToLoginAfterRegistration",
+                                                        std::string());
+    value.unableToRegister = lobby.get_or("unableToRegister", std::string());
+    value.createRoomRequestFailed = lobby.get_or("createRoomRequestFailed", std::string());
+    value.createRoomFailed = lobby.get_or("createRoomFailed", std::string());
+    value.joinRoomFailed = lobby.get_or("joinRoomFailed", std::string());
+    value.searchRoomsFailed = lobby.get_or("searchRoomsFailed", std::string());
+    value.selectedRoomNoLongerExists = lobby.get_or("selectedRoomNoLongerExists", std::string());
+    value.chatMessage = lobby.get_or("chatMessage", std::string());
+    value.tooManyChatMessages = lobby.get_or("tooManyChatMessages", std::string());
+    value.playersTotal = lobby.get_or("playersTotal", std::string());
+    value.playerNameInList = lobby.get_or("playerNameInList", std::string());
+    value.roomsTotal = lobby.get_or("roomsTotal", std::string());
+    value.roomInfo = lobby.get_or("roomInfo", std::string());
+    value.roomInfoInList = lobby.get_or("roomInfoInList", std::string());
 }
 
 void readGeneratorTextIds(const sol::table& table, TextIds::ScenarioGenerator& value)
@@ -122,6 +143,31 @@ void readGeneratorTextIds(const sol::table& table, TextIds::ScenarioGenerator& v
     value.wrongGameData = rsg.get_or("wrongGameData", std::string());
     value.generationError = rsg.get_or("generationError", std::string());
     value.limitExceeded = rsg.get_or("limitExceeded", std::string());
+}
+
+void readResourceMarketTextIds(const sol::table& table, TextIds::ResourceMarket& value)
+{
+    auto marketTable = table.get<sol::optional<sol::table>>("resourceMarket");
+    if (!marketTable.has_value()) {
+        return;
+    }
+
+    auto& market = marketTable.value();
+    value.encyDesc = market.get_or("encyDesc", std::string());
+    value.infiniteAmount = market.get_or("infiniteAmount", std::string());
+    value.exchangeDesc = market.get_or("exchangeDesc", std::string());
+    value.exchangeNotAvailable = market.get_or("exchangeNotAvailable", std::string());
+}
+
+void readNobleActionsTextIds(const sol::table& table, TextIds::NobleActions& value)
+{
+    auto actionsTable = table.get<sol::optional<sol::table>>("nobleActions");
+    if (!actionsTable.has_value()) {
+        return;
+    }
+
+    auto& actions = actionsTable.value();
+    value.stealMarketSuccess = actions.get_or("stealMarketSuccess", std::string());
 }
 
 void readInterfTextIds(const sol::table& table, TextIds::Interf& value)
@@ -178,6 +224,8 @@ void initialize(TextIds& value)
         readEventsTextIds(table, value.events);
         readLobbyTextIds(table, value.lobby);
         readGeneratorTextIds(table, value.rsg);
+        readResourceMarketTextIds(table, value.resourceMarket);
+        readNobleActionsTextIds(table, value.nobleActions);
     } catch (const std::exception& e) {
         showErrorMessageBox(fmt::format("Failed to read script '{:s}'.\n"
                                         "Reason: '{:s}'",

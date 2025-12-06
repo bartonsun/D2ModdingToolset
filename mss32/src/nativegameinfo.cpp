@@ -29,20 +29,20 @@
 #include "itemcategory.h"
 #include "itemtypelist.h"
 #include "landmark.h"
-#include "log.h"
 #include "nativeiteminfo.h"
 #include "nativelandmarkinfo.h"
 #include "nativeraceinfo.h"
 #include "nativespellinfo.h"
 #include "nativeunitinfo.h"
 #include "racetype.h"
+#include "sitecategoryhooks.h"
 #include "strategicspell.h"
 #include "ussoldierimpl.h"
 #include "usstackleader.h"
 #include "usunitimpl.h"
 #include "utils.h"
 #include <cassert>
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -100,8 +100,7 @@ static bool readSiteText(rsg::SiteTexts& texts,
 
     utils::DbfFile db;
     if (!db.open(dbFilename)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not open {:s}", dbFilename.filename().string()));
+        spdlog::error("Could not open {:s}", dbFilename.filename().string());
         return false;
     }
 
@@ -122,8 +121,8 @@ static bool readSiteText(rsg::SiteTexts& texts,
     for (std::uint32_t i = 0; i < recordsTotal; ++i) {
         utils::DbfRecord record;
         if (!db.record(record, i)) {
-            logError("mssProxyError.log", fmt::format("Could not read record {:d} from {:s}", i,
-                                                      dbFilename.filename().string()));
+            spdlog::error("Could not read record {:d} from {:s}", i,
+                          dbFilename.filename().string());
             continue;
         }
 
@@ -328,6 +327,11 @@ const rsg::SiteTexts& NativeGameInfo::getRuinTexts() const
 const rsg::SiteTexts& NativeGameInfo::getTrainerTexts() const
 {
     return trainerTexts;
+}
+
+const rsg::SiteTexts& NativeGameInfo::getMarketTexts() const
+{
+    return marketTexts;
 }
 
 bool NativeGameInfo::readGameInfo(const std::filesystem::path& gameFolderPath)
@@ -649,15 +653,13 @@ bool NativeGameInfo::readEditorInterfaceTexts(const std::filesystem::path& inter
 
     utils::DbfFile db;
     if (!db.open(dbFilePath)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not open {:s}", dbFilePath.filename().string()));
+        spdlog::error("Could not open {:s}", dbFilePath.filename().string());
         return false;
     }
 
     const utils::DbfColumn* textColumn{db.column("TEXT")};
     if (!textColumn) {
-        logError("mssProxyError.log",
-                 fmt::format("Missing 'TEXT' column in {:s}", dbFilePath.filename().string()));
+        spdlog::error("Missing 'TEXT' column in {:s}", dbFilePath.filename().string());
         return false;
     }
 
@@ -667,8 +669,8 @@ bool NativeGameInfo::readEditorInterfaceTexts(const std::filesystem::path& inter
     for (std::uint32_t i = 0; i < recordsTotal; ++i) {
         utils::DbfRecord record;
         if (!db.record(record, i)) {
-            logError("mssProxyError.log", fmt::format("Could not read record {:d} from {:s}", i,
-                                                      dbFilePath.filename().string()));
+            spdlog::error("Could not read record {:d} from {:s}", i,
+                          dbFilePath.filename().string());
             continue;
         }
 
@@ -700,15 +702,13 @@ bool NativeGameInfo::readCityNames(const std::filesystem::path& scenDataFolderPa
 
     utils::DbfFile db;
     if (!db.open(dbFilePath)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not open {:s}", dbFilePath.filename().string()));
+        spdlog::error("Could not open {:s}", dbFilePath.filename().string());
         return false;
     }
 
     const utils::DbfColumn* nameColumn{db.column("NAME")};
     if (!nameColumn) {
-        logError("mssProxyError.log",
-                 fmt::format("Missing 'NAME' column in {:s}", dbFilePath.filename().string()));
+        spdlog::error("Missing 'NAME' column in {:s}", dbFilePath.filename().string());
         return false;
     }
 
@@ -718,8 +718,8 @@ bool NativeGameInfo::readCityNames(const std::filesystem::path& scenDataFolderPa
     for (std::uint32_t i = 0; i < recordsTotal; ++i) {
         utils::DbfRecord record;
         if (!db.record(record, i)) {
-            logError("mssProxyError.log", fmt::format("Could not read record {:d} from {:s}", i,
-                                                      dbFilePath.filename().string()));
+            spdlog::error("Could not read record {:d} from {:s}", i,
+                          dbFilePath.filename().string());
             continue;
         }
 
@@ -740,11 +740,17 @@ bool NativeGameInfo::readCityNames(const std::filesystem::path& scenDataFolderPa
 
 bool NativeGameInfo::readSiteTexts(const std::filesystem::path& scenDataFolderPath)
 {
+    const bool resourceMarketExists{customSiteCategories().exists};
+
     return readSiteText(mercenaryTexts, scenDataFolderPath / "Campname.dbf")
            && readSiteText(mageTexts, scenDataFolderPath / "Magename.dbf")
            && readSiteText(merchantTexts, scenDataFolderPath / "Mercname.dbf")
            && readSiteText(ruinTexts, scenDataFolderPath / "Ruinname.dbf", false)
-           && readSiteText(trainerTexts, scenDataFolderPath / "Trainame.dbf");
+           && readSiteText(trainerTexts, scenDataFolderPath / "Trainame.dbf")
+           // If resource market feature exists, 'Marketname.dbf' must be valid
+           && (!resourceMarketExists
+               || (resourceMarketExists
+                   && readSiteText(marketTexts, scenDataFolderPath / "Marketname.dbf")));
 }
 
 } // namespace hooks

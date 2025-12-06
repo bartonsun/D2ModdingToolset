@@ -42,14 +42,23 @@ struct CAutoDialog;
 struct CUIManager;
 struct CInterfManagerImpl;
 struct CMqFps;
-struct CInterface;
 struct IMqNetPlayerClient;
 struct IMqNetSystem;
 struct CMidgardMsgBox;
 struct NetMsgCallbacks;
-struct CNetMsg;
 struct GameImageDataWrapper;
 struct MQDBDataWrapper;
+struct CMidStart;
+
+template <typename T>
+struct CNetMsgT;
+struct CNetMsgVftable;
+using CNetMsg = CNetMsgT<CNetMsgVftable>;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 
 using NetClientPtrIdPair = Pair<SmartPtr<IMqNetPlayerClient>, CMidgardID>;
 
@@ -74,7 +83,7 @@ struct CMidgardData
     bool hotseatGame;     /**< Multiplayer game on the same computer. */
     bool host;            /**< True if computer hosts the game, server. */
     bool lobbySessionExists;
-    void* midStart;
+    CMidStart* midStart;
     CMenuPhase* menuPhase;
     GameSettings** settings;
     GameImageDataWrapper* interfImages;
@@ -96,7 +105,8 @@ struct CMidgardData
     char unknown16[52];
     CMqFps* fps;
     bool showFullSystemInfo;
-    char padding2[3];
+    bool unknown249; // Set to false when clearing network state
+    char padding2[2];
 };
 
 assert_size(CMidgardData, 252);
@@ -105,6 +115,7 @@ assert_offset(CMidgardData, host, 50);
 assert_offset(CMidgardData, settings, 60);
 assert_offset(CMidgardData, closeEvent, 156);
 assert_offset(CMidgardData, fps, 244);
+assert_offset(CMidgardData, unknown249, 249);
 
 struct CMidgard
     : public IMqNetTraffic
@@ -143,7 +154,7 @@ struct Api
      */
     using CreateNetClient = std::uint32_t(__thiscall*)(CMidgard* thisptr,
                                                        const char* playerName,
-                                                       bool updateIniFile);
+                                                       bool setPlayerNameAsDefault);
     CreateNetClient createNetClient;
 
     /**
@@ -153,6 +164,26 @@ struct Api
      */
     using SendNetMsgToServer = bool(__thiscall*)(CMidgard* thisptr, const CNetMsg* message);
     SendNetMsgToServer sendNetMsgToServer;
+
+    /**
+     * Destroys CMidClient and CMidServer, clears client players list and destroys IMqNetSession,
+     * finally removes all net messages from the game window's queue.
+     */
+    using ClearNetworkState = void(__thiscall*)(CMidgard* thisptr);
+    ClearNetworkState clearNetworkState;
+
+    /**
+     * Identical to ClearNetworkState plus destroys net service, sets multiplayerGame and host to
+     * false.
+     */
+    using ClearNetworkStateAndService = void(__thiscall*)(CMidgard* thisptr);
+    ClearNetworkStateAndService clearNetworkStateAndService;
+
+    /** MID_STARTMENU (CMidgardData::startMenuMessageId) window message callback. */
+    using StartMenuMessageCallback = void(__thiscall*)(CMidgard* thisptr,
+                                                       unsigned int wParam,
+                                                       long lParam);
+    StartMenuMessageCallback startMenuMessageCallback;
 };
 
 Api& get();

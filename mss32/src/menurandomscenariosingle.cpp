@@ -36,8 +36,10 @@ static void startScenarioLocal(CMenuRandomScenario* menu)
 {
     prepareToStartRandomScenario(menu);
 
-    // Switch to the next menu
-    game::CMenuPhaseApi::get().setTransition(menu->menuBaseData->menuPhase, 0);
+    using namespace game;
+
+    CMenuPhaseApi::get().switchPhase(menu->menuBaseData->menuPhase,
+                                     MenuTransition::RandomScenarioSingle2RaceCampaign);
 }
 
 CMenuRandomScenarioSingle::CMenuRandomScenarioSingle(game::CMenuPhase* menuPhase)

@@ -25,9 +25,15 @@
 namespace game {
 
 struct CMidClient;
-struct IMidgardObjectMap;
+struct CMidDataCache2;
 struct CMidgardID;
-struct CInterface;
+struct CMidCommandQueue2;
+struct CEncParamBase;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 
 struct CPhaseData
 {
@@ -49,11 +55,17 @@ namespace CPhaseApi {
 
 struct Api
 {
-    using GetObjectMap = IMidgardObjectMap*(__thiscall*)(CPhase* thisptr);
-    GetObjectMap getObjectMap;
+    using GetObjectMap = CMidDataCache2*(__thiscall*)(CPhase* thisptr);
+    GetObjectMap getDataCache;
 
     using GetCurrentPlayerId = const CMidgardID*(__thiscall*)(CPhase* thisptr);
     GetCurrentPlayerId getCurrentPlayerId;
+
+    using GetCommandQueue = CMidCommandQueue2*(__thiscall*)(CPhase* thisptr);
+    GetCommandQueue getCommandQueue;
+
+    using ShowEncyclopediaPopup = void(__thiscall*)(CPhase* thisptr, const CEncParamBase* encParam);
+    ShowEncyclopediaPopup showEncyclopediaPopup;
 };
 
 Api& get();

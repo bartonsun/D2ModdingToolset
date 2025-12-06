@@ -18,12 +18,11 @@
  */
 
 #include "scenvariablesview.h"
-#include "log.h"
 #include "scenariovariableview.h"
 #include "utils.h"
 #include <algorithm>
-#include <fmt/format.h>
 #include <sol/sol.hpp>
+#include <spdlog/spdlog.h>
 
 namespace bindings {
 

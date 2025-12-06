@@ -18,7 +18,7 @@
  */
 
 #include "unitutils.h"
-#include "attack.h"
+#include "attackimpl.h"
 #include "attacksourcecat.h"
 #include "attacksourcelist.h"
 #include "attackutils.h"
@@ -33,7 +33,6 @@
 #include "globalvariables.h"
 #include "immunecat.h"
 #include "leaderabilitycat.h"
-#include "log.h"
 #include "lordtype.h"
 #include "midgardid.h"
 #include "midgardmap.h"
@@ -58,7 +57,7 @@
 #include "usunitimpl.h"
 #include "utils.h"
 #include "visitors.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -84,8 +83,7 @@ game::IUsSoldier* castUnitImplToSoldierWithLogging(const game::IUsUnit* unitImpl
 
     auto soldier = gameFunctions().castUnitImplToSoldier(unitImpl);
     if (!soldier) {
-        hooks::logError("mssProxyError.log", fmt::format("Failed to cast unit impl {:s} to soldier",
-                                                         hooks::idToString(&unitImpl->id)));
+        spdlog::error("Failed to cast unit impl {:s} to soldier", hooks::idToString(&unitImpl->id));
     }
 
     return soldier;
@@ -149,6 +147,16 @@ game::TUsUnitImpl* getGlobalUnitImpl(const game::CMidgardID* unitImplId)
     return getUnitImpl(&globalImplId);
 }
 
+game::TUsUnitImpl* getGlobalUnitImplByAttackId(const game::CMidgardID* attackId)
+{
+    using namespace game;
+
+    CMidgardID unitImplId;
+    CMidgardIDApi::get().changeType(&unitImplId, attackId, IdType::UnitGenerated);
+
+    return getGlobalUnitImpl(&unitImplId);
+}
+
 game::TUsUnitImpl* generateUnitImpl(const game::CMidgardID* unitImplId, int level)
 {
     using namespace game;
@@ -173,8 +181,7 @@ game::TUsUnitImpl* getUnitImpl(const game::CMidgardID* unitImplId)
     auto globalData = *global.getGlobalData();
     auto result = (TUsUnitImpl*)global.findById(globalData->units, unitImplId);
     if (!result) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not find unit impl {:s}", idToString(unitImplId)));
+        spdlog::error("Could not find unit impl {:s}", idToString(unitImplId));
     }
 
     return result;
@@ -231,7 +238,7 @@ game::IAttack* getAttack(const game::IUsUnit* unit, bool primary, bool checkAltA
                           : soldier->vftable->getSecondAttackById(soldier);
 
     if (attack && checkAltAttack) {
-        auto altAttack = getGlobalAttack(attack->vftable->getAltAttackId(attack));
+        auto altAttack = getAttackImpl(attack->vftable->getAltAttackId(attack));
         if (altAttack)
             return wrapAltAttack(unit, altAttack);
     }
@@ -242,7 +249,11 @@ game::IAttack* getAttack(const game::IUsUnit* unit, bool primary, bool checkAltA
 game::IAttack* getAltAttack(const game::IUsUnit* unit, bool primary)
 {
     auto attack = getAttack(unit, primary, false);
-    auto altAttack = getGlobalAttack(attack->vftable->getAltAttackId(attack));
+    if (!attack) {
+        return nullptr;
+    }
+
+    auto altAttack = getAttackImpl(attack->vftable->getAltAttackId(attack));
     if (!altAttack) {
         return nullptr;
     }
@@ -287,9 +298,8 @@ const game::CDynUpgrade* getDynUpgrade(const game::IUsUnit* unit, int upgradeNum
     auto id = upgradeNumber == 1 ? soldier->vftable->getDynUpg1(soldier)
                                  : soldier->vftable->getDynUpg2(soldier);
     if (!id) {
-        hooks::logError("mssProxyError.log",
-                        fmt::format("Dyn upgrade {:d} id is null, unit impl {:s}", upgradeNumber,
-                                    hooks::idToString(&unit->id)));
+        spdlog::error("Dyn upgrade {:d} id is null, unit impl {:s}", upgradeNumber,
+                      hooks::idToString(&unit->id));
         return nullptr;
     }
 
@@ -298,8 +308,7 @@ const game::CDynUpgrade* getDynUpgrade(const game::IUsUnit* unit, int upgradeNum
 
     auto upgrade = globalApi.findDynUpgradeById(globalData->dynUpgrade, id);
     if (!upgrade) {
-        hooks::logError("mssProxyError.log", fmt::format("Could not find dyn upgrade {:d} {:s}",
-                                                         upgradeNumber, hooks::idToString(id)));
+        spdlog::error("Could not find dyn upgrade {:d} {:s}", upgradeNumber, hooks::idToString(id));
         return nullptr;
     }
 
@@ -360,24 +369,23 @@ static int getLordRegenBonus(const game::CMidPlayer* player)
 {
     using namespace game;
 
-    const auto& fn = gameFunctions();
-    const auto& globalApi = GlobalDataApi::get();
-
-    const auto globalData = *globalApi.getGlobalData();
-    const auto vars = *globalData->globalVariables;
-
     if (!player || player->capturedById != emptyId) {
         return 0;
     }
 
-    if (fn.isRaceCategoryUnplayable(&player->raceType->data->raceType)) {
+    if (gameFunctions().isRaceCategoryUnplayable(&player->raceType->data->raceType)) {
         return 0;
     }
+
+    const auto& globalApi = GlobalDataApi::get();
+
+    const auto globalData = *globalApi.getGlobalData();
+    const auto vars = globalData->globalVariables;
 
     const auto lords = globalData->lords;
     const auto lordType = (const TLordType*)globalApi.findById(lords, &player->lordId);
     if (lordType->data->lordCategory.id == LordCategories::get().warrior->id) {
-        return vars->fighterLeaderRegen;
+        return vars->data->fighterLeaderRegen;
     }
 
     return 0;
@@ -434,7 +442,7 @@ int getUnitRegen(const game::IMidgardObjectMap* objectMap, const game::CMidgardI
     const auto& globalApi = GlobalDataApi::get();
 
     const auto globalData = *globalApi.getGlobalData();
-    const auto vars = *globalData->globalVariables;
+    const auto vars = globalData->globalVariables;
 
     const CMidPlayer* player = nullptr;
     const CFortification* fort = nullptr;
@@ -464,7 +472,7 @@ int getUnitRegen(const game::IMidgardObjectMap* objectMap, const game::CMidgardI
         result = getFortRegen(result, objectMap, fort);
     } else if (ruin) {
         // Units in ruins have fixed regen value, no other factors apply
-        result = vars->regenRuin;
+        result = vars->data->regenRuin;
     } else {
         // Terrain bonus apply only outside
         result += getTerrainRegenBonus(objectMap, player, stack);

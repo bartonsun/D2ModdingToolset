@@ -26,7 +26,6 @@
 #include "game.h"
 #include "globaldata.h"
 #include "itemview.h"
-#include "log.h"
 #include "midgardobjectmap.h"
 #include "midunit.h"
 #include "midunitgroup.h"
@@ -38,7 +37,7 @@
 #include "usunitimpl.h"
 #include "utils.h"
 #include "visitors.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -112,8 +111,7 @@ void __fastcall summonAttackOnHitHooked(game::CBatAttackSummon* thisptr,
     }
 
     if (position < 0 || position >= 6) {
-        logError("mssProxyError.log", fmt::format("Wrong position for summon. Target unit id {:s}",
-                                                  idToString(targetUnitId)));
+        spdlog::error("Wrong position for summon. Target unit id {:s}", idToString(targetUnitId));
         return;
     }
 
@@ -132,11 +130,10 @@ void __fastcall summonAttackOnHitHooked(game::CBatAttackSummon* thisptr,
     fn.getSummonUnitImplId(&summonImplId, objectMap, attackId, &targetGroupId, targetUnitId,
                            canSummonBig);
     if (summonImplId == emptyId) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not find unit impl id for summon. "
-                             "Attack {:s}, group {:s}, target unit {:s}, can summon big {:d}",
-                             idToString(attackId), idToString(&targetGroupId),
-                             idToString(targetUnitId), (int)canSummonBig));
+        spdlog::error("Could not find unit impl id for summon. "
+                      "Attack {:s}, group {:s}, target unit {:s}, can summon big {:d}",
+                      idToString(attackId), idToString(&targetGroupId), idToString(targetUnitId),
+                      (int)canSummonBig);
         return;
     }
 
@@ -157,9 +154,8 @@ void __fastcall summonAttackOnHitHooked(game::CBatAttackSummon* thisptr,
 
     auto unitImpl = static_cast<TUsUnitImpl*>(global.findById(globalData->units, &leveledImplId));
     if (!unitImpl) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not find unit impl by id {:s}. Base impl id {:s}, level {:d}",
-                             idToString(&leveledImplId), idToString(&summonImplId), summonLevel));
+        spdlog::error("Could not find unit impl by id {:s}. Base impl id {:s}, level {:d}",
+                      idToString(&leveledImplId), idToString(&summonImplId), summonLevel);
         return;
     }
 
@@ -181,10 +177,8 @@ void __fastcall summonAttackOnHitHooked(game::CBatAttackSummon* thisptr,
         const CMidgardID unitIdToExtract = *existingUnitId;
 
         if (!visitors.extractUnitFromGroup(&unitIdToExtract, &targetGroupId, objectMap, 1)) {
-            logError("mssProxyError.log",
-                     fmt::format("Failed to extract unit {:s} from group {:s}, position {:d}",
-                                 idToString(&unitIdToExtract), idToString(&targetGroupId),
-                                 position));
+            spdlog::error("Failed to extract unit {:s} from group {:s}, position {:d}",
+                          idToString(&unitIdToExtract), idToString(&targetGroupId), position);
             return;
         }
 
@@ -197,10 +191,9 @@ void __fastcall summonAttackOnHitHooked(game::CBatAttackSummon* thisptr,
             const CMidgardID unitIdToExtract = *secondExistingUnitId;
 
             if (!visitors.extractUnitFromGroup(&unitIdToExtract, &targetGroupId, objectMap, 1)) {
-                logError("mssProxyError.log",
-                         fmt::format("Failed to extract unit {:s} from group {:s}, position {:d}",
-                                     idToString(&unitIdToExtract), idToString(&targetGroupId),
-                                     position + 1));
+                spdlog::error("Failed to extract unit {:s} from group {:s}, position {:d}",
+                              idToString(&unitIdToExtract), idToString(&targetGroupId),
+                              position + 1);
                 return;
             }
 
@@ -214,16 +207,14 @@ void __fastcall summonAttackOnHitHooked(game::CBatAttackSummon* thisptr,
     int creationTurn{1};
     if (!visitors.addUnitToGroup(&leveledImplId, &targetGroupId, position, &creationTurn, 1,
                                  objectMap, 1)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not add unit impl {:s} to group {:s} at position {:d}",
-                             idToString(&leveledImplId), idToString(&targetGroupId), position));
+        spdlog::error("Could not add unit impl {:s} to group {:s} at position {:d}",
+                      idToString(&leveledImplId), idToString(&targetGroupId), position);
         return;
     }
 
     const CMidUnit* newUnit = fn.findUnitById(objectMap, &newUnitId);
     if (!newUnit) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not find unit with id {:s}", idToString(&newUnitId)));
+        spdlog::error("Could not find unit with id {:s}", idToString(&newUnitId));
         return;
     }
 

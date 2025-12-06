@@ -22,8 +22,12 @@
 
 namespace game {
 struct CMqStream;
-struct CNetMsg;
 struct CStackBattleActionMsg;
+
+template <typename T>
+struct CNetMsgT;
+struct CNetMsgVftable;
+using CNetMsg = CNetMsgT<CNetMsgVftable>;
 } // namespace game
 
 namespace hooks {

@@ -27,7 +27,6 @@
 #include "midcondscript.h"
 #include "midcondvarcmp.h"
 #include "originalfunctions.h"
-#include <fmt/format.h>
 
 namespace hooks {
 
@@ -119,7 +118,7 @@ void __stdcall eventConditionGetDescriptionHooked(game::String* description,
     if (descriptionId) {
         auto text = gameFunctions().getInterfaceText(descriptionId);
 
-        StringApi::get().initFromStringN(description, text, std::strlen(text));
+        StringApi::get().initFromStringN(description, text, strlen(text));
         return;
     }
 
@@ -150,7 +149,7 @@ void __stdcall eventConditionGetBriefHooked(game::String* brief,
     if (briefId) {
         auto text = gameFunctions().getInterfaceText(briefId);
 
-        StringApi::get().initFromStringN(brief, text, std::strlen(text));
+        StringApi::get().initFromStringN(brief, text, strlen(text));
         return;
     }
 

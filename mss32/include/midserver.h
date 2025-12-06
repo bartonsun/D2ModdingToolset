@@ -33,7 +33,11 @@ struct CMidServerBuilderFull;
 struct CMidServerLogic;
 struct NetMsgCallbacks;
 struct NetMsgEntryData;
-struct CNetMsg;
+
+template <typename T>
+struct CNetMsgT;
+struct CNetMsgVftable;
+using CNetMsg = CNetMsgT<CNetMsgVftable>;
 
 struct CMidServerData
 {

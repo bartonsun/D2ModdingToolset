@@ -30,7 +30,6 @@
 #include "game.h"
 #include "interfmanager.h"
 #include "listbox.h"
-#include "log.h"
 #include "mempool.h"
 #include "midbag.h"
 #include "midevcondition.h"
@@ -41,10 +40,13 @@
 #include "scripts.h"
 #include "testcondition.h"
 #include "textboxinterf.h"
+#include "timer.h"
 #include "utils.h"
-#include <Windows.h>
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 #include <string>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <shellapi.h>
 
 namespace hooks {
 
@@ -407,7 +409,7 @@ void __fastcall condScriptInterfPasteIdButtonHandler(CCondScriptInterf* thisptr,
     const auto idString{fmt::format("'{:s}'", idToString(objectId))};
 
     std::string code{editBox->data->editBoxData.inputString.string};
-    const auto cursor = editBox->data->editBoxData.editCursorPos;
+    const auto cursor = editBox->data->editBoxData.textCursorPosIdx;
 
     code.insert(cursor, idString);
 
@@ -415,8 +417,8 @@ void __fastcall condScriptInterfPasteIdButtonHandler(CCondScriptInterf* thisptr,
     editBoxApi.setString(editBox, code.c_str());
 
     // Set cursor position after inserted id string
-    editBox->data->editBoxData.editCursorPos = cursor + idString.size();
-    editBoxApi.updateFocus(editBox->data->editBoxFocus.data);
+    editBox->data->editBoxData.textCursorPosIdx = cursor + idString.size();
+    editBoxApi.resetCursorBlink(editBox->data->editBoxFocus.data);
     editBoxApi.update(editBox);
 }
 
@@ -718,6 +720,14 @@ bool __fastcall testScriptDoTest(const CTestScript* thisptr,
                                  const game::CMidgardID* playerId,
                                  const game::CMidgardID* eventId)
 {
+#ifdef D2_MEASURE_EVENTS_TIME
+    extern const std::string eventsPerformanceLog;
+    ScopedTimer timer{"    Test condition 'script'", eventsPerformanceLog};
+
+    extern long long conditionsTotalTime;
+    ScopedValueTimer valueTimer{conditionsTotalTime};
+#endif
+
     const auto& body = thisptr->condition->code;
     if (body.empty()) {
         return false;
@@ -728,14 +738,12 @@ bool __fastcall testScriptDoTest(const CTestScript* thisptr,
     auto env = executeScript(code, result);
     if (!result.valid()) {
         const sol::error err = result;
-        logError("mssProxyError.log",
-                 fmt::format("Failed to load scriptable event condition.\n"
-                             "Event id {:s}\n"
-                             "Description: '{:s}'\n"
-                             "Script:\n'{:s}'\n"
-                             "Reason: '{:s}'",
-                             idToString(eventId), thisptr->condition->description, code,
-                             err.what()));
+        spdlog::error("Failed to load scriptable event condition.\n"
+                      "Event id {:s}\n"
+                      "Description: '{:s}'\n"
+                      "Script:\n'{:s}'\n"
+                      "Reason: '{:s}'",
+                      idToString(eventId), thisptr->condition->description, code, err.what());
         return false;
     }
 
@@ -748,14 +756,12 @@ bool __fastcall testScriptDoTest(const CTestScript* thisptr,
     result = (*checkCondition)(scenario);
     if (!result.valid()) {
         const sol::error err = result;
-        logError("mssProxyError.log",
-                 fmt::format("Failed to execute scriptable event condition.\n"
-                             "Event id {:s}\n"
-                             "Description: '{:s}'\n"
-                             "Script:\n'{:s}'\n"
-                             "Reason: '{:s}'",
-                             idToString(eventId), thisptr->condition->description, code,
-                             err.what()));
+        spdlog::error("Failed to execute scriptable event condition.\n"
+                      "Event id {:s}\n"
+                      "Description: '{:s}'\n"
+                      "Script:\n'{:s}'\n"
+                      "Reason: '{:s}'",
+                      idToString(eventId), thisptr->condition->description, code, err.what());
         return false;
     }
 

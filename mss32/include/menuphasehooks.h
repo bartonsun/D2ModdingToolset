@@ -22,8 +22,8 @@
 
 namespace game {
 struct CMenuPhase;
-
-}
+enum class MenuTransition : int;
+} // namespace game
 
 namespace hooks {
 
@@ -34,9 +34,13 @@ game::CMenuPhase* __fastcall menuPhaseCtorHooked(game::CMenuPhase* thisptr,
 
 void __fastcall menuPhaseDtorHooked(game::CMenuPhase* thisptr, int /*%edx*/, char flags);
 
-void __fastcall menuPhaseSetTransitionHooked(game::CMenuPhase* thisptr,
-                                             int /*%edx*/,
-                                             int transition);
+void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
+                                           int /*%edx*/,
+                                           game::MenuTransition transition);
+
+void __fastcall menuPhaseTransitionToMainOrCloseGameHooked(game::CMenuPhase* thisptr,
+                                                           int /*%edx*/,
+                                                           bool showIntroTransition);
 
 } // namespace hooks
 

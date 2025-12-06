@@ -31,7 +31,14 @@ namespace game {
 struct CMidMsgBoxButtonHandler;
 struct IMidgardObjectMap;
 struct UiEvent;
-struct CInterface;
+struct IMqUIKernel;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
+
+enum class SoundEffect : int;
 } // namespace game
 
 namespace hooks {
@@ -55,6 +62,12 @@ const std::filesystem::path& templatesFolder();
 
 /** Returns full path to the exports folder. */
 const std::filesystem::path& exportsFolder();
+
+/** Returns full path to the interf folder. */
+const std::filesystem::path& interfFolder();
+
+/** Returns full path to the ScenData folder. */
+const std::filesystem::path& scenDataFolder();
 
 /** Returns full path to the executable that is currently running. */
 const std::filesystem::path& exePath();
@@ -113,13 +126,15 @@ std::uint32_t createMessageEvent(game::UiEvent* messageEvent,
                                  void* callback,
                                  const char* messageName);
 
-/** Computes MD5 hash of files in specified folder. */
-bool computeHash(const std::filesystem::path& folder, std::string& hash);
+/** Computes MD5 hash of specified files. */
+std::string computeHash(std::vector<std::filesystem::path> filenames);
 
 /** Executes function for each scenario object with specified id type. */
-void forEachScenarioObject(game::IMidgardObjectMap* objectMap,
+void forEachScenarioObject(const game::IMidgardObjectMap* objectMap,
                            game::IdType idType,
                            const std::function<void(const game::IMidScenarioObject*)>& func);
+
+void playSoundEffect(game::SoundEffect effect);
 
 template <typename T>
 static inline void replaceRttiInfo(game::RttiInfo<T>& dst, const T* src, bool copyVftable = true)
@@ -131,6 +146,10 @@ static inline void replaceRttiInfo(game::RttiInfo<T>& dst, const T* src, bool co
         std::memcpy(&dst.vftable, src, sizeof(T));
     }
 }
+
+void allocateString(char** dest, const char* src);
+
+bool writeResourceToFile(const std::filesystem::path& path, int resourceId, bool rewriteExisting);
 
 } // namespace hooks
 

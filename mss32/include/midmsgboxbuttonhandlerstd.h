@@ -26,7 +26,7 @@ namespace game {
 
 /**
  * Standard message box button handler.
- * Assumption: does nothing.
+ * Hides the message box interface and destroys it.
  */
 struct CMidMsgBoxButtonHandlerStd : public CMidMsgBoxButtonHandler
 { };

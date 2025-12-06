@@ -101,14 +101,33 @@ struct TextIds
 
     struct Lobby
     {
+        std::string gameVersion;
         std::string serverName;
-        std::string serverNotResponding;
+        std::string connectStartFailed;
         std::string connectAttemptFailed;
         std::string serverIsFull;
-        std::string computeHashFailed;
-        std::string requestHashCheckFailed;
-        std::string wrongHash;
+        std::string checkFilesFailed;
         std::string wrongRoomPassword;
+        std::string confirmBack;
+        std::string invalidAccountNameOrPassword;
+        std::string noSuchAccountOrWrongPassword;
+        std::string accountIsBanned;
+        std::string accountNameAlreadyInUse;
+        std::string unableToLogin;
+        std::string unableToLoginAfterRegistration;
+        std::string unableToRegister;
+        std::string createRoomRequestFailed;
+        std::string createRoomFailed;
+        std::string joinRoomFailed;
+        std::string searchRoomsFailed;
+        std::string selectedRoomNoLongerExists;
+        std::string chatMessage;
+        std::string tooManyChatMessages;
+        std::string playersTotal;
+        std::string playerNameInList;
+        std::string roomsTotal;
+        std::string roomInfo;
+        std::string roomInfoInList;
     } lobby;
 
     struct ScenarioGenerator
@@ -118,6 +137,19 @@ struct TextIds
         std::string generationError;
         std::string limitExceeded;
     } rsg;
+
+    struct ResourceMarket
+    {
+        std::string encyDesc;
+        std::string infiniteAmount;
+        std::string exchangeDesc;
+        std::string exchangeNotAvailable;
+    } resourceMarket;
+
+    struct NobleActions
+    {
+        std::string stealMarketSuccess;
+    } nobleActions;
 };
 
 const TextIds& textIds();

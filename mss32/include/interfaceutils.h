@@ -20,6 +20,7 @@
 #ifndef INTERFACEUTILS_H
 #define INTERFACEUTILS_H
 
+#include "menubase.h"
 #include <string>
 
 namespace game {
@@ -29,14 +30,18 @@ struct CMidUnitDescriptor;
 struct CUnitTypeDescriptor;
 struct CLeaderUnitDescriptor;
 struct CDynUpgrade;
+struct CMidUnit;
+struct IUsUnit;
 struct TUsUnitImpl;
 struct CPictureInterf;
+struct CButtonInterf;
 struct IMqImage2;
 struct CBorderedImg;
 
 enum class AttackSourceId : int;
 enum class AttackClassId : int;
 enum class BorderType : int;
+enum class EditFilter : int;
 } // namespace game
 
 namespace hooks {
@@ -46,6 +51,10 @@ const game::CUnitTypeDescriptor* castToUnitTypeDescriptor(
     const game::IEncUnitDescriptor* descriptor);
 const game::CLeaderUnitDescriptor* castToLeaderUnitDescriptor(
     const game::IEncUnitDescriptor* descriptor);
+const game::CMidUnit* getUnit(const game::IEncUnitDescriptor* descriptor);
+/** Returns either global (from Gunits.dbf), generated (leveled) or modified unit implementation. */
+const game::IUsUnit* getModifiedUnitImpl(const game::IEncUnitDescriptor* descriptor);
+/** Returns either global (from Gunits.dbf) or generated (leveled) unit implementation. */
 const game::TUsUnitImpl* getUnitImpl(const game::IEncUnitDescriptor* descriptor);
 bool hasCriticalHitLeaderAbility(const game::IEncUnitDescriptor* descriptor);
 
@@ -72,6 +81,22 @@ void addDynUpgradeTextToField(std::string& text, const char* field, int upgrade1
 
 void setCenteredImage(game::CPictureInterf* picture, game::IMqImage2* image);
 game::CBorderedImg* createBorderedImage(game::IMqImage2* image, game::BorderType borderType);
+// callback is void* for convenience, should correspond to game::CMenuBaseApi::Api::ButtonCallback
+void setButtonCallback(game::CDialogInterf* dialog,
+                       const char* buttonName,
+                       void* callback,
+                       void* callbackParam);
+void setButtonCallback(game::CButtonInterf* button, void* callback, void* callbackParam);
+void setEditBoxData(game::CDialogInterf* dialog,
+                    const char* editName,
+                    game::EditFilter filter,
+                    int length,
+                    bool password);
+const char* getEditBoxText(game::CDialogInterf* dialog, const char* editName);
+void setEditBoxText(game::CDialogInterf* dialog,
+                    const char* editName,
+                    const char* text,
+                    bool moveCursorPos);
 
 } // namespace hooks
 

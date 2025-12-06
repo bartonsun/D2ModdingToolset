@@ -37,8 +37,8 @@ namespace AutoPtrApi {
 struct Api
 {
     /**
-     * Replaces the held pointer. If the currently held pointer is not null - then its data gets
-     * deleted.
+     * Replaces the held pointer. If the currently held pointer is not null then its interface
+     * destructor is called.
      */
     using Reset = void(__thiscall*)(MidObjectPtr* thisptr, IMidObject* data);
     Reset reset;

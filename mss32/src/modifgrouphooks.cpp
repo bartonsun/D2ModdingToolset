@@ -20,8 +20,8 @@
 #include "modifgrouphooks.h"
 #include "custommodifiers.h"
 #include "dbfaccess.h"
-#include "log.h"
 #include "modifgroup.h"
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -33,7 +33,7 @@ game::LModifGroupTable* __fastcall modifGroupTableCtorHooked(game::LModifGroupTa
                                                              void* codeBaseEnvProxy)
 {
     using namespace game;
-    logDebug("mss32Proxy.log", "LModifGroupTable c-tor hook started");
+    spdlog::debug("LModifGroupTable c-tor hook started");
 
     const auto& tableApi = LModifGroupTableApi::get();
     auto& groups = LModifGroupApi::categories();
@@ -41,7 +41,7 @@ game::LModifGroupTable* __fastcall modifGroupTableCtorHooked(game::LModifGroupTa
     const auto dbfFilePath{std::filesystem::path(globalsFolderPath) / dbfFileName};
     bool customGroupExists = utils::dbValueExists(dbfFilePath, "TEXT", customModifGroupName);
     if (customGroupExists)
-        logDebug("mss32Proxy.log", "Found custom modifier category");
+        spdlog::debug("Found custom modifier category");
 
     thisptr->bgn = nullptr;
     thisptr->end = nullptr;
@@ -58,7 +58,7 @@ game::LModifGroupTable* __fastcall modifGroupTableCtorHooked(game::LModifGroupTa
                               dbfFileName);
     tableApi.initDone(thisptr);
 
-    logDebug("mss32Proxy.log", "LModifGroupTable c-tor hook finished");
+    spdlog::debug("LModifGroupTable c-tor hook finished");
     return thisptr;
 }
 

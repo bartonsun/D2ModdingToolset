@@ -21,12 +21,14 @@
 #define ORIGINALFUNCTIONS_H
 
 #include "attackimpl.h"
+#include "autodialog.h"
 #include "battlemsgdata.h"
 #include "citystackinterf.h"
 #include "commandmsg.h"
 #include "condinterf.h"
 #include "d2osexception.h"
 #include "ddcarryoveritems.h"
+#include "editboxinterf.h"
 #include "effectinterf.h"
 #include "effectresult.h"
 #include "enclayoutcity.h"
@@ -37,24 +39,37 @@
 #include "exchangeinterf.h"
 #include "game.h"
 #include "gameimages.h"
+#include "globalvariables.h"
+#include "imagelayerlist.h"
+#include "mainview2.h"
 #include "menubase.h"
 #include "menuload.h"
 #include "menunewskirmishhotseat.h"
 #include "menunewskirmishmulti.h"
 #include "menunewskirmishsingle.h"
 #include "menuphase.h"
-#include "menuprotocol.h"
+#include "midcommandqueue2.h"
 #include "midevcondition.h"
 #include "mideveffect.h"
 #include "midevent.h"
+#include "midgard.h"
 #include "midgardscenariomap.h"
 #include "midmsgsender.h"
+#include "midobjectlock.h"
+#include "midserverlogic.h"
 #include "midunit.h"
 #include "mqnetplayer.h"
 #include "netmsg.h"
+#include "nobleactionresult.h"
+#include "objectinterf.h"
 #include "pickupdropinterf.h"
+#include "scenedit.h"
+#include "scenpropinterf.h"
 #include "sitemerchantinterf.h"
+#include "taskobjaddsite.h"
+#include "taskobjprop.h"
 #include "testcondition.h"
+#include "visitors.h"
 
 namespace hooks {
 
@@ -98,6 +113,7 @@ struct OriginalFunctions
     game::ITestConditionApi::Api::Create createTestCondition;
     game::CMidEventApi::Api::CheckValid checkEventValid;
     game::BattleMsgDataApi::Api::BeforeBattleRound beforeBattleRound;
+    game::BattleMsgDataApi::Api::AiChooseBattleAction aiChooseBattleAction;
     game::CMidUnitVftable::InitWithSoldierImpl initWithSoldierImpl;
 
     game::CMidEvEffectApi::Api::CreateFromCategory createEventEffectFromCategory;
@@ -110,21 +126,14 @@ struct OriginalFunctions
 
     game::CMenuPhaseApi::Api::Constructor menuPhaseCtor;
     game::IMqNetSystemVftable::Destructor menuPhaseDtor;
-    game::CMenuPhaseApi::Api::SetTransition menuPhaseSetTransition;
-    game::CMenuProtocolApi::Api::DisplayCallback menuProtocolDisplayCallback;
-    game::CMenuProtocolApi::Api::ButtonHandler menuProtocolContinueHandler;
-
-    game::CMenuBaseApi::Api::ButtonCallback menuNewSkirmishLoadScenario;
-    game::CMenuNewSkirmishMultiApi::Api::CreateServer menuNewSkirmishMultiCreateServer;
-
-    game::CMenuLoadApi::Api::ButtonCallback menuLoadSkirmishMultiLoadScenario;
-    game::CMenuLoadApi::Api::CreateHostPlayer menuLoadSkirmishMultiCreateHostPlayer;
+    game::CMenuPhaseApi::Api::ShowTransitionToMainOrCloseGame menuPhaseTransitionToMainOrCloseGame;
 
     game::GameImagesApi::Api::GetCityPreviewLargeImageNames getCityPreviewLargeImageNames;
     game::GameImagesApi::Api::GetCityIconImageNames getCityIconImageNames;
 
     game::CEncLayoutUnitApi::Api::Initialize encLayoutUnitInitialize;
     game::CEncLayoutUnitApi::Api::Update encLayoutUnitUpdate;
+    game::CInterfaceVftable::HandleKeyboard encLayoutUnitHandleKeyboard;
 
     game::CEncLayoutStackApi::Api::Update encLayoutStackUpdate;
 
@@ -146,6 +155,68 @@ struct OriginalFunctions
     game::CMidDataCache2::INotifyVftable::OnObjectChanged cityStackInterfOnObjectChanged;
 
     game::CMidDataCache2::INotifyVftable::OnObjectChanged siteMerchantInterfOnObjectChanged;
+
+    game::CEditBoxInterfApi::Api::Update editBoxInterfUpdate;
+    game::CEditBoxInterfApi::Api::EditBoxDataCtor editBoxDataCtor;
+
+    game::CMenuLoadApi::Api::CreateServer menuLoadCreateServer;
+
+    game::AutoDialogApi::Api::LoadAndParseScriptFile autoDialogLoadAndParseScriptFile;
+
+    game::editor::CScenPropInterfApi::Api::Constructor scenPropInterfCtor;
+
+    game::CMidServerLogicApi::Api::ApplyEventEffectsAndCheckMidEventTriggerers
+        applyEventEffectsAndCheckMidEventTriggerers;
+    game::CMidServerLogicApi::Api::StackMove stackMove;
+    game::CMidServerLogicApi::Api::FilterAndProcessEventsNoPlayer filterAndProcessEventsNoPlayer;
+    game::CMidServerLogicApi::Api::CheckAndExecuteEvent checkAndExecuteEvent;
+    game::CMidServerLogicApi::Api::FilterAndProcessEvents filterAndProcessEvents;
+    game::CMidServerLogicApi::Api::CheckEventConditions checkEventConditions;
+    game::CMidServerLogicApi::Api::ExecuteEventEffects executeEventEffects;
+
+    game::ITestConditionVftable::Test testFrequency;
+    game::ITestConditionVftable::Test testLocation;
+    game::ITestConditionVftable::Test testEnterCity;
+    game::ITestConditionVftable::Test testLeaderToCity;
+    game::ITestConditionVftable::Test testOwnCity;
+    game::ITestConditionVftable::Test testDiplomacy;
+    game::ITestConditionVftable::Test testAlliance;
+    game::ITestConditionVftable::Test testLootRuin;
+    game::ITestConditionVftable::Test testTransformLand;
+    game::ITestConditionVftable::Test testVisitSite;
+    game::ITestConditionVftable::Test testItemToLocation;
+    game::ITestConditionVftable::Test testVarInRange;
+
+    game::RemoveStack removeStack;
+    game::VisitorApi::Api::SetStackSrcTemplate setStackSrcTemplate;
+
+    game::editor::CObjectInterfApi::Api::CreateTaskObj createTaskObj;
+
+    game::ImageLayerListApi::Api::GetMapElementIsoLayerImages getMapElementIsoLayerImages;
+    game::editor::CTaskObjVftable::DoAction taskObjPropDoAction;
+    game::editor::CTaskObjVftable::DoAction taskObjAddSiteDoAction;
+    game::CScenEditApi::Api::ReadScenData readScenData;
+
+    game::CMainView2Api::Api::HandleCmdStackVisitMsg handleCmdStackVisitMsg;
+    game::CMainView2Api::Api::CommandQueueCallback mainView2CommandQueueCallback;
+
+    game::CMidServerLogicApi::Api::Constructor midServerLogicCtor;
+
+    game::NobleActionsApi::Api::Create createNobleActionResult;
+    game::GetNobleActions getSiteNobleActions;
+    game::GetNobleActions getPossibleNobleActions;
+    game::GetNobleActionResultDescription getNobleActionResultDescription;
+
+    game::GlobalVariablesApi::Api::Constructor globalVariablesCtor;
+
+    game::CMidgardApi::Api::ClearNetworkState midgardClearNetworkState;
+    game::CMidgardApi::Api::ClearNetworkStateAndService midgardClearNetworkStateAndService;
+
+    game::CMidCommandQueue2Api::Api::Push midCommandQueue2Push;
+    game::CMidCommandQueue2Api::Api::NMMapConstructor netMsgMapConstructor;
+    game::CCommandMsgApi::Api::Create commandMsgCreate;
+
+    game::CMidObjectLockApi::Api::Constructor midObjectLockCtor;
 };
 
 OriginalFunctions& getOriginalFunctions();

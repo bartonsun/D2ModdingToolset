@@ -21,29 +21,26 @@
 #define AUTODIALOG_H
 
 #include "d2assert.h"
-#include "d2set.h"
+#include "d2map.h"
 #include "d2string.h"
+#include "mqrect.h"
 #include "smartptr.h"
 #include "stringarray.h"
 
 namespace game {
 
+struct CAutoDialog;
 struct IMqImage2;
+struct CMqPoint;
 struct CMidAutoDlgImages;
 struct CMidAutoDlgLog;
 struct CMidAutoDlgTextLoader;
+struct DialogDescriptor;
+struct CAutoDialogFile;
 
-/**
- * Stores AutoDialog script (.dlg) information.
- */
-struct DialogScriptData
-{
-    bool initialized;
-    char padding[3];
-    int unknown;
-    StringArray lines; /**< Script file text lines. */
-    String scriptPath; /**< Full path to script (.dlg) file. */
-};
+using DialogMap = Map<char[48], DialogDescriptor*>;
+using DialogMapIterator = MapIterator<char[48], DialogDescriptor*>;
+using DialogMapValue = Pair<char[48], DialogDescriptor*>;
 
 struct CAutoDialogData
 {
@@ -51,7 +48,7 @@ struct CAutoDialogData
     SmartPtr<CMidAutoDlgLog> log;
     SmartPtr<CMidAutoDlgTextLoader> textLoader;
     SmartPointer memPool;
-    Set<char[52]> dialogSet;
+    DialogMap dialogs; // Map by dialog name
 };
 
 assert_size(CAutoDialogData, 60);
@@ -59,26 +56,48 @@ assert_size(CAutoDialogData, 60);
 /** Holds necessary data to create CInterface objects from .dlg files. */
 struct CAutoDialog
 {
+    struct IImageLoaderVftable;
+    struct IImageLoader
+    {
+        IImageLoaderVftable* vftable;
+    };
+
     CAutoDialogData* data;
 };
 
 assert_size(CAutoDialog, 4);
 
+struct CAutoDialog::IImageLoaderVftable
+{
+    using Destructor = void(__thiscall*)(IImageLoader* thisptr, char flags);
+    Destructor destructor;
+
+    using LoadImage = IMqImage2*(__thiscall*)(IImageLoader* thisptr,
+                                              const char* imageName,
+                                              const CMqPoint* imageSize);
+    LoadImage loadImage;
+};
+
+assert_vftable_size(CAutoDialog::IImageLoaderVftable, 2);
+
 namespace AutoDialogApi {
 
 struct Api
 {
-    /**
-     * Loads AutoDialog script file and populates AutoDialogData with its contents.
-     * @param[in] thisptr pointer to AutoDialogData where to store the data.
-     * @param[in] filePath full path to script file.
-     * @param unknown
-     * @returns thisptr.
-     */
-    using LoadScriptFile = DialogScriptData*(__thiscall*)(DialogScriptData* thisptr,
-                                                          const char* filePath,
-                                                          int /*unknown*/);
-    LoadScriptFile loadScriptFile;
+    using LoadAndParseScriptFile = bool(__thiscall*)(CAutoDialog* thisptr, const char* filePath);
+    LoadAndParseScriptFile loadAndParseScriptFile;
+
+    /** Parses a single dialog from the script file, line by line incrementing currentLineIdx. */
+    using ParseDialogFromScriptFile = bool(__stdcall*)(DialogDescriptor** result,
+                                                       CAutoDialog* dialog,
+                                                       CAutoDialogFile* scriptFile);
+    ParseDialogFromScriptFile parseDialogFromScriptFile;
+
+    using DialogMapInsert =
+        Pair<DialogMapIterator, bool>*(__thiscall*)(DialogMap* thisptr,
+                                                    Pair<DialogMapIterator, bool>* result,
+                                                    DialogMapValue* value);
+    DialogMapInsert dialogMapInsert;
 
     using LoadImage = IMqImage2*(__stdcall*)(const char* imageName);
     LoadImage loadImage;

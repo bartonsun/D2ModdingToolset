@@ -20,6 +20,8 @@
 #ifndef MENURANDOMSCENARIOMULTI_H
 #define MENURANDOMSCENARIOMULTI_H
 
+#include "menurandomscenario.h"
+
 namespace game {
 struct CMenuBase;
 struct CMenuPhase;
@@ -27,8 +29,14 @@ struct CMenuPhase;
 
 namespace hooks {
 
+struct CMenuRandomScenarioMulti : public CMenuRandomScenario
+{
+    CMenuRandomScenarioMulti(game::CMenuPhase* menuPhase);
+    ~CMenuRandomScenarioMulti() = default;
+};
+
 game::CMenuBase* __stdcall createMenuRandomScenarioMulti(game::CMenuPhase* menuPhase);
 
-}
+} // namespace hooks
 
 #endif // MENURANDOMSCENARIOMULTI_H

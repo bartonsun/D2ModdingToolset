@@ -19,8 +19,7 @@
 
 #include "custombuildingcategories.h"
 #include "dbfaccess.h"
-#include "log.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -42,7 +41,7 @@ bool addCustomBuildingCategory(const std::filesystem::path& dbfFilePath,
     }
 
     customBuildingCategories[branchNumber] = {nullptr, nullptr, (BuildingId)emptyCategoryId, text};
-    logDebug("newBuildingType.log", fmt::format("Found custom building category {:s}", text));
+    spdlog::debug("Found custom building category {:s}", text);
     return true;
 }
 

@@ -24,11 +24,15 @@ namespace game {
 struct CMqRect;
 struct CMidgardID;
 struct IMidgardObjectMap;
-struct CInterface;
 struct IEncUnitDescriptor;
 struct CEncParamBase;
 struct CEncLayoutUnit;
 struct CEncLayoutUnitData;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 } // namespace game
 
 namespace hooks {
@@ -59,6 +63,11 @@ void __fastcall encLayoutUnitInitializeHooked(game::CEncLayoutUnit* thisptr,
                                               const game::CEncParamBase* encParam);
 
 void __fastcall encLayoutUnitUpdateHooked(game::CEncLayoutUnit* thisptr, int /*%edx*/);
+
+int __fastcall encLayoutUnitHandleKeyboardHooked(game::CInterface* thisptr,
+                                                 int /*%edx*/,
+                                                 int key,
+                                                 int a3);
 
 } // namespace hooks
 

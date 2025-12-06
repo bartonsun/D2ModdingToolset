@@ -22,14 +22,14 @@
 #include "battlemsgdata.h"
 #include "customattackhooks.h"
 #include "game.h"
-#include "log.h"
 #include "mempool.h"
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
 void __fastcall customAttackDtor(CustomAttack* attack, int /*%edx*/, bool freeMemory)
 {
-    logDebug("newAttackType.log", "CustomAttack d-tor");
+    spdlog::debug("CustomAttack d-tor");
     if (freeMemory) {
         game::Memory::get().freeNonZero(attack);
     }
@@ -41,7 +41,7 @@ bool __fastcall customAttackCanPerform(CustomAttack* thisptr,
                                        game::BattleMsgData* battleMsgData,
                                        game::CMidgardID* unitId)
 {
-    logDebug("newAttackType.log", "CustomAttack canPerform");
+    spdlog::debug("CustomAttack canPerform");
     return true;
 }
 
@@ -50,7 +50,7 @@ game::CMidgardID* __fastcall customAttackGetTargetGroupId(CustomAttack* thisptr,
                                                           game::CMidgardID* targetGroupId,
                                                           game::BattleMsgData* battleMsgData)
 {
-    logDebug("newAttackType.log", "CustomAttack getTargetGroupId");
+    spdlog::debug("CustomAttack getTargetGroupId");
     game::gameFunctions().getAllyOrEnemyGroupId(targetGroupId, battleMsgData, &thisptr->id1, false);
     return targetGroupId;
 }
@@ -61,7 +61,7 @@ void __fastcall customAttackFillTargetsList(CustomAttack* thisptr,
                                             game::BattleMsgData* battleMsgData,
                                             game::TargetSet* targetsList)
 {
-    logDebug("newAttackType.log", "CustomAttack fillTargetsList");
+    spdlog::debug("CustomAttack fillTargetsList");
     game::BattleMsgDataApi::get().fillTargetsList(objectMap, battleMsgData, thisptr, &thisptr->id1,
                                                   &thisptr->id2, false, targetsList, true);
 }
@@ -72,7 +72,7 @@ void __fastcall customAttackFillAltTargetsList(CustomAttack* thisptr,
                                                game::BattleMsgData* battleMsgData,
                                                game::TargetSet* targetsList)
 {
-    logDebug("newAttackType.log", "CustomAttack fillAltTargetsList");
+    spdlog::debug("CustomAttack fillAltTargetsList");
     // do nothing
 }
 
@@ -82,7 +82,7 @@ bool __fastcall customAttackMethod5(CustomAttack* thisptr,
                                     game::BattleMsgData* battleMsgData,
                                     game::CMidgardID* unitId)
 {
-    logDebug("newAttackType.log", "CustomAttack method 5");
+    spdlog::debug("CustomAttack method 5");
     return thisptr->vftable->canPerform(thisptr, objectMap, battleMsgData, unitId);
 }
 
@@ -91,13 +91,13 @@ bool __fastcall customAttackCanMiss(CustomAttack* thisptr,
                                     game::BattleMsgData* battleMsgData,
                                     game::CMidgardID* id)
 {
-    logDebug("newAttackType.log", "CustomAttack canMiss");
+    spdlog::debug("CustomAttack canMiss");
     return true;
 }
 
 bool __fastcall customAttackMethod7(CustomAttack* thisptr, int /*%edx*/, int a2, int a3, int a4)
 {
-    logDebug("newAttackType.log", "CustomAttack method 7");
+    spdlog::debug("CustomAttack method 7");
     return false;
 }
 
@@ -107,7 +107,7 @@ bool __fastcall customAttackIsImmune(CustomAttack* thisptr,
                                      game::BattleMsgData* battleMsgData,
                                      game::CMidgardID* unitId)
 {
-    logDebug("newAttackType.log", "CustomAttack isImmune");
+    spdlog::debug("CustomAttack isImmune");
     return game::gameFunctions().isUnitImmuneToAttack(objectMap, battleMsgData, unitId,
                                                       thisptr->attack, false);
 }
@@ -119,7 +119,7 @@ void __fastcall customAttackOnMiss(CustomAttack* thisptr,
                                    int a4,
                                    int a5)
 {
-    logDebug("newAttackType.log", "CustomAttack onMiss");
+    spdlog::debug("CustomAttack onMiss");
     // do nothing
 }
 
@@ -129,7 +129,7 @@ bool __fastcall customAttackGetAttackClass(CustomAttack* thisptr,
                                            const game::BattleMsgData* battleMsgData,
                                            game::LAttackClass* attackClass)
 {
-    logDebug("newAttackType.log", "CustomAttack getAttackClass");
+    spdlog::debug("CustomAttack getAttackClass");
     attackClass->id = customAttackClass.id;
     attackClass->table = customAttackClass.table;
     return true;
@@ -141,7 +141,7 @@ bool __fastcall customAttackGetUnderlyingAttackClass(CustomAttack* thisptr,
                                                      const game::BattleMsgData* battleMsgData,
                                                      game::LAttackClass* attackClass)
 {
-    logDebug("newAttackType.log", "CustomAttack getUnderlyingAttackClass");
+    spdlog::debug("CustomAttack getUnderlyingAttackClass");
     return thisptr->vftable->getAttackClass(thisptr, targetUnitId, battleMsgData, attackClass);
 }
 
@@ -152,7 +152,7 @@ void __fastcall customAttackDoAttack(CustomAttack* thisptr,
                                      game::CMidgardID* unitId,
                                      void* a5)
 {
-    logDebug("newAttackType.log", "CustomAttack doAttack");
+    spdlog::debug("CustomAttack doAttack");
 }
 
 bool __fastcall customAttackMethod13(CustomAttack* thisptr,
@@ -160,7 +160,7 @@ bool __fastcall customAttackMethod13(CustomAttack* thisptr,
                                      game::BattleMsgData* battleMsgData,
                                      game::IMidgardObjectMap* objectMap)
 {
-    logDebug("newAttackType.log", "CustomAttack method 13");
+    spdlog::debug("CustomAttack method 13");
     return false;
 }
 
@@ -168,7 +168,7 @@ bool __fastcall customAttackMethod14(CustomAttack* thisptr,
                                      int /*%edx*/,
                                      game::BattleMsgData* battleMsgData)
 {
-    logDebug("newAttackType.log", "CustomAttack method 14");
+    spdlog::debug("CustomAttack method 14");
     return false;
 }
 
@@ -176,7 +176,7 @@ bool __fastcall customAttackMethod15(CustomAttack* thisptr,
                                      int /*%edx*/,
                                      game::BattleMsgData* battleMsgData)
 {
-    logDebug("newAttackType.log", "CustomAttack method 15");
+    spdlog::debug("CustomAttack method 15");
     return false;
 }
 
@@ -184,7 +184,7 @@ bool __fastcall customAttackMethod16(CustomAttack* thisptr,
                                      int /*%edx*/,
                                      game::BattleMsgData* battleMsgData)
 {
-    logDebug("newAttackType.log", "CustomAttack method 16");
+    spdlog::debug("CustomAttack method 16");
     return false;
 }
 
@@ -192,7 +192,7 @@ bool __fastcall customAttackMethod17(CustomAttack* thisptr,
                                      int /*%edx*/,
                                      game::BattleMsgData* battleMsgData)
 {
-    logDebug("newAttackType.log", "CustomAttack method 17");
+    spdlog::debug("CustomAttack method 17");
     return false;
 }
 
@@ -225,7 +225,7 @@ game::IBatAttack* customAttackCtor(CustomAttack* attack,
                                    const game::CMidgardID* id2,
                                    int attackNumber)
 {
-    logDebug("newAttackType.log", "CustomAttack c-tor");
+    spdlog::debug("CustomAttack c-tor");
     attack->id1 = *id1;
     attack->id2 = *id2;
     attack->attackNumber = attackNumber;

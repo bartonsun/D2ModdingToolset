@@ -20,9 +20,11 @@
 #ifndef MIDOBJECTLOCK_H
 #define MIDOBJECTLOCK_H
 
+#include "autoptr.h"
 #include "functordispatch0.h"
 #include "midcommandqueue2.h"
 #include "middatacache.h"
+#include <cstdint>
 
 namespace game {
 
@@ -44,26 +46,69 @@ struct CMidObjectLock : public CMidDataCache2::INotify
 
     CMidCommandQueue2* commandQueue;
     CMidDataCache2* dataCache;
-    Notify1* notify1;
-    Notify2* notify2;
+    AutoPtr<Notify1> notify1;
+    AutoPtr<Notify2> notify2;
     /**
      * Assumption: incremented at the start of CMidCommandQueue2::notifyList processing
      * and decremented at the end.
      */
-    int pendingLocalUpdates;
+    std::uint32_t pendingLocalUpdates;
     /**
      * Incremented each time the client sends network message to a server.
-     * See calls of CPhaseGameIncrementNetworkUpdates
+     * See calls of CPhaseGameIncrementNetworkUpdates.
+     * Set to 0 on any call to CMidDataCache2::INotify::OnObjectChanged.
      */
-    int pendingNetworkUpdates;
-    /** True when CTaskAskExportLeader is in process. */
-    bool exportingLeader;
-    char padding[3];
+    std::uint32_t pendingNetworkUpdates;
+    union
+    {
+        struct
+        {
+            /** True when CTaskAskExportLeader is in process. */
+            bool exportingLeader;
+            char padding[3];
+        } original;
+        struct
+        {
+            bool exportingLeader;
+            /**
+             * Prevents possible client desync while server is processing all effects for
+             * CStackMoveMsg, meanwhile sending separate messages like CCmdMoveStackMsg,
+             * CCmdBattleStartMsg, etc.
+             * Set on sending CStackMoveMsg to server.
+             * Reset on receiving CCmdMoveStackEndMsg back.
+             */
+            bool movingStack;
+            char padding[2];
+        } patched;
+    };
 };
 
 assert_size(CMidObjectLock, 32);
 assert_size(CMidObjectLock::Notify1, 16);
 assert_size(CMidObjectLock::Notify2, 16);
+
+namespace CMidObjectLockApi {
+
+struct Api
+{
+    using Constructor = CMidObjectLock*(__thiscall*)(CMidObjectLock* thisptr,
+                                                     CMidCommandQueue2* commandQueue,
+                                                     CMidDataCache2* dataCache);
+    Constructor constructor;
+
+    using Destructor = void(__thiscall*)(CMidObjectLock* thisptr);
+    Destructor destructor;
+
+    using NotifyCQCallback = void(__thiscall*)(CMidObjectLock* thisptr);
+    NotifyCQCallback notify1Callback;
+    NotifyCQCallback notify2Callback;
+};
+
+Api& get();
+
+CMidDataCache2::INotifyVftable* vftable();
+
+} // namespace CMidObjectLockApi
 
 } // namespace game
 

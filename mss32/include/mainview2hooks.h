@@ -22,12 +22,19 @@
 
 namespace game {
 struct CMainView2;
-}
+struct CCommandMsg;
+} // namespace game
 
 namespace hooks {
 
 void __fastcall mainView2ShowIsoDialogHooked(game::CMainView2* thisptr, int /*%edx*/);
 
-}
+void __fastcall mainView2HandleCmdStackVisitMsgHooked(game::CMainView2* thisptr,
+                                                      int /*%edx*/,
+                                                      const game::CCommandMsg* stackVisitMsg);
+
+void __fastcall mainView2CommandQueueCallbackHooked(game::CMainView2* thisptr, int /*%edx*/);
+
+} // namespace hooks
 
 #endif // MAINVIEW2HOOKS_H

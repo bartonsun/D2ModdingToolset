@@ -24,6 +24,7 @@
 #include "d2map.h"
 #include "d2string.h"
 #include "d2vector.h"
+#include "gameversion.h"
 #include "midgardid.h"
 #include "mqnettraffic.h"
 #include <cstddef>
@@ -35,6 +36,7 @@ struct CMidServer;
 struct IMidgardObjectMap;
 struct NetMsgEntryData;
 struct NetPlayerInfo;
+struct CMidEvent;
 
 struct CMidServerLogicCoreData
 {
@@ -43,11 +45,10 @@ struct CMidServerLogicCoreData
     bool hotseatGame;
     char padding[2];
     int value3; /**< Always set to 3 in constructor. */
-    /** Passed to CGameVersionMsg. 40 in RotE, 20 in Guardians of the Light and Galleans Return. */
-    int gameVersion;
+    GameVersion gameVersion;
     NetMsgEntryData** netMsgEntryData;
     IMidgardObjectMap* objectMap;
-    List<void*> list;
+    List<CMidEvent*> eventObjectsList;
     int unknown4;
     std::uint32_t playerNetId;
     Vector<NetPlayerInfo>* players;
@@ -70,7 +71,7 @@ struct CMidServerLogicCoreData
 };
 
 assert_size(CMidServerLogicCoreData, 72);
-assert_offset(CMidServerLogicCoreData, list, 24);
+assert_offset(CMidServerLogicCoreData, eventObjectsList, 24);
 assert_offset(CMidServerLogicCoreData, players, 48);
 
 struct CMidServerLogicCore : public IMqNetTraffic

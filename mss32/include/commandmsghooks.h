@@ -27,6 +27,8 @@ struct CCmdBattleStartMsg;
 struct CCmdBattleChooseActionMsg;
 struct CCmdBattleResultMsg;
 struct CCmdBattleEndMsg;
+
+enum class CommandMsgId : int;
 } // namespace game
 
 namespace hooks {
@@ -48,6 +50,8 @@ void __fastcall cmdBattleEndMsgSerializeHooked(game::CCmdBattleEndMsg* thisptr,
                                                game::CMqStream* stream);
 
 void __fastcall commandMsgDtorHooked(game::CCommandMsg* thisptr, int /*%edx*/);
+
+game::CCommandMsg* __stdcall commandMsgCreateHooked(game::CommandMsgId id);
 
 } // namespace hooks
 

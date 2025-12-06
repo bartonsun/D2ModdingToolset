@@ -46,7 +46,7 @@ enum class IdType : int
     UnitGlobal,        /**< 'UU', units implementations, entries of Gunits.dbf. */
     UnitGenerated,     /**< 'UG', runtime-generated units implementations. */
     UnitModifier,      /**< 'UM' */
-    Attack,            /**< 'AA' */
+    AttackGlobal,      /**< 'AA', attack implementations, entries of Gattacks.dbf. */
     TextGlobal,        /**< 'TG', entries of Tglobal.dbf. */
     LandmarkGlobal,    /**< 'MG', entries of GLmark.dbf. */
     ItemGlobal,        /**< 'IG', entries of GItem.dbf. */
@@ -140,6 +140,16 @@ static constexpr bool operator<(const CMidgardID& first, const CMidgardID& secon
 
 extern const CMidgardID invalidId;
 extern const CMidgardID emptyId;
+
+struct CMidgardIDHash
+{
+    std::size_t operator()(const game::CMidgardID& id) const
+    {
+        // All identifiers and their 32-bit value representaions must be unique.
+        // Use raw value as a hash.
+        return static_cast<std::size_t>(id.value);
+    }
+};
 
 namespace CMidgardIDApi {
 

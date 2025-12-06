@@ -45,7 +45,6 @@ struct CBatAttackShatter;
 struct BattleAttackInfo;
 struct CMidPlayer;
 struct CEncLayoutSpell;
-struct CInterface;
 struct CEncParamBase;
 struct CDDCarryOverItems;
 struct IMidDropManager;
@@ -66,6 +65,16 @@ struct IUsUnit;
 struct TBuildingType;
 struct TUsUnitImpl;
 struct EditBoxData;
+struct CMidgardPlan;
+struct CScenarioVisitor;
+struct LSiteCategory;
+struct CMidSite;
+struct CTextBoxInterf;
+
+template <typename T>
+struct CInterfaceT;
+struct CInterfaceVftable;
+using CInterface = CInterfaceT<CInterfaceVftable>;
 
 enum class BuildingBranchNumber : int;
 enum class CanApplyPotionResult : int;
@@ -294,6 +303,23 @@ game::BuildingStatus __stdcall getBuildingStatusHooked(const game::IMidgardObjec
                                                        const game::CMidgardID* playerId,
                                                        const game::CMidgardID* buildingId,
                                                        bool ignoreBuildTurnAndCost);
+
+bool __stdcall removeStackHooked(const game::CMidgardID* stackId,
+                                 game::CMidgardPlan* plan,
+                                 game::IMidgardObjectMap* objectMap,
+                                 game::CScenarioVisitor* visitor);
+
+bool __stdcall setStackSrcTemplateHooked(const game::CMidgardID* stackId,
+                                         const game::CMidgardID* stackTemplateId,
+                                         game::IMidgardObjectMap* objectMap,
+                                         int apply);
+const char* __stdcall getSiteNameSuffixHooked(const game::LSiteCategory* siteCategory);
+
+void __stdcall updateEncLayoutSiteHooked(const game::CMidSite* site, game::CTextBoxInterf* textBox);
+
+game::String* __stdcall getSiteSoundHooked(game::String* soundName, const game::CMidSite* site);
+
+bool __stdcall siteHasSoundHooked(const game::CMidSite* site);
 
 } // namespace hooks
 

@@ -22,6 +22,7 @@
 
 #include "idlist.h"
 #include "netmsg.h"
+#include <cstdint>
 
 namespace game {
 
@@ -90,6 +91,9 @@ enum class CommandMsgId : int
     ChangeLandmark = 59,
     ProposeExchangeMap = 60,
     AcceptExchangeMap = 61,
+
+    // Custom
+    MoveStackEnd = 62,
 };
 
 struct CCommandMsgVftable;
@@ -98,7 +102,8 @@ struct IMidgardObjectMap;
 struct CCommandMsg : public CNetMsgT<CCommandMsgVftable>
 {
     CMidgardID playerId;
-    int unknown;
+    /** Used in CMidCommandQueue2::Push to reject out-of-order commands. */
+    std::uint32_t sequenceNumber;
     IdList* ids;
 };
 
@@ -117,10 +122,10 @@ struct CCommandMsgTempl : public CCommandMsg
 
 struct CCommandMsgVftable : public CNetMsgVftable
 {
-    using GetId = CommandMsgId(__thiscall*)(CCommandMsg* thisptr);
+    using GetId = CommandMsgId(__thiscall*)(const CCommandMsg* thisptr);
     GetId getId;
 
-    using GetParam = CommandMsgParam(__thiscall*)(CCommandMsg* thisptr);
+    using GetParam = CommandMsgParam(__thiscall*)(const CCommandMsg* thisptr);
     GetParam getParam;
 
     /** Returns true if command can be ignored by current player. */
@@ -137,8 +142,24 @@ namespace CCommandMsgApi {
 
 struct Api
 {
+    using Constructor = CCommandMsg*(__thiscall*)(CCommandMsg* thisptr);
+    Constructor constructor;
+
     using Destructor = void(__thiscall*)(CCommandMsg* thisptr);
     Destructor destructor;
+
+    using Serialize = void(__thiscall*)(CCommandMsg* thisptr, CMqStream* stream);
+    Serialize serialize;
+
+    using Create = CCommandMsg*(__stdcall*)(CommandMsgId id);
+    Create create;
+
+    /**
+     * Static counter, initialized to 1 and never ever being reset, that is a reason of some game
+     * desync issues like leader "teleportation" (lack of movement animation).
+     * See CMidCommandQueue2Api::lastCommandSequenceNumber for more details.
+     */
+    std::uint32_t* nextCommandSequenceNumber;
 };
 
 Api& get();

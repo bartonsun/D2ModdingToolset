@@ -22,6 +22,7 @@
 
 #include "categoryids.h"
 #include "d2list.h"
+#include "gameversion.h"
 #include "netmsg.h"
 
 namespace game {
@@ -38,7 +39,7 @@ assert_size(CMenusReqVersionMsg, 4);
 /** Send by server to clients in response to CMenusReqVersionMsg. */
 struct CGameVersionMsg : public CNetMsg
 {
-    int gameVersion; /**< Initialized with CMidServerLogicCoreData::gameVersion value. */
+    GameVersion gameVersion; /**< Initialized with CMidServerLogicCoreData::gameVersion value. */
 };
 
 assert_size(CGameVersionMsg, 8);

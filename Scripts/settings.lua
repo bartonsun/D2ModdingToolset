@@ -127,51 +127,51 @@ settings = {
 		outlineColor = {
 			red = 0, green = 0, blue = 0
 		},
-        
-        -- Movement cost on water tiles
-        water = {
-            -- Default movement cost
-            default = 6,
-            -- Movement cost for non water-only stacks with dead leader
-            withDeadLeader = 12,
-            -- Movement cost for stacks with water movement bonus
-            withBonus = 2,
-            -- Movement cost for water-only stacks
-            waterOnly = 2,
-        },
-        
-        -- Movement cost on forest tiles
-        forest = {
-            -- Default movement cost
-            default = 4,
-            -- Movement cost for stacks with dead leader
-            withDeadLeader = 8,
-            -- Movement cost for stacks with forest movement bonus 
-            withBonus = 2,
-        },
-        
-        -- Movement cost on plain tiles
-        plain = {
-            -- Default movement cost
-            default = 2,
-            -- Movement cost for stacks with dead leader
-            withDeadLeader = 4,
-            -- Movement cost for stacks without plain movement bonus on road tiles
-            onRoad = 1,
-        },
+		
+		-- Movement cost on water tiles
+		water = {
+			-- Default movement cost
+			default = 6,
+			-- Movement cost for non water-only stacks with dead leader
+			withDeadLeader = 12,
+			-- Movement cost for stacks with water movement bonus
+			withBonus = 2,
+			-- Movement cost for water-only stacks
+			waterOnly = 2,
+		},
+		
+		-- Movement cost on forest tiles
+		forest = {
+			-- Default movement cost
+			default = 4,
+			-- Movement cost for stacks with dead leader
+			withDeadLeader = 8,
+			-- Movement cost for stacks with forest movement bonus 
+			withBonus = 2,
+		},
+		
+		-- Movement cost on plain tiles
+		plain = {
+			-- Default movement cost
+			default = 2,
+			-- Movement cost for stacks with dead leader
+			withDeadLeader = 4,
+			-- Movement cost for stacks without plain movement bonus on road tiles
+			onRoad = 1,
+		},
 	},
 
 	lobby = {
 		-- Lobby server public IP and port
 		server = {
-			ip = "68.183.215.87",
-			port = 61111
+			ip = "104.248.139.25",
+			port = 61111,
 		},
 
 		client = {
-			-- Lobby client port
-			port = 0
-		}
+			-- Lobby client port (0 means auto-assign by OS)
+			port = 0,
+		},
 	},
 
 	-- If true, switches attacks miss check to a single random value roll
@@ -204,6 +204,12 @@ settings = {
 		-- Display Critical Hit text in Attack section instead of Damage and Power sections
 		-- Requires detailedAttackDescription
 		displayCriticalHitTextInAttackName = false,
+
+		-- Allows to update encyclopedia content on the fly by pressing specified keys.
+		-- Used in combination with isShift/Ctrl/AltKeyPressed from unitEncyclopedia.lua
+		updateOnShiftKeyPress = false,
+		updateOnCtrlKeyPress = false,
+		updateOnAltKeyPress = false,
 	},
 
 	-- Fix effective unit hp computation
@@ -243,8 +249,10 @@ settings = {
 		carryXpOverUpgrade = false,
 		-- Allows units to receive multiple upgrades per single battle
 		allowMultiUpgrade = false,
+		-- Shows message box when error occurs in AI battle action script.
+		-- When disabled, error messages are silently written to error log
+		debugAi = false,
+		-- Fallback action for AI controlled units in case of script errors
+		fallbackAction = BattleAction.Defend,
 	},
-
-	-- Create mss32 proxy dll log files with debug info
-	debugHooks = false,
 }

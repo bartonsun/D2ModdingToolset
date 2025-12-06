@@ -28,7 +28,6 @@
 #include "globaldata.h"
 #include "image2outline.h"
 #include "listbox.h"
-#include "log.h"
 #include "mapgenerator.h"
 #include "maptemplatereader.h"
 #include "mempool.h"
@@ -43,9 +42,9 @@
 #include "utils.h"
 #include "waitgenerationinterf.h"
 #include <chrono>
-#include <fmt/format.h>
 #include <set>
 #include <sol/sol.hpp>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -65,8 +64,7 @@ static const int roadsSpinStep{5};
 static const int goldSpinStep{100};
 static const int manaSpinStep{50};
 
-static game::RttiInfo<game::CInterfaceVftable> menuRttiInfo;
-static game::CInterfaceVftable::Destructor menuBaseDtor{nullptr};
+static game::RttiInfo<game::CMenuBaseVftable> menuRttiInfo;
 
 static std::unique_ptr<NativeGameInfo> gameInfo;
 
@@ -413,13 +411,11 @@ static void updateMenuUi(CMenuRandomScenario* menu, int selectedIndex)
 
 static void __fastcall menuRandomScenarioDtor(CMenuRandomScenario* menu, int /*%edx*/, char flags)
 {
-    logDebug("mss32Proxy.log", "CMenuRandomScenario d-tor called");
+    spdlog::debug("CMenuRandomScenario d-tor called");
     menu->~CMenuRandomScenario();
 
-    if (menuBaseDtor) {
-        logDebug("mss32Proxy.log", "CMenuRandomScenario d-tor calls CMenuBase d-tor");
-        // This will properly destroy base class and free memory
-        menuBaseDtor(menu, flags);
+    if (flags & 1) {
+        game::Memory::get().freeNonZero(menu);
     }
 }
 
@@ -554,9 +550,9 @@ static void generateScenario(CMenuRandomScenario* menu, std::time_t seed)
             const auto genTime = std::chrono::duration_cast<ms>(end - beforeGeneration);
             const auto total = std::chrono::duration_cast<ms>(end - start);
 
-            logDebug("mss32Proxy.log", fmt::format("Random scenario generation done in {:d} ms. "
-                                                   "Made {:d} attempts, {:d} ms total.",
-                                                   genTime.count(), attempt + 1, total.count()));
+            spdlog::debug("Random scenario generation done in {:d} ms. "
+                          "Made {:d} attempts, {:d} ms total.",
+                          genTime.count(), attempt + 1, total.count());
 
             // Report success only after saving results
             menu->generationStatus = GenerationStatus::Done;
@@ -566,7 +562,7 @@ static void generateScenario(CMenuRandomScenario* menu, std::time_t seed)
             continue;
         } catch (const std::exception& e) {
             // Critical error, abort generation
-            logError("mssProxyError.log", e.what());
+            spdlog::error(e.what());
             menu->generationStatus = GenerationStatus::Error;
             return;
         }
@@ -707,7 +703,7 @@ static void __fastcall buttonGenerateHandler(CMenuRandomScenario* thisptr, int /
 
     if (!isRoomAndPlayerNamesValid(thisptr)) {
         // Please enter valid game and player names
-        showMessageBox(getInterfaceText("X005ta0867"));
+        showMessageBox(getInterfaceText("X005TA0867"));
         return;
     }
 
@@ -770,7 +766,7 @@ static void __fastcall buttonGenerateHandler(CMenuRandomScenario* thisptr, int /
         thisptr->generatorThread = std::thread(
             [thisptr, seed]() { generateScenario(thisptr, seed); });
     } catch (const std::exception& e) {
-        logError("mssProxyError.log", e.what());
+        spdlog::error(e.what());
         showMessageBox(e.what());
         return;
     }
@@ -883,20 +879,18 @@ static void menuRandomScenarioCtor(CMenuRandomScenario* menu,
 {
     using namespace game;
 
-    logDebug("mss32Proxy.log", "CMenuRandomScenario c-tor called");
+    spdlog::debug("CMenuRandomScenario c-tor called");
 
     const auto& menuBase{CMenuBaseApi::get()};
     menuBase.constructor(menu, menuPhase);
 
-    CInterfaceVftable* vftable = &menuRttiInfo.vftable;
+    CMenuBaseVftable* vftable = &menuRttiInfo.vftable;
 
     static bool firstTime{true};
     if (firstTime) {
         firstTime = false;
 
         replaceRttiInfo(menuRttiInfo, menu->vftable);
-        // Remember base class destructor
-        menuBaseDtor = menu->vftable->destructor;
         // Make sure our vftable uses our own destructor
         vftable->destructor = (CInterfaceVftable::Destructor)&menuRandomScenarioDtor;
     }
@@ -935,6 +929,8 @@ CMenuRandomScenario::~CMenuRandomScenario()
     game::UiEventApi::get().destructor(&uiEvent);
 
     removePopup(this);
+
+    game::CMenuBaseApi::get().destructor(this);
 }
 
 void prepareToStartRandomScenario(CMenuRandomScenario* menu, bool networkGame)

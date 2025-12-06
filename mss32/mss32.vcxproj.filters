@@ -50,6 +50,12 @@
     <Filter Include="features\random scenario generator">
       <UniqueIdentifier>{54ad4f5d-bf7a-487f-9a3c-94547ca33f44}</UniqueIdentifier>
     </Filter>
+    <Filter Include="features\custom scenario objects">
+      <UniqueIdentifier>{4414afc9-2087-4905-bf4d-220042197dd5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="features\custom noble actions">
+      <UniqueIdentifier>{6454c2cc-1767-4c10-9a0a-dee340ea6ca0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\fmt\src\format.cc">
@@ -117,9 +123,6 @@
     </ClCompile>
     <ClCompile Include="src\listbox.cpp">
       <Filter>game</Filter>
-    </ClCompile>
-    <ClCompile Include="src\log.cpp">
-      <Filter>utils</Filter>
     </ClCompile>
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\mempool.cpp">
@@ -746,9 +749,6 @@
     <ClCompile Include="src\menuprotocol.cpp">
       <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="src\menuprotocolhooks.cpp">
-      <Filter>hooks</Filter>
-    </ClCompile>
     <ClCompile Include="src\menucustomlobby.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
@@ -797,25 +797,13 @@
     <ClCompile Include="..\SLikeNet\DependentExtensions\Lobby2\Rooms\RoomTypes.cpp">
       <Filter>modules\slikenet\lobby2\rooms</Filter>
     </ClCompile>
-    <ClCompile Include="src\registeraccountinterf.cpp">
-      <Filter>features\lobby</Filter>
-    </ClCompile>
     <ClCompile Include="src\popupdialoginterf.cpp">
       <Filter>game</Filter>
-    </ClCompile>
-    <ClCompile Include="src\loginaccountinterf.cpp">
-      <Filter>features\lobby</Filter>
-    </ClCompile>
-    <ClCompile Include="src\lobbycallbacks.cpp">
-      <Filter>features\lobby</Filter>
     </ClCompile>
     <ClCompile Include="src\netcustomplayerclient.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
     <ClCompile Include="src\netcustomplayerserver.cpp">
-      <Filter>features\lobby</Filter>
-    </ClCompile>
-    <ClCompile Include="src\roomscallback.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
     <ClCompile Include="src\menuphasehooks.cpp">
@@ -839,32 +827,11 @@
     <ClCompile Include="src\menuflashwait.cpp">
       <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="src\lobbyclient.cpp">
-      <Filter>features\lobby</Filter>
-    </ClCompile>
-    <ClCompile Include="src\networkpeer.cpp">
-      <Filter>features\lobby</Filter>
-    </ClCompile>
-    <ClCompile Include="src\menunewskirmishhooks.cpp">
-      <Filter>hooks</Filter>
-    </ClCompile>
-    <ClCompile Include="src\roomservercreation.cpp">
-      <Filter>features\lobby</Filter>
-    </ClCompile>
     <ClCompile Include="src\menunewskirmishmulti.cpp">
       <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="src\roomclientjoin.cpp">
-      <Filter>features\lobby</Filter>
-    </ClCompile>
     <ClCompile Include="src\menuload.cpp">
       <Filter>game</Filter>
-    </ClCompile>
-    <ClCompile Include="src\menuloadskirmishmultihooks.cpp">
-      <Filter>hooks</Filter>
-    </ClCompile>
-    <ClCompile Include="src\roompasswordinterf.cpp">
-      <Filter>features\lobby</Filter>
     </ClCompile>
     <ClCompile Include="src\cursorhandle.cpp">
       <Filter>game</Filter>
@@ -1202,6 +1169,15 @@
     <ClCompile Include="src\intintmap.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\menucustommain.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menucustombase.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
+    <ClCompile Include="src\editboxinterfhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
     <ClCompile Include="src\aigiveitemsaction.cpp">
       <Filter>game</Filter>
     </ClCompile>
@@ -1265,11 +1241,305 @@
     <ClCompile Include="src\bindings\fogview.cpp">
       <Filter>bindings</Filter>
     </ClCompile>
+    <ClCompile Include="src\bindings\globalvariablesview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bindings\gameview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bindings\battlemsgdataviewmutable.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
     <ClCompile Include="src\sitecategories.cpp">
       <Filter>game</Filter>
     </ClCompile>
     <ClCompile Include="src\scenarioobjectstreams.cpp">
       <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\customunitencyclopedia.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="src\customunitencyclopediafunctions.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menucustomnewskirmishmulti.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menucustomloadskirmishmulti.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menuloadskirmishmulti.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menuloadhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menucustomrandomscenariomulti.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
+    <ClCompile Include="src\autodialoghooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\autodialogfile.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midautodlgimages.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midautodlgimageshooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gameimagedata.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dialogdescriptor.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menumain.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menumainhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bindings\globalview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="src\resourcetype.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bindings\crystalview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bindings\siteview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bindings\merchantview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bindings\mercsview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bindings\trainerview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scenpropinterf.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scenpropinterfhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\aiattitudescat.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\aiattitudestable.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\customaibattle.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="src\testleadertozonehooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\testkillstackhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\testownitemhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stacktemplatecache.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="src\teststackexistshooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\testleaderownitemhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\encparamidplayer.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\visitorcreatesite.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\trainingcampinterf.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\taskobjprop.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\taskobjmove.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\taskobjerase.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\taskobjaddsite.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\taskmanager.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\middragdropinterf.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midcommandqueue2.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\middatacache.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\isoview.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\visitorcreatesitehooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\isoviewhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\taskobjprophooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\taskobjaddsitehooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\exchangeresourcesmsg.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ddstackgroup.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ddstackinventorydisplay.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\objectinterf.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\objectinterfhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midfreetask.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sounds.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\paperdollchildinterf.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midsite.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midsitemage.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midsitemerchant.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midsitemercs.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midsitetrainer.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scenedithooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midunitgroupadapter.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\streambits.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sitecategoryhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midtaskopeninterfparamresmarket.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midsiteresourcemarket.cpp">
+      <Filter>features\custom scenario objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\netmsgmapentryexchangeresourcesmsg.cpp">
+      <Filter>features\custom scenario objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\resourcemarketinterface.cpp">
+      <Filter>features\custom scenario objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\siteresourcemarketinterf.cpp">
+      <Filter>features\custom scenario objects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bindings\resourcemarketview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bindings\buildingview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nobleactioncat.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nobleactionresult.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\customnobleactioncategories.cpp">
+      <Filter>features\custom noble actions</Filter>
+    </ClCompile>
+    <ClCompile Include="src\customnobleactionhooks.cpp">
+      <Filter>features\custom noble actions</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nobleactioncategoryset.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\globalvariables.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\globalvariableshooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\effectstealmarket.cpp">
+      <Filter>features\custom noble actions</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nobleactionresultstealmarket.cpp">
+      <Filter>features\custom noble actions</Filter>
+    </ClCompile>
+    <ClCompile Include="src\effectgiveresources.cpp">
+      <Filter>features\custom noble actions</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gamesettings.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midgardhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midstart.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cmdmovestackendmsg.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\netmsgmapentrycmdmovestackendmsg.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midcommandqueue2hooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midobjectlock.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\midobjectlockhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\phasegame.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\phasegamehooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stackmovemsg.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\netcustompeer.cpp">
+      <Filter>features\lobby</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1380,9 +1650,6 @@
     </ClInclude>
     <ClInclude Include="include\listbox.h">
       <Filter>game</Filter>
-    </ClInclude>
-    <ClInclude Include="include\log.h">
-      <Filter>utils</Filter>
     </ClInclude>
     <ClInclude Include="include\lordcat.h">
       <Filter>game</Filter>
@@ -2440,9 +2707,6 @@
     <ClInclude Include="include\menuprotocol.h">
       <Filter>game</Filter>
     </ClInclude>
-    <ClInclude Include="include\menuprotocolhooks.h">
-      <Filter>hooks</Filter>
-    </ClInclude>
     <ClInclude Include="include\menucustomlobby.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
@@ -2506,12 +2770,6 @@
     <ClInclude Include="..\SLikeNet\DependentExtensions\Lobby2\Rooms\RoomTypes.h">
       <Filter>modules\slikenet\lobby2\rooms</Filter>
     </ClInclude>
-    <ClInclude Include="include\registeraccountinterf.h">
-      <Filter>features\lobby</Filter>
-    </ClInclude>
-    <ClInclude Include="include\lobbycallbacks.h">
-      <Filter>features\lobby</Filter>
-    </ClInclude>
     <ClInclude Include="include\netcustomplayerclient.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
@@ -2519,9 +2777,6 @@
       <Filter>game</Filter>
     </ClInclude>
     <ClInclude Include="include\netcustomplayerserver.h">
-      <Filter>features\lobby</Filter>
-    </ClInclude>
-    <ClInclude Include="include\roomscallback.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
     <ClInclude Include="include\menuphasehooks.h">
@@ -2548,35 +2803,11 @@
     <ClInclude Include="include\menuflashwait.h">
       <Filter>game</Filter>
     </ClInclude>
-    <ClInclude Include="include\lobbyclient.h">
-      <Filter>features\lobby</Filter>
-    </ClInclude>
-    <ClInclude Include="include\loginaccountinterf.h">
-      <Filter>features\lobby</Filter>
-    </ClInclude>
-    <ClInclude Include="include\networkpeer.h">
-      <Filter>features\lobby</Filter>
-    </ClInclude>
-    <ClInclude Include="include\menunewskirmishhooks.h">
-      <Filter>hooks</Filter>
-    </ClInclude>
-    <ClInclude Include="include\roomservercreation.h">
-      <Filter>features\lobby</Filter>
-    </ClInclude>
     <ClInclude Include="include\menunewskirmishmulti.h">
       <Filter>game</Filter>
     </ClInclude>
-    <ClInclude Include="include\roomclientjoin.h">
-      <Filter>features\lobby</Filter>
-    </ClInclude>
     <ClInclude Include="include\menuload.h">
       <Filter>game</Filter>
-    </ClInclude>
-    <ClInclude Include="include\menuloadskirmishmultihooks.h">
-      <Filter>hooks</Filter>
-    </ClInclude>
-    <ClInclude Include="include\roompasswordinterf.h">
-      <Filter>features\lobby</Filter>
     </ClInclude>
     <ClInclude Include="include\batnotify.h">
       <Filter>game</Filter>
@@ -3136,6 +3367,18 @@
     <ClInclude Include="include\itemextension.h">
       <Filter>game</Filter>
     </ClInclude>
+    <ClInclude Include="include\menucustommain.h">
+      <Filter>features\lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midmsgboxupdatehandler.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menucustombase.h">
+      <Filter>features\lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="include\editboxinterfhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
     <ClInclude Include="include\aitacticaction.h">
       <Filter>game</Filter>
     </ClInclude>
@@ -3295,6 +3538,15 @@
     <ClInclude Include="include\bindings\fogview.h">
       <Filter>bindings</Filter>
     </ClInclude>
+    <ClInclude Include="include\bindings\globalvariablesview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\gameview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\battlemsgdataviewmutable.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
     <ClInclude Include="include\scenarioobjectstreams.h">
       <Filter>game</Filter>
     </ClInclude>
@@ -3304,6 +3556,300 @@
     <ClInclude Include="include\objectinterf.h">
       <Filter>game</Filter>
     </ClInclude>
+    <ClInclude Include="include\menucustomnewskirmishmulti.h">
+      <Filter>features\lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menucustomloadskirmishmulti.h">
+      <Filter>features\lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menuloadskirmishmulti.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\customunitencyclopedia.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="include\customunitencyclopediafunctions.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menuloadhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menucustomrandomscenariomulti.h">
+      <Filter>features\lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="include\gameversion.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\autodialoghooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\autodialogfile.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midautodlgimages.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\logfile.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midautodlgimageshooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\functordispatchmemfunc3.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\image2dupweak.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\dialogdescriptor.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menumain.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menumainhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\globalview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midcrystal.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\resourcetype.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\crystalview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midsitemerchant.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midsitemage.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midsitemercs.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midsitetrainer.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\siteview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\merchantview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\mercsview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\trainerview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenpropinterf.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenpropinterfhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\aiattitudescat.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\aiattitudestable.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\customaibattle.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="include\testleadertozone.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\testleadertozonehooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\timer.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midstackdestroyed.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\testkillstack.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\testkillstackhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\testownitem.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\testownitemhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stacktemplatecache.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="include\teststackexists.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\teststackexistshooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\testleaderownitem.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\testleaderownitemhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\miditemext.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\isoviewhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\exchangeresourcesmsg.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ddstackinventorydisplay.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\cmdstackvisitmsg.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ddfoldedinv.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ddfoldedinvdisplay.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\objectinterfhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\taskobj.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\taskobjaddsite.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\taskobjerase.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\taskobjmove.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\taskobjprop.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\taskobjaddsitehooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\taskobjprophooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\paperdollchildinterf.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\visitorcreatesite.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\visitorcreatesitehooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\trainingcampinterf.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenedithooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\streambits.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sitecategoryhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midtaskopeninterfparam.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midtaskopeninterfparamresmarket.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midsiteresourcemarket.h">
+      <Filter>features\custom scenario objects</Filter>
+    </ClInclude>
+    <ClInclude Include="include\netmsgmapentryexchangeresourcesmsg.h">
+      <Filter>features\custom scenario objects</Filter>
+    </ClInclude>
+    <ClInclude Include="include\resourcemarketinterface.h">
+      <Filter>features\custom scenario objects</Filter>
+    </ClInclude>
+    <ClInclude Include="include\siteresourcemarketinterf.h">
+      <Filter>features\custom scenario objects</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\resourcemarketview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bindings\buildingview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\nobleactioncat.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\nobleactionresult.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\customnobleactioncategories.h">
+      <Filter>features\custom noble actions</Filter>
+    </ClInclude>
+    <ClInclude Include="include\customnobleactionhooks.h">
+      <Filter>features\custom noble actions</Filter>
+    </ClInclude>
+    <ClInclude Include="include\nobleactioncategoryset.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\eventeffectbase.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\globalvariableshooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\effectstealmarket.h">
+      <Filter>features\custom noble actions</Filter>
+    </ClInclude>
+    <ClInclude Include="include\nobleactionresultstealmarket.h">
+      <Filter>features\custom noble actions</Filter>
+    </ClInclude>
+    <ClInclude Include="include\effectgiveresources.h">
+      <Filter>features\custom noble actions</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midgardhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midstart.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mqnetreceptionwnd.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\cmdmovestackendmsg.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\netmsgmapentrycmdmovestackendmsg.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midcommandqueue2hooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\midobjectlockhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\phasegamehooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stackmovemsg.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\netcustompeer.h">
+      <Filter>features\lobby</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="mss32.rc">
@@ -3312,5 +3858,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="module.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="midgardid.natvis" />
   </ItemGroup>
 </Project>

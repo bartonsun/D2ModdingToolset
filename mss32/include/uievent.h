@@ -86,11 +86,18 @@ namespace UiEventApi {
 
 struct Api
 {
+    using Constructor = UiEvent*(__thiscall*)(UiEvent* thisptr);
+    Constructor constructor;
+
     using CopyConstructor = UiEvent*(__thiscall*)(UiEvent* thisptr, const UiEvent* other);
     CopyConstructor copy;
 
     using Destructor = void(__thiscall*)(UiEvent* thisptr);
     Destructor destructor;
+
+    /** Decreases ref count, removes the event from ui manager if the count reaches 0. */
+    using Release = void(__thiscall*)(UiEvent* thisptr);
+    Release release;
 };
 
 Api& get();

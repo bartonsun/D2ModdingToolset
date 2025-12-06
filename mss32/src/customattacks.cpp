@@ -19,9 +19,8 @@
 
 #include "customattacks.h"
 #include "dbffile.h"
-#include "log.h"
 #include "utils.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -30,8 +29,7 @@ void initializeCustomAttacks()
     utils::DbfFile dbf;
     const std::filesystem::path dbfFilePath{globalsFolder() / "Gattacks.dbf"};
     if (!dbf.open(dbfFilePath)) {
-        logError("mssProxyError.log",
-                 fmt::format("Could not open {:s}", dbfFilePath.filename().string()));
+        spdlog::error("Could not open {:s}", dbfFilePath.filename().string());
         return;
     }
 

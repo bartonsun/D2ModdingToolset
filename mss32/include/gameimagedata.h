@@ -48,6 +48,23 @@ struct GameImageDataWrapper
 
 assert_size(GameImageDataWrapper, 4);
 
+namespace GameImageDataApi {
+
+struct Api
+{
+    using Destructor = void(__thiscall*)(GameImageDataWrapper* thisptr);
+    Destructor destructor;
+
+    using LoadFromFile = GameImageDataWrapper**(__stdcall*)(GameImageDataWrapper** result,
+                                                            const char* filePath,
+                                                            int alwaysOne);
+    LoadFromFile loadFromFile;
+};
+
+Api& get();
+
+} // namespace GameImageDataApi
+
 } // namespace game
 
 #endif // GAMEIMAGEDATA_H

@@ -24,6 +24,7 @@
 #include "d2vector.h"
 #include "smartptr.h"
 #include "uievent.h"
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
 namespace game {

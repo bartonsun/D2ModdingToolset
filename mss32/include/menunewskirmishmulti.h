@@ -33,19 +33,28 @@ struct CMenuNewSkirmishMulti : public CMenuNewSkirmish
 
 assert_size(CMenuNewSkirmishMulti, 12);
 
+struct CMenuNewSkirmishMultiVftable : public CMenuBaseVftable
+{
+    void* methods[4];
+};
+assert_vftable_size(CMenuNewSkirmishMultiVftable, 39);
+
 namespace CMenuNewSkirmishMultiApi {
 
 struct Api
 {
+    using Constructor = CMenuNewSkirmishMulti*(__thiscall*)(CMenuNewSkirmishMulti* thisptr,
+                                                            CMenuPhase* menuPhase);
+    Constructor constructor;
+
+    using Destructor = void(__thiscall*)(CMenuNewSkirmishMulti* thisptr);
+    Destructor destructor;
+
     // Declare thisptr here as CMenuBase
     // to simplify loading random scenarios for multiplayer games.
     // This function doesn't access data from CMenuNewSkirmishMulti or CMenuNewSkirmish
     using CreateServer = bool(__thiscall*)(CMenuBase* thisptr);
     CreateServer createServer;
-
-    using Constructor = CMenuNewSkirmishMulti*(__thiscall*)(CMenuNewSkirmishMulti* thisptr,
-                                                            CMenuPhase* menuPhase);
-    Constructor constructor;
 };
 
 Api& get();

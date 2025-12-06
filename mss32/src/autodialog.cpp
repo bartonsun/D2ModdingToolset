@@ -27,17 +27,23 @@ namespace game::AutoDialogApi {
 std::array<Api, 3> functions = {{
     // Akella
     Api{
-        (Api::LoadScriptFile)0x50e227,
+        (Api::LoadAndParseScriptFile)0x50b44a,
+        (Api::ParseDialogFromScriptFile)0x50cc56,
+        (Api::DialogMapInsert)0x50b783,
         (Api::LoadImage)0x5c9d20,
     },
     // Russobit
     Api{
-        (Api::LoadScriptFile)0x50e227,
+        (Api::LoadAndParseScriptFile)0x50b44a,
+        (Api::ParseDialogFromScriptFile)0x50cc56,
+        (Api::DialogMapInsert)0x50b783,
         (Api::LoadImage)0x5c9d20,
     },
     // Gog
     Api{
-        (Api::LoadScriptFile)0x50d6eb,
+        (Api::LoadAndParseScriptFile)0x50a8cb,
+        (Api::ParseDialogFromScriptFile)0x50c14c,
+        (Api::DialogMapInsert)0x50ac69,
         (Api::LoadImage)0x5c8cee,
     }
 }};

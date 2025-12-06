@@ -228,45 +228,114 @@ textids = {
 
 	-- Text ids related to custom lobby
 	lobby = {
-		-- Server name shown in network protocols list
-		-- Fallback text "Lobby server"
+		-- Fallback text id is X150TA0026 ("v.3.01")
+		gameVersion = "",
+		-- Server name shown on main menu's button
+		-- Fallback text "ONLINE LOBBY"
 		serverName = "",
-		-- Shown when client could not connect due to server being unresponsive
-		-- Fallback text "Failed to connect.\nLobby server not responding"
-		serverNotResponding = "",
-		-- Client's connection attemt failed
+		-- Fallback text "Connection start failed"
+		connectStartFailed = "",
+		-- Client's connection attempt failed
 		-- Fallback text "Connection attempt failed"
 		connectAttemptFailed = "",
 		-- Client could not connect due to server being full
 		-- Fallback text "Lobby server is full"
 		serverIsFull = "",
-		-- Game files hash failed to compute
-		-- Fallback text "Could not compute hash"
-		computeHashFailed = "",
-		-- Client could not request hash check from server
-		-- Fallback text "Could not request game integrity check"
-		requestHashCheckFailed = "",
-		-- Client hash is wrong
-		-- Fallback text "Game integrity check failed"
-		wrongHash = "",
+		-- Fallback text "Unable to join the room because the owner's game version or files are different."
+		checkFilesFailed = "",
 		-- Player entered wrong room password
 		-- Fallback text "Wrong room password"
 		wrongRoomPassword = "",
+		-- Player hit back button (or pressed Esc) while on the lobby screen
+		-- Fallback text "Do you really want to exit the lobby?"
+		confirmBack = "",
+		-- Player tried to login or register with invalid credentials
+		-- Fallback text "Account name or password are either empty or invalid."
+		invalidAccountNameOrPassword = "",
+		-- Player tried to login to non-existent account or provided a wrong password
+		-- Fallback text "Wrong password or the account does not exist."
+		noSuchAccountOrWrongPassword = "",
+		-- Player tried to login to a banned account
+		-- Fallback text "The account is banned from the lobby server."
+		accountIsBanned = "",
+		-- Player tried to register an existing account
+		-- Fallback text "The account name already exists."
+		accountNameAlreadyInUse = "",
+		-- Player tried to login but received an unexpected error.
+		-- The text must contain keyword "%ERROR%".
+		-- Fallback text "An unexpected error during login.\n%ERROR%"
+		unableToLogin = "",
+		-- Player successfully registered but received an unexpected error trying to login.
+		-- Fallback text "An unexpected error trying to login after successful registration."
+		unableToLoginAfterRegistration = "",
+		-- Player tried to register an account but received an unexpected error.
+		-- The text must contain keyword "%ERROR%".
+		-- Fallback text "An unexpected error during account registration.\n%ERROR%"
+		unableToRegister = "",
+		-- Fallback text "Could not request to create a room from the lobby server."
+		createRoomRequestFailed = "",
+		-- The text must contain keyword "%ERROR%".
+		-- Fallback text "Could not create a room.\n%ERROR%"
+		createRoomFailed = "",
+		-- The text must contain keyword "%ERROR%".
+		-- Fallback text "Could not join a room.\n%ERROR%"
+		joinRoomFailed = "",
+		-- The text must contain keyword "%ERROR%".
+		-- Fallback text "Could not search for rooms.\n%ERROR%"
+		searchRoomsFailed = "",
+		-- Fallback text "The selected room no longer exists."
+		selectedRoomNoLongerExists = "",
+		-- The text must contain keywords "%SENDER%" and "%MSG%".
+		-- Fallback text "\\fMedBold;%SENDER%:\\fNormal; %MSG%"
+		chatMessage = "",
+		-- Fallback text "Too many chat messages.\nWait a couple of seconds."
+		tooManyChatMessages = "",
+		-- The text must contain keyword "%PLAYERS_NUM%".
+		-- Fallback text "Players online: %PLAYERS_NUM%"
+		playersTotal = "",
+		-- The text must contain keyword "%NAME%".
+		-- Fallback text "\\vC;\\hC;\\fSmall;%NAME%"
+		playerNameInList = "",
+		-- The text must contain keyword "%ROOMS_NUM%".
+		-- Fallback text "Games available: %ROOMS_NUM%"
+		roomsTotal = "",
+		-- The text can contain optional keywords "%VERSION%", "%HOST%", "%CLIENTS_SEPARATOR%", "%CLIENTS%", "%PLAYERS_NUM%", "%PLAYERS_MAX%", "%SCEN_NAME%", "%SCEN_DESC%".
+		-- Fallback text "\\hC;Version: %VERSION%\n\\fNormal;Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%\n\\fMedBold;%SCEN_NAME%\\fNormal;\n\\fNormal;%SCEN_DESC%"
+		roomInfo = "",
+		-- The text can contain optional keywords "%NAME%", "%HOST%", "%CLIENTS_SEPARATOR%", "%CLIENTS%", "%PLAYERS_NUM%", "%PLAYERS_MAX%".
+		-- Fallback text "\\fMedBold;%NAME%\\fNormal;\nVersion: %VERSION%\n\\fNormal;Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%"
+		roomInfoInList = "",
+	},
+
+	generator = {
+		-- Description text for randomly generated scenarios
+		-- Fallback text "Random scenario based on template '%TMPL%'. Seed: %SEED%. Starting gold: %GOLD%. Roads: %ROADS%%. Forest: %FOREST%%."
+		description = "",
+		-- Generator could not process game data from dbf tables or .ff files
+		-- Error details are logged in mssProxyError.log
+		-- Fallback text "Could not read game data needed for scenario generator.\nSee mssProxyError.log for details"
+		wrongGameData = "",
+		-- Error occured during scenario generation
+		-- Fallback text "Error during random scenario map generation.\nSee mssProxyError.log for details".
+		generationError = "",
+		-- Generator failed to create scenario after specified number of attempts
+		-- Fallback text "Could not generate scenario map after %NUM% attempts.\nPlease, adjust template contents or settings"
+		limitExceeded = "",
 	},
     
-    generator = {
-        -- Description text for randomly generated scenarios
-        -- Fallback text "Random scenario based on template '%TMPL%'. Seed: %SEED%. Starting gold: %GOLD%. Roads: %ROADS%%. Forest: %FOREST%%."
-        description = "",
-        -- Generator could not process game data from dbf tables or .ff files
-        -- Error details are logged in mssProxyError.log
-        -- Fallback text "Could not read game data needed for scenario generator.\nSee mssProxyError.log for details"
-        wrongGameData = "",
-        -- Error occured during scenario generation
-        -- Fallback text "Error during random scenario map generation.\nSee mssProxyError.log for details".
-        generationError = "",
-        -- Generator failed to create scenario after specified number of attempts
-        -- Fallback text "Could not generate scenario map after %NUM% attempts.\nPlease, adjust template contents or settings"
-        limitExceeded = "",
-    },
+	resourceMarket = {
+		-- Resource market site description for encyclopedia
+		-- Fallback text is "(Resource market)"
+		encyDesc = "",
+		-- Infinite amount of resources string.
+		-- Fallback text is "Inf."
+		infiniteAmount = "",
+		-- Exchange description for market window in game.
+		-- The text must contain keywords "%RES1%" and "%RES2%".
+		-- Fallback text is "You offer %RES1% to get %RES2% in return."
+		exchangeDesc = "",
+		-- Exchange is not available hint for market window in game.
+		-- Fallback text is "N/A"
+		exchangeNotAvailable = "",
+	},
 }

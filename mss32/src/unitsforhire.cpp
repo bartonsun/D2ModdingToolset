@@ -21,10 +21,9 @@
 #include "categoryids.h"
 #include "dbf/dbffile.h"
 #include "dbfaccess.h"
-#include "log.h"
 #include "midgardid.h"
 #include "utils.h"
-#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 #include <string>
 #include <type_traits>
 
@@ -47,7 +46,7 @@ bool loadUnitsForHire()
 
     DbfFile raceDb;
     if (!raceDb.open(globalsFolder() / raceDbName)) {
-        logError("mssProxyError.log", fmt::format("Could not read {:s} database.", raceDbName));
+        spdlog::error("Could not read {:s} database.", raceDbName);
         return false;
     }
 
@@ -72,25 +71,23 @@ bool loadUnitsForHire()
 
         game::CMidgardID raceId{};
         if (!dbRead(raceId, raceDb, row, idColumnName)) {
-            logError("mssProxyError.log",
-                     fmt::format("Failed to read row {:d} column {:s} from {:s} database.", row,
-                                 idColumnName, raceDbName));
+            spdlog::error("Failed to read row {:d} column {:s} from {:s} database.", row,
+                          idColumnName, raceDbName);
             return false;
         }
 
         if (raceId == game::invalidId) {
-            logError("mssProxyError.log",
-                     fmt::format("Row {:d} has invalid {:s} value in {:s} database.", row,
-                                 idColumnName, raceDbName));
+            spdlog::error("Row {:d} has invalid {:s} value in {:s} database.", row, idColumnName,
+                          raceDbName);
             return false;
         }
 
         const auto& idApi = game::CMidgardIDApi::get();
         const int raceIndex = idApi.getTypeIndex(&raceId);
         if (raceIndex >= (int)tmpUnits.size()) {
-            logError("mssProxyError.log", fmt::format("Row {:d} column {:s} has invalid "
-                                                      "race index {:d} in {:s} database.",
-                                                      row, idColumnName, raceIndex, raceDbName));
+            spdlog::error("Row {:d} column {:s} has invalid "
+                          "race index {:d} in {:s} database.",
+                          row, idColumnName, raceIndex, raceDbName);
             return false;
         }
 
@@ -103,9 +100,8 @@ bool loadUnitsForHire()
             const std::string columnName{fmt::format("SOLDIER_{:d}", i + 6)};
             game::CMidgardID soldierId{};
             if (!dbRead(soldierId, raceDb, row, columnName) || soldierId == game::invalidId) {
-                logError("mssProxyError.log",
-                         fmt::format("Row {:d} column {:s} has invalid id in {:s} database", row,
-                                     columnName, raceDbName));
+                spdlog::error("Row {:d} column {:s} has invalid id in {:s} database", row,
+                              columnName, raceDbName);
                 return false;
             }
 
