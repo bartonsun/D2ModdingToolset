@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2021 Stanislav Egorov.
+ * Copyright (C) 2025 Alexey Voskresensky.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,44 +17,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "unitinfolist.h"
+#include "batattackheal.h"
 #include "version.h"
 #include <array>
 
-namespace game::UnitInfoListApi {
+namespace game::CBatAttackHealApi {
 
 // clang-format off
-static std::array<Api, 3> functions = {{
+static std::array<IBatAttackVftable*, 4> vftables = {{
     // Akella
-    Api{
-        (Api::Constructor)0x41bf2a,
-        (Api::Destructor)0x41bf63,
-        (Api::Sort)0x640600,
-        (Api::SortBy)0x62bca0,
-        (Api::CompareByUnsummonOrder)0x62b339,
-    },
+    (IBatAttackVftable*)0x6f4f0c,
     // Russobit
-    Api{
-        (Api::Constructor)0x41bf2a,
-        (Api::Destructor)0x41bf63,
-        (Api::Sort)0x640600,
-        (Api::SortBy)0x62bca0,
-        (Api::CompareByUnsummonOrder)0x62b339,
-    },
+    (IBatAttackVftable*)0x6f4f0c,
     // Gog
-    Api{
-        (Api::Constructor)0x41b9f7,
-        (Api::Destructor)0x41ba30,
-        (Api::Sort)0x63eed0,
-        (Api::SortBy)0x641560,
-        (Api::CompareByUnsummonOrder)0x629e79,
-    },
+    (IBatAttackVftable*)0x6f2ebc,
+    // Scenario Editor
+    (IBatAttackVftable*)nullptr,
 }};
 // clang-format on
 
-Api& get()
+IBatAttackVftable* vftable()
 {
-    return functions[static_cast<int>(hooks::gameVersion())];
+    return vftables[static_cast<int>(hooks::gameVersion())];
 }
 
-} // namespace game::UnitInfoListApi
+} // namespace game::CBatAttackHealApi

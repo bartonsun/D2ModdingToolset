@@ -120,7 +120,11 @@ bool __fastcall doppelgangerAttackCanPerformHooked(game::CBatAttackDoppelganger*
         return false;
 
     const IUsSoldier* targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
-    if (!targetSoldier->vftable->getSizeSmall(targetSoldier))
+    const CMidUnit* attackUnit = fn.findUnitById(objectMap, &thisptr->unitId);
+    const IUsSoldier* attackSoldier = fn.castUnitImplToSoldier(attackUnit->unitImpl);
+
+    if (targetSoldier->vftable->getSizeSmall(targetSoldier)
+        != attackSoldier->vftable->getSizeSmall(attackSoldier))
         return false;
 
     const IAttack* targetAttack = targetSoldier->vftable->getAttackById(targetSoldier);

@@ -29,13 +29,16 @@
 namespace hooks {
 
 static const char stealRmktColumn[]{"STEAL_RMKT"};
+static const char stealRmktMinColumn[]{"S_RMKT_MIN"};
+static const char stealItemAllColumn[]{"S_ITEM_ALL"};
 static const char rmktRiotMinColumn[]{"RMKT_R_MIN"};
 static const char rmktRiotMaxColumn[]{"RMKT_R_MAX"};
 
 static bool hasCustomVariables(const utils::DbfFile& dbfFile)
 {
     return dbfFile.column(stealRmktColumn) || dbfFile.column(rmktRiotMinColumn)
-           || dbfFile.column(rmktRiotMaxColumn);
+           || dbfFile.column(rmktRiotMaxColumn) || dbfFile.column(stealRmktMinColumn)
+           || dbfFile.column(stealItemAllColumn);
 }
 
 game::GlobalVariables* __fastcall globalVariablesCtorHooked(game::GlobalVariables* thisptr,
@@ -73,6 +76,16 @@ game::GlobalVariables* __fastcall globalVariablesCtorHooked(game::GlobalVariable
     int stealAmount{};
     if (record.value(stealAmount, stealRmktColumn)) {
         extendedData->stealRmkt = std::clamp(stealAmount, 0, INT_MAX);
+    }
+
+    int stealAmountMin{};
+    if (record.value(stealAmountMin, stealRmktMinColumn)) {
+        extendedData->stealRmktMin = std::clamp(stealAmountMin, 0, INT_MAX);
+    }
+
+    int stealItemAll{};
+    if (record.value(stealItemAll, stealItemAllColumn)) {
+        extendedData->stealItemAll = (std::clamp(stealItemAll, 0, INT_MAX) != 0);
     }
 
     int riotMin{};

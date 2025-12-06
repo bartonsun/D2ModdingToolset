@@ -32,12 +32,16 @@
 #include "batattackdrainoverflow.h"
 #include "batattackgiveattack.h"
 #include "batattackgroupupgrade.h"
+#include "batattackheal.h"
+#include "batattackhealhooks.h"
 #include "batattackshatter.h"
 #include "batattacksummon.h"
 #include "batattacktransformother.h"
 #include "batattacktransformself.h"
 #include "batattackuntransformeffect.h"
 #include "batbigface.h"
+#include "batlogic.h"
+#include "batlogichooks.h"
 #include "battleattackinfo.h"
 #include "battlemsgdatahooks.h"
 #include "battleviewerinterf.h"
@@ -477,6 +481,12 @@ static Hooks getGameHooks()
         {serverLogic.stackMove, stackMoveHooked, (void**)&orig.stackMove},
         {CMidgardApi::get().clearNetworkState, midgardClearNetworkStateHooked, (void**)&orig.midgardClearNetworkState},
         {CMidgardApi::get().clearNetworkStateAndService, midgardClearNetworkStateAndServiceHooked, (void**)&orig.midgardClearNetworkStateAndService},
+        // Correctly untransformation at the end of battle for extracted units
+        {CBatLogicApi::get().updateGroupsIfBattleIsOver, updateGroupsIfBattleIsOverHooked},
+        // Fixed an issue where a unit killed by a DoT effect was considered alive until end next action
+        {CBatLogicApi::get().battleTurn, battleTurnHooked, (void**)&orig.battleTurn},
+        // Prevent crash when defending side selects empty position as target
+        {CBatAttackHealApi::vftable()->canPerform, healAttackCanPerformHooked},
     };
     // clang-format on
 
@@ -914,6 +924,34 @@ void* __fastcall toggleShowBannersInitHooked(void* thisptr, int /*%edx*/)
     return thisptr;
 }
 
+void __stdcall addUnitsToHireList(game::TRaceType* race, 
+                                   game::CPlayerBuildings* playerBuildings,
+                                   game::IdList* hireList)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+    const auto& id = CMidgardIDApi::get();
+    const auto& list = IdListApi::get();
+
+    const auto& unitBranch = UnitBranchCategories::get();
+
+    fn.addUnitToHireList(race, playerBuildings, unitBranch.fighter, hireList);
+    fn.addUnitToHireList(race, playerBuildings, unitBranch.archer, hireList);
+    fn.addUnitToHireList(race, playerBuildings, unitBranch.mage, hireList);
+    fn.addUnitToHireList(race, playerBuildings, unitBranch.special, hireList);
+    fn.addSideshowUnitToHireList(race, playerBuildings, hireList);
+
+    if (!unitsForHire().empty()) {
+        const int raceIndex = id.getTypeIndex(&race->id);
+
+        const auto& units = unitsForHire()[raceIndex];
+        for (const auto& unit : units) {
+            list.pushBack(hireList, &unit);
+        }
+    }
+}
+
 bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
                                               const game::CMidgardID* playerId,
                                               const game::CMidgardID* a3,
@@ -961,28 +999,51 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
 
     const auto& global = GlobalDataApi::get();
     const auto globalData = *global.getGlobalData();
-    auto races = globalData->races;
+    game::RacesMap** races = globalData->races;
     TRaceType* race = (TRaceType*)global.findById(races, &player->raceId);
 
     const auto& fn = gameFunctions();
 
-    const auto& addUnitToHireList = fn.addUnitToHireList;
-    const auto& unitBranch = UnitBranchCategories::get();
+    auto variables{getScenarioVariables(dataCache)};
 
-    addUnitToHireList(race, playerBuildings, unitBranch.fighter, hireList);
-    addUnitToHireList(race, playerBuildings, unitBranch.archer, hireList);
-    addUnitToHireList(race, playerBuildings, unitBranch.mage, hireList);
-    addUnitToHireList(race, playerBuildings, unitBranch.special, hireList);
+    const auto& racesCat = RaceCategories::get();
+    const auto raceId = player->raceType->data->raceType.id;
+    const char* racePrefix{};
+    if (raceId == racesCat.human->id) {
+        racePrefix = "EMPIRE_";
+    } else if (raceId == racesCat.heretic->id) {
+        racePrefix = "LEGIONS_";
+    } else if (raceId == racesCat.dwarf->id) {
+        racePrefix = "CLANS_";
+    } else if (raceId == racesCat.undead->id) {
+        racePrefix = "HORDES_";
+    } else if (raceId == racesCat.elf->id) {
+        racePrefix = "ELVES_";
+    }
 
-    fn.addSideshowUnitToHireList(race, playerBuildings, hireList);
-
-    if (!unitsForHire().empty()) {
-        const int raceIndex = id.getTypeIndex(&player->raceId);
-
-        const auto& units = unitsForHire()[raceIndex];
-        for (const auto& unit : units) {
-            list.pushBack(hireList, &unit);
+    bool hireAnyRace{false};
+    for (const auto& variable : variables->variables) {
+        const auto expectedName{"HIRE_UNIT_ANY_RACE"};
+        const auto expectedNameRace{fmt::format("{:s}HIRE_UNIT_ANY_RACE", racePrefix)};
+        const auto& name = variable.second.name;
+        if (!strncmp(name, expectedName, sizeof(name))) {
+            hireAnyRace = (bool)variable.second.value;
+        } else if (!strncmp(name, expectedNameRace.c_str(), sizeof(name))) {
+            hireAnyRace = (bool)variable.second.value;
+            break;
         }
+    }
+        
+    if (hireAnyRace) {
+        for (size_t i = 0; races[i] != nullptr; ++i) {
+            RacesMap* currentMap = races[i];
+            Vector<Pair<CMidgardID, TRaceType*>>& dataVec = currentMap->data;
+            for (auto* current = dataVec.bgn; current != dataVec.end; ++current) {
+                addUnitsToHireList(current->second, playerBuildings, hireList);
+            }
+        }
+    } else {
+        addUnitsToHireList(race, playerBuildings, hireList);
     }
 
     const auto& buildList = playerBuildings->buildings;
@@ -991,15 +1052,21 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
         return true;
     }
 
-    auto variables{getScenarioVariables(dataCache)};
     if (!variables || !variables->variables.length) {
         return true;
     }
 
     int hireTierMax{0};
     for (const auto& variable : variables->variables) {
-        static const char varName[]{"UNIT_HIRE_TIER_MAX"};
-        if (!strncmp(variable.second.name, varName, sizeof(varName))) {
+        const auto expectedNameLegacy{"UNIT_HIRE_TIER_MAX"};
+        const auto expectedName{"HIRE_UNIT_TIER_MAX"};
+        const auto expectedNameRace{fmt::format("{:s}HIRE_UNIT_TIER_MAX", racePrefix)};
+        const auto& name = variable.second.name;
+        if (!strncmp(name, expectedNameLegacy, sizeof(name))) {
+            hireTierMax = variable.second.value;
+        } else if (!strncmp(name, expectedName, sizeof(name))) {
+            hireTierMax = variable.second.value;
+        } else if (!strncmp(name, expectedNameRace.c_str(), sizeof(name))) {
             hireTierMax = variable.second.value;
             break;
         }
@@ -1019,7 +1086,7 @@ bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
             continue;
         }
 
-        if (race->id != *soldier->vftable->getRaceId(soldier)) {
+        if (!hireAnyRace && race->id != *soldier->vftable->getRaceId(soldier)) {
             continue;
         }
 
@@ -1304,6 +1371,10 @@ bool __fastcall giveAttackCanPerformHooked(game::CBatAttackGiveAttack* thisptr,
 {
     using namespace game;
 
+    if (*unitId == emptyId || *unitId == invalidId) {
+        return false;
+    }
+
     CMidgardID targetGroupId{};
     thisptr->vftable->getTargetGroupId(thisptr, &targetGroupId, battleMsgData);
 
@@ -1322,6 +1393,10 @@ bool __fastcall giveAttackCanPerformHooked(game::CBatAttackGiveAttack* thisptr,
     }
 
     CMidUnit* unit = fn.findUnitById(objectMap, unitId);
+    if (!unit) {
+        return false;
+    }
+
     auto soldier = fn.castUnitImplToSoldier(unit->unitImpl);
 
     auto attack = soldier->vftable->getAttackById(soldier);
@@ -1477,7 +1552,7 @@ bool __stdcall buildLordSpecificBuildingsHooked(game::IMidgardObjectMap* objectM
         return fn.addCapitalBuilding(objectMap, player, buildingCategories.magic);
     }
 
-    if (userSettings().buildTempleForWarriorLord && lordCategoryId == lordCategories.warrior->id) {
+    if (userSettings().buildTempleForWarriorLord && playerInfo->controlledByHuman && lordCategoryId == lordCategories.warrior->id) {
         return fn.addCapitalBuilding(objectMap, player, buildingCategories.heal);
     }
 
@@ -2515,6 +2590,43 @@ game::BuildingStatus __stdcall getBuildingStatusHooked(const game::IMidgardObjec
     if (!ignoreBuildTurnAndCost) {
         if (player->bank < building->data->cost) {
             return BuildingStatus::InsufficientBank;
+        }
+
+        const auto& races = RaceCategories::get();
+        const auto raceId = player->raceType->data->raceType.id;
+        const char* racePrefix{};
+        if (raceId == races.human->id) {
+            racePrefix = "EMPIRE_";
+        } else if (raceId == races.heretic->id) {
+            racePrefix = "LEGIONS_";
+        } else if (raceId == races.dwarf->id) {
+            racePrefix = "CLANS_";
+        } else if (raceId == races.undead->id) {
+            racePrefix = "HORDES_";
+        } else if (raceId == races.elf->id) {
+            racePrefix = "ELVES_";
+        }
+
+        auto variables{getScenarioVariables(objectMap)};
+        if (variables && variables->variables.length) {
+            int multipleBuildValue{0}; 
+            const auto expectedName{"MULTIPLE_BUILD_CAPITAL"};
+            const auto expectedNameRace{fmt::format("{:s}MULTIPLE_BUILD_CAPITAL", racePrefix)};
+            for (const auto& variable : variables->variables) {
+                const auto& name = variable.second.name;
+                if (!strncmp(name, expectedName, sizeof(name))) {
+                    multipleBuildValue = variable.second.value;
+                } else if (!strncmp(name, expectedNameRace.c_str(), sizeof(name))) {
+                    multipleBuildValue = variable.second.value;
+                    break;
+                }
+            }
+
+            if (multipleBuildValue > 0) {
+                return BuildingStatus::CanBeBuilt;
+            } else if (multipleBuildValue < 0) {
+                return BuildingStatus::PlayerAlreadyBuiltThisDay;
+            }
         }
 
         if (player->constructionTurn == scenarioInfo->currentTurn) {

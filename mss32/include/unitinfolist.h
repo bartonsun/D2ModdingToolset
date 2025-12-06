@@ -30,6 +30,8 @@ using UnitInfoList = List<UnitInfo>;
 using UnitInfoListNode = ListNode<UnitInfo>;
 using UnitInfoListIterator = ListIterator<UnitInfo>;
 
+using UnitInfoCompareFunc = int(__stdcall*)(UnitInfo*, UnitInfo*);
+
 namespace UnitInfoListApi {
 
 struct Api
@@ -42,6 +44,12 @@ struct Api
 
     using Sort = void(__thiscall*)(UnitInfoList* thisptr);
     Sort sort;
+
+    using SortBy = void(__thiscall*)(UnitInfoList* thisptr, const UnitInfoCompareFunc sortFunc);
+    SortBy sortBy;
+
+    using CompareByUnsummonOrder = int(__stdcall*)(UnitInfo* unitInfoA, UnitInfo* unitInfoB);
+    CompareByUnsummonOrder compareByUnsummonOrder;
 };
 
 Api& get();

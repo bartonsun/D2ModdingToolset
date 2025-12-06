@@ -25,6 +25,7 @@
 #include "editboxinterf.h"
 #include "exceptions.h"
 #include "generationresultinterf.h"
+#include "generatorsettings.h"
 #include "globaldata.h"
 #include "image2outline.h"
 #include "listbox.h"
@@ -138,6 +139,14 @@ static int spinSizeOptionToScenarioSize(const game::CSpinButtonInterf* spinButto
     return std::clamp(size, sizeMin, sizeMax);
 }
 
+static int spinParameterOptionToScenarioParameter(
+    const game::CSpinButtonInterf* spinButton,
+    rsg::MapTemplateSettings::TemplateCustomParameter parameter)
+{
+    const int value = parameter.valueMin + spinButton->data->selectedOption * parameter.valueStep;
+    return std::clamp(value, parameter.valueMin, parameter.valueMax);
+}
+
 static void raceIndicesToRaces(std::vector<rsg::RaceType>& races,
                                const CMenuRandomScenario::RaceIndices& indices)
 {
@@ -190,6 +199,22 @@ static rsg::MapGenOptions createGeneratorOptions(const rsg::MapTemplate& mapTemp
     options.size = settings.size;
     options.name = std::string{"Random scenario "} + seedString;
 
+    std::string parametersString = "";
+    for (int i = 0; i < rsg::getGeneratorSettings().maxTemplateCustomParameters; ++i) {
+        if (i >= settings.parameters.size()) {
+            break;
+        }
+
+        rsg::MapTemplateSettings::TemplateCustomParameter parameter = settings.parameters[i];
+        std::string value;
+        if (!parameter.values.empty()) {
+            value = parameter.values[settings.parametersValues[i]-1];
+        } else {
+            value = std::to_string(settings.parametersValues[i]) + parameter.unit;
+        }
+        parametersString += fmt::format(" {:s}: {:s}.", parameter.name, value);
+    }
+
     auto description{getInterfaceText(textIds().rsg.description.c_str())};
     if (!description.empty()) {
         replace(description, "%TMPL%", settings.name);
@@ -197,16 +222,19 @@ static rsg::MapGenOptions createGeneratorOptions(const rsg::MapTemplate& mapTemp
         replace(description, "%GOLD%", std::to_string(settings.startingGold));
         replace(description, "%ROADS%", std::to_string(settings.roads));
         replace(description, "%FOREST%", std::to_string(settings.forest));
+        replace(description, "%PARAMETERS%", parametersString);
         options.description = std::move(description);
     } else {
         options.description = fmt::format("Random scenario based on template '{:s}'. "
                                           "Seed: {:d}. "
                                           "Starting gold: {:d}. "
                                           "Roads: {:d}%. "
-                                          "Forest: {:d}%.",
+                                          "Forest: {:d}%."
+                                          "{:s}",
                                           settings.name, seed, settings.startingGold,
-                                          settings.roads, settings.forest);
+                                          settings.roads, settings.forest, parametersString);
     }
+    options.description.resize(240);
 
     return options;
 }
@@ -271,6 +299,46 @@ static void setupSizeSpinOptions(game::CSpinButtonInterf* spinButton, int sizeMi
 
         char buffer[50] = {0};
         std::snprintf(buffer, sizeof(buffer) - 1, "%d x %d", size, size);
+
+        String str;
+        string.initFromString(&str, buffer);
+
+        stringArray.pushBack(&options, &str);
+        string.free(&str);
+    }
+
+    CSpinButtonInterfApi::get().setOptions(spinButton, &options);
+    stringArray.destructor(&options);
+}
+
+static void setupParameterSpinOptions(game::CSpinButtonInterf* spinButton,
+                                      rsg::MapTemplateSettings::TemplateCustomParameter& parameter)
+{
+    if (parameter.valueMin > parameter.valueMax) {
+        return;
+    }
+
+    const int count = 1 + (parameter.valueMax - parameter.valueMin) / parameter.valueStep;
+
+    using namespace game;
+
+    const auto& string{StringApi::get()};
+    const auto& stringArray{StringArrayApi::get()};
+
+    StringArray options{};
+    stringArray.reserve(&options, static_cast<const unsigned int>(count));
+
+    for (int i = 0; i < count; ++i) {
+        const int current_value = parameter.valueMin + parameter.valueStep * i;
+
+        char buffer[50] = {0};
+
+        if (!parameter.values.empty() && !parameter.values[i].empty()) {
+            std::snprintf(buffer, sizeof(buffer) - 1, "%s", parameter.values[i].c_str());
+        } else {
+            std::snprintf(buffer, sizeof(buffer) - 1, "%d%s", current_value,
+                          parameter.unit.c_str());
+        }
 
         String str;
         string.initFromString(&str, buffer);
@@ -353,27 +421,36 @@ static void updateMenuUi(CMenuRandomScenario* menu, int selectedIndex)
     const auto& button{CButtonInterfApi::get()};
 
     const auto& settings{templates[selectedIndex].settings};
+    const auto& generatorSettings = rsg::getGeneratorSettings();
 
     CDialogInterf* dialog{menuBase.getDialogInterface(menu)};
 
-    CSpinButtonInterf* forestSpin{dialogApi.findSpinButton(dialog, forestSpinName)};
-    if (forestSpin) {
-        spinBox.setSelectedOption(forestSpin, settings.forest / forestSpinStep);
+    if (generatorSettings.enableParameterForest) {
+        CSpinButtonInterf* forestSpin = dialogApi.findSpinButton(dialog, forestSpinName);
+        if (forestSpin) {
+            spinBox.setSelectedOption(forestSpin, settings.forest / forestSpinStep);
+        }
     }
 
-    CSpinButtonInterf* roadsSpin{dialogApi.findSpinButton(dialog, roadsSpinName)};
-    if (roadsSpin) {
-        spinBox.setSelectedOption(roadsSpin, settings.roads / roadsSpinStep);
+    if (generatorSettings.enableParameterRoads) {
+        CSpinButtonInterf* roadsSpin = dialogApi.findSpinButton(dialog, roadsSpinName);
+        if (roadsSpin) {
+            spinBox.setSelectedOption(roadsSpin, settings.roads / roadsSpinStep);
+        }
     }
 
-    CSpinButtonInterf* goldSpin{dialogApi.findSpinButton(dialog, goldSpinName)};
-    if (goldSpin) {
-        spinBox.setSelectedOption(goldSpin, settings.startingGold / goldSpinStep);
+    if (generatorSettings.enableParameterGold) {
+        CSpinButtonInterf* goldSpin{dialogApi.findSpinButton(dialog, goldSpinName)};
+        if (goldSpin) {
+            spinBox.setSelectedOption(goldSpin, settings.startingGold / goldSpinStep);
+        }
     }
 
-    CSpinButtonInterf* manaSpin{dialogApi.findSpinButton(dialog, manaSpinName)};
-    if (manaSpin) {
-        spinBox.setSelectedOption(manaSpin, settings.startingNativeMana / manaSpinStep);
+    if (generatorSettings.enableParameterMana) {
+        CSpinButtonInterf* manaSpin{dialogApi.findSpinButton(dialog, manaSpinName)};
+        if (manaSpin) {
+            spinBox.setSelectedOption(manaSpin, settings.startingNativeMana / manaSpinStep);
+        }
     }
 
     CTextBoxInterf* descText{dialogApi.findTextBox(dialog, descTextName)};
@@ -386,6 +463,42 @@ static void updateMenuUi(CMenuRandomScenario* menu, int selectedIndex)
         setupSizeSpinOptions(sizeSpin, settings.sizeMin, settings.sizeMax);
         // Select smallest scenario size by default
         CSpinButtonInterfApi::get().setSelectedOption(sizeSpin, 0);
+    }
+
+    const int maxParameters = generatorSettings.maxTemplateCustomParameters;
+    for (int i = 0; i < maxParameters; ++i) {
+        char bufferSpin[50] = {0};
+        char bufferTxt[50] = {0};
+        std::snprintf(bufferSpin, sizeof(bufferSpin) - 1, "SPIN_PARAMETER_%d", i + 1);
+        std::snprintf(bufferTxt, sizeof(bufferTxt) - 1, "TXT_PARAMETER_%d", i + 1);
+
+        const char* parameterSpinName = bufferSpin;
+        const char* parameterTxtName = bufferTxt;
+
+        CSpinButtonInterf* parameterSpin{dialogApi.findSpinButton(dialog, parameterSpinName)};
+        if (parameterSpin) {
+            if (i < settings.parameters.size()) {
+                rsg::MapTemplateSettings::TemplateCustomParameter parameter = settings.parameters[i];
+                setupParameterSpinOptions(parameterSpin, parameter);
+                // Select default parameter value
+                const int parameterDefaultIndex = (parameter.valueDefault - parameter.valueMin)
+                                                  / parameter.valueStep;
+                CSpinButtonInterfApi::get().setSelectedOption(parameterSpin, parameterDefaultIndex);
+            } else {
+                StringArray options{};
+                CSpinButtonInterfApi::get().setOptions(parameterSpin, &options);
+            }
+        }
+
+        CTextBoxInterf* parameterText{dialogApi.findTextBox(dialog, parameterTxtName)};
+        if (parameterText) {
+            if (i < settings.parameters.size()) {
+                rsg::MapTemplateSettings::TemplateCustomParameter parameter = settings.parameters[i];
+                CTextBoxInterfApi::get().setString(parameterText, parameter.name.c_str());
+            } else {
+                CTextBoxInterfApi::get().setString(parameterText, "");
+            }
+        }
     }
 
     if (dialogApi.findControl(dialog, "EDIT_GAME")) {
@@ -677,6 +790,7 @@ static void __fastcall buttonGenerateHandler(CMenuRandomScenario* thisptr, int /
 
     const auto& menuBase{CMenuBaseApi::get()};
     const auto& dialogApi{CDialogInterfApi::get()};
+    const auto& generatorSettings = rsg::getGeneratorSettings();
 
     CDialogInterf* dialog{menuBase.getDialogInterface(thisptr)};
 
@@ -686,12 +800,37 @@ static void __fastcall buttonGenerateHandler(CMenuRandomScenario* thisptr, int /
     }
 
     const CSpinButtonInterf* sizeSpin{dialogApi.findSpinButton(dialog, sizeSpinName)};
-    const CSpinButtonInterf* forestSpin{dialogApi.findSpinButton(dialog, forestSpinName)};
-    const CSpinButtonInterf* roadsSpin{dialogApi.findSpinButton(dialog, roadsSpinName)};
-    const CSpinButtonInterf* goldSpin{dialogApi.findSpinButton(dialog, goldSpinName)};
-    const CSpinButtonInterf* manaSpin{dialogApi.findSpinButton(dialog, manaSpinName)};
-    if (!sizeSpin || !forestSpin || !roadsSpin || !goldSpin || !manaSpin) {
+
+    if (!sizeSpin) {
         return;
+    }
+
+    if (generatorSettings.enableParameterForest) {
+        const CSpinButtonInterf* forestSpin = dialogApi.findSpinButton(dialog, forestSpinName);
+        if (!forestSpin) {
+            return;
+        }
+    }
+
+    if (generatorSettings.enableParameterRoads) {
+        const CSpinButtonInterf* roadsSpin = dialogApi.findSpinButton(dialog, roadsSpinName);
+        if (!roadsSpin) {
+            return;
+        }
+    }
+
+    if (generatorSettings.enableParameterGold) {
+        const CSpinButtonInterf* goldSpin = dialogApi.findSpinButton(dialog, goldSpinName);
+        if (!goldSpin) {
+            return;
+        }
+    }
+
+    if (generatorSettings.enableParameterMana) {
+        const CSpinButtonInterf* manaSpin = dialogApi.findSpinButton(dialog, manaSpinName);
+        if (!manaSpin) {
+            return;
+        }
     }
 
     const int selectedIndex{CListBoxInterfApi::get().selectedIndex(templatesList)};
@@ -735,10 +874,53 @@ static void __fastcall buttonGenerateHandler(CMenuRandomScenario* thisptr, int /
         settings.size = spinSizeOptionToScenarioSize(sizeSpin, settings.sizeMin, settings.sizeMax);
         raceIndicesToRaces(settings.races, thisptr->raceIndices);
 
-        settings.forest = forestSpin->data->selectedOption * forestSpinStep;
-        settings.roads = roadsSpin->data->selectedOption * roadsSpinStep;
-        settings.startingGold = goldSpin->data->selectedOption * goldSpinStep;
-        settings.startingNativeMana = manaSpin->data->selectedOption * manaSpinStep;
+        if (generatorSettings.enableParameterForest) {
+            const CSpinButtonInterf* forestSpin = dialogApi.findSpinButton(dialog, forestSpinName);
+            if (forestSpin) {
+                settings.forest = forestSpin->data->selectedOption * forestSpinStep;
+            }
+        }
+
+        if (generatorSettings.enableParameterRoads) {
+            const CSpinButtonInterf* roadsSpin = dialogApi.findSpinButton(dialog, roadsSpinName);
+            if (roadsSpin) {
+                settings.roads = roadsSpin->data->selectedOption * roadsSpinStep;
+            }
+        }
+
+        if (generatorSettings.enableParameterGold) {
+            const CSpinButtonInterf* goldSpin = dialogApi.findSpinButton(dialog, goldSpinName);
+            if (goldSpin) {
+                settings.startingGold = goldSpin->data->selectedOption * goldSpinStep;
+            }
+        }
+
+        if (generatorSettings.enableParameterMana) {
+            const CSpinButtonInterf* manaSpin = dialogApi.findSpinButton(dialog, manaSpinName);
+            if (manaSpin) {
+                settings.startingNativeMana = manaSpin->data->selectedOption * manaSpinStep;
+            }
+        }
+
+        settings.parametersValues.clear();
+        const int maxParameters = generatorSettings.maxTemplateCustomParameters;
+        for (int i = 0; i < maxParameters; ++i) {
+
+            if (i >= settings.parameters.size()) {
+                break;
+            }
+            
+            char buffer[50] = {0};
+            std::snprintf(buffer, sizeof(buffer) - 1, "SPIN_PARAMETER_%d", i + 1);
+
+            const char* parameterSpinName = buffer;
+            
+            CSpinButtonInterf* parameterSpin{dialogApi.findSpinButton(
+                                             dialog, parameterSpinName)};
+
+            settings.parametersValues.push_back(
+                spinParameterOptionToScenarioParameter(parameterSpin, settings.parameters[i]));
+        }
 
         rsg::RandomGenerator rnd;
 
@@ -779,6 +961,8 @@ static void setupMenuUi(CMenuRandomScenario* menu, const char* dialogName)
     const auto& menuBase{CMenuBaseApi::get()};
     const auto& dialogApi{CDialogInterfApi::get()};
     const auto freeFunctor{SmartPointerApi::get().createOrFreeNoDtor};
+    const auto& generatorSettings = rsg::getGeneratorSettings();
+    rsg::readGeneratorSettings(gameFolder());
 
     CDialogInterf* dialog{menuBase.getDialogInterface(menu)};
     SmartPointer functor;
@@ -799,24 +983,32 @@ static void setupMenuUi(CMenuRandomScenario* menu, const char* dialogName)
     freeFunctor(&functor, nullptr);
 
     // Create spin button options, template selection will only change currently selected option
-    CSpinButtonInterf* forestSpin{dialogApi.findSpinButton(dialog, forestSpinName)};
-    if (forestSpin) {
-        setupSpinButtonOptions(forestSpin, 0, 100, forestSpinStep, "%");
+    if (generatorSettings.enableParameterForest) {
+        CSpinButtonInterf* forestSpin{dialogApi.findSpinButton(dialog, forestSpinName)};
+        if (forestSpin) {
+            setupSpinButtonOptions(forestSpin, 0, 100, forestSpinStep, "%");
+        }
     }
 
-    CSpinButtonInterf* roadsSpin{dialogApi.findSpinButton(dialog, roadsSpinName)};
-    if (roadsSpin) {
-        setupSpinButtonOptions(roadsSpin, 0, 100, roadsSpinStep, "%");
+    if (generatorSettings.enableParameterRoads) {
+        CSpinButtonInterf* roadsSpin{dialogApi.findSpinButton(dialog, roadsSpinName)};
+        if (roadsSpin) {
+            setupSpinButtonOptions(roadsSpin, 0, 100, roadsSpinStep, "%");
+        }
     }
 
-    CSpinButtonInterf* goldSpin{dialogApi.findSpinButton(dialog, goldSpinName)};
-    if (goldSpin) {
-        setupSpinButtonOptions(goldSpin, 0, 9999, goldSpinStep);
+    if (generatorSettings.enableParameterGold) {
+        CSpinButtonInterf* goldSpin{dialogApi.findSpinButton(dialog, goldSpinName)};
+        if (goldSpin) {
+            setupSpinButtonOptions(goldSpin, 0, 9999, goldSpinStep);
+        }
     }
 
-    CSpinButtonInterf* manaSpin{dialogApi.findSpinButton(dialog, manaSpinName)};
-    if (manaSpin) {
-        setupSpinButtonOptions(manaSpin, 0, 9999, manaSpinStep);
+    if (generatorSettings.enableParameterMana) {
+        CSpinButtonInterf* manaSpin{dialogApi.findSpinButton(dialog, manaSpinName)};
+        if (manaSpin) {
+            setupSpinButtonOptions(manaSpin, 0, 9999, manaSpinStep);
+        }
     }
 
     // Cache race buttons, assign initial indices and setup callbacks

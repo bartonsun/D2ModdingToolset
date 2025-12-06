@@ -382,17 +382,15 @@ bool NativeGameInfo::readUnitsInfo()
             continue;
         }
 
-        // Skip water-only units until generator supports water zones
-        if (soldier->vftable->getWaterOnly(soldier)) {
-            continue;
-        }
-
         auto& unitId{idToRsgId(unitImpl->id)};
         auto& raceId{idToRsgId(*soldier->vftable->getRaceId(soldier))};
         auto& nameId{idToRsgId(soldier->data->name.id)};
 
         int level{soldier->vftable->getLevel(soldier)};
         int value{soldier->vftable->getXpKilled(soldier)};
+
+        const Bank* bankEnrollCost{soldier->vftable->getEnrollCost(soldier)};
+        int enrollCost{bankToValue(*bankEnrollCost)};
 
         rsg::SubRaceType subrace{(rsg::SubRaceType)soldier->vftable->getSubrace(soldier)->id};
 
@@ -448,8 +446,9 @@ bool NativeGameInfo::readUnitsInfo()
         bool male{soldier->vftable->getSexM(soldier)};
 
         auto unitInfo{std::make_unique<NativeUnitInfo>(unitId, raceId, nameId, level, value,
-                                                       unitType, subrace, reach, attackType, hp,
-                                                       move, leadership, big, male)};
+                                                       enrollCost, unitType, subrace, reach, 
+                                                       attackType, hp, move, leadership, 
+                                                       big, male)};
 
         if (unitType == rsg::UnitType::Leader) {
             leaders.push_back(unitInfo.get());

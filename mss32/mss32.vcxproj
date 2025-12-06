@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -181,6 +181,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\batattackdrainoverflow.cpp" />
     <ClCompile Include="src\batattackgiveattack.cpp" />
     <ClCompile Include="src\batattackgroupupgrade.cpp" />
+    <ClCompile Include="src\batattackheal.cpp" />
     <ClCompile Include="src\batattackshatter.cpp" />
     <ClCompile Include="src\batattacksummon.cpp" />
     <ClCompile Include="src\batattacktransformother.cpp" />
@@ -189,6 +190,8 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\batattackutils.cpp" />
     <ClCompile Include="src\batbigface.cpp" />
     <ClCompile Include="src\batimagesloader.cpp" />
+    <ClCompile Include="src\batlogic.cpp" />
+    <ClCompile Include="src\batlogichooks.cpp" />
     <ClCompile Include="src\battleattackinfo.cpp" />
     <ClCompile Include="src\battlemsgdata.cpp" />
     <ClCompile Include="src\battlemsgdatahooks.cpp" />
@@ -208,6 +211,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\bindings\gameview.cpp" />
     <ClCompile Include="src\bindings\globalvariablesview.cpp" />
     <ClCompile Include="src\bindings\globalview.cpp" />
+    <ClCompile Include="src\bindings\landmarkview.cpp" />
     <ClCompile Include="src\bindings\merchantview.cpp" />
     <ClCompile Include="src\bindings\mercsview.cpp" />
     <ClCompile Include="src\bindings\resourcemarketview.cpp" />
@@ -278,6 +282,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\globalvariables.cpp" />
     <ClCompile Include="src\globalvariableshooks.cpp" />
     <ClCompile Include="src\groupupgradehooks.cpp" />
+    <ClCompile Include="src\batattackhealhooks.cpp" />
     <ClCompile Include="src\image2memory.cpp" />
     <ClCompile Include="src\intintmap.cpp" />
     <ClCompile Include="src\intvector.cpp" />
@@ -326,6 +331,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\enclayoutstack.cpp" />
     <ClCompile Include="src\isoview.cpp" />
     <ClCompile Include="src\isoviewhooks.cpp" />
+    <ClCompile Include="src\landmarkutils.cpp" />
     <ClCompile Include="src\logutils.cpp" />
     <ClCompile Include="src\managestkinterf.cpp" />
     <ClCompile Include="src\managestkinterfhooks.cpp" />
@@ -389,6 +395,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\phasegamehooks.cpp" />
     <ClCompile Include="src\resourcemarketinterface.cpp" />
     <ClCompile Include="src\resourcetype.cpp" />
+    <ClCompile Include="src\resultsender.cpp" />
     <ClCompile Include="src\scenarioobjectstreams.cpp" />
     <ClCompile Include="src\scenariotemplates.cpp" />
     <ClCompile Include="src\refreshinfo.cpp" />
@@ -608,6 +615,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\waitgenerationinterf.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="cpp.hint" />
     <None Include="module.def" />
   </ItemGroup>
   <ItemGroup>
@@ -704,6 +712,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\batattackdrainoverflow.h" />
     <ClInclude Include="include\batattackgiveattack.h" />
     <ClInclude Include="include\batattackgroupupgrade.h" />
+    <ClInclude Include="include\batattackheal.h" />
     <ClInclude Include="include\batattackitem.h" />
     <ClInclude Include="include\batattackshatter.h" />
     <ClInclude Include="include\batattacksummon.h" />
@@ -716,6 +725,8 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\batattackutils.h" />
     <ClInclude Include="include\batbigface.h" />
     <ClInclude Include="include\batimagesloader.h" />
+    <ClInclude Include="include\batlogic.h" />
+    <ClInclude Include="include\batlogichooks.h" />
     <ClInclude Include="include\batnotify.h" />
     <ClInclude Include="include\battleattackinfo.h" />
     <ClInclude Include="include\battlemsgdata.h" />
@@ -738,6 +749,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\bindings\gameview.h" />
     <ClInclude Include="include\bindings\globalvariablesview.h" />
     <ClInclude Include="include\bindings\globalview.h" />
+    <ClInclude Include="include\bindings\landmarkview.h" />
     <ClInclude Include="include\bindings\merchantview.h" />
     <ClInclude Include="include\bindings\mercsview.h" />
     <ClInclude Include="include\bindings\resourcemarketview.h" />
@@ -796,7 +808,9 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\fontshooks.h" />
     <ClInclude Include="include\functordispatchmemfunc3.h" />
     <ClInclude Include="include\gameversion.h" />
+    <ClInclude Include="include\batattackhealhooks.h" />
     <ClInclude Include="include\image2dupweak.h" />
+    <ClInclude Include="include\landmarkutils.h" />
     <ClInclude Include="include\logfile.h" />
     <ClInclude Include="include\menucustomloadskirmishmulti.h" />
     <ClInclude Include="include\menucustomnewskirmishmulti.h" />
@@ -958,6 +972,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\nativeunitinfo.h" />
     <ClInclude Include="include\resourcemarketinterface.h" />
     <ClInclude Include="include\resourcetype.h" />
+    <ClInclude Include="include\resultsender.h" />
     <ClInclude Include="include\scenarioobjectstreams.h" />
     <ClInclude Include="include\scenariotemplates.h" />
     <ClInclude Include="include\scenedit.h" />
