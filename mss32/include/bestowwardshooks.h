@@ -22,8 +22,6 @@
 
 namespace game {
 struct CBatAttackBestowWards;
-struct CBatAttackBoostDamage;
-struct CBatAttackHeal;
 struct IMidgardObjectMap;
 struct BattleMsgData;
 struct CMidgardID;
@@ -54,26 +52,6 @@ bool __fastcall bestowWardsAttackIsImmuneHooked(game::CBatAttackBestowWards* thi
                                                 game::IMidgardObjectMap* objectMap,
                                                 game::BattleMsgData* battleMsgData,
                                                 game::CMidgardID* unitId);
-
-bool __fastcall boostDamageCanPerformHooked(game::CBatAttackBoostDamage* thisptr,
-                                            int /*%edx*/,
-                                            game::IMidgardObjectMap* objectMap,
-                                            game::BattleMsgData* battleMsgData,
-                                            game::CMidgardID* unitId);
-
-void __fastcall boostDamageOnHitHooked(game::CBatAttackBoostDamage* thisptr,
-                                       int /*%edx*/,
-                                       game::IMidgardObjectMap* objectMap,
-                                       game::BattleMsgData* battleMsgData,
-                                       game::CMidgardID* targetUnitId,
-                                       game::BattleAttackInfo** attackInfo);
-
-void __fastcall healAttackOnHitHooked(game::CBatAttackHeal* thisptr,
-                                      int /*%edx*/,
-                                      game::IMidgardObjectMap* objectMap,
-                                      game::BattleMsgData* battleMsgData,
-                                      game::CMidgardID* targetUnitId,
-                                      game::BattleAttackInfo** attackInfo);
 } // namespace hooks
 
 #endif // BESTOWWARDSHOOKS_H

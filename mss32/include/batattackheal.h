@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2020 Vladimir Makeev.
+ * Copyright (C) 2025 Alexey Voskresensky.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,18 +25,20 @@
 
 namespace game {
 
+struct BattleUiData;
+struct CBattleMsgData;
+struct CMidgardID;
 struct IAttack;
-
+struct IMidgardObjectMap;
 struct CBatAttackHeal : public CBatAttackBase
 {
-    CMidgardID unitId;
-    CMidgardID attackImplUnitId;
+    CMidgardID unitId1;
+    CMidgardID unitId2;
     int attackNumber; /**< 1 if this is a unit's primary attack, 2 for secondary. */
-    IAttack* attackImpl;
-    IAttack* attack2Impl;
-    bool attack2Initialized;
-    char padding[3];
-    int attackImplMagic;
+    IAttack* attack;
+    IAttack* attack2;
+    int unknown3;
+    int unknown4;
 };
 
 assert_size(CBatAttackHeal, 32);

@@ -38,6 +38,7 @@
 #include "usunit.h"
 #include "usunitimpl.h"
 #include <spdlog/spdlog.h>
+
 #include <gameutils.h>
 #include <version.h>
 #include "modifierview.h"
@@ -111,37 +112,16 @@ bool __fastcall removeModifierHooked(game::CMidUnit* thisptr,
                 notifyModifiersChanged(thisptr->unitImpl);
             }
 
-            /* We realy dont need this
-            auto ModifierRemoved = getScriptFunction(scriptsFolder() / "hooks/modifiers.lua",
-                                                     "ModifierRemoved",
-                                       env, false, true);
-            if (ModifierRemoved) {
-                try {
-                    (*ModifierRemoved)(target, mods);
-                } catch (const std::exception& e) {
-                    showErrorMessageBox(fmt::format("Failed to run 'OnRemoveModifier' script.\n"
-                                                    "Reason: '{:s}'",
-                                                    e.what()));
-                }
-            }
-            */
             int maxHp = getUnitHpMax(thisptr);
 
-            if (version != GameVersion::ScenarioEditor && maxHp > maxHpBefore)
+            game::IMidgardObjectMap* objectMap = const_cast<game::IMidgardObjectMap*>(hooks::getObjectMap());
+            if (version != GameVersion::ScenarioEditor && maxHp != maxHpBefore)
             {
                 int diff = maxHp - maxHpBefore;
-                game::IMidgardObjectMap* objectMap = const_cast<game::IMidgardObjectMap*>(hooks::getObjectMap());
-                VisitorApi::get().changeUnitHp(&thisptr->id, diff, objectMap, 1);
-            } 
-            else if (version != GameVersion::ScenarioEditor && maxHp < maxHpBefore)
-            {
-                int diff = maxHp - maxHpBefore;
-                int curHp = thisptr->currentHp - diff;
-                if (curHp <= 0)
-                    diff -= curHp + 1;
-                game::IMidgardObjectMap* objectMap = const_cast<game::IMidgardObjectMap*>(hooks::getObjectMap());
-                VisitorApi::get().changeUnitHp(&thisptr->id, diff, objectMap, 1);
+                thisptr->currentHp = std::clamp(thisptr->currentHp + diff, 1, maxHp);
+
             }
+            
 
             modifier->vftable->destructor(modifier, true);
             return true;

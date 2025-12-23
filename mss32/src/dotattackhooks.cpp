@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
- * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2021 Stanislav Egorov.
+ * (https://github.com/Rapthos/Experimental-version)
+ * Copyright (C) 2025 Rapthos.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ namespace hooks {
 
         int boost = 0;
         int lower = 0;
+        double damage = baseDamage;
 
         if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::BoostDamageLvl1))
             boost = 1;
@@ -65,7 +66,7 @@ namespace hooks {
 
         int sumBoost = hooks::getBoostDamage(boost) - hooks::getLowerDamage(lower);
 
-        int result = baseDamage + baseDamage * sumBoost / 100;
+        int result = int(damage + damage * sumBoost / 100);
 
         return result;
     }

@@ -24,7 +24,42 @@
 #include "dynamiccast.h"
 #include "visitors.h"
 
+#include <attackutils.h>
+#include <restrictions.h>
+#include <sol/sol.hpp>
+
 namespace hooks {
+
+int computeBoostedHeal(game::CMidgardID* unitId, game::BattleMsgData* battleMsgData, int baseHeal)
+{
+    using namespace game;
+    auto& battleApi = BattleMsgDataApi::get();
+    const auto& restrictions = gameRestrictions();
+
+    int boost = 0;
+    int lower = 0;
+    double heal = baseHeal;
+
+    if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::BoostDamageLvl1))
+        boost = 1;
+    else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::BoostDamageLvl2))
+        boost = 2;
+    else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::BoostDamageLvl3))
+        boost = 3;
+    else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::BoostDamageLvl4))
+        boost = 4;
+
+    if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::LowerDamageLvl1))
+        lower = 1;
+    else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::LowerDamageLvl2))
+        lower = 2;
+
+    int sumBoost = hooks::getBoostDamage(boost) - hooks::getLowerDamage(lower);
+
+    int result = int( heal + heal * sumBoost / 100 );
+
+    return std::clamp(result, restrictions.attackHeal.min, restrictions.attackHeal.max);
+}
 
 bool canHeal(game::IAttack* attack,
              game::IMidgardObjectMap* objectMap,

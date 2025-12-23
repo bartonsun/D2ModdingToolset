@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
- * (https://github.com/Rapthos/Experimental-version)
- * Copyright (C) 2025 Rapthos.
+ * (https://github.com/VladimirMakeev/D2ModdingToolset)
+ * Copyright (C) 2025 Alexey Voskresensky.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,28 +17,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "batattackpoison.h"
-#include "version.h"
-#include <array>
+#ifndef LANDMARKUTILS_H
+#define LANDMARKUTILS_H
 
-namespace game::CBatAttackPoisonApi {
+namespace game {
+struct TLandmarkData;
+struct CMidgardID;
+} // namespace game
 
-// clang-format off
-static std::array<IBatAttackVftable*, 4> vftables = {{
-    // Akella
-    (IBatAttackVftable*)0x6f513c,
-    // Russobit
-    (IBatAttackVftable*)0x6f513c,
-    // Gog
-    (IBatAttackVftable*)0x6f30ec,
-    // Scenario Editor
-    (IBatAttackVftable*)nullptr,
-}};
-// clang-format on
+namespace hooks {
 
-IBatAttackVftable* vftable()
-{
-    return vftables[static_cast<int>(hooks::gameVersion())];
-}
+bool isLandmarkMountain(const game::CMidgardID* landmarkTypeId);
 
-} // namespace game::CBatAttackPoisonApi
+} // namespace hooks
+
+#endif // LANDMARKUTILS_H

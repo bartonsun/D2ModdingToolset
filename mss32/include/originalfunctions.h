@@ -71,7 +71,8 @@
 #include "taskobjprop.h"
 #include "testcondition.h"
 #include "visitors.h"
-#include <batviewer.h>
+
+#include "batviewer.h"
 
 namespace hooks {
 
@@ -225,7 +226,6 @@ struct OriginalFunctions
     game::BattleMsgDataApi::Api::SetUnitStatus setUnitStatus;
     game::IBatViewerVftable::BattleEnd battleEnd;
     game::BattleMsgDataApi::Api::UnitCanBeCured unitCanBeCured;
-
 };
 
 OriginalFunctions& getOriginalFunctions();

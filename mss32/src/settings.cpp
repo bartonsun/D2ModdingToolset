@@ -373,9 +373,11 @@ static void readExtandedBattleSettings(const sol::table& table, Settings::Extend
         return;
     }
 
-    value.dotDamageCanStack = readSetting(category.value(), "dotDamageCanStack", def.dotDamageCanStack);
+    value.dotDamageCanStack = readSetting(category.value(), "dotDamageCanStack",
+                                          def.dotDamageCanStack);
     value.blisterDamageID = readSetting(category.value(), "blisterDamageID", def.blisterDamageID);
-    value.frostbiteDamageID = readSetting(category.value(), "frostbiteDamageID", def.frostbiteDamageID);
+    value.frostbiteDamageID = readSetting(category.value(), "frostbiteDamageID",
+                                          def.frostbiteDamageID);
     value.poisonDamageID = readSetting(category.value(), "poisonDamageID", def.poisonDamageID);
     value.maxDotDamage = readSetting(category.value(), "maxDotDamage", def.maxDotDamage, 0, 32767);
 
@@ -420,6 +422,10 @@ static void readSettings(const sol::table& table, Settings& settings)
     settings.freeTransformSelfAttack = readSetting(table, "freeTransformSelfAttack", defaultSettings().freeTransformSelfAttack);
     settings.freeTransformSelfAttackInfinite = readSetting(table, "freeTransformSelfAttackInfinite", defaultSettings().freeTransformSelfAttackInfinite);
     settings.fixEffectiveHpFormula = readSetting(table, "fixEffectiveHpFormula", defaultSettings().fixEffectiveHpFormula);
+    settings.alchemistKeepsAttackCount = readSetting(table, "alchemistKeepsAttackCount", defaultSettings().alchemistKeepsAttackCount);
+    settings.instantBuffRemoval = readSetting(table, "instantBuffRemoval", defaultSettings().instantBuffRemoval);
+    settings.reviveUsesQtyHeal = readSetting(table, "reviveUsesQtyHeal", defaultSettings().reviveUsesQtyHeal);
+    settings.advancedCure = readSetting(table, "advancedCure", defaultSettings().advancedCure);
     // People keep forgetting to turn this off in release packages
     //settings.debugMode = readSetting(table, "debugHooks", defaultSettings().debugMode);
     // clang-format on
@@ -534,6 +540,7 @@ const Settings& baseSettings()
         settings.alchemistKeepsAttackCount = false;
         settings.instantBuffRemoval = false;
         settings.reviveUsesQtyHeal = false;
+        settings.advancedCure = false;
 
         settings.extendedBattle.dotDamageCanStack = false;
         settings.extendedBattle.blisterDamageID = "g202aa";

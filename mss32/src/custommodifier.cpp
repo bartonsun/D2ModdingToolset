@@ -1297,8 +1297,6 @@ int __fastcall attackGetQtyHeal(const game::IAttack* thisptr, int /*%edx*/)
     bool primary = thisptr != &thiz->attack2;
     auto value = primary ? THIZ_GET_VALUE(getAttackHeal, prevValue)
                          : THIZ_GET_VALUE(getAttack2Heal, prevValue);
-
-
     return std::clamp(value, restrictions.attackHeal.min, restrictions.attackHeal.max);
 }
 

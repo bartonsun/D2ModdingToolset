@@ -75,8 +75,7 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
 
             CMidUnit* unit = fn.findUnitById(thisptr->objectMap, &unitId);
             if (unit) {
-                if (battleApi.getUnitStatus(thisptr->battleMsgData, &unitId,
-                                            BattleStatus::Summon)) {
+                if (battleApi.getUnitStatus(thisptr->battleMsgData, &unitId, BattleStatus::Summon)) {
                     batLogicApi.applyCBatAttackUnsummonEffect(thisptr->objectMap, &unitId,
                                                               thisptr->battleMsgData, resultSender);
 
@@ -91,6 +90,7 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
             }
         }
 
+        
         CMidgardID winnerGroup1Id;
         batLogicApi.getBattleWinnerGroupId(thisptr, &winnerGroup1Id);
 
@@ -103,6 +103,7 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
 
         CMidgardID winnerGroup2Id;
         batLogicApi.getBattleWinnerGroupId(thisptr, &winnerGroup2Id);
+
 
         batLogicApi.applyCBatAttackGroupBattleCount(thisptr->objectMap, &winnerGroup2Id,
                                                     battleMsgData2, resultSender);
@@ -128,6 +129,7 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
                                                 e.what()));
             }
         }
+
     }
 }
 

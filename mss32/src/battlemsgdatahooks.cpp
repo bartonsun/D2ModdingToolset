@@ -431,7 +431,6 @@ void __fastcall beforeBattleRoundHooked(game::BattleMsgData* thisptr, int /*%edx
         }
     }
 
-    // Hooks
     std::optional<sol::environment> env;
     auto f = getScriptFunction(scriptsFolder() / "hooks/hooks.lua", "OnBeforeBattleRound", env,
                                false, true);

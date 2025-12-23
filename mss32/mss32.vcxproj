@@ -57,13 +57,12 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;MSS32_EXPORTS;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;NOMINMAX;__INTEGRATE_LOBBY2_WITH_ROOMS_PLUGIN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;MSS32_EXPORTS;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;NOMINMAX;__INTEGRATE_LOBBY2_WITH_ROOMS_PLUGIN;SOL_NO_CHECK_NUMBER_PRECISION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <AdditionalIncludeDirectories>$(ProjectDir)..\Detours\src;$(ProjectDir)..\GSL\include;$(ProjectDir)..\fmt\include;$(ProjectDir)include;$(ProjectDir)include\dbf;$(ProjectDir)..\lua;$(ProjectDir)..\sol2\single\include;$(ProjectDir)..\spdlog\include;$(ProjectDir)include\bindings;$(ProjectDir)..\SLikeNet\Source;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2\Rooms;$(ProjectDir)..\D2RSG\ScenarioGenerator\src;$(ProjectDir)..\D2RSG\ScenarioGenerator\src\scenario;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -93,7 +92,6 @@ call ..\buildDetours.bat ..\Detours
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)..\Detours\src;$(ProjectDir)..\GSL\include;$(ProjectDir)..\fmt\include;$(ProjectDir)include;$(ProjectDir)include\dbf;$(ProjectDir)..\lua;$(ProjectDir)..\sol2\single\include;$(ProjectDir)..\spdlog\include;$(ProjectDir)include\bindings;$(ProjectDir)..\SLikeNet\Source;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2;$(ProjectDir)..\SLikeNet\DependentExtensions\Lobby2\Rooms;$(ProjectDir)..\D2RSG\ScenarioGenerator\src;$(ProjectDir)..\D2RSG\ScenarioGenerator\src\scenario;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -177,19 +175,19 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\autodialoghooks.cpp" />
     <ClCompile Include="src\autoptr.cpp" />
     <ClCompile Include="src\batattackbestowwards.cpp" />
-    <ClCompile Include="src\batattackblister.cpp" />
+	<ClCompile Include="src\batattackblister.cpp" />
     <ClCompile Include="src\batattackfrostbite.cpp" />
     <ClCompile Include="src\batattackpoison.cpp" />
     <ClCompile Include="src\dotattackhooks.cpp" />
     <ClCompile Include="src\batattacklowerdamage.cpp" />
     <ClCompile Include="src\batattackboostdamage.cpp" />
-    <ClCompile Include="src\batattackheal.cpp" />
     <ClCompile Include="src\batattackdoppelganger.cpp" />
     <ClCompile Include="src\batattackdrain.cpp" />
     <ClCompile Include="src\batattackdrainlevel.cpp" />
     <ClCompile Include="src\batattackdrainoverflow.cpp" />
     <ClCompile Include="src\batattackgiveattack.cpp" />
     <ClCompile Include="src\batattackgroupupgrade.cpp" />
+    <ClCompile Include="src\batattackheal.cpp" />
     <ClCompile Include="src\batattackshatter.cpp" />
     <ClCompile Include="src\batattacksummon.cpp" />
     <ClCompile Include="src\batattacktransformother.cpp" />
@@ -219,6 +217,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\bindings\gameview.cpp" />
     <ClCompile Include="src\bindings\globalvariablesview.cpp" />
     <ClCompile Include="src\bindings\globalview.cpp" />
+    <ClCompile Include="src\bindings\landmarkview.cpp" />
     <ClCompile Include="src\bindings\merchantview.cpp" />
     <ClCompile Include="src\bindings\mercsview.cpp" />
     <ClCompile Include="src\bindings\resourcemarketview.cpp" />
@@ -289,6 +288,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\globalvariables.cpp" />
     <ClCompile Include="src\globalvariableshooks.cpp" />
     <ClCompile Include="src\groupupgradehooks.cpp" />
+    <ClCompile Include="src\batattackhealhooks.cpp" />
     <ClCompile Include="src\image2memory.cpp" />
     <ClCompile Include="src\intintmap.cpp" />
     <ClCompile Include="src\intvector.cpp" />
@@ -337,6 +337,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\enclayoutstack.cpp" />
     <ClCompile Include="src\isoview.cpp" />
     <ClCompile Include="src\isoviewhooks.cpp" />
+    <ClCompile Include="src\landmarkutils.cpp" />
     <ClCompile Include="src\logutils.cpp" />
     <ClCompile Include="src\managestkinterf.cpp" />
     <ClCompile Include="src\managestkinterfhooks.cpp" />
@@ -620,7 +621,9 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\waitgenerationinterf.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="cpp.hint" />
+    <None Include="..\CONTRIBUTORS.md" />
+    <None Include="..\luaApi.md" />
+    <None Include="..\README.md" />
     <None Include="module.def" />
   </ItemGroup>
   <ItemGroup>
@@ -711,19 +714,19 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\avoidflickerimage.h" />
     <ClInclude Include="include\batattack.h" />
     <ClInclude Include="include\batattackbestowwards.h" />
-    <ClInclude Include="include\batattackblister.h" />
+	<ClInclude Include="include\batattackblister.h" />
     <ClInclude Include="include\batattackfrostbite.h" />
     <ClInclude Include="include\batattackpoison.h" />
     <ClInclude Include="include\dotattackhooks.h" />
     <ClInclude Include="include\batattacklowerdamage.h" />
     <ClInclude Include="include\batattackboostdamage.h" />
-    <ClInclude Include="include\batattackheal.h" />
     <ClInclude Include="include\batattackdoppelganger.h" />
     <ClInclude Include="include\batattackdrain.h" />
     <ClInclude Include="include\batattackdrainlevel.h" />
     <ClInclude Include="include\batattackdrainoverflow.h" />
     <ClInclude Include="include\batattackgiveattack.h" />
     <ClInclude Include="include\batattackgroupupgrade.h" />
+    <ClInclude Include="include\batattackheal.h" />
     <ClInclude Include="include\batattackitem.h" />
     <ClInclude Include="include\batattackshatter.h" />
     <ClInclude Include="include\batattacksummon.h" />
@@ -760,6 +763,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\bindings\gameview.h" />
     <ClInclude Include="include\bindings\globalvariablesview.h" />
     <ClInclude Include="include\bindings\globalview.h" />
+    <ClInclude Include="include\bindings\landmarkview.h" />
     <ClInclude Include="include\bindings\merchantview.h" />
     <ClInclude Include="include\bindings\mercsview.h" />
     <ClInclude Include="include\bindings\resourcemarketview.h" />
@@ -818,7 +822,9 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\fontshooks.h" />
     <ClInclude Include="include\functordispatchmemfunc3.h" />
     <ClInclude Include="include\gameversion.h" />
+    <ClInclude Include="include\batattackhealhooks.h" />
     <ClInclude Include="include\image2dupweak.h" />
+    <ClInclude Include="include\landmarkutils.h" />
     <ClInclude Include="include\logfile.h" />
     <ClInclude Include="include\menucustomloadskirmishmulti.h" />
     <ClInclude Include="include\menucustomnewskirmishmulti.h" />
@@ -1099,7 +1105,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\itemspecial.h" />
     <ClInclude Include="include\itemspell.h" />
     <ClInclude Include="include\itemtalisman.h" />
-	<ClInclude Include="include\itemtransferhooks.h" />
+    <ClInclude Include="include\itemtransferhooks.h" />
     <ClInclude Include="include\itemtravelitem.h" />
     <ClInclude Include="include\itemutils.h" />
     <ClInclude Include="include\itemvaluable.h" />

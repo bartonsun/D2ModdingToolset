@@ -242,7 +242,6 @@ struct Settings
         bool boostdamageCanAffectHealer;
 
     } extendedBattle;
-
 };
 
 const Settings& baseSettings();

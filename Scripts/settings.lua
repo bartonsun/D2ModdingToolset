@@ -255,4 +255,19 @@ settings = {
 		-- Fallback action for AI controlled units in case of script errors
 		fallbackAction = BattleAction.Defend,
 	},
+	
+	alchemistKeepsAttackCount = false,
+	instantBuffRemoval = false,
+	reviveUsesQtyHeal = false,
+	advancedCure = false,
+	
+	extendedBattle = {
+		dotDamageCanStack = false,
+		blisterDamageID = "g202aa0001",
+		frostbiteDamageID = "g201aa0001",
+		poisonDamageID = "g200aa0001",
+		maxDotDamage = 300,
+		lowerdamageCanAffectHealer = false,
+		boostdamageCanAffectHealer = false,
+	},
 }
