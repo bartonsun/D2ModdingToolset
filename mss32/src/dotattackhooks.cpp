@@ -149,43 +149,28 @@ namespace hooks {
                                        game::BattleAttackInfo** attackInfo)
     {
         using namespace game;
-        auto& fn = gameFunctions();
+        auto& battle = BattleMsgDataApi::get();
+
+        game::UnitInfo* info = battle.getUnitInfoById(battleMsgData, targetUnitId);
+        game::CMidUnit* targetUnit = static_cast<CMidUnit*>(objectMap->vftable->findScenarioObjectByIdForChange(objectMap, targetUnitId));
 
         game::CAttackImpl* attackImpl = getAttackImpl(thisptr->attack);
-        int attackImplDamage = attackImpl->data->qtyDamage;
 
-        game::CMidUnit* targetUnit = static_cast<CMidUnit*>(
-            objectMap->vftable->findScenarioObjectByIdForChange(objectMap, targetUnitId));
-
-        game::UnitInfo* info = BattleMsgDataApi::get().getUnitInfoById(battleMsgData, targetUnitId);
-
-        auto attack = bindings::IdView{userSettings().extendedBattle.blisterDamageID};
-
-        int damage = computeDotDamage(&thisptr->unitId, battleMsgData, attackImplDamage);
+        int attackNumber = thisptr->attackNumber;
+        int damage = (attackNumber == 1) ? computeDotDamage(&thisptr->unitId, battleMsgData,
+                                                            attackImpl->data->qtyDamage)
+                                                : attackImpl->data->qtyDamage;
 
         if (damage > 0) {
+            int curDamage = (info->blisterAttackId == game::emptyId) ? 0 : info->dotInfo.blisterDamage;
 
-            bool infinite = thisptr->attack->vftable->getInfinite(thisptr->attack);
+            info->blisterAttackId = bindings::IdView{userSettings().extendedBattle.blisterDamageID};
+            info->dotInfo.blisterDamage = std::clamp(curDamage + damage, 0, userSettings().extendedBattle.maxDotDamage);
 
-            auto hasBlister = info->blisterAttackId;
+            battle.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Blister, true);
 
-            if (hasBlister == game::emptyId) {
-                info->blisterAttackId = attack.id;
-                info->dotInfo.blisterDamage = std::clamp(damage, 0, userSettings().extendedBattle.maxDotDamage);
-            } else {
-                int curDamage = info->dotInfo.blisterDamage;
-                damage += curDamage;
-
-                info->blisterAttackId = attack.id;
-                info->dotInfo.blisterDamage = std::clamp(damage, 0, userSettings().extendedBattle.maxDotDamage);
-            }
-
-            BattleMsgDataApi::get().setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Blister, true);
-
-            // Update Long status, replace short status
-            if (infinite) {
-                BattleMsgDataApi::get().setUnitStatus(battleMsgData, targetUnitId,
-                                                      BattleStatus::BlisterLong, infinite);
+            if (thisptr->attack->vftable->getInfinite(thisptr->attack)) {
+                battle.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::BlisterLong, true);
                 info->blisterAppliedRound = battleMsgData->currentRound;
             }
         }
@@ -204,43 +189,33 @@ namespace hooks {
                                        game::BattleAttackInfo** attackInfo)
     {
         using namespace game;
-        auto& fn = gameFunctions();
+        auto& battle = BattleMsgDataApi::get();
 
-        game::CAttackImpl* attackImpl = getAttackImpl(thisptr->attack);
-        int attackImplDamage = attackImpl->data->qtyDamage;
-
+        game::UnitInfo* info = battle.getUnitInfoById(battleMsgData, targetUnitId);
         game::CMidUnit* targetUnit = static_cast<CMidUnit*>(
             objectMap->vftable->findScenarioObjectByIdForChange(objectMap, targetUnitId));
 
-        game::UnitInfo* info = BattleMsgDataApi::get().getUnitInfoById(battleMsgData, targetUnitId);
+        game::CAttackImpl* attackImpl = getAttackImpl(thisptr->attack);
 
-        auto attack = bindings::IdView{userSettings().extendedBattle.frostbiteDamageID};
-
-        int damage = computeDotDamage(&thisptr->unitId, battleMsgData, attackImplDamage);
+        int attackNumber = thisptr->attackNumber;
+        int damage = (attackNumber == 1) ? computeDotDamage(&thisptr->unitId, battleMsgData,
+                                                            attackImpl->data->qtyDamage)
+                                         : attackImpl->data->qtyDamage;
 
         if (damage > 0) {
+            int curDamage = (info->frostbiteAttackId == game::emptyId)
+                                ? 0
+                                : info->dotInfo.frostbiteDamage;
 
-            bool infinite = thisptr->attack->vftable->getInfinite(thisptr->attack);
+            info->frostbiteAttackId = bindings::IdView{
+                userSettings().extendedBattle.frostbiteDamageID};
+            info->dotInfo.frostbiteDamage = std::clamp(curDamage + damage, 0,
+                                                     userSettings().extendedBattle.maxDotDamage);
 
-            auto hasFrostbite = info->frostbiteAttackId;
+            battle.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Frostbite, true);
 
-            if (hasFrostbite == game::emptyId) {
-                info->frostbiteAttackId = attack.id;
-                info->dotInfo.frostbiteDamage = std::clamp(damage, 0, userSettings().extendedBattle.maxDotDamage);
-            } else {
-                int curDamage = info->dotInfo.frostbiteDamage;
-                damage += curDamage;
-
-                info->frostbiteAttackId = attack.id;
-                info->dotInfo.frostbiteDamage = std::clamp(damage, 0, userSettings().extendedBattle.maxDotDamage);
-            }
-
-            BattleMsgDataApi::get().setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Frostbite, true);
-
-            // Update Long status, replace short status
-            if (infinite) {
-                BattleMsgDataApi::get().setUnitStatus(battleMsgData, targetUnitId,
-                                                      BattleStatus::FrostbiteLong, infinite);
+            if (thisptr->attack->vftable->getInfinite(thisptr->attack)) {
+                battle.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::FrostbiteLong, true);
                 info->frostbiteAppliedRound = battleMsgData->currentRound;
             }
         }
@@ -252,51 +227,38 @@ namespace hooks {
     }
 
     void __fastcall poisonOnHitHooked(game::CBatAttackPoison* thisptr,
-                                      int /*%edx*/,
-                                      game::IMidgardObjectMap* objectMap,
-                                      game::BattleMsgData* battleMsgData,
-                                      game::CMidgardID* targetUnitId,
-                                      game::BattleAttackInfo** attackInfo)
+                                       int /*%edx*/,
+                                       game::IMidgardObjectMap* objectMap,
+                                       game::BattleMsgData* battleMsgData,
+                                       game::CMidgardID* targetUnitId,
+                                       game::BattleAttackInfo** attackInfo)
     {
         using namespace game;
-        auto& fn = gameFunctions();
+        auto& battle = BattleMsgDataApi::get();
+
+        game::UnitInfo* info = battle.getUnitInfoById(battleMsgData, targetUnitId);
+        game::CMidUnit* targetUnit = static_cast<CMidUnit*>(
+            objectMap->vftable->findScenarioObjectByIdForChange(objectMap, targetUnitId));
 
         game::CAttackImpl* attackImpl = getAttackImpl(thisptr->attack);
-        int attackImplDamage = attackImpl->data->qtyDamage;
 
-        game::CMidUnit* targetUnit = static_cast<CMidUnit*>(objectMap->vftable->findScenarioObjectByIdForChange(objectMap, targetUnitId));
-
-        game::UnitInfo* info = BattleMsgDataApi::get().getUnitInfoById(battleMsgData, targetUnitId);
-
-        auto attack = bindings::IdView{userSettings().extendedBattle.poisonDamageID};
-
-        int damage = computeDotDamage(&thisptr->unitId, battleMsgData, attackImplDamage);
+        int attackNumber = thisptr->attackNumber;
+        int damage = (attackNumber == 1) ? computeDotDamage(&thisptr->unitId, battleMsgData,
+                                                            attackImpl->data->qtyDamage)
+                                         : attackImpl->data->qtyDamage;
 
         if (damage > 0) {
+            int curDamage = (info->poisonAttackId == game::emptyId) ? 0
+                                                                      : info->dotInfo.poisonDamage;
 
-            bool infinite = thisptr->attack->vftable->getInfinite(thisptr->attack);
+            info->poisonAttackId = bindings::IdView{userSettings().extendedBattle.poisonDamageID};
+            info->dotInfo.poisonDamage = std::clamp(curDamage + damage, 0,
+                                                     userSettings().extendedBattle.maxDotDamage);
 
-            auto hasPoison = info->poisonAttackId;
+            battle.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Poison, true);
 
-            if (hasPoison == game::emptyId) {
-                info->poisonAttackId = attack.id;
-                info->dotInfo.poisonDamage = std::clamp(damage, 0, userSettings().extendedBattle.maxDotDamage);
-            } 
-            else
-            {
-                int curDamage = info->dotInfo.poisonDamage;
-                damage += curDamage;
-
-                info->poisonAttackId = attack.id;
-                info->dotInfo.poisonDamage = std::clamp(damage, 0, userSettings().extendedBattle.maxDotDamage);
-            }
-
-            BattleMsgDataApi::get().setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Poison, true);
-
-            // Update Long status, replace short status
-            if (infinite) {
-                BattleMsgDataApi::get().setUnitStatus(battleMsgData, targetUnitId,
-                                                      BattleStatus::PoisonLong, infinite);
+            if (thisptr->attack->vftable->getInfinite(thisptr->attack)) {
+                battle.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::PoisonLong, true);
                 info->poisonAppliedRound = battleMsgData->currentRound;
             }
         }

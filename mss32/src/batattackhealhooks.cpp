@@ -32,29 +32,76 @@
 
 namespace hooks {
 
-bool __fastcall healAttackCanPerformHooked(game::CBatAttackHeal* thisptr,
-                                              int /*%edx*/,
-                                              game::IMidgardObjectMap* objectMap,
-                                              game::BattleMsgData* battleMsgData,
-                                              game::CMidgardID* targetUnitId)
+static bool canPerformSecondaryAttack(game::CBatAttackHeal* thisptr,
+                                      game::IMidgardObjectMap* objectMap,
+                                      game::BattleMsgData* battleMsgData,
+                                      game::CMidgardID* targetUnitId)
 {
     using namespace game;
+
+    static const auto& fn = gameFunctions();
+    static const auto& battleApi = BattleMsgDataApi::get();
+    static const auto& idApi = CMidgardIDApi::get();
+
+    if (thisptr->attackNumber != 1) {
+        return false;
+    }
+
+    if (thisptr->attackImplMagic == -1) {
+        thisptr->attackImplMagic = fn.getAttackImplMagic(objectMap, &thisptr->attackImplUnitId, 0);
+    }
+
+    if (thisptr->attackImplMagic <= 1) {
+        return false;
+    }
+
+    if (idApi.getType(&thisptr->attackImplUnitId) == IdType::Item) {
+        return false;
+    }
+
+    if (!thisptr->attack2Initialized) {
+        thisptr->attack2Impl = fn.getAttackById(objectMap, &thisptr->attackImplUnitId,
+                                                thisptr->attackNumber + 1, true);
+        thisptr->attack2Initialized = true;
+    }
+
+    if (!thisptr->attack2Impl) {
+        return false;
+    }
+
+    const auto attack2Class = thisptr->attack2Impl->vftable->getAttackClass(thisptr->attack2Impl);
+    const auto batAttack2 = fn.createBatAttack(objectMap, battleMsgData, &thisptr->unitId,
+                                               &thisptr->attackImplUnitId,
+                                               thisptr->attackNumber + 1, attack2Class, false);
+
+    const bool result = battleApi.canPerformAttackOnUnitWithStatusCheck(objectMap, battleMsgData,
+                                                                        batAttack2, targetUnitId);
+    batAttack2->vftable->destructor(batAttack2, true);
+
+    return result;
+}
+
+bool __fastcall healAttackCanPerformHooked(game::CBatAttackHeal* thisptr,
+                                                  int /*%edx*/,
+                                                  game::IMidgardObjectMap* objectMap,
+                                                  game::BattleMsgData* battleMsgData,
+                                                  game::CMidgardID* targetUnitId)
+{
+    using namespace game;
+
+    static const auto& fn = gameFunctions();
 
     if (*targetUnitId == emptyId || *targetUnitId == invalidId) {
         return false;
     }
 
-    const auto& fn = gameFunctions();
-    const auto& battle = BattleMsgDataApi::get();
-    const auto& idApi = CMidgardIDApi::get();
-
     CMidgardID targetGroupId{};
     thisptr->vftable->getTargetGroupId(thisptr, &targetGroupId, battleMsgData);
 
-    CMidgardID unitGroupId{};
-    fn.getAllyOrEnemyGroupId(&unitGroupId, battleMsgData, targetUnitId, true);
+    CMidgardID targetUnitGroupId{};
+    fn.getAllyOrEnemyGroupId(&targetUnitGroupId, battleMsgData, targetUnitId, true);
 
-    if (targetGroupId != unitGroupId) {
+    if (targetUnitGroupId != targetGroupId) {
         return false;
     }
 
@@ -63,57 +110,8 @@ bool __fastcall healAttackCanPerformHooked(game::CBatAttackHeal* thisptr,
         return false;
     }
 
-    auto soldier = fn.castUnitImplToSoldier(unit->unitImpl);
-
-    int unitHp = unit->currentHp;
-    int unitHpMax = soldier->vftable->getHitPoints(soldier);
-
-    bool canHeal = (unitHp < unitHpMax) && (unitHp > 0);
-    bool canCure = false;
-    bool canRevive = false;
-    bool unitDead = false;
-
-    if (battle.getUnitStatus(battleMsgData, targetUnitId, BattleStatus::XpCounted)
-        || battle.getUnitStatus(battleMsgData, targetUnitId, BattleStatus::Dead)) {
-        unitDead = true;
-    }
-
-    if (!canHeal) {
-        if (thisptr->unknown4 == -1) {
-             thisptr->unknown4 = fn.getAttackImplMagic(objectMap, &thisptr->unitId2, 0);
-        }
-        if (thisptr->attackNumber == 1) {
-            if (idApi.getType(&thisptr->unitId2) != IdType::Item) {
-                if (!thisptr->attack2) {
-                    thisptr->attack2 = fn.getAttackById(objectMap, &thisptr->unitId2,
-                                                        thisptr->attackNumber + 1, true);
-                }
-
-                if (thisptr->attack2) {
-                    auto attackClass = thisptr->attack2->vftable->getAttackClass(thisptr->attack2);
-                    auto& categories = AttackClassCategories::get();
-
-                    if (attackClass->id == categories.cure->id) {
-                        canCure = battle.unitCanBeCured(battleMsgData, targetUnitId);
-                    }
-
-                    if (attackClass->id == categories.revive->id) {
-                        canRevive = battle.unitCanBeRevived(battleMsgData, targetUnitId);
-                    }
-                }
-            }
-        }
-    }
-
-    if (unitDead) {
-        return canRevive;
-    } else if (canHeal) {
-        return true;
-    } else {
-        return canCure;
-    }
-
-    return false;
+    return canHeal(thisptr->attackImpl, objectMap, battleMsgData, targetUnitId)
+           || canPerformSecondaryAttack(thisptr, objectMap, battleMsgData, targetUnitId);
 }
 
 void __fastcall healAttackOnHitHooked(game::CBatAttackHeal* thisptr,
@@ -124,25 +122,34 @@ void __fastcall healAttackOnHitHooked(game::CBatAttackHeal* thisptr,
                                       game::BattleAttackInfo** attackInfo)
 {
     using namespace game;
-    auto& fn = gameFunctions();
+
+    static const auto& fn = gameFunctions();
+    static const auto& battleApi = BattleMsgDataApi::get();
+    static const auto& attackInfoApi = BattleAttackInfoApi::get();
 
     auto targetUnit = static_cast<CMidUnit*>(
         objectMap->vftable->findScenarioObjectByIdForChange(objectMap, targetUnitId));
 
+    if (!targetUnit) {
+        return;
+    }
+
     int qtyHealed = 0;
-    if (BattleMsgDataApi::get().unitCanBeHealed(objectMap, battleMsgData, targetUnitId)) {
-        const auto attack = thisptr->attack;
-        const int qtyHeal = computeBoostedHeal(&thisptr->unitId1, battleMsgData,
+    if (battleApi.unitCanBeHealed(objectMap, battleMsgData, targetUnitId)) {
+        const auto attack = thisptr->attackImpl;
+        const int qtyHeal = computeBoostedHeal(&thisptr->unitId, battleMsgData,
                                                attack->vftable->getQtyHeal(attack));
-        if (qtyHeal > 0)
+
+        if (qtyHeal > 0) {
             qtyHealed = heal(objectMap, battleMsgData, targetUnit, qtyHeal);
+        }
     }
 
     BattleAttackUnitInfo info{};
     info.unitId = targetUnit->id;
     info.unitImplId = targetUnit->unitImpl->id;
     info.damage = qtyHealed;
-    BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+    attackInfoApi.addUnitInfo(&(*attackInfo)->unitsInfo, &info);
 }
 
 } // namespace hooks

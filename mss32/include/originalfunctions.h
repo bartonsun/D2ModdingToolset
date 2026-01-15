@@ -73,6 +73,7 @@
 #include "visitors.h"
 
 #include "batviewer.h"
+#include "battleattackinfo.h"
 
 namespace hooks {
 
@@ -226,6 +227,7 @@ struct OriginalFunctions
     game::BattleMsgDataApi::Api::SetUnitStatus setUnitStatus;
     game::IBatViewerVftable::BattleEnd battleEnd;
     game::BattleMsgDataApi::Api::UnitCanBeCured unitCanBeCured;
+    game::BattleMsgDataApi::Api::DecreaseUnitAttacks decreaseUnitAttacks;
 };
 
 OriginalFunctions& getOriginalFunctions();

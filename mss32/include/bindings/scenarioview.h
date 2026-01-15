@@ -232,6 +232,10 @@ public:
     bool heal(const IdView& unitId, int value);
     bool addUnitModifier(const IdView& unitId, const std::string& modifierId);
     bool removeUnitModifier(const IdView& unitId, const std::string& modifierId);
+    
+    bool setTransform(const IdView& unitId, const std::string& unitIdTransform, bool saveXp);
+    bool setUnitXpWithUpgrade(const IdView& unitId, int exp, bool keppHp = false);
+    bool giveSkillPoint(const IdView& stackId, int amout);
 
 private:
     const game::CMidgardID* getObjectId(int x, int y, game::IdType type) const;

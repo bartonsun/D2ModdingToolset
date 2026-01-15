@@ -142,6 +142,7 @@ public:
     bool addUnitModifier(const IdView& unitId,
                          const IdView& unitId2,
                          const std::string& modifierId);
+    bool removeUnitModifier(const IdView& unitId, const std::string& modifierId);
     int heal(const IdView& unitId, int value);
     int setHealth(const IdView& unitId, int value);
     bool setShatteredArmor(const IdView& unitId, int value);
@@ -157,6 +158,12 @@ public:
     void removeAttackClassWard(const IdView& unitId, int attackClassId);
 
     void setRevivedStatus(const IdView& unitId, bool status);
+
+    bool resetUnitAttackSourceWard(const IdView& unitId, int attackSourceId);
+    bool resetUnitAttackClassWard(const IdView& unitId, int attackClassId);
+    
+    bool isItemUsed(const IdView& itemId);
+
 
 protected:
     template <typename T>
@@ -221,6 +228,7 @@ protected:
         view["GetUnitTurn"] = &BattleMsgDataView::getUnitTurn;
         view["SetUnitAttackCount"] = &BattleMsgDataView::setUnitAttackCount;
         view["AddUnitModifier"] = &BattleMsgDataView::addUnitModifier;
+        view["RemoveUnitModifier"] = &BattleMsgDataView::removeUnitModifier;
         view["Heal"] = &BattleMsgDataView::heal;
         view["SetHealth"] = &BattleMsgDataView::setHealth;
         view["SetShatteredArmor"] = &BattleMsgDataView::setShatteredArmor;
@@ -230,6 +238,9 @@ protected:
         view["RemoveAttackSourceWard"] = &BattleMsgDataView::removeAttackSourceWard;
         view["RemoveAttackClassWard"] = &BattleMsgDataView::removeAttackClassWard;
         view["SetRevivedStatus"] = &BattleMsgDataView::setRevivedStatus;
+        view["ResetUnitAttackSourceWard"] = &BattleMsgDataView::resetUnitAttackSourceWard;
+        view["ResetUnitAttackClassWard"] = &BattleMsgDataView::resetUnitAttackClassWard;
+        view["IsItemUsed"] = &BattleMsgDataView::isItemUsed;
     }
 
 private:

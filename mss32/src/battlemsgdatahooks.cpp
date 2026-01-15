@@ -43,6 +43,7 @@
 #include "utils.h"
 #include <atomic>
 #include <spdlog/spdlog.h>
+#include <batattackutils.h>
 
 namespace hooks {
 
@@ -394,55 +395,57 @@ void __fastcall beforeBattleRoundHooked(game::BattleMsgData* thisptr, int /*%edx
 {
     using namespace game;
 
+    auto* objectMap = const_cast<IMidgardObjectMap*>(hooks::getObjectMap());
+    if (thisptr && objectMap) {
+        auto& battleApi = BattleMsgDataApi::get();
+
+        auto cleanupDeadUnits = [&](const CMidgardID& groupId) {
+            auto* group = hooks::getGroup(objectMap, &groupId, false);
+            if (!group)
+                return;
+
+            std::vector<CMidgardID> unitIds;
+            for (auto* idPtr = group->units.bgn; idPtr != group->units.end; ++idPtr) {
+                if (idPtr)
+                    unitIds.push_back(*idPtr);
+            }
+
+            for (const auto& unitId : unitIds) {
+                if (battleApi.getUnitStatus(thisptr, &unitId, BattleStatus::Dead)) {
+                    auto* unitInfo = battleApi.getUnitInfoById(thisptr, &unitId);
+
+                    if (unitInfo && (uintptr_t)unitInfo > 0x10000) {
+                        auto modifiedIds = getModifiedUnitIds(unitInfo);
+                        if (!modifiedIds.empty()) {
+                            for (auto& targetId : modifiedIds) {
+                                removeModifiers(thisptr, objectMap, unitInfo, &targetId);
+                            }
+                            resetModifiedUnitsInfo(unitInfo);
+                        }
+                    }
+                }
+            }
+        };
+
+        cleanupDeadUnits(thisptr->attackerGroupId);
+        cleanupDeadUnits(thisptr->defenderGroupId);
+    }
+
+    auto& ftSelf = getCustomAttacks().freeTransformSelf;
+    ftSelf.unitId = emptyId;
+    ftSelf.turnCount = 0;
+    ftSelf.used = false;
+
     getOriginalFunctions().beforeBattleRound(thisptr);
 
-    // Fix free transform-self to properly reset if the same unit has consequent turns in consequent
-    // battles
-    auto& freeTransformSelf = getCustomAttacks().freeTransformSelf;
-    freeTransformSelf.unitId = emptyId;
-    freeTransformSelf.turnCount = 0;
-    freeTransformSelf.used = false;
-
-    // Fixed a bug where the buff wouldn't disappear after the support died
-    auto objectMap = const_cast<game::IMidgardObjectMap*>(hooks::getObjectMap());
-
-    auto attackers = hooks::getGroup(objectMap, &thisptr->attackerGroupId, false);
-    auto defenders = hooks::getGroup(objectMap, &thisptr->defenderGroupId, false);
-    auto attUnits = attackers->units;
-    auto defUnits = defenders->units;
-
-    for (game::CMidgardID* it = attUnits.bgn; it != attUnits.end; it++) {
-        if (BattleMsgDataApi::get().getUnitStatus(thisptr, it, BattleStatus::Dead)) {
-            auto unitInfo = BattleMsgDataApi::get().getUnitInfoById(thisptr, it);
-            auto modifiedUnitIds = getModifiedUnitIds(unitInfo);
-            for (auto it = modifiedUnitIds.begin(); it != modifiedUnitIds.end(); it++)
-                removeModifiers(thisptr, objectMap, unitInfo, &(*it));
-            resetModifiedUnitsInfo(unitInfo);
-        }
-    }
-
-    for (game::CMidgardID* it = defUnits.bgn; it != defUnits.end; it++) {
-        if (BattleMsgDataApi::get().getUnitStatus(thisptr, it, BattleStatus::Dead)) {
-            auto unitInfo = BattleMsgDataApi::get().getUnitInfoById(thisptr, it);
-            auto modifiedUnitIds = getModifiedUnitIds(unitInfo);
-            for (auto it = modifiedUnitIds.begin(); it != modifiedUnitIds.end(); it++)
-                removeModifiers(thisptr, objectMap, unitInfo, &(*it));
-            resetModifiedUnitsInfo(unitInfo);
-        }
-    }
-
     std::optional<sol::environment> env;
-    auto f = getScriptFunction(scriptsFolder() / "hooks/hooks.lua", "OnBeforeBattleRound", env,
-                               false, true);
-    if (f) {
+    static auto onBeforeRound = getScriptFunction(scriptsFolder() / "hooks/hooks.lua",
+                                                  "OnBeforeBattleRound", env, false, true);
+    if (onBeforeRound && objectMap) {
         try {
-            const bindings::BattleMsgDataView battleMsg{thisptr, getObjectMap()};
-
-            (*f)(battleMsg);
+            (*onBeforeRound)(bindings::BattleMsgDataView{thisptr, objectMap});
         } catch (const std::exception& e) {
-            showErrorMessageBox(fmt::format("Failed to run 'OnBeforeBattleRound' script.\n"
-                                            "Reason: '{:s}'",
-                                            e.what()));
+            showErrorMessageBox(fmt::format("Lua Error (OnBeforeBattleRound): {}", e.what()));
         }
     }
 }

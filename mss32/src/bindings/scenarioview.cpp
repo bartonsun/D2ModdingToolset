@@ -62,6 +62,11 @@
 #include <modifierutils.h>
 #include <unitutils.h>
 #include <visitors.h>
+#include "usunitimpl.h"
+#include "ussoldier.h"
+#include <hooks.h>
+#include <usstackleader.h>
+#include <midstack.h>
 
 namespace bindings {
 
@@ -149,6 +154,9 @@ void ScenarioView::bind(sol::state& lua)
     scenario["Heal"] = sol::overload<>(&ScenarioView::heal);
     scenario["AddUnitModifier"] = sol::overload<>(&ScenarioView::addUnitModifier);
     scenario["RemoveUnitModifier"] = sol::overload<>(&ScenarioView::removeUnitModifier);
+    scenario["SetTransform"] = sol::overload<>(&ScenarioView::setTransform);
+    scenario["setUnitXpWithUpgrade"] = sol::overload<>(&ScenarioView::setUnitXpWithUpgrade);
+    scenario["GiveSkillPoint"] = &ScenarioView::giveSkillPoint;
 }
 
 std::optional<LocationView> ScenarioView::getLocation(const std::string& id) const
@@ -1231,4 +1239,174 @@ bool ScenarioView::removeUnitModifier(const IdView& unitId, const std::string& m
 
     return true;
 }
+
+bool ScenarioView::setTransform(const IdView& unitId, const std::string& unitIdTransform, bool saveXp)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+
+    const auto& unitApi = CMidUnitApi::get();
+    const auto& listApi = IdListApi::get();
+    const auto& rttiApi = RttiApi::get();
+    const auto& typeIdOperator = *rttiApi.typeIdOperator;
+    const auto& typeInfoInequalityOperator = *rttiApi.typeInfoInequalityOperator;
+
+    CMidUnit* attackUnit = fn.findUnitById(objectMap, &unitId.id);
+
+    TUsUnitImpl* upgradeUnitImpl = nullptr;
+    auto transUnit = IdView{unitIdTransform};
+
+    if (transUnit == &game::emptyId)
+    {
+        auto playerIdByUnit = hooks::getPlayerIdByUnitId(objectMap, &unitId.id);
+        auto playerId = hooks::getPlayer(objectMap, &playerIdByUnit);
+        upgradeUnitImpl = const_cast<TUsUnitImpl*>(
+        hooks::getUpgradeUnitImpl(objectMap, playerId, attackUnit));
+    }
+    else
+    {
+        upgradeUnitImpl = hooks::getUnitImpl(&transUnit.id);
+    }
+
+    //upgradeUnitImpl = hooks::getUnitImpl(transUnit);
+    if (!upgradeUnitImpl)
+        return false;
+
+    auto unitImpl = hooks::getUnitImpl(attackUnit->unitImpl);
+    if (typeInfoInequalityOperator(typeIdOperator(unitImpl), typeIdOperator(upgradeUnitImpl)))
+        return false;
+
+    IdList modifierIds{};
+    listApi.constructor(&modifierIds);
+    if (!unitApi.getModifiers(&modifierIds, attackUnit)
+        || !unitApi.removeModifiers(&attackUnit->unitImpl)
+        || !unitApi.replaceImpl(&attackUnit->unitImpl, upgradeUnitImpl)
+        || !unitApi.addModifiers(&modifierIds, attackUnit, nullptr, true)) {
+        listApi.destructor(&modifierIds);
+        return false;
+    }
+    listApi.destructor(&modifierIds);
+
+    // Reset XP first, because getHitPoints can return different values depending on current XP in
+    // case of custom modifiers (has real examples in MNS)
+    auto soldier = fn.castUnitImplToSoldier(attackUnit->unitImpl);
+    attackUnit->currentXp = 0;
+    attackUnit->currentHp = soldier->vftable->getHitPoints(soldier);
+    
+    auto stack = const_cast<CMidStack*>(hooks::getStackByUnitId(objectMap, &unitId.id));
+    if (stack && stack->leaderId == unitId.id)
+        stack->upgCount = 1;
+
+    return true;
+}
+
+bool ScenarioView::setUnitXpWithUpgrade(const IdView& unitId, int exp, bool keepHp)
+{
+    if (exp < 1)
+        return false;
+
+    using namespace game;
+
+    static const auto& fn = gameFunctions();
+    static const auto& unitApi = CMidUnitApi::get();
+    static const auto& listApi = IdListApi::get();
+    static const auto& rttiApi = RttiApi::get();
+    static const auto& typeIdOperator = *rttiApi.typeIdOperator;
+    static const auto& typeInfoInequalityOperator = *rttiApi.typeInfoInequalityOperator;
+
+    CMidUnit* attackUnit = fn.findUnitById(objectMap, &unitId.id);
+    if (!attackUnit)
+        return false;
+
+    auto soldier = fn.castUnitImplToSoldier(attackUnit->unitImpl);
+    if (!soldier)
+        return false;
+
+    auto stack = const_cast<CMidStack*>(hooks::getStackByUnitId(objectMap, &unitId.id));
+    const bool isLeader = stack && (stack->leaderId == unitId.id);
+
+    // Защита от переполнения
+    if (exp > INT_MAX - attackUnit->currentXp)
+        exp = INT_MAX;
+    else
+        exp += attackUnit->currentXp;
+
+    const auto playerIdByUnit = hooks::getPlayerIdByUnitId(objectMap, &attackUnit->id);
+    const auto player = hooks::getPlayer(objectMap, &playerIdByUnit);
+
+    int curHp;
+    if (keepHp)
+        curHp = attackUnit->currentHp;
+
+    while (exp > 0) {
+        const int xpNext = soldier->vftable->getXpNext(soldier);
+        if (xpNext <= 0 || exp < xpNext)
+            break;
+
+        const auto upgradeUnitImpl = const_cast<TUsUnitImpl*>(
+            hooks::getUpgradeUnitImpl(objectMap, player, attackUnit));
+        if (!upgradeUnitImpl)
+            break;
+
+        const auto unitImpl = hooks::getUnitImpl(attackUnit->unitImpl);
+        if (typeInfoInequalityOperator(typeIdOperator(unitImpl), typeIdOperator(upgradeUnitImpl)))
+            break;
+
+        IdList modifierIds{};
+        listApi.constructor(&modifierIds);
+
+        const bool success = unitApi.getModifiers(&modifierIds, attackUnit)
+                             && unitApi.removeModifiers(&attackUnit->unitImpl)
+                             && unitApi.replaceImpl(&attackUnit->unitImpl, upgradeUnitImpl)
+                             && unitApi.addModifiers(&modifierIds, attackUnit, nullptr, true);
+
+        listApi.destructor(&modifierIds);
+
+        if (!success) {
+            exp = xpNext - 1;
+            break;
+        }
+
+        soldier = fn.castUnitImplToSoldier(attackUnit->unitImpl);
+        if (!soldier) {
+            exp = 0;
+            break;
+        }
+
+        attackUnit->currentXp = 0;
+        attackUnit->currentHp = soldier->vftable->getHitPoints(soldier);
+
+        if (isLeader)
+            stack->upgCount += 1;
+
+        exp -= xpNext;
+    }
+
+    if (keepHp)
+        attackUnit->currentHp = curHp;
+
+    attackUnit->currentXp = exp;
+    return true;
+}
+
+bool ScenarioView::giveSkillPoint(const IdView& stackId, int amout)
+{
+    using namespace game;
+
+    if (!objectMap) {
+        return false;
+    }
+
+    auto stack = hooks::getStack(objectMap, &stackId.id);
+    if (!stack) {
+        return false;
+    }
+
+    stack->upgCount += amout;
+
+    return true;
+
+}
+
 } // namespace bindings

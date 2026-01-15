@@ -32,13 +32,13 @@ struct IAttack;
 struct IMidgardObjectMap;
 struct CBatAttackHeal : public CBatAttackBase
 {
-    CMidgardID unitId1;
-    CMidgardID unitId2;
+    CMidgardID unitId;
+    CMidgardID attackImplUnitId;
     int attackNumber; /**< 1 if this is a unit's primary attack, 2 for secondary. */
-    IAttack* attack;
-    IAttack* attack2;
-    int unknown3;
-    int unknown4;
+    IAttack* attackImpl;
+    IAttack* attack2Impl;
+    bool attack2Initialized;
+    int attackImplMagic;
 };
 
 assert_size(CBatAttackHeal, 32);

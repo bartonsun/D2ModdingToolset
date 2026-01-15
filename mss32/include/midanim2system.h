@@ -22,6 +22,7 @@
 
 #include "midcommandqueue2.h"
 #include "twospeedanimator.h"
+#include <idlist.h>
 
 namespace game {
 

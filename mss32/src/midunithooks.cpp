@@ -58,74 +58,74 @@ bool __fastcall removeModifierHooked(game::CMidUnit* thisptr,
 {
     using namespace game;
 
-    const auto& umModifierApi = CUmModifierApi::get();
-    auto version = gameVersion();
-
-    if (!thisptr) {
+    if (!thisptr || !modifierId)
         return false;
-    }
 
-    bool OnRemoveModifier = true;
-    const bindings::UnitView target{thisptr};
-    const auto unitModifier = getUnitModifier(modifierId);
-    const bindings::ModifierView mods{unitModifier->vftable->createModifier(unitModifier)};
+    const auto version = gameVersion();
+    const bool isNotEditor = (version != GameVersion::ScenarioEditor);
 
-    std::optional<sol::environment> env;
-    auto hookOnRemoveModifier = getScriptFunction(scriptsFolder() / "hooks/modifiers.lua",
-                                                  "OnRemoveModifier", env, false, true);
-    if (version != GameVersion::ScenarioEditor && hookOnRemoveModifier) {
-        try {
-            OnRemoveModifier = (*hookOnRemoveModifier)(target, mods);
-        } catch (const std::exception& e) {
-            showErrorMessageBox(fmt::format("Failed to run 'OnRemoveModifier' script.\n"
-                                            "Reason: '{:s}'",
-                                            e.what()));
-            OnRemoveModifier = true;
+    if (isNotEditor) {
+        std::optional<sol::environment> env;
+        auto hook = getScriptFunction(scriptsFolder() / "hooks/modifiers.lua", "OnRemoveModifier",
+                                      env, false, true);
+
+        if (hook) {
+            const auto unitModifier = getUnitModifier(modifierId);
+            if (unitModifier) {
+                const bindings::UnitView target{thisptr};
+                const bindings::ModifierView mods{
+                    unitModifier->vftable->createModifier(unitModifier)};
+
+                try {
+                    if (!(*hook)(target, mods).get<bool>()) {
+                        return false;
+                    }
+                } catch (const std::exception& e) {
+                    showErrorMessageBox(fmt::format("Lua Error (OnRemoveModifier): {}", e.what()));
+                }
+            }
         }
     }
-    if (!OnRemoveModifier)
-        return false;
 
-    CUmModifier* modifier = nullptr;
-    int maxHpBefore = getUnitHpMax(thisptr);
-    for (auto curr = thisptr->unitImpl; curr; curr = modifier->data->prev) {
-        modifier = castUnitToUmModifier(curr);
-        if (!modifier) {
+    const int maxHpBefore = getUnitHpMax(thisptr);
+
+    for (auto curr = thisptr->unitImpl; curr;) {
+        auto* modifier = castUnitToUmModifier(curr);
+        if (!modifier)
             break;
-        }
+
+        auto* nextInLoop = modifier->data->prev;
 
         if (modifier->data->modifierId == *modifierId) {
-            auto prev = modifier->data->prev;
-            auto next = modifier->data->next;
+            auto* prev = modifier->data->prev;
+            auto* next = modifier->data->next;
+
             if (next) {
-                umModifierApi.setPrev(next, prev);
+                CUmModifierApi::get().setPrev(next, prev);
             } else {
                 thisptr->unitImpl = prev;
             }
 
-            auto prevModifier = castUnitToUmModifier(prev);
-            if (prevModifier) {
-                prevModifier->data->next = next;
+            if (auto* prevMod = castUnitToUmModifier(prev)) {
+                prevMod->data->next = next;
             }
 
             if (userSettings().modifiers.notifyModifiersChanged) {
                 notifyModifiersChanged(thisptr->unitImpl);
             }
 
-            int maxHp = getUnitHpMax(thisptr);
-
-            game::IMidgardObjectMap* objectMap = const_cast<game::IMidgardObjectMap*>(hooks::getObjectMap());
-            if (version != GameVersion::ScenarioEditor && maxHp != maxHpBefore)
-            {
-                int diff = maxHp - maxHpBefore;
-                thisptr->currentHp = std::clamp(thisptr->currentHp + diff, 1, maxHp);
-
+            if (isNotEditor) {
+                const int maxHp = getUnitHpMax(thisptr);
+                if (maxHp != maxHpBefore) {
+                    thisptr->currentHp = std::clamp(thisptr->currentHp + (maxHp - maxHpBefore), 1,
+                                                    maxHp);
+                }
             }
-            
 
             modifier->vftable->destructor(modifier, true);
             return true;
         }
+        curr = nextInLoop;
     }
 
     return false;

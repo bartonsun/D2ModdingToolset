@@ -719,7 +719,8 @@ void batBigFaceCleanUnitData(game::CBatBigFace* thisptr, const game::UnitInfoLis
     }
 }
 
-void batBigFaceUpdateUnitImplData(game::CBatBigFace* thisptr, game::CBatBigFaceUnitData* unitData)
+void batBigFaceUpdateUnitImplData(game::CBatBigFace* thisptr,
+                                         game::CBatBigFaceUnitData* unitData)
 {
     using namespace game;
 
@@ -781,36 +782,47 @@ void batBigFaceUpdateUnitData(game::CBatBigFace* thisptr, const game::CMidgardID
 {
     using namespace game;
 
-    const auto& fn = gameFunctions();
-    const auto& battleApi = BattleMsgDataApi::get();
-    const auto& bigFaceApi = BatBigFaceApi::get();
-    const auto& image2TextApi = CImage2TextApi::get();
-    const auto& stringApi = StringApi::get();
-    const auto& smartPtrApi = SmartPointerApi::get();
+    static const auto& fn = gameFunctions();
+    static const auto& battleApi = BattleMsgDataApi::get();
+    static const auto& bigFaceApi = BatBigFaceApi::get();
+    static const auto& image2TextApi = CImage2TextApi::get();
+    static const auto& stringApi = StringApi::get();
+    static const auto& smartPtrApi = SmartPointerApi::get();
 
     auto unitData = bigFaceApi.unitDataMapAccess(&thisptr->data->unitData, unitId);
+    if (!unitData)
+        return;
 
     if (unitData->textImage.data == nullptr) {
-        auto textImage = (CImage2Text*)Memory::get().allocate(sizeof(CImage2Text));
         const auto& textArea = thisptr->data->bigFaceTextArea;
-        image2TextApi.constructor(textImage, textArea.right - textArea.left,
-                                  textArea.bottom - textArea.top);
-        smartPtrApi.createOrFree((SmartPointer*)&unitData->textImage, textImage);
+        auto textImage = (CImage2Text*)Memory::get().allocate(sizeof(CImage2Text));
+        if (textImage) {
+            image2TextApi.constructor(textImage, textArea.right - textArea.left,
+                                      textArea.bottom - textArea.top);
+            smartPtrApi.createOrFree((SmartPointer*)&unitData->textImage, textImage);
+        }
     }
+
+    if (!unitData->textImage.data)
+        return;
 
     String description{};
     battleApi.generateBigFaceDescription(&description, thisptr->data->objectMap, unitId,
                                          &thisptr->data->battleMsgData);
 
-    const auto desc = stringApi.cStr(&description);
-    if (strcmp(desc, stringApi.cStr(&unitData->textImage.data->text)) != 0)
-        image2TextApi.setText(unitData->textImage.data, desc);
+    const char* newDesc = stringApi.cStr(&description);
+    if (newDesc) {
+        const char* oldDesc = stringApi.cStr(&unitData->textImage.data->text);
+        if (!oldDesc || strcmp(newDesc, oldDesc) != 0) {
+            image2TextApi.setText(unitData->textImage.data, newDesc);
+        }
+    }
+
     stringApi.free(&description);
 
     fn.getBaseUnitImplId(&unitData->unitImplId, thisptr->data->objectMap, unitId, false);
 
     batBigFaceUpdateUnitImplData(thisptr, unitData);
-
     batBigFaceUpdateItemData(thisptr, unitData, unitId);
 }
 

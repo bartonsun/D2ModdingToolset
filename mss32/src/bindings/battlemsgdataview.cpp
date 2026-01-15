@@ -35,6 +35,19 @@
 #include <midunit.h>
 #include <ussoldier.h>
 #include "attackimpl.h"
+#include <battleviewerinterfhooks.h>
+#include <midunithooks.h>
+#include <unitutils.h>
+
+#include "usunitimpl.h"
+#include "batattack.h"
+#include "battleattackinfo.h"
+#include <batviewer.h>
+#include <battleviewerinterf.h>
+#include <batunitanim.h>
+
+#include <gameinfo.h>
+#include <hooks.h>
 
 namespace bindings {
 
@@ -308,7 +321,7 @@ bool BattleMsgDataView::isUnitResistantToClassById(const IdView& unitId, int cla
     if (immuneCat->id == ImmuneCategories::get().always->id)
         return true;
 
-    return BattleMsgDataApi::get().isUnitAttackClassWardRemoved(battleMsgData, &unitId.id,
+    return !BattleMsgDataApi::get().isUnitAttackClassWardRemoved(battleMsgData, &unitId.id,
                                                                 attackClass);
 }
 
@@ -472,8 +485,7 @@ bool BattleMsgDataView::setUnitAttackCount(const IdView& unitId, int value)
     for (auto& turn : battle->turnsOrder) {
         if (turn.unitId == unitId.id) {
             if (value < 1) {
-                while (BattleMsgDataApi::get().decreaseUnitAttacks(battle, &unitId.id))
-                    ;
+                while (BattleMsgDataApi::get().decreaseUnitAttacks(battle, &unitId.id));
                 return true;
             }
             turn.attackCount = value;
@@ -498,68 +510,88 @@ bool BattleMsgDataView::addUnitModifier(const IdView& unitId2,
 
     const auto& modId = IdView{modifierId};
 
-    if (hooks::canApplyModifier(battle, targetUnit, &modId.id))
-        hooks::applyModifier(&unitId.id, battle, targetUnit, &modId.id);
+    hooks::applyModifier(&unitId.id, battle, targetUnit, &modId.id);
 
     return true;
 }
 
-int BattleMsgDataView::heal(const IdView& unitId, int value)
+bool BattleMsgDataView::removeUnitModifier(const IdView& unitId, const std::string& modifierId)
 {
-
     using namespace game;
-    const auto& fn = gameFunctions();
-    const auto& visitors = VisitorApi::get();
 
-    if (BattleMsgDataApi::get().getUnitStatus(battleMsgData, &unitId.id, BattleStatus::Dead))
-        return 0;
+    if (modifierId.empty())
+        return false;
 
-    int heal = std::clamp(value, -9999, 9999);
+    const CMidgardID modId = IdView{modifierId};
+    if (modId == game::emptyId)
+        return false;
 
-    BattleMsgData* battle = const_cast<game::BattleMsgData*>(battleMsgData);
+    auto* objectMap = const_cast<IMidgardObjectMap*>(hooks::getObjectMap());
+    CMidUnit* targetUnit = gameFunctions().findUnitById(objectMap, &unitId.id);
 
-    IMidgardObjectMap* objectMap = const_cast<game::IMidgardObjectMap*>(hooks::getObjectMap());
-    CMidUnit* targetUnit = fn.findUnitById(objectMap, &unitId.id);
+    if (!targetUnit || !targetUnit->unitImpl)
+        return false;
 
-    int hpBefore = targetUnit->currentHp;
-
-    visitors.changeUnitHp(&targetUnit->id, heal, objectMap, 1);
-
-    int hpAfter = targetUnit->currentHp;
-    BattleMsgDataApi::get().setUnitHp(battle, &targetUnit->id, hpAfter);
-
-    int qtyHealed = hpAfter - hpBefore;
-
-    if (targetUnit->currentHp == 0) {
-        // BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Dead,
-        // true); BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id,
-        // BattleStatus::XpCounted, true); First globalmap, then battle
-        targetUnit->currentHp = 1;
-        BattleMsgDataApi::get().setUnitHp(battle, &targetUnit->id, 1);
-        qtyHealed++;
+    if (hooks::hasModifier(targetUnit->unitImpl, &modId)) {
+        auto* battle = const_cast<BattleMsgData*>(battleMsgData);
+        hooks::removeModifier(battle, targetUnit, &modId);
+        return true;
     }
 
-    return qtyHealed;
+    return false;
+}
+
+int BattleMsgDataView::heal(const IdView& unitId, int value)
+{
+    using namespace game;
+    auto& battleApi = BattleMsgDataApi::get();
+
+    if (battleApi.getUnitStatus(battleMsgData, &unitId.id, BattleStatus::Dead))
+        return 0;
+
+    auto* objectMap = const_cast<IMidgardObjectMap*>(hooks::getObjectMap());
+    CMidUnit* targetUnit = gameFunctions().findUnitById(objectMap, &unitId.id);
+    if (!targetUnit)
+        return 0;
+
+    const int hpBefore = targetUnit->currentHp;
+    const int healAmount = std::clamp(value, -9999, 9999);
+
+    VisitorApi::get().changeUnitHp(&targetUnit->id, healAmount, objectMap, 1);
+
+    if (targetUnit->currentHp <= 0) {
+        targetUnit->currentHp = 1;
+    }
+
+    int hpAfter = targetUnit->currentHp;
+    battleApi.setUnitHp(const_cast<BattleMsgData*>(battleMsgData), &targetUnit->id, hpAfter);
+
+    return hpAfter - hpBefore;
 }
 
 int BattleMsgDataView::setHealth(const IdView& unitId, int value)
 {
     using namespace game;
-    const auto& fn = gameFunctions();
+    const auto& battleApi = BattleMsgDataApi::get();
 
-    if (BattleMsgDataApi::get().getUnitStatus(battleMsgData, &unitId.id, BattleStatus::Dead))
+    if (battleApi.getUnitStatus(battleMsgData, &unitId.id, BattleStatus::Dead))
         return 0;
 
-    auto objectMap = const_cast<game::IMidgardObjectMap*>(hooks::getObjectMap());
-    CMidUnit* targetUnit = fn.findUnitById(objectMap, &unitId.id);
-    auto battle = const_cast<game::BattleMsgData*>(battleMsgData);
+    auto* objectMap = const_cast<IMidgardObjectMap*>(hooks::getObjectMap());
+    CMidUnit* targetUnit = gameFunctions().findUnitById(objectMap, &unitId.id);
 
-    int health = std::clamp(value, 1, 9999);
+    if (!targetUnit)
+        return 0;
 
-    const auto& visitors = VisitorApi::get();
-    visitors.changeUnitHp(&unitId.id, health - targetUnit->currentHp, objectMap, 1);
+    const int newHealth = std::clamp(value, 1, 9999);
+    const int hpDiff = newHealth - targetUnit->currentHp;
 
-    BattleMsgDataApi::get().setUnitHp(battle, &unitId.id, health);
+    if (hpDiff == 0)
+        return targetUnit->currentHp;
+
+    VisitorApi::get().changeUnitHp(&unitId.id, hpDiff, objectMap, 1);
+
+    battleApi.setUnitHp(const_cast<BattleMsgData*>(battleMsgData), &unitId.id, newHealth);
 
     return targetUnit->currentHp;
 }
@@ -568,18 +600,19 @@ bool BattleMsgDataView::setShatteredArmor(const IdView& unitId, int value)
 {
     using namespace game;
 
-    auto info = BattleMsgDataApi::get().getUnitInfoById(battleMsgData, &unitId.id);
-    if (!info) {
+    auto* info = BattleMsgDataApi::get().getUnitInfoById(battleMsgData, &unitId.id);
+    if (!info)
+    {
         return false;
     }
 
-    int maxShatter = hooks::userSettings().shatteredArmorMax;
+    const int maxShatter = hooks::userSettings().shatteredArmorMax;
 
     info->shatteredArmor = std::clamp(info->shatteredArmor + value, 0, maxShatter);
 
     return true;
 }
-//////////////////////////////////////////////////////////////////////////////
+
 int BattleMsgDataView::getStatusDamage(const IdView& unitId, const int status)
 {
     using namespace hooks;
@@ -594,156 +627,144 @@ int BattleMsgDataView::getStatusDamageExtended(const IdView& unitId, const int s
 {
     using namespace game;
 
-    auto info = BattleMsgDataApi::get().getUnitInfoById(battleMsgData, &unitId.id);
+    const auto* info = BattleMsgDataApi::get().getUnitInfoById(battleMsgData, &unitId.id);
     if (!info) {
         return 0;
     }
 
-    switch (BattleStatus(status)) {
-    case BattleStatus::Poison: {
-        CMidgardID poisonId = info->poisonAttackId;
-
-        if (poisonId == game::emptyId)
-            return 0;
-
-        return info->dotInfo.poisonDamage;
+    switch (static_cast<BattleStatus>(status)) {
+    case BattleStatus::Poison:
+        return (info->poisonAttackId != emptyId) ? info->dotInfo.poisonDamage : 0;
+    case BattleStatus::Frostbite:
+        return (info->frostbiteAttackId != emptyId) ? info->dotInfo.frostbiteDamage : 0;
+    case BattleStatus::Blister:
+        return (info->blisterAttackId != emptyId) ? info->dotInfo.blisterDamage : 0;
+    default:
+        return 0;
     }
-    case BattleStatus::Frostbite: {
-        CMidgardID frostbiteId = info->frostbiteAttackId;
-
-        if (frostbiteId == game::emptyId)
-            return 0;
-
-        return info->dotInfo.frostbiteDamage;
-    }
-    case BattleStatus::Blister: {
-        CMidgardID blisterId = info->blisterAttackId;
-
-        if (blisterId == game::emptyId)
-            return 0;
-
-        return info->dotInfo.blisterDamage;
-    }
-    }
-
-    return 0;
 }
+
 int BattleMsgDataView::getStatusDamageBase(const IdView& unitId, const int status)
 {
     using namespace game;
-    const auto& fn = gameFunctions();
-    auto objectMap = hooks::getObjectMap();
 
-    auto info = BattleMsgDataApi::get().getUnitInfoById(battleMsgData, &unitId.id);
+    const auto* info = BattleMsgDataApi::get().getUnitInfoById(battleMsgData, &unitId.id);
     if (!info) {
         return 0;
     }
 
-    switch (BattleStatus(status)) {
-    case BattleStatus::Poison: {
-        CMidgardID poisonId = info->poisonAttackId;
-        if (poisonId == game::emptyId)
+    auto getDamageFromAttack = [](const CMidgardID& attackId) -> int {
+        if (attackId == emptyId) {
             return 0;
+        }
+        if (auto* attackImpl = hooks::getAttackImpl(&attackId)) {
+            return attackImpl->data->qtyDamage;
+        }
+        return 0;
+    };
 
-        game::CAttackImpl* attackImpl = hooks::getAttackImpl(&poisonId);
-        return attackImpl->data->qtyDamage;
-    }
-    case BattleStatus::Frostbite: {
-        CMidgardID frostbiteId = info->frostbiteAttackId;
-        if (frostbiteId == game::emptyId)
-            return 0;
+    switch (static_cast<BattleStatus>(status)) {
+    case BattleStatus::Poison:
+        return getDamageFromAttack(info->poisonAttackId);
 
-        game::CAttackImpl* attackImpl = hooks::getAttackImpl(&frostbiteId);
-        return attackImpl->data->qtyDamage;
-    }
-    case BattleStatus::Blister: {
-        CMidgardID blisterId = info->blisterAttackId;
-        if (blisterId == game::emptyId)
-            return 0;
+    case BattleStatus::Frostbite:
+        return getDamageFromAttack(info->frostbiteAttackId);
 
-        game::CAttackImpl* attackImpl = hooks::getAttackImpl(&blisterId);
-        return attackImpl->data->qtyDamage;
+    case BattleStatus::Blister:
+        return getDamageFromAttack(info->blisterAttackId);
+    default:
+        return 0;
     }
-    }
-
-    return 0;
 }
 
 bool BattleMsgDataView::setStatus(const IdView& unitId, int status, int value, bool isLong)
 {
     using namespace game;
+    const auto& battleApi = BattleMsgDataApi::get();
 
-    auto info = BattleMsgDataApi::get().getUnitInfoById(battleMsgData, &unitId.id);
-    if (!info) {
+    auto* info = battleApi.getUnitInfoById(battleMsgData, &unitId.id);
+    if (!info)
         return false;
-    }
 
-    int dmg = std::clamp(value, 0, hooks::userSettings().extendedBattle.maxDotDamage);
-    IdView poisonAttack = IdView{hooks::userSettings().extendedBattle.poisonDamageID};
-    IdView frostbiteAttack = IdView{hooks::userSettings().extendedBattle.frostbiteDamageID};
-    IdView blisterAttack = IdView{hooks::userSettings().extendedBattle.blisterDamageID};
+    const BattleStatus battleStatus = BattleStatus(status);
+    const auto& settings = hooks::userSettings().extendedBattle;
 
-    switch (BattleStatus(status)) {
-    case BattleStatus::Poison: {
-        info->poisonAttackId = poisonAttack.id;
-        info->dotInfo.poisonDamage = dmg;
+    auto applyDot = [&](auto* pAttackId, auto* pDamage, auto* pRound, const std::string& configId,
+                        BattleStatus mainStat, BattleStatus longStat) {
+        *pAttackId = IdView{configId};
+        *pDamage = static_cast<std::remove_reference_t<decltype(*pDamage)>>(
+            std::clamp(value, 0, settings.maxDotDamage));
 
-        BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Poison,
-                                              true);
-        BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id, BattleStatus::PoisonLong,
-                                              isLong);
-        if (isLong)
-            info->poisonAppliedRound = battleMsgData->currentRound;
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, mainStat, true);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, longStat, isLong);
 
+        if (isLong) {
+            *pRound = static_cast<std::remove_reference_t<decltype(*pRound)>>(
+                battleMsgData->currentRound);
+        }
+
+        if (auto* impl = hooks::getAttackImpl(pAttackId)) {
+            impl->data->qtyDamage = static_cast<int>(*pDamage);
+        }
         return true;
-    }
-    case BattleStatus::Frostbite: {
-        info->frostbiteAttackId = frostbiteAttack.id;
-        info->dotInfo.frostbiteDamage = dmg;
+    };
 
-        BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Frostbite,
-                                              true);
-        BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id,
-                                              BattleStatus::FrostbiteLong, isLong);
-        if (isLong)
-            info->frostbiteAppliedRound = battleMsgData->currentRound;
+    switch (battleStatus) {
+    case BattleStatus::Poison:
+        return applyDot(&info->poisonAttackId, &info->dotInfo.poisonDamage,
+                        &info->poisonAppliedRound, settings.poisonDamageID, BattleStatus::Poison,
+                        BattleStatus::PoisonLong);
 
-        return true;
-    }
-    case BattleStatus::Blister: {
-        info->blisterAttackId = blisterAttack.id;
-        info->dotInfo.blisterDamage = dmg;
+    case BattleStatus::Frostbite:
+        return applyDot(&info->frostbiteAttackId, &info->dotInfo.frostbiteDamage,
+                        &info->frostbiteAppliedRound, settings.frostbiteDamageID,
+                        BattleStatus::Frostbite, BattleStatus::FrostbiteLong);
 
-        BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Blister,
-                                              true);
-        BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id, BattleStatus::BlisterLong,
-                                              isLong);
-        if (isLong)
-            info->blisterAppliedRound = battleMsgData->currentRound;
+    case BattleStatus::Blister:
+        return applyDot(&info->blisterAttackId, &info->dotInfo.blisterDamage,
+                        &info->blisterAppliedRound, settings.blisterDamageID, BattleStatus::Blister,
+                        BattleStatus::BlisterLong);
 
+    case BattleStatus::BoostDamageLvl1:
+    case BattleStatus::BoostDamageLvl2:
+    case BattleStatus::BoostDamageLvl3:
+    case BattleStatus::BoostDamageLvl4:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, true);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::BoostDamageLong, isLong);
         return true;
-    }
-    case BattleStatus::Paralyze: {
-        BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Paralyze,
-                                              true);
+
+    case BattleStatus::LowerDamageLvl1:
+    case BattleStatus::LowerDamageLvl2:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, true);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerDamageLong, isLong);
         return true;
-    }
-    case BattleStatus::Petrify: {
-        BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Petrify,
-                                              true);
+
+    case BattleStatus::LowerInitiative:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerInitiative, true);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerInitiativeLong,
+                                isLong);
         return true;
-    }
-    default: {
+
+    case BattleStatus::Paralyze:
+    case BattleStatus::Petrify:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, true);
+        return true;
+
+    default:
         return false;
-    }
     }
 }
 
 bool BattleMsgDataView::cure(const IdView& unitId)
 {
     using namespace game;
+    auto& battleApi = BattleMsgDataApi::get();
 
-    BattleMsgDataApi::get().setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Cured, true);
+    if (!battleApi.getUnitInfoById(battleMsgData, &unitId.id)) {
+        return false;
+    }
+
+    battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Cured, true);
 
     return true;
 }

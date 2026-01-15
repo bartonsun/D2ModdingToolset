@@ -365,7 +365,9 @@ void __fastcall boostDamageOnHitHooked(game::CBatAttackBoostDamage* thisptr,
                                        game::CMidgardID* targetUnitId,
                                        game::BattleAttackInfo** attackInfo);
 
-
+bool __fastcall decreaseUnitAttacksHooked(game::BattleMsgData* thisptr,
+                                          int /*%edx*/,
+                                          const game::CMidgardID* unitId);
 } // namespace hooks
 
 #endif // HOOKS_H
