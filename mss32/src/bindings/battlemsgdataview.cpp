@@ -834,4 +834,56 @@ void BattleMsgDataView::setRevivedStatus(const IdView& unitId, bool status)
     info->unitFlags.parts.revived = status;
 }
 
+bool BattleMsgDataView::resetUnitAttackSourceWard(const IdView& unitId, int attackSourceId)
+{
+    using namespace game;
+    auto& fn = gameFunctions();
+
+    UnitInfo* unitInfo = BattleMsgDataApi::get().getUnitInfoById(battleMsgData, &unitId.id);
+    if (!unitInfo)
+        return false;
+
+    const LAttackSource* attackSource{hooks::getAttackSourceById(static_cast<game::AttackSourceId>(attackSourceId))};
+    if (!attackSource)
+        return false;
+
+    std::uint32_t flag = 1 << gameFunctions().getAttackSourceWardFlagPosition(attackSource);
+    unitInfo->attackSourceImmunityStatuses.patched &= ~flag;
+
+    return true;
+}
+
+bool BattleMsgDataView::resetUnitAttackClassWard(const IdView& unitId, int attackClassId)
+{
+    using namespace game;
+    auto& fn = gameFunctions();
+
+    UnitInfo* unitInfo = BattleMsgDataApi::get().getUnitInfoById(battleMsgData, &unitId.id);
+    if (!unitInfo)
+        return false;
+
+    const LAttackClass* attackClass{hooks::getAttackClassById(static_cast<game::AttackClassId>(attackClassId))};
+    if (!attackClass)
+        return false;
+
+    std::uint32_t flag = 1 << gameFunctions().getAttackClassWardFlagPosition(attackClass);
+    unitInfo->attackClassImmunityStatuses &= ~flag;
+
+    return true;
+}
+
+bool BattleMsgDataView::isItemUsed(const IdView& itemId)
+{
+    using namespace game;
+
+    for (const auto& usedItemId : battleMsgData->usedItemIds) {
+        if (usedItemId == itemId.id) {
+            return true;
+        }
+    }
+    auto test = battleMsgData->unitsInfo;
+    //auto item = hooks::getGlobalItemById(objectMap, &itemId);
+    return false;
+}
+
 } // namespace bindings
