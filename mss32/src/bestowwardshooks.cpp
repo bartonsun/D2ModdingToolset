@@ -207,6 +207,10 @@ bool __fastcall bestowWardsAttackIsImmuneHooked(game::CBatAttackBestowWards* thi
     static const auto& immuneCategories = ImmuneCategories::get();
     static const auto& fn = gameFunctions();
 
+    if (*unitId == emptyId || *unitId == invalidId) {
+        return false;
+    }
+
     IAttack* attack = fn.getAttackById(objectMap, &thisptr->attackImplUnitId, thisptr->attackNumber,
                                        false);
 

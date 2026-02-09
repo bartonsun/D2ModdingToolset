@@ -228,6 +228,8 @@ struct OriginalFunctions
     game::IBatViewerVftable::BattleEnd battleEnd;
     game::BattleMsgDataApi::Api::UnitCanBeCured unitCanBeCured;
     game::BattleMsgDataApi::Api::DecreaseUnitAttacks decreaseUnitAttacks;
+
+    game::CBatLogicApi::Api::ApplyCBatAttackUntransformEffect applyCBatAttackUntransformEffect;
 };
 
 OriginalFunctions& getOriginalFunctions();

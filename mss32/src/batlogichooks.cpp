@@ -90,7 +90,6 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
             }
         }
     }
-    listApi.destructor(&unitInfos);
 
     CMidgardID winnerGroupId;
     batLogicApi.getBattleWinnerGroupId(thisptr, &winnerGroupId);
@@ -98,6 +97,8 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
     batLogicApi.applyCBatAttackGroupUpgrade(objMap, &winnerGroupId, msgData, resultSender);
     batLogicApi.applyCBatAttackGroupBattleCount(objMap, &winnerGroupId, msgData, resultSender);
     batLogicApi.restoreLeaderPositionsAfterDuel(objMap, msgData);
+
+    listApi.destructor(&unitInfos);
 
     static const auto scriptPath = scriptsFolder() / "hooks/hooks.lua";
     std::optional<sol::environment> env;
@@ -107,7 +108,9 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
             auto* globalObjMap = hooks::getObjectMap();
             if (auto* winnerGroup = hooks::getGroup(globalObjMap, &winnerGroupId)) {
                 const bindings::GroupView win{winnerGroup, globalObjMap, &winnerGroupId};
-                (*OnBattleEnd)(win);
+                const bindings::BattleMsgDataView battleView{thisptr->battleMsgData, globalObjMap};
+                (*OnBattleEnd)(win, battleView);
+                //(*OnBattleEnd)(win, nullptr);
             }
         } catch (const std::exception& e) {
             showErrorMessageBox(fmt::format("Lua Error (OnBattleEnd): {:s}", e.what()));
