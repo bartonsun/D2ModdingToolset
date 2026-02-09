@@ -1562,6 +1562,12 @@
     <ClCompile Include="src\batattackhealhooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\batattackblister.cpp" />
+    <ClCompile Include="src\batattackfrostbite.cpp" />
+    <ClCompile Include="src\batattackpoison.cpp" />
+    <ClCompile Include="src\dotattackhooks.cpp" />
+    <ClCompile Include="src\batattacklowerdamage.cpp" />
+    <ClCompile Include="src\batattackboostdamage.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3892,6 +3898,12 @@
     <ClInclude Include="include\batattackhealhooks.h">
       <Filter>hooks</Filter>
     </ClInclude>
+    <ClInclude Include="include\batattackblister.h" />
+    <ClInclude Include="include\batattackfrostbite.h" />
+    <ClInclude Include="include\batattackpoison.h" />
+    <ClInclude Include="include\dotattackhooks.h" />
+    <ClInclude Include="include\batattacklowerdamage.h" />
+    <ClInclude Include="include\batattackboostdamage.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="mss32.rc">
@@ -3900,7 +3912,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="module.def" />
-    <None Include="cpp.hint" />
+    <None Include="..\CONTRIBUTORS.md" />
+    <None Include="..\luaApi.md" />
+    <None Include="..\README.md" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="midgardid.natvis" />

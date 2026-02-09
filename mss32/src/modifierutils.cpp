@@ -36,6 +36,13 @@
 #include "unitmodifier.h"
 #include "ussoldier.h"
 
+#include "version.h"
+#include "unitutils.h"
+#include "visitors.h"
+#include "modifierview.h"
+#include "gameutils.h"
+#include <fmt/format.h>
+
 namespace hooks {
 
 bool unitCanBeModified(game::BattleMsgData* battleMsgData, game::CMidgardID* targetUnitId)
@@ -454,10 +461,13 @@ bool applyModifier(const game::CMidgardID* unitId,
 {
     using namespace game;
 
+    // Fixed situation, when OnAddModifier return false, but battle modifier can be applied on unit
+    if (!CMidUnitApi::get().addModifier(targetUnit, modifierId)) {
+        return false;
+    }
+
     if (!addModifiedUnitInfo(unitId, battleMsgData, targetUnit, modifierId))
         return false;
-
-    CMidUnitApi::get().addModifier(targetUnit, modifierId);
 
     // Fixes modifiers getting lost after modified unit is untransformed
     if (targetUnit->transformed)
@@ -466,14 +476,16 @@ bool applyModifier(const game::CMidgardID* unitId,
     CUmModifier* modifier = getUnitModifier(modifierId)->data->modifier;
 
     // No ward reset in case of custom modifier because we don't know if it grants it or not
-    CUmUnit* umUnit = castUmModifierToUmUnit(modifier);
-    if (umUnit) {
+    if (CUmUnit* umUnit = castUmModifierToUmUnit(modifier)) {
         if (modifier->vftable->hasElement(modifier, ModifierElementTypeFlag::ImmunityOnce))
             resetUnitAttackSourceWard(battleMsgData, &targetUnit->id, umUnit);
 
         if (modifier->vftable->hasElement(modifier, ModifierElementTypeFlag::ImmunityclassOnce))
             resetUnitAttackClassWard(battleMsgData, &targetUnit->id, umUnit);
     }
+
+    // Unit HP adjustment
+    BattleMsgDataApi::get().setUnitHp(battleMsgData, &targetUnit->id, targetUnit->currentHp);
 
     return true;
 }
@@ -484,15 +496,22 @@ void removeModifier(game::BattleMsgData* battleMsgData,
 {
     using namespace game;
 
-    if (unit == nullptr) // Prevents the same crash with summoners that appears in removeModifier
+    // Prevents the same crash with summoners that appears in removeModifier
+    // Prevent next steps if we dont want remove modifier
+    if (!unit || CMidUnitApi::get().removeModifier(unit, modifierId))
         return;
 
-    CMidUnitApi::get().removeModifier(unit, modifierId);
+    auto& battle = BattleMsgDataApi::get();
+
+    const auto& unitId = unit->id;
 
     // Fixes modifiers becoming permanent after modified unit is transformed
     removeIdFromList(unit->origModifiers, modifierId);
 
-    BattleMsgDataApi::get().resetUnitModifierInfo(battleMsgData, &unit->id, modifierId);
+    battle.resetUnitModifierInfo(battleMsgData, &unitId, modifierId);
+
+    // Unit HP adjustment
+    battle.setUnitHp(battleMsgData, &unitId, unit->currentHp);
 }
 
 void removeModifiers(game::BattleMsgData* battleMsgData,
@@ -726,32 +745,77 @@ void notifyModifiersChanged(const game::IUsUnit* unitImpl)
 bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool checkCanApply)
 {
     using namespace game;
+    if (!unit || !modifierId)
+        return false;
 
     const auto unitModifier = getUnitModifier(modifierId);
-    if (!unitModifier) {
+    if (!unitModifier)
         return false;
-    }
 
     if (checkCanApply && !unitModifier->vftable->canApplyToUnit(unitModifier, unit->unitImpl)) {
         return false;
     }
 
-    auto modifier = unitModifier->vftable->createModifier(unitModifier);
+    const auto version = gameVersion();
+    const bool isEditor = (version == GameVersion::ScenarioEditor);
+
+    static const auto scriptPath = scriptsFolder() / "hooks/modifiers.lua";
+    std::optional<sol::environment> env;
+
+    auto modifierImpl = unitModifier->vftable->createModifier(unitModifier);
+    if (!modifierImpl)
+        return false;
+
+    const bindings::UnitView target{unit};
+    const bindings::ModifierView mods{modifierImpl};
+
+    if (!isEditor) {
+        auto BeforeAddModifier = getScriptFunction(scriptPath, "OnAddModifier", env, false, true);
+        if (BeforeAddModifier) {
+            try {
+                if (!(*BeforeAddModifier)(target, mods).get<bool>()) {
+                    return false;
+                }
+            } catch (const std::exception& e) {
+                showErrorMessageBox(fmt::format("OnAddModifier Error: {:s}", e.what()));
+            }
+        }
+    }
+
+    const int maxHpBefore = getUnitHpMax(unit);
 
     auto prevModifier = castUnitToUmModifier(unit->unitImpl);
-    if (prevModifier)
-        prevModifier->data->next = modifier;
+    if (prevModifier) {
+        prevModifier->data->next = modifierImpl;
+    }
 
-    CUmModifierApi::get().setPrev(modifier, unit->unitImpl);
+    CUmModifierApi::get().setPrev(modifierImpl, unit->unitImpl);
 
-    auto customModifier = castModifierToCustomModifier(modifier);
-    if (customModifier)
+    if (auto customModifier = castModifierToCustomModifier(modifierImpl)) {
         customModifier->setUnit(unit);
+    }
 
-    unit->unitImpl = castUmModifierToUnit(modifier);
+    unit->unitImpl = castUmModifierToUnit(modifierImpl);
 
     if (userSettings().modifiers.notifyModifiersChanged) {
         notifyModifiersChanged(unit->unitImpl);
+    }
+
+    if (!isEditor) {
+        const int maxHpAfter = getUnitHpMax(unit);
+        if (maxHpAfter != maxHpBefore) {
+            const int diff = maxHpAfter - maxHpBefore;
+            unit->currentHp = std::clamp(unit->currentHp + diff, 1, maxHpAfter);
+        }
+
+        auto ModifierApplyed = getScriptFunction(scriptPath, "ModifierApplyed", env, false, true);
+        if (ModifierApplyed) {
+            try {
+                (*ModifierApplyed)(target, mods);
+            } catch (const std::exception& e) {
+                showErrorMessageBox(fmt::format("ModifierApplyed Error: {:s}", e.what()));
+            }
+        }
     }
 
     return true;

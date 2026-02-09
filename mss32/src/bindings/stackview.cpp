@@ -54,6 +54,7 @@ void StackView::bind(sol::state& lua)
     stackView["order"] = sol::property(&StackView::getOrder);
     stackView["orderTargetId"] = sol::property(&StackView::getOrderTargetId);
     stackView["aiOrder"] = sol::property(&StackView::getAiOrder);
+    stackView["GiveSkillPoint"] = &StackView::giveSkillPoint;
 }
 
 IdView StackView::getId() const
@@ -166,6 +167,14 @@ IdView StackView::getOrderTargetId() const
 int StackView::getAiOrder() const
 {
     return static_cast<int>(stack->aiOrder.id);
+}
+
+void StackView::giveSkillPoint(int amout)
+{
+    using namespace game;
+
+    CMidStack* cStack = const_cast<CMidStack*>(stack);
+    cStack->upgCount += amout;
 }
 
 } // namespace bindings

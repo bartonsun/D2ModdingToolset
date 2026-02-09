@@ -224,6 +224,24 @@ struct Settings
     } battle;
 
     bool debugMode;
+
+    bool alchemistKeepsAttackCount;
+    bool instantBuffRemoval;
+    bool reviveUsesQtyHeal;
+    bool advancedCure;
+
+    struct ExtendedBattle
+    {
+        bool dotDamageCanStack;
+        std::string blisterDamageID;
+        std::string frostbiteDamageID;
+        std::string poisonDamageID;
+        int maxDotDamage;
+
+        bool lowerdamageCanAffectHealer;
+        bool boostdamageCanAffectHealer;
+
+    } extendedBattle;
 };
 
 const Settings& baseSettings();

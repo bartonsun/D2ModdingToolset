@@ -39,6 +39,10 @@
 #include "usunitimpl.h"
 #include <spdlog/spdlog.h>
 
+#include <gameutils.h>
+#include <version.h>
+#include "modifierview.h"
+
 namespace hooks {
 
 bool __fastcall addModifierHooked(game::CMidUnit* thisptr,
@@ -54,40 +58,74 @@ bool __fastcall removeModifierHooked(game::CMidUnit* thisptr,
 {
     using namespace game;
 
-    const auto& umModifierApi = CUmModifierApi::get();
-
-    if (!thisptr) {
+    if (!thisptr || !modifierId)
         return false;
+
+    const auto version = gameVersion();
+    const bool isNotEditor = (version != GameVersion::ScenarioEditor);
+
+    if (isNotEditor) {
+        std::optional<sol::environment> env;
+        auto hook = getScriptFunction(scriptsFolder() / "hooks/modifiers.lua", "OnRemoveModifier",
+                                      env, false, true);
+
+        if (hook) {
+            const auto unitModifier = getUnitModifier(modifierId);
+            if (unitModifier) {
+                const bindings::UnitView target{thisptr};
+                const bindings::ModifierView mods{
+                    unitModifier->vftable->createModifier(unitModifier)};
+
+                try {
+                    if (!(*hook)(target, mods).get<bool>()) {
+                        return false;
+                    }
+                } catch (const std::exception& e) {
+                    showErrorMessageBox(fmt::format("Lua Error (OnRemoveModifier): {}", e.what()));
+                }
+            }
+        }
     }
 
-    CUmModifier* modifier = nullptr;
-    for (auto curr = thisptr->unitImpl; curr; curr = modifier->data->prev) {
-        modifier = castUnitToUmModifier(curr);
-        if (!modifier) {
+    const int maxHpBefore = getUnitHpMax(thisptr);
+
+    for (auto curr = thisptr->unitImpl; curr;) {
+        auto* modifier = castUnitToUmModifier(curr);
+        if (!modifier)
             break;
-        }
+
+        auto* nextInLoop = modifier->data->prev;
 
         if (modifier->data->modifierId == *modifierId) {
-            auto prev = modifier->data->prev;
-            auto next = modifier->data->next;
+            auto* prev = modifier->data->prev;
+            auto* next = modifier->data->next;
+
             if (next) {
-                umModifierApi.setPrev(next, prev);
+                CUmModifierApi::get().setPrev(next, prev);
             } else {
                 thisptr->unitImpl = prev;
             }
 
-            auto prevModifier = castUnitToUmModifier(prev);
-            if (prevModifier) {
-                prevModifier->data->next = next;
+            if (auto* prevMod = castUnitToUmModifier(prev)) {
+                prevMod->data->next = next;
             }
 
             if (userSettings().modifiers.notifyModifiersChanged) {
                 notifyModifiersChanged(thisptr->unitImpl);
             }
 
+            if (isNotEditor) {
+                const int maxHp = getUnitHpMax(thisptr);
+                if (maxHp != maxHpBefore) {
+                    thisptr->currentHp = std::clamp(thisptr->currentHp + (maxHp - maxHpBefore), 1,
+                                                    maxHp);
+                }
+            }
+
             modifier->vftable->destructor(modifier, true);
             return true;
         }
+        curr = nextInLoop;
     }
 
     return false;

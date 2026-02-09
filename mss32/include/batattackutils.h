@@ -32,6 +32,8 @@ struct IBatAttack;
 
 namespace hooks {
 
+int computeBoostedHeal(game::CMidgardID* unitId, game::BattleMsgData* battleMsgData, int baseHeal);
+
 bool canHeal(game::IAttack* attack,
              game::IMidgardObjectMap* objectMap,
              game::BattleMsgData* battleMsgData,

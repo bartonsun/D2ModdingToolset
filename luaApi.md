@@ -1383,6 +1383,11 @@ variable.value
 Stores scenario variables, allows searching them by name.
 
 Methods:
+##### items
+Returns an array of [ScenarioVariable](luaApi.md#scenariovariable).
+```lua
+local variables = variables.items
+```
 ##### getVariable
 Searches for [ScenarioVariable](luaApi.md#scenariovariable) by its name, reeturns `nil` if not found.
 ```lua

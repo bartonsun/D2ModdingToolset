@@ -72,6 +72,9 @@
 #include "testcondition.h"
 #include "visitors.h"
 
+#include "batviewer.h"
+#include "battleattackinfo.h"
+
 namespace hooks {
 
 struct OriginalFunctions
@@ -220,6 +223,11 @@ struct OriginalFunctions
     game::CMidObjectLockApi::Api::Constructor midObjectLockCtor;
 
     game::CBatLogicApi::Api::BattleTurn battleTurn;
+
+    game::BattleMsgDataApi::Api::SetUnitStatus setUnitStatus;
+    game::IBatViewerVftable::BattleEnd battleEnd;
+    game::BattleMsgDataApi::Api::UnitCanBeCured unitCanBeCured;
+    game::BattleMsgDataApi::Api::DecreaseUnitAttacks decreaseUnitAttacks;
 };
 
 OriginalFunctions& getOriginalFunctions();

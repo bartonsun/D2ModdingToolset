@@ -28,6 +28,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <batviewer.h>
 
 namespace game {
 struct DialogScriptData;
@@ -70,6 +71,9 @@ struct CScenarioVisitor;
 struct LSiteCategory;
 struct CMidSite;
 struct CTextBoxInterf;
+
+struct CBatAttackBoostDamage;
+struct CBatAttackLowerDamage;
 
 template <typename T>
 struct CInterfaceT;
@@ -136,6 +140,13 @@ bool __fastcall giveAttackCanPerformHooked(game::CBatAttackGiveAttack* thisptr,
                                            game::IMidgardObjectMap* objectMap,
                                            game::BattleMsgData* battleMsgData,
                                            game::CMidgardID* unitId);
+
+void __fastcall giveAttackOnHitHooked(game::CBatAttackShatter* thisptr,
+                                      int /*%edx*/,
+                                      game::IMidgardObjectMap* objectMap,
+                                      game::BattleMsgData* battleMsgData,
+                                      game::CMidgardID* unitId,
+                                      game::BattleAttackInfo** attackInfo);
 
 bool __fastcall shatterCanPerformHooked(game::CBatAttackShatter* thisptr,
                                         int /*%edx*/,
@@ -321,6 +332,42 @@ game::String* __stdcall getSiteSoundHooked(game::String* soundName, const game::
 
 bool __stdcall siteHasSoundHooked(const game::CMidSite* site);
 
+void __fastcall setUnitStatusHooked(const game::BattleMsgData* thisptr,
+                                    int /*%edx*/,
+                                    const game::CMidgardID* unitId,
+                                    const int status,
+                                    bool enable);
+
+void __fastcall battleEndHooked(game::IBatViewer* thisptr,
+                                int /*%edx*/,
+                                const game::BattleMsgData* battleMsgData,
+                                const game::CMidgardID* a3);
+
+bool __stdcall unitCanBeCuredHooked(const game::BattleMsgData* battleMsgData,
+                                    const game::CMidgardID* unitId);
+
+bool __fastcall lowerDamageCanPerformHooked(game::CBatAttackLowerDamage* thisptr,
+                                            int /*%edx*/,
+                                            game::IMidgardObjectMap* objectMap,
+                                            game::BattleMsgData* battleMsgData,
+                                            game::CMidgardID* unitId);
+
+bool __fastcall boostDamageCanPerformHooked(game::CBatAttackBoostDamage* thisptr,
+                                            int /*%edx*/,
+                                            game::IMidgardObjectMap* objectMap,
+                                            game::BattleMsgData* battleMsgData,
+                                            game::CMidgardID* unitId);
+
+void __fastcall boostDamageOnHitHooked(game::CBatAttackBoostDamage* thisptr,
+                                       int /*%edx*/,
+                                       game::IMidgardObjectMap* objectMap,
+                                       game::BattleMsgData* battleMsgData,
+                                       game::CMidgardID* targetUnitId,
+                                       game::BattleAttackInfo** attackInfo);
+
+bool __fastcall decreaseUnitAttacksHooked(game::BattleMsgData* thisptr,
+                                          int /*%edx*/,
+                                          const game::CMidgardID* unitId);
 } // namespace hooks
 
 #endif // HOOKS_H

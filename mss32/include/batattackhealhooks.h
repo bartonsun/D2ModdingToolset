@@ -26,6 +26,7 @@ struct IMidgardObjectMap;
 struct BattleMsgData;
 struct CMidgardID;
 struct BattleUiData;
+struct BattleAttackInfo;
 } // namespace game
 
 namespace hooks {
@@ -36,6 +37,12 @@ bool __fastcall healAttackCanPerformHooked(game::CBatAttackHeal* thisptr,
                                            game::BattleMsgData* battleMsgData,
                                            game::CMidgardID* unitId);
 
+void __fastcall healAttackOnHitHooked(game::CBatAttackHeal* thisptr,
+                                      int /*%edx*/,
+                                      game::IMidgardObjectMap* objectMap,
+                                      game::BattleMsgData* battleMsgData,
+                                      game::CMidgardID* targetUnitId,
+                                      game::BattleAttackInfo** attackInfo);
 } // namespace hooks
 
 #endif // BATATTACKHEALHOOKS_H

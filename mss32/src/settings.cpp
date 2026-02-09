@@ -363,6 +363,30 @@ static void readAdditionalCityIncomeSettings(const sol::table& table,
     }
 }
 
+static void readExtandedBattleSettings(const sol::table& table, Settings::ExtendedBattle& value)
+{
+    const auto& def = defaultSettings().extendedBattle;
+
+    auto category = table.get<sol::optional<sol::table>>("extendedBattle");
+    if (!category.has_value()) {
+        value = def;
+        return;
+    }
+
+    value.dotDamageCanStack = readSetting(category.value(), "dotDamageCanStack",
+                                          def.dotDamageCanStack);
+    value.blisterDamageID = readSetting(category.value(), "blisterDamageID", def.blisterDamageID);
+    value.frostbiteDamageID = readSetting(category.value(), "frostbiteDamageID",
+                                          def.frostbiteDamageID);
+    value.poisonDamageID = readSetting(category.value(), "poisonDamageID", def.poisonDamageID);
+    value.maxDotDamage = readSetting(category.value(), "maxDotDamage", def.maxDotDamage, 0, 32767);
+
+    value.lowerdamageCanAffectHealer = readSetting(category.value(), "lowerdamageCanAffectHealer",
+                                                   def.lowerdamageCanAffectHealer);
+    value.boostdamageCanAffectHealer = readSetting(category.value(), "boostdamageCanAffectHealer",
+                                                   def.boostdamageCanAffectHealer);
+}
+
 static void readSettings(const sol::table& table, Settings& settings)
 {
     // clang-format off
@@ -398,6 +422,10 @@ static void readSettings(const sol::table& table, Settings& settings)
     settings.freeTransformSelfAttack = readSetting(table, "freeTransformSelfAttack", defaultSettings().freeTransformSelfAttack);
     settings.freeTransformSelfAttackInfinite = readSetting(table, "freeTransformSelfAttackInfinite", defaultSettings().freeTransformSelfAttackInfinite);
     settings.fixEffectiveHpFormula = readSetting(table, "fixEffectiveHpFormula", defaultSettings().fixEffectiveHpFormula);
+    settings.alchemistKeepsAttackCount = readSetting(table, "alchemistKeepsAttackCount", defaultSettings().alchemistKeepsAttackCount);
+    settings.instantBuffRemoval = readSetting(table, "instantBuffRemoval", defaultSettings().instantBuffRemoval);
+    settings.reviveUsesQtyHeal = readSetting(table, "reviveUsesQtyHeal", defaultSettings().reviveUsesQtyHeal);
+    settings.advancedCure = readSetting(table, "advancedCure", defaultSettings().advancedCure);
     // People keep forgetting to turn this off in release packages
     //settings.debugMode = readSetting(table, "debugHooks", defaultSettings().debugMode);
     // clang-format on
@@ -413,6 +441,7 @@ static void readSettings(const sol::table& table, Settings& settings)
     readBattleSettings(table, settings.battle);
     readAdditionalLordIncomeSettings(table, settings.additionalLordIncome);
     readAdditionalCityIncomeSettings(table, settings.additionalCityIncome);
+    readExtandedBattleSettings(table, settings.extendedBattle);
 }
 
 static void readDebugMode(Settings& settings)
@@ -507,6 +536,19 @@ const Settings& baseSettings()
         settings.movementCost.show = false;
         settings.battle.fallbackAction = game::BattleAction::Defend;
         settings.debugMode = false;
+
+        settings.alchemistKeepsAttackCount = false;
+        settings.instantBuffRemoval = false;
+        settings.reviveUsesQtyHeal = false;
+        settings.advancedCure = false;
+
+        settings.extendedBattle.dotDamageCanStack = false;
+        settings.extendedBattle.blisterDamageID = "g202aa";
+        settings.extendedBattle.frostbiteDamageID = "g201aa";
+        settings.extendedBattle.poisonDamageID = "g200aa";
+        settings.extendedBattle.maxDotDamage = 300;
+        settings.extendedBattle.lowerdamageCanAffectHealer = false;
+        settings.extendedBattle.boostdamageCanAffectHealer = false;
 
         initialized = true;
     }

@@ -24,8 +24,12 @@
 #include "midunit.h"
 #include "originalfunctions.h"
 #include "unitinfolist.h"
-#include "unitinfolist.h"
 
+#include "battlemsgdataviewmutable.h"
+#include "gameutils.h"
+#include "groupview.h"
+#include "scripts.h"
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 
@@ -50,63 +54,64 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
                                                  game::CResultSender* resultSender)
 {
     using namespace game;
+    auto& batLogicApi = CBatLogicApi::get();
 
-    if (CBatLogicApi::get().isBattleOver(thisptr)) {
-        const auto& batLogicApi = CBatLogicApi::get();
-        const auto& battleApi = BattleMsgDataApi::get();
-        const auto& fn = game::gameFunctions();
-        const auto& listApi = UnitInfoListApi::get();
-        const auto& idApi = CMidgardIDApi::get();
+    if (!batLogicApi.isBattleOver(thisptr)) {
+        return;
+    }
 
-        batLogicApi.checkAndDestroyEquippedBattleItems(thisptr->objectMap, thisptr->battleMsgData);
+    const auto& battleApi = BattleMsgDataApi::get();
+    const auto& fn = game::gameFunctions();
+    const auto& listApi = UnitInfoListApi::get();
+    const auto& idApi = CMidgardIDApi::get();
+    auto* msgData = thisptr->battleMsgData;
+    auto* objMap = thisptr->objectMap;
 
-        UnitInfoList unitInfos{};
-        listApi.constructor(&unitInfos);
-        battleApi.getUnitInfos(thisptr->battleMsgData, &unitInfos, false);
-        listApi.sortBy(&unitInfos, listApi.compareByUnsummonOrder);
+    batLogicApi.checkAndDestroyEquippedBattleItems(objMap, msgData);
 
-        for (const auto& unitInfo : unitInfos) {
-            CMidgardID unitId;
-            idApi.validateId(&unitId, unitInfo.unitId1);
+    UnitInfoList unitInfos{};
+    listApi.constructor(&unitInfos);
+    battleApi.getUnitInfos(msgData, &unitInfos, false);
+    listApi.sortBy(&unitInfos, listApi.compareByUnsummonOrder);
 
-            CMidUnit* unit = fn.findUnitById(thisptr->objectMap, &unitId);
-            if (unit) {
-                if (battleApi.getUnitStatus(thisptr->battleMsgData, &unitId, BattleStatus::Summon)) {
-                    batLogicApi.applyCBatAttackUnsummonEffect(thisptr->objectMap, &unitId,
-                                                              thisptr->battleMsgData, resultSender);
+    CMidgardID tempId;
 
-                } else if (unit->transformed) {
-                    auto retreated = battleApi.getUnitStatus(thisptr->battleMsgData, &unitId,
-                                                             BattleStatus::Retreated);
+    for (const auto& unitInfo : unitInfos) {
+        idApi.validateId(&tempId, unitInfo.unitId1);
 
-                    batLogicApi.applyCBatAttackUntransformEffect(thisptr->objectMap, &unitId,
-                                                                 thisptr->battleMsgData,
-                                                                 resultSender, !retreated);
-                }
+        if (CMidUnit* unit = fn.findUnitById(objMap, &tempId)) {
+            if (battleApi.getUnitStatus(msgData, &tempId, BattleStatus::Summon)) {
+                batLogicApi.applyCBatAttackUnsummonEffect(objMap, &tempId, msgData, resultSender);
+            }
+            else if (unit->transformed) {
+                bool retreated = battleApi.getUnitStatus(msgData, &tempId, BattleStatus::Retreated);
+                batLogicApi.applyCBatAttackUntransformEffect(objMap, &tempId, msgData, resultSender,
+                                                             !retreated);
             }
         }
+    }
+    listApi.destructor(&unitInfos);
 
-        
-        CMidgardID winnerGroup1Id;
-        batLogicApi.getBattleWinnerGroupId(thisptr, &winnerGroup1Id);
+    CMidgardID winnerGroupId;
+    batLogicApi.getBattleWinnerGroupId(thisptr, &winnerGroupId);
 
-        BattleMsgData* battleMsgData1 = thisptr->battleMsgData;
+    batLogicApi.applyCBatAttackGroupUpgrade(objMap, &winnerGroupId, msgData, resultSender);
+    batLogicApi.applyCBatAttackGroupBattleCount(objMap, &winnerGroupId, msgData, resultSender);
+    batLogicApi.restoreLeaderPositionsAfterDuel(objMap, msgData);
 
-        batLogicApi.applyCBatAttackGroupUpgrade(thisptr->objectMap, &winnerGroup1Id, battleMsgData1,
-                                                resultSender);
+    static const auto scriptPath = scriptsFolder() / "hooks/hooks.lua";
+    std::optional<sol::environment> env;
 
-        BattleMsgData* battleMsgData2 = thisptr->battleMsgData;
-
-        CMidgardID winnerGroup2Id;
-        batLogicApi.getBattleWinnerGroupId(thisptr, &winnerGroup2Id);
-
-
-        batLogicApi.applyCBatAttackGroupBattleCount(thisptr->objectMap, &winnerGroup2Id,
-                                                    battleMsgData2, resultSender);
-
-        batLogicApi.restoreLeaderPositionsAfterDuel(thisptr->objectMap, thisptr->battleMsgData);
-
-        listApi.destructor(&unitInfos);
+    if (auto OnBattleEnd = getScriptFunction(scriptPath, "OnBattleEnd", env, false, true)) {
+        try {
+            auto* globalObjMap = hooks::getObjectMap();
+            if (auto* winnerGroup = hooks::getGroup(globalObjMap, &winnerGroupId)) {
+                const bindings::GroupView win{winnerGroup, globalObjMap, &winnerGroupId};
+                (*OnBattleEnd)(win);
+            }
+        } catch (const std::exception& e) {
+            showErrorMessageBox(fmt::format("Lua Error (OnBattleEnd): {:s}", e.what()));
+        }
     }
 }
 

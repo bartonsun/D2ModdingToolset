@@ -160,6 +160,17 @@ union UnitFlags
 
 assert_size(UnitFlags, 1);
 
+//Hold information about damage over time (DOT)
+struct DotInfo
+{
+    int16_t poisonDamage = 0;
+    int16_t frostbiteDamage = 0;
+    int16_t blisterDamage = 0;
+    char padding[2];
+};
+
+assert_size(DotInfo, 8);
+
 /** Holds unit information used in battle. */
 struct UnitInfo
 {
@@ -168,8 +179,10 @@ struct UnitInfo
     /** Bitmask made of BattleStatus values used as shifts. */
     std::uint64_t unitStatuses;
     /** Additional statuses, unused in RotE v3.01. */
-    std::uint64_t unitStatuses2;
+    //std::uint64_t unitStatuses2;
     /** Id of attack that applied poison effect. */
+    /** Information about DOT damage (for stack) */
+    DotInfo dotInfo;
     CMidgardID poisonAttackId;
     /** Id of attack that applied frostbite effect. */
     CMidgardID frostbiteAttackId;
