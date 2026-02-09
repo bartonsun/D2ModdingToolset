@@ -29,6 +29,7 @@
 #include <utility>
 #include <vector>
 #include <batviewer.h>
+#include <batlogic.h>
 
 namespace game {
 struct DialogScriptData;
@@ -368,6 +369,14 @@ void __fastcall boostDamageOnHitHooked(game::CBatAttackBoostDamage* thisptr,
 bool __fastcall decreaseUnitAttacksHooked(game::BattleMsgData* thisptr,
                                           int /*%edx*/,
                                           const game::CMidgardID* unitId);
+
+void __stdcall applyCBatAttackUntransformEffectHooked(game::IMidgardObjectMap* objectMap,
+                                                      game::CMidgardID* unitId,
+                                                      game::BattleMsgData* battleMsgData,
+                                                      game::CResultSender* resultSender,
+                                                      char sendResult);
+;
+
 } // namespace hooks
 
 #endif // HOOKS_H

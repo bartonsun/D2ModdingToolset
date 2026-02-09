@@ -514,6 +514,7 @@ static Hooks getGameHooks()
         //For future updates
         {BattleViewerInterfApi::vftable()->battleEnd, battleEndHooked, (void**)&orig.battleEnd},
         {battle.decreaseUnitAttacks, decreaseUnitAttacksHooked, (void**)&orig.decreaseUnitAttacks},
+        {CBatLogicApi::get().applyCBatAttackUntransformEffect, applyCBatAttackUntransformEffectHooked, (void**)&orig.applyCBatAttackUntransformEffect},
     };
     // clang-format on
 
@@ -1933,7 +1934,7 @@ void __stdcall afterBattleTurnHooked(game::BattleMsgData* battleMsgData,
     std::optional<sol::environment> env;
     auto f = getScriptFunction(scriptPath, "OnAfterBattleTurn", env, false, true);
 
-    if (f && f->valid()) {
+    if (f) {
         try {
             const auto& fn = gameFunctions();
             auto* objMap = getObjectMap();
@@ -2004,7 +2005,7 @@ void __stdcall beforeBattleTurnHooked(game::BattleMsgData* battleMsgData,
     std::optional<sol::environment> env;
     auto f = getScriptFunction(scriptPath, "OnBeforeBattleTurn", env, false, true);
 
-    if (f && f->valid()) {
+    if (f) {
         try {
             const auto& fn = gameFunctions();
             if (CMidUnit* cMidUnit = fn.findUnitById(objectMap, unitId)) {
@@ -3112,10 +3113,11 @@ void __fastcall battleEndHooked(game::IBatViewer* thisptr,
     if (f) {
         try {
             auto* pWinnerGroup = hooks::getGroup(objectMap, &winnerGroup);
+            const bindings::BattleMsgDataView battleView{battleMsgData, objectMap};
 
             if (pWinnerGroup) {
                 const bindings::GroupView win{pWinnerGroup, objectMap, &winnerGroup};
-                (*f)(win);
+                (*f)(win, battleView);
             }
         } catch (const std::exception& e) {
             showErrorMessageBox(
@@ -3198,8 +3200,6 @@ bool __fastcall boostDamageCanPerformHooked(game::CBatAttackBoostDamage* thisptr
     using namespace game;
 
     const int curLvl = getBoostLevel(battleMsgData, unitId);
-    if (curLvl >= 4)
-        return false;
 
     CMidgardID unitGroupId{};
     gameFunctions().getAllyOrEnemyGroupId(&unitGroupId, battleMsgData, unitId, true);
@@ -3266,6 +3266,16 @@ bool __fastcall decreaseUnitAttacksHooked(game::BattleMsgData* battleMsgData,
     }
 
     return getOriginalFunctions().decreaseUnitAttacks(battleMsgData, unitId);
+}
+
+void __stdcall applyCBatAttackUntransformEffectHooked(game::IMidgardObjectMap* objectMap,
+    game::CMidgardID* unitId,
+    game::BattleMsgData* battleMsgData,
+    game::CResultSender* resultSender,
+    char sendResult)
+{
+    getOriginalFunctions().applyCBatAttackUntransformEffect(objectMap, unitId, battleMsgData,
+                                                            resultSender, sendResult);
 }
 
 } // namespace hooks

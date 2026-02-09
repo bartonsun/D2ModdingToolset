@@ -466,22 +466,31 @@ bool applyModifier(const game::CMidgardID* unitId,
         return false;
     }
 
-    if (!addModifiedUnitInfo(unitId, battleMsgData, targetUnit, modifierId))
+    auto unitModContainer = getUnitModifier(modifierId);
+    if (!unitModContainer || !unitModContainer->data || !unitModContainer->data->modifier) {
         return false;
+    }
+    CUmModifier* modifier = unitModContainer->data->modifier;
 
-    // Fixes modifiers getting lost after modified unit is untransformed
-    if (targetUnit->transformed)
+    if (!addModifiedUnitInfo(unitId, battleMsgData, targetUnit, modifierId)) {
+    }
+
+    if (targetUnit->transformed) {
         addUniqueIdToList(targetUnit->origModifiers, modifierId);
-
-    CUmModifier* modifier = getUnitModifier(modifierId)->data->modifier;
+    }
 
     // No ward reset in case of custom modifier because we don't know if it grants it or not
     if (CUmUnit* umUnit = castUmModifierToUmUnit(modifier)) {
-        if (modifier->vftable->hasElement(modifier, ModifierElementTypeFlag::ImmunityOnce))
-            resetUnitAttackSourceWard(battleMsgData, &targetUnit->id, umUnit);
+        if (modifier->vftable && modifier->vftable->hasElement) {
+            if (modifier->vftable->hasElement(modifier, ModifierElementTypeFlag::ImmunityOnce)) {
+                resetUnitAttackSourceWard(battleMsgData, &targetUnit->id, umUnit);
+            }
 
-        if (modifier->vftable->hasElement(modifier, ModifierElementTypeFlag::ImmunityclassOnce))
-            resetUnitAttackClassWard(battleMsgData, &targetUnit->id, umUnit);
+            if (modifier->vftable->hasElement(modifier,
+                                              ModifierElementTypeFlag::ImmunityclassOnce)) {
+                resetUnitAttackClassWard(battleMsgData, &targetUnit->id, umUnit);
+            }
+        }
     }
 
     // Unit HP adjustment
@@ -496,21 +505,15 @@ void removeModifier(game::BattleMsgData* battleMsgData,
 {
     using namespace game;
 
-    // Prevents the same crash with summoners that appears in removeModifier
-    // Prevent next steps if we dont want remove modifier
-    if (!unit || CMidUnitApi::get().removeModifier(unit, modifierId))
+    if (!unit || !CMidUnitApi::get().removeModifier(unit, modifierId))
         return;
 
     auto& battle = BattleMsgDataApi::get();
-
     const auto& unitId = unit->id;
 
-    // Fixes modifiers becoming permanent after modified unit is transformed
     removeIdFromList(unit->origModifiers, modifierId);
 
     battle.resetUnitModifierInfo(battleMsgData, &unitId, modifierId);
-
-    // Unit HP adjustment
     battle.setUnitHp(battleMsgData, &unitId, unit->currentHp);
 }
 
@@ -523,6 +526,9 @@ void removeModifiers(game::BattleMsgData* battleMsgData,
 
     auto modifiedUnit = static_cast<CMidUnit*>(
         objectMap->vftable->findScenarioObjectByIdForChange(objectMap, modifiedUnitId));
+
+    if (!modifiedUnit)
+        return;
 
     auto unitModifierIds = getUnitModifierIds(unitInfo, modifiedUnitId);
     for (auto it = unitModifierIds.begin(); it != unitModifierIds.end(); it++)
@@ -762,12 +768,9 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
     static const auto scriptPath = scriptsFolder() / "hooks/modifiers.lua";
     std::optional<sol::environment> env;
 
-    auto modifierImpl = unitModifier->vftable->createModifier(unitModifier);
-    if (!modifierImpl)
-        return false;
 
     const bindings::UnitView target{unit};
-    const bindings::ModifierView mods{modifierImpl};
+    const bindings::ModifierView mods{unitModifier->data->modifier};
 
     if (!isEditor) {
         auto BeforeAddModifier = getScriptFunction(scriptPath, "OnAddModifier", env, false, true);
@@ -781,6 +784,10 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
             }
         }
     }
+
+    auto modifierImpl = unitModifier->vftable->createModifier(unitModifier);
+    if (!modifierImpl)
+        return false;
 
     const int maxHpBefore = getUnitHpMax(unit);
 
@@ -803,7 +810,7 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
 
     if (!isEditor) {
         const int maxHpAfter = getUnitHpMax(unit);
-        if (maxHpAfter != maxHpBefore) {
+        if (maxHpAfter != maxHpBefore && unit->currentHp > 0) {
             const int diff = maxHpAfter - maxHpBefore;
             unit->currentHp = std::clamp(unit->currentHp + diff, 1, maxHpAfter);
         }

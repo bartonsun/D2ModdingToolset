@@ -73,8 +73,7 @@ bool __fastcall removeModifierHooked(game::CMidUnit* thisptr,
             const auto unitModifier = getUnitModifier(modifierId);
             if (unitModifier) {
                 const bindings::UnitView target{thisptr};
-                const bindings::ModifierView mods{
-                    unitModifier->vftable->createModifier(unitModifier)};
+                const bindings::ModifierView mods{unitModifier->data->modifier};
 
                 try {
                     if (!(*hook)(target, mods).get<bool>()) {
@@ -116,7 +115,7 @@ bool __fastcall removeModifierHooked(game::CMidUnit* thisptr,
 
             if (isNotEditor) {
                 const int maxHp = getUnitHpMax(thisptr);
-                if (maxHp != maxHpBefore) {
+                if (maxHp != maxHpBefore && thisptr->currentHp > 0) {
                     thisptr->currentHp = std::clamp(thisptr->currentHp + (maxHp - maxHpBefore), 1,
                                                     maxHp);
                 }
