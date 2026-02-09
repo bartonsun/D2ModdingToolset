@@ -1326,7 +1326,7 @@ bool ScenarioView::setUnitXpWithUpgrade(const IdView& unitId, int exp, bool keep
     auto stack = const_cast<CMidStack*>(hooks::getStackByUnitId(objectMap, &unitId.id));
     const bool isLeader = stack && (stack->leaderId == unitId.id);
 
-    // Защита от переполнения
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     if (exp > INT_MAX - attackUnit->currentXp)
         exp = INT_MAX;
     else
