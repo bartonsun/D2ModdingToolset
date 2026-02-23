@@ -45,7 +45,7 @@ public:
         return itemId;
     }
 
-    const rsg::CMidgardID& getModEquipId() const override
+    const rsg::CMidgardID& getModEquipId() const
     {
         return modEquipId;
     }
