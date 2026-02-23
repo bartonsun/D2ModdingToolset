@@ -98,11 +98,6 @@ Hooks getVftableHooks();
 void respopupInitHooked(void);
 void* __fastcall toggleShowBannersInitHooked(void* thisptr, int /*%edx*/);
 
-bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
-                                              const game::CMidgardID* playerId,
-                                              const game::CMidgardID* a3,
-                                              game::IdList* hireList);
-
 /**
  * Create TBuildingUnitUpgType objects for buildings from heal category.
  * This allows to assign temples as buildings required to hire units.
@@ -233,14 +228,6 @@ void __stdcall getUnitAttacksHooked(const game::IMidgardObjectMap* objectMap,
                                     bool checkAltAttack);
 
 bool __stdcall isUnitUseAdditionalAnimationHooked(const game::CMidgardID* unitId);
-
-bool __stdcall shouldAddUnitToHireHooked(const game::CMidPlayer* player,
-                                         game::CPhaseGame* phaseGame,
-                                         const game::CMidgardID* unitImplId);
-
-bool __stdcall enableUnitInHireListUiHooked(const game::CMidPlayer* player,
-                                            game::CPhaseGame* phaseGame,
-                                            const game::CMidgardID* unitImplId);
 
 void __stdcall getCityPreviewLargeImageNamesHooked(game::List<game::String>* imageNames,
                                                    const void* cityFF,

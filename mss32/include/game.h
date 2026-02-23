@@ -128,7 +128,7 @@ using ToggleShowBannersInitFunc = void*(__thiscall*)(void* thisptr);
  * @returns unknown.
  */
 using AddUnitToHireList = void*(__stdcall*)(TRaceType* race,
-                                            CPlayerBuildings* buildings,
+                                            const CPlayerBuildings* buildings,
                                             const LUnitBranch* branch,
                                             IdList* hireList);
 
@@ -140,7 +140,7 @@ using AddUnitToHireList = void*(__stdcall*)(TRaceType* race,
  * @returns unknown.
  */
 using AddSideshowUnitToHireList = void*(__stdcall*)(TRaceType* race,
-                                                    CPlayerBuildings* buildings,
+                                                    const CPlayerBuildings* buildings,
                                                     IdList* hireList);
 
 /**
@@ -764,6 +764,14 @@ using GetNobleActionResultDescription =
                         const CPhaseGame* phaseGame,
                         const CMidPlayer* player);
 
+using AddSideshowUnitToUI = void(__stdcall*)(IdList* unitIds,
+                                             game::CMidPlayer* player,
+                                             game::CPhaseGame* phaseGame);
+
+using GetSideshowUnitImpl = game::CMidgardID*(__thiscall*)(TRaceType* thisptr,
+                                                               game::CMidgardID* unitImplId,
+                                                               game::LUnitBranch* unitBranch);
+
 /** Game and editor functions that can be hooked. */
 struct Functions
 {
@@ -900,6 +908,8 @@ struct Functions
     /** Returns all actions that noble can possibly perform on object with specified id. */
     GetNobleActions getPossibleNobleActions;
     GetNobleActionResultDescription getNobleActionResultDescription;
+    AddSideshowUnitToUI addSideshowUnitToUI;
+    GetSideshowUnitImpl getSideshowUnitImpl;
 };
 
 /** Global variables used in game. */

@@ -600,6 +600,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\unitpositionlist.cpp" />
     <ClCompile Include="src\unitpositionmap.cpp" />
     <ClCompile Include="src\unitsforhire.cpp" />
+    <ClCompile Include="src\unitsforhirehooks.cpp" />
     <ClCompile Include="src\unitstovalidate.cpp" />
     <ClCompile Include="src\unittypedescriptor.cpp" />
     <ClCompile Include="src\unitutils.cpp" />
@@ -1307,6 +1308,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\textmessage.h" />
     <ClInclude Include="include\timer.h" />
     <ClInclude Include="include\trainingcampinterf.h" />
+    <ClInclude Include="include\unitsforhirehooks.h" />
     <ClInclude Include="include\visitorcreatesite.h" />
     <ClInclude Include="include\visitorcreatesitehooks.h" />
     <ClInclude Include="include\wavstore.h" />

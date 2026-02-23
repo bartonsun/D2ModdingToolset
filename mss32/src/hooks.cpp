@@ -212,7 +212,7 @@
 #include "unitgenerator.h"
 #include "unitmodifier.h"
 #include "unitmodifierhooks.h"
-#include "unitsforhire.h"
+#include "unitsforhirehooks.h"
 #include "unitstovalidate.h"
 #include "unitutils.h"
 #include "untransformeffecthooks.h"
@@ -379,6 +379,8 @@ static Hooks getGameHooks()
         {fn.addPlayerUnitsToHireList, addPlayerUnitsToHireListHooked},
         {fn.shouldAddUnitToHire, shouldAddUnitToHireHooked},
         {fn.enableUnitInHireListUi, enableUnitInHireListUiHooked},
+        // Fix sideshow always display in enroll UI
+        {fn.addSideshowUnitToUI, addSideshowUnitToUIHooked},
         // Allow scenarios with prebuilt buildings in capitals
         // Start with prebuilt temple in capital for warrior lord depending on user setting
         {fn.buildLordSpecificBuildings, buildLordSpecificBuildingsHooked},
@@ -922,203 +924,6 @@ void* __fastcall toggleShowBannersInitHooked(void* thisptr, int /*%edx*/)
 
     spdlog::debug("Show banners hook finished");
     return thisptr;
-}
-
-void __stdcall addUnitsToHireList(game::TRaceType* race, 
-                                   game::CPlayerBuildings* playerBuildings,
-                                   game::IdList* hireList)
-{
-    using namespace game;
-
-    const auto& fn = gameFunctions();
-    const auto& id = CMidgardIDApi::get();
-    const auto& list = IdListApi::get();
-
-    const auto& unitBranch = UnitBranchCategories::get();
-
-    fn.addUnitToHireList(race, playerBuildings, unitBranch.fighter, hireList);
-    fn.addUnitToHireList(race, playerBuildings, unitBranch.archer, hireList);
-    fn.addUnitToHireList(race, playerBuildings, unitBranch.mage, hireList);
-    fn.addUnitToHireList(race, playerBuildings, unitBranch.special, hireList);
-    fn.addSideshowUnitToHireList(race, playerBuildings, hireList);
-
-    if (!unitsForHire().empty()) {
-        const int raceIndex = id.getTypeIndex(&race->id);
-
-        const auto& units = unitsForHire()[raceIndex];
-        for (const auto& unit : units) {
-            list.pushBack(hireList, &unit);
-        }
-    }
-}
-
-bool __stdcall addPlayerUnitsToHireListHooked(game::CMidDataCache2* dataCache,
-                                              const game::CMidgardID* playerId,
-                                              const game::CMidgardID* a3,
-                                              game::IdList* hireList)
-{
-    using namespace game;
-
-    const auto& list = IdListApi::get();
-    list.clear(hireList);
-
-    const auto& id = CMidgardIDApi::get();
-    if (id.getType(a3) != IdType::Fortification) {
-        return false;
-    }
-
-    auto findScenarioObjectById = dataCache->vftable->findScenarioObjectById;
-    auto playerObject = findScenarioObjectById(dataCache, playerId);
-    if (!playerObject) {
-        spdlog::error("Could not find player object with id {:x}", playerId->value);
-        return false;
-    }
-
-    const auto dynamicCast = RttiApi::get().dynamicCast;
-    const auto& rtti = RttiApi::rtti();
-    CMidPlayer* player = (CMidPlayer*)dynamicCast(playerObject, 0, rtti.IMidScenarioObjectType,
-                                                  rtti.CMidPlayerType, 0);
-    if (!player) {
-        spdlog::error("Object with id {:x} is not player", playerId->value);
-        return false;
-    }
-
-    auto buildingsObject = findScenarioObjectById(dataCache, &player->buildingsId);
-    if (!buildingsObject) {
-        spdlog::error("Could not find player buildings with id {:x}", player->buildingsId.value);
-        return false;
-    }
-
-    auto playerBuildings = (CPlayerBuildings*)dynamicCast(buildingsObject, 0,
-                                                          rtti.IMidScenarioObjectType,
-                                                          rtti.CPlayerBuildingsType, 0);
-    if (!playerBuildings) {
-        spdlog::error("Object with id {:x} is not player buildings", player->buildingsId.value);
-        return false;
-    }
-
-    const auto& global = GlobalDataApi::get();
-    const auto globalData = *global.getGlobalData();
-    game::RacesMap** races = globalData->races;
-    TRaceType* race = (TRaceType*)global.findById(races, &player->raceId);
-
-    const auto& fn = gameFunctions();
-
-    auto variables{getScenarioVariables(dataCache)};
-
-    const auto& racesCat = RaceCategories::get();
-    const auto raceId = player->raceType->data->raceType.id;
-    const char* racePrefix{};
-    if (raceId == racesCat.human->id) {
-        racePrefix = "EMPIRE_";
-    } else if (raceId == racesCat.heretic->id) {
-        racePrefix = "LEGIONS_";
-    } else if (raceId == racesCat.dwarf->id) {
-        racePrefix = "CLANS_";
-    } else if (raceId == racesCat.undead->id) {
-        racePrefix = "HORDES_";
-    } else if (raceId == racesCat.elf->id) {
-        racePrefix = "ELVES_";
-    }
-
-    bool hireAnyRace{false};
-    for (const auto& variable : variables->variables) {
-        const auto expectedName{"HIRE_UNIT_ANY_RACE"};
-        const auto expectedNameRace{fmt::format("{:s}HIRE_UNIT_ANY_RACE", racePrefix)};
-        const auto& name = variable.second.name;
-        if (!strncmp(name, expectedName, sizeof(name))) {
-            hireAnyRace = (bool)variable.second.value;
-        } else if (!strncmp(name, expectedNameRace.c_str(), sizeof(name))) {
-            hireAnyRace = (bool)variable.second.value;
-            break;
-        }
-    }
-        
-    if (hireAnyRace) {
-        for (size_t i = 0; races[i] != nullptr; ++i) {
-            RacesMap* currentMap = races[i];
-            Vector<Pair<CMidgardID, TRaceType*>>& dataVec = currentMap->data;
-            for (auto* current = dataVec.bgn; current != dataVec.end; ++current) {
-                addUnitsToHireList(current->second, playerBuildings, hireList);
-            }
-        }
-    } else {
-        addUnitsToHireList(race, playerBuildings, hireList);
-    }
-
-    const auto& buildList = playerBuildings->buildings;
-    if (buildList.length == 0) {
-        // Player has no buildings in capital, skip
-        return true;
-    }
-
-    if (!variables || !variables->variables.length) {
-        return true;
-    }
-
-    int hireTierMax{0};
-    for (const auto& variable : variables->variables) {
-        const auto expectedNameLegacy{"UNIT_HIRE_TIER_MAX"};
-        const auto expectedName{"HIRE_UNIT_TIER_MAX"};
-        const auto expectedNameRace{fmt::format("{:s}HIRE_UNIT_TIER_MAX", racePrefix)};
-        const auto& name = variable.second.name;
-        if (!strncmp(name, expectedNameLegacy, sizeof(name))) {
-            hireTierMax = variable.second.value;
-        } else if (!strncmp(name, expectedName, sizeof(name))) {
-            hireTierMax = variable.second.value;
-        } else if (!strncmp(name, expectedNameRace.c_str(), sizeof(name))) {
-            hireTierMax = variable.second.value;
-            break;
-        }
-    }
-
-    if (hireTierMax <= 1) {
-        // No variable defined or high tier hire is disabled, skip.
-        return true;
-    }
-
-    const auto units = globalData->units;
-    for (auto current = units->map->data.bgn, end = units->map->data.end; current != end;
-         ++current) {
-        const auto unitImpl = current->second;
-        auto soldier = fn.castUnitImplToSoldier(unitImpl);
-        if (!soldier) {
-            continue;
-        }
-
-        if (!hireAnyRace && race->id != *soldier->vftable->getRaceId(soldier)) {
-            continue;
-        }
-
-        auto racialSoldier = fn.castUnitImplToRacialSoldier(unitImpl);
-        if (!racialSoldier) {
-            continue;
-        }
-
-        auto upgradeBuildingId = racialSoldier->vftable->getUpgradeBuildingId(racialSoldier);
-        if (*upgradeBuildingId == emptyId) {
-            continue;
-        }
-
-        bool hasBulding{false};
-        for (auto node = buildList.head->next; node != buildList.head; node = node->next) {
-            if (node->data == *upgradeBuildingId) {
-                hasBulding = true;
-                break;
-            }
-        }
-
-        if (!hasBulding) {
-            // No building for this unit was built in capital, skip
-            continue;
-        }
-
-        if (getBuildingLevel(upgradeBuildingId) <= hireTierMax) {
-            list.pushBack(hireList, &current->first);
-        }
-    }
-
-    return true;
 }
 
 void __stdcall createBuildingTypeHooked(const game::CDBTable* dbTable,
@@ -1964,77 +1769,6 @@ void __stdcall getUnitAttacksHooked(const game::IMidgardObjectMap* objectMap,
 bool __stdcall isUnitUseAdditionalAnimationHooked(const game::CMidgardID*)
 {
     return true;
-}
-
-bool __stdcall shouldAddUnitToHireHooked(const game::CMidPlayer* player,
-                                         game::CPhaseGame* phaseGame,
-                                         const game::CMidgardID* unitImplId)
-{
-    return true;
-}
-
-bool __stdcall enableUnitInHireListUiHooked(const game::CMidPlayer* player,
-                                            game::CPhaseGame* phaseGame,
-                                            const game::CMidgardID* unitImplId)
-{
-    using namespace game;
-
-    auto objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
-
-    auto playerBuildings = getPlayerBuildings(objectMap, player);
-    if (!playerBuildings) {
-        return false;
-    }
-
-    const auto& global = GlobalDataApi::get();
-    const auto globalData = *global.getGlobalData();
-
-    auto unitImpl = (const TUsUnitImpl*)global.findById(globalData->units, unitImplId);
-    if (!unitImpl) {
-        return false;
-    }
-
-    auto racialSoldier = gameFunctions().castUnitImplToRacialSoldier(unitImpl);
-    if (!racialSoldier) {
-        return false;
-    }
-
-    auto soldier = gameFunctions().castUnitImplToSoldier(unitImpl);
-    if (!soldier) {
-        return false;
-    }
-
-    auto enrollBuildingId = racialSoldier->vftable->getEnrollBuildingId(racialSoldier);
-
-    // Starting units are always allowed
-    if (soldier->vftable->getLevel(soldier) == 1 && *enrollBuildingId == emptyId) {
-        return true;
-    }
-
-    // If unit has enroll bulding requirement, check it
-    if (*enrollBuildingId != emptyId) {
-        const auto& buildList = playerBuildings->buildings;
-        for (auto node = buildList.head->next; node != buildList.head; node = node->next) {
-            if (node->data == *enrollBuildingId) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // High tier units have only upgrade building requirement:
-    // upgrade building is required for units from previous tier to promote
-    auto upgradeBuildingId = racialSoldier->vftable->getUpgradeBuildingId(racialSoldier);
-    if (*upgradeBuildingId != emptyId) {
-        const auto& buildList = playerBuildings->buildings;
-        for (auto node = buildList.head->next; node != buildList.head; node = node->next) {
-            if (node->data == *upgradeBuildingId) {
-                return true;
-            }
-        }
-    }
-
-    return false;
 }
 
 void __stdcall getCityPreviewLargeImageNamesHooked(game::List<game::String>* imageNames,
