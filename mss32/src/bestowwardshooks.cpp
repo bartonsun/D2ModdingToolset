@@ -235,11 +235,11 @@ bool __fastcall bestowWardsAttackIsImmuneHooked(game::CBatAttackBestowWards* thi
                                                                                  attackClass);
     if (immuneCat->id == immuneCategories.once->id) {
         bool hasWard = battleApi.isUnitAttackClassWardRemoved(battleMsgData, unitId, attackClass);
-        if (hasWard) {
+        if (!hasWard) {
             battleApi.removeUnitAttackClassWard(battleMsgData, unitId, attackClass);
-            return false;
+            return true;
         }
-        return true;
+        return false;
     }
 
     return immuneCat->id == immuneCategories.always->id;

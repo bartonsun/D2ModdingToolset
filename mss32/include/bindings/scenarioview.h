@@ -230,6 +230,7 @@ public:
 
     int addUnitXP(const IdView& unitId, int value);
     bool heal(const IdView& unitId, int value);
+    bool setHealth(const IdView& unitId, int value);
     bool addUnitModifier(const IdView& unitId, const std::string& modifierId);
     bool removeUnitModifier(const IdView& unitId, const std::string& modifierId);
     

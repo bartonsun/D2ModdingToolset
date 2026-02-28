@@ -42,7 +42,7 @@ void __fastcall battleTurnHooked(game::CBatLogic* thisptr,
 {
     using namespace game;
 
-    const auto& batLogicApi = CBatLogicApi::get();
+    const CBatLogicApi::Api& batLogicApi = CBatLogicApi::get();
 
     batLogicApi.updateUnitsBattleXp(thisptr->objectMap, thisptr->battleMsgData);
 
@@ -60,12 +60,12 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
         return;
     }
 
-    const auto& battleApi = BattleMsgDataApi::get();
-    const auto& fn = game::gameFunctions();
-    const auto& listApi = UnitInfoListApi::get();
-    const auto& idApi = CMidgardIDApi::get();
-    auto* msgData = thisptr->battleMsgData;
-    auto* objMap = thisptr->objectMap;
+    const BattleMsgDataApi::Api& battleApi = BattleMsgDataApi::get();
+    const Functions& fn = game::gameFunctions();
+    const UnitInfoListApi::Api& listApi = UnitInfoListApi::get();
+    const CMidgardIDApi::Api& idApi = CMidgardIDApi::get();
+    BattleMsgData* msgData = thisptr->battleMsgData;
+    IMidgardObjectMap* objMap = thisptr->objectMap;
 
     batLogicApi.checkAndDestroyEquippedBattleItems(objMap, msgData);
 
@@ -76,7 +76,7 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
 
     CMidgardID tempId;
 
-    for (const auto& unitInfo : unitInfos) {
+    for (const UnitInfo& unitInfo : unitInfos) {
         idApi.validateId(&tempId, unitInfo.unitId1);
 
         if (CMidUnit* unit = fn.findUnitById(objMap, &tempId)) {
@@ -94,19 +94,13 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
     CMidgardID winnerGroupId;
     batLogicApi.getBattleWinnerGroupId(thisptr, &winnerGroupId);
 
-    batLogicApi.applyCBatAttackGroupUpgrade(objMap, &winnerGroupId, msgData, resultSender);
-    batLogicApi.applyCBatAttackGroupBattleCount(objMap, &winnerGroupId, msgData, resultSender);
-    batLogicApi.restoreLeaderPositionsAfterDuel(objMap, msgData);
-
-    listApi.destructor(&unitInfos);
-
-    static const auto scriptPath = scriptsFolder() / "hooks/hooks.lua";
+    static const std::filesystem::path scriptPath = scriptsFolder() / "hooks/hooks.lua";
     std::optional<sol::environment> env;
 
-    if (auto OnBattleEnd = getScriptFunction(scriptPath, "OnBattleEnd", env, false, true)) {
+    if (std::optional OnBattleEnd = getScriptFunction(scriptPath, "OnBattleEnd", env, false, true)) {
         try {
-            auto* globalObjMap = hooks::getObjectMap();
-            if (auto* winnerGroup = hooks::getGroup(globalObjMap, &winnerGroupId)) {
+            const IMidgardObjectMap* globalObjMap = hooks::getObjectMap();
+            if (const CMidUnitGroup* winnerGroup = hooks::getGroup(globalObjMap, &winnerGroupId)) {
                 const bindings::GroupView win{winnerGroup, globalObjMap, &winnerGroupId};
                 const bindings::BattleMsgDataView battleView{thisptr->battleMsgData, globalObjMap};
                 (*OnBattleEnd)(win, battleView);
@@ -116,6 +110,12 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
             showErrorMessageBox(fmt::format("Lua Error (OnBattleEnd): {:s}", e.what()));
         }
     }
+
+    batLogicApi.applyCBatAttackGroupUpgrade(objMap, &winnerGroupId, msgData, resultSender);
+    batLogicApi.applyCBatAttackGroupBattleCount(objMap, &winnerGroupId, msgData, resultSender);
+    batLogicApi.restoreLeaderPositionsAfterDuel(objMap, msgData);
+
+    listApi.destructor(&unitInfos);
 }
 
 } // namespace hooks
