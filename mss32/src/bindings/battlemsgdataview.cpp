@@ -569,31 +569,34 @@ int BattleMsgDataView::heal(const IdView& unitId, int value)
     return hpAfter - hpBefore;
 }
 
-int BattleMsgDataView::setHealth(const IdView& unitId, int value)
+bool BattleMsgDataView::setHealth(const IdView& unitId, int value)
 {
     using namespace game;
-    const auto& battleApi = BattleMsgDataApi::get();
+
+    static const auto& fn = gameFunctions();
+    static const auto& battleApi = BattleMsgDataApi::get();
+
+    CMidUnit* targetUnit = fn.findUnitById(objectMap, &unitId.id);
+    if (!targetUnit)
+        return false;
 
     if (battleApi.getUnitStatus(battleMsgData, &unitId.id, BattleStatus::Dead))
-        return 0;
+        return false;
 
-    auto* objectMap = const_cast<IMidgardObjectMap*>(hooks::getObjectMap());
-    CMidUnit* targetUnit = gameFunctions().findUnitById(objectMap, &unitId.id);
+    auto* objMap = const_cast<IMidgardObjectMap*>(hooks::getObjectMap());
 
-    if (!targetUnit)
-        return 0;
+    value = std::clamp(value, 1, 9999);
+    int hp = targetUnit->currentHp;
+    const int diff = value - hp;
 
-    const int newHealth = std::clamp(value, 1, 9999);
-    const int hpDiff = newHealth - targetUnit->currentHp;
+    if (hp - diff < 1)
+        return false;
 
-    if (hpDiff == 0)
-        return targetUnit->currentHp;
+    VisitorApi::get().changeUnitHp(&unitId.id, diff, objMap, 1);
 
-    VisitorApi::get().changeUnitHp(&unitId.id, hpDiff, objectMap, 1);
+    battleApi.setUnitHp(const_cast<BattleMsgData*>(battleMsgData), &unitId.id, value);
 
-    battleApi.setUnitHp(const_cast<BattleMsgData*>(battleMsgData), &unitId.id, newHealth);
-
-    return targetUnit->currentHp;
+    return true;
 }
 
 bool BattleMsgDataView::setShatteredArmor(const IdView& unitId, int value)

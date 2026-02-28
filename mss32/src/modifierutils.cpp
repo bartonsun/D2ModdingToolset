@@ -461,7 +461,6 @@ bool applyModifier(const game::CMidgardID* unitId,
 {
     using namespace game;
 
-    // Fixed situation, when OnAddModifier return false, but battle modifier can be applied on unit
     if (!CMidUnitApi::get().addModifier(targetUnit, modifierId)) {
         return false;
     }
@@ -473,13 +472,12 @@ bool applyModifier(const game::CMidgardID* unitId,
     CUmModifier* modifier = unitModContainer->data->modifier;
 
     if (!addModifiedUnitInfo(unitId, battleMsgData, targetUnit, modifierId)) {
+        return false;
     }
-
     if (targetUnit->transformed) {
         addUniqueIdToList(targetUnit->origModifiers, modifierId);
     }
 
-    // No ward reset in case of custom modifier because we don't know if it grants it or not
     if (CUmUnit* umUnit = castUmModifierToUmUnit(modifier)) {
         if (modifier->vftable && modifier->vftable->hasElement) {
             if (modifier->vftable->hasElement(modifier, ModifierElementTypeFlag::ImmunityOnce)) {
@@ -493,7 +491,6 @@ bool applyModifier(const game::CMidgardID* unitId,
         }
     }
 
-    // Unit HP adjustment
     BattleMsgDataApi::get().setUnitHp(battleMsgData, &targetUnit->id, targetUnit->currentHp);
 
     return true;
@@ -768,6 +765,9 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
     static const auto scriptPath = scriptsFolder() / "hooks/modifiers.lua";
     std::optional<sol::environment> env;
 
+    //auto modifierImpl = unitModifier->vftable->createModifier(unitModifier);
+    //if (!modifierImpl)
+       //return false;
 
     const bindings::UnitView target{unit};
     const bindings::ModifierView mods{unitModifier->data->modifier};

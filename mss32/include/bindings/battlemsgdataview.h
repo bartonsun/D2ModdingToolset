@@ -144,7 +144,7 @@ public:
                          const std::string& modifierId);
     bool removeUnitModifier(const IdView& unitId, const std::string& modifierId);
     int heal(const IdView& unitId, int value);
-    int setHealth(const IdView& unitId, int value);
+    bool setHealth(const IdView& unitId, int value);
     bool setShatteredArmor(const IdView& unitId, int value);
 
     int getStatusDamageExtended(const IdView& unitId, const int status);
