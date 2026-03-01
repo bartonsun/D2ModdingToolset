@@ -178,7 +178,7 @@ bool __stdcall changeStackLeaderInCapitalHooked(game::IMidgardObjectMap* objectM
     bool result = getOriginalFunctions().changeStackLeaderInCapital(objectMap, playerInfo, dummy);
 
     auto scenarioInfo = getScenarioInfo(objectMap);
-    if (scenarioInfo->currentTurn != 0) {
+    if (scenarioInfo->currentTurn > 1) {
         return result;
     }
 
