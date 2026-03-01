@@ -37,11 +37,13 @@
 #include "enclayoutspell.h"
 #include "enclayoutstack.h"
 #include "enclayoutunit.h"
+#include "enrollunitinterf.h"
 #include "exchangeinterf.h"
 #include "game.h"
 #include "gameimages.h"
 #include "globalvariables.h"
 #include "imagelayerlist.h"
+#include "leadersforhire.h"
 #include "mainview2.h"
 #include "menubase.h"
 #include "menuload.h"
@@ -220,6 +222,10 @@ struct OriginalFunctions
     game::CMidObjectLockApi::Api::Constructor midObjectLockCtor;
 
     game::CBatLogicApi::Api::BattleTurn battleTurn;
+
+    game::LeadersForHireApi::Api::ChangeStackLeaderInCapital changeStackLeaderInCapital;
+
+    game::EnrollUnitInterfApi::Api::Constructor enrollUnitInterfCtor;
 };
 
 OriginalFunctions& getOriginalFunctions();

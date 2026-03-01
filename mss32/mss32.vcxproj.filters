@@ -1565,6 +1565,18 @@
     <ClCompile Include="src\unitsforhirehooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\leadersforhire.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\leadersforhirehooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\enrollunitinterf.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\enrollunitinterfhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3896,6 +3908,18 @@
       <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\unitsforhirehooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\leadersforhire.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\leadersforhirehooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\enrollunitinterf.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\enrollunitinterfhooks.h">
       <Filter>hooks</Filter>
     </ClInclude>
   </ItemGroup>

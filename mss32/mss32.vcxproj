@@ -271,6 +271,8 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\encparambasehooks.cpp" />
     <ClCompile Include="src\encparamidplayer.cpp" />
     <ClCompile Include="src\encyclopediapopup.cpp" />
+    <ClCompile Include="src\enrollunitinterf.cpp" />
+    <ClCompile Include="src\enrollunitinterfhooks.cpp" />
     <ClCompile Include="src\exchangeinterfhooks.cpp" />
     <ClCompile Include="src\exchangeresourcesmsg.cpp" />
     <ClCompile Include="src\fonts.cpp" />
@@ -332,6 +334,8 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\isoview.cpp" />
     <ClCompile Include="src\isoviewhooks.cpp" />
     <ClCompile Include="src\landmarkutils.cpp" />
+    <ClCompile Include="src\leadersforhire.cpp" />
+    <ClCompile Include="src\leadersforhirehooks.cpp" />
     <ClCompile Include="src\logutils.cpp" />
     <ClCompile Include="src\managestkinterf.cpp" />
     <ClCompile Include="src\managestkinterfhooks.cpp" />
@@ -806,6 +810,8 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\diplomacyhooks.h" />
     <ClInclude Include="include\effectgiveresources.h" />
     <ClInclude Include="include\effectstealmarket.h" />
+    <ClInclude Include="include\enrollunitinterf.h" />
+    <ClInclude Include="include\enrollunitinterfhooks.h" />
     <ClInclude Include="include\eventeffectbase.h" />
     <ClInclude Include="include\fonts.h" />
     <ClInclude Include="include\fontshooks.h" />
@@ -814,6 +820,8 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\batattackhealhooks.h" />
     <ClInclude Include="include\image2dupweak.h" />
     <ClInclude Include="include\landmarkutils.h" />
+    <ClInclude Include="include\leadersforhire.h" />
+    <ClInclude Include="include\leadersforhirehooks.h" />
     <ClInclude Include="include\logfile.h" />
     <ClInclude Include="include\menucustomloadskirmishmulti.h" />
     <ClInclude Include="include\menucustomnewskirmishmulti.h" />

@@ -87,6 +87,8 @@
 #include "enclayoutstackhooks.h"
 #include "enclayoutunithooks.h"
 #include "encparambase.h"
+#include "enrollunitinterf.h"
+#include "enrollunitinterfhooks.h"
 #include "encparambasehooks.h"
 #include "eventconditioncathooks.h"
 #include "eventeffectcathooks.h"
@@ -113,6 +115,8 @@
 #include "itemtransferhooks.h"
 #include "itemutils.h"
 #include "leaderabilitycat.h"
+#include "leadersforhire.h"
+#include "leadersforhirehooks.h"
 #include "listbox.h"
 #include "lordtype.h"
 #include "mainview2.h"
@@ -489,6 +493,11 @@ static Hooks getGameHooks()
         {CBatLogicApi::get().battleTurn, battleTurnHooked, (void**)&orig.battleTurn},
         // Prevent crash when defending side selects empty position as target
         {CBatAttackHealApi::vftable()->canPerform, healAttackCanPerformHooked},
+        // Allow modify leaders hire list with lua
+        {LeadersForHireApi::get().getLeadersHireList, getLeadersHireListHooked},
+        {LeadersForHireApi::get().addNobleLeaderToUI, addNobleLeaderToUIHooked},
+        {LeadersForHireApi::get().changeStackLeaderInCapital, changeStackLeaderInCapitalHooked, (void**)&orig.changeStackLeaderInCapital},
+        {EnrollUnitInterfApi::get().constructor, enrollUnitInterfCtorHooked, (void**)&orig.enrollUnitInterfCtor},
     };
     // clang-format on
 

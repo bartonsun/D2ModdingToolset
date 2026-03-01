@@ -772,6 +772,9 @@ using GetSideshowUnitImpl = game::CMidgardID*(__thiscall*)(TRaceType* thisptr,
                                                                game::CMidgardID* unitImplId,
                                                                game::LUnitBranch* unitBranch);
 
+using FindCapitalByPlayerId = game::CFortification*(__stdcall*)(game::CMidgardID* playerId,
+                                                                game::IMidgardObjectMap* objectMap);
+
 /** Game and editor functions that can be hooked. */
 struct Functions
 {
@@ -910,6 +913,7 @@ struct Functions
     GetNobleActionResultDescription getNobleActionResultDescription;
     AddSideshowUnitToUI addSideshowUnitToUI;
     GetSideshowUnitImpl getSideshowUnitImpl;
+    FindCapitalByPlayerId findCapitalByPlayerId;
 };
 
 /** Global variables used in game. */

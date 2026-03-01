@@ -160,6 +160,7 @@ static std::array<Functions, 4> functions = {{
         (GetNobleActionResultDescription)0x49cf6f,
         (AddSideshowUnitToUI)0x4b5222,
         (GetSideshowUnitImpl)0x582c8b,
+        (FindCapitalByPlayerId)0x5ea751,
     },
     // Russobit
     Functions{
@@ -296,6 +297,7 @@ static std::array<Functions, 4> functions = {{
         (GetNobleActionResultDescription)0x49cf6f,
         (AddSideshowUnitToUI)0x4b5222,
         (GetSideshowUnitImpl)0x582c8b,
+        (FindCapitalByPlayerId)0x5ea751,
     },
     // Gog
     Functions{
@@ -432,6 +434,7 @@ static std::array<Functions, 4> functions = {{
         (GetNobleActionResultDescription)0x49c8dc,
         (AddSideshowUnitToUI)0x4b48bb,
         (GetSideshowUnitImpl)0x581ee1,
+        (FindCapitalByPlayerId)0x5e9450,
     },
     // Scenario Editor
     Functions{
@@ -568,6 +571,7 @@ static std::array<Functions, 4> functions = {{
         (GetNobleActionResultDescription)nullptr,
         (AddSideshowUnitToUI)nullptr,
         (GetSideshowUnitImpl)nullptr,
+        (FindCapitalByPlayerId)nullptr,
     },
 }};
 
