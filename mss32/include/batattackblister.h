@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
- * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2025 Alexey Voskresensky.
+ * (https://github.com/Rapthos/Experimental-version)
+ * Copyright (C) 2025 Rapthos.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,38 +17,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BATATTACKHEAL_H
-#define BATATTACKHEAL_H
+#ifndef BATATTACKBLISTERHOOKS_H
+#define BATATTACKBLISTERHOOKS_H
 
 #include "batattack.h"
 #include "midgardid.h"
 
 namespace game {
 
-struct BattleUiData;
-struct CBattleMsgData;
-struct CMidgardID;
 struct IAttack;
-struct IMidgardObjectMap;
-struct CBatAttackHeal : public CBatAttackBase
+
+struct CBatAttackBlister : public CBatAttackBase
 {
     CMidgardID unitId;
-    CMidgardID attackImplUnitId;
-    int attackNumber; /**< 1 if this is a unit's primary attack, 2 for secondary. */
-    IAttack* attackImpl;
-    IAttack* attack2Impl;
-    bool attack2Initialized;
-    int attackImplMagic;
+    CMidgardID id2;
+    int attackNumber;
+    IAttack* attack;
 };
 
-assert_size(CBatAttackHeal, 32);
+assert_size(CBatAttackBlister, 20);
 
-namespace CBatAttackHealApi {
+namespace CBatAttackBlisterApi {
 
 IBatAttackVftable* vftable();
 
-} // namespace CBatAttackHealApi
+} // namespace CBatAttackBlisterApi
 
 } // namespace game
 
-#endif // BATATTACKHEAL_H
+#endif // BATATTACKBLISTERHOOKS_H

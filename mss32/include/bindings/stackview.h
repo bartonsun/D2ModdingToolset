@@ -73,6 +73,8 @@ public:
     IdView getOrderTargetId() const;
     int getAiOrder() const;
 
+    void giveSkillPoint(int amout);
+
 private:
     const game::CMidStack* stack;
     const game::IMidgardObjectMap* objectMap;

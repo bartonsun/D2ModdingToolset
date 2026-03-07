@@ -1562,21 +1562,6 @@
     <ClCompile Include="src\batattackhealhooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
-    <ClCompile Include="src\unitsforhirehooks.cpp">
-      <Filter>hooks</Filter>
-    </ClCompile>
-    <ClCompile Include="src\leadersforhire.cpp">
-      <Filter>game</Filter>
-    </ClCompile>
-    <ClCompile Include="src\leadersforhirehooks.cpp">
-      <Filter>hooks</Filter>
-    </ClCompile>
-    <ClCompile Include="src\enrollunitinterf.cpp">
-      <Filter>game</Filter>
-    </ClCompile>
-    <ClCompile Include="src\enrollunitinterfhooks.cpp">
-      <Filter>hooks</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3922,6 +3907,12 @@
     <ClInclude Include="include\enrollunitinterfhooks.h">
       <Filter>hooks</Filter>
     </ClInclude>
+    <ClInclude Include="include\batattackblister.h" />
+    <ClInclude Include="include\batattackfrostbite.h" />
+    <ClInclude Include="include\batattackpoison.h" />
+    <ClInclude Include="include\dotattackhooks.h" />
+    <ClInclude Include="include\batattacklowerdamage.h" />
+    <ClInclude Include="include\batattackboostdamage.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="mss32.rc">

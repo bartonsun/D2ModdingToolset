@@ -228,6 +228,15 @@ public:
     void forEachMarket(const std::function<void(const ResourceMarketView&)>& callback) const;
     void forEachLandmark(const std::function<void(const LandmarkView&)>& callback) const;
 
+    int addUnitXP(const IdView& unitId, int value);
+    bool heal(const IdView& unitId, int value);
+    bool addUnitModifier(const IdView& unitId, const std::string& modifierId);
+    bool removeUnitModifier(const IdView& unitId, const std::string& modifierId);
+    
+    bool setTransform(const IdView& unitId, const std::string& unitIdTransform, bool saveXp);
+    bool setUnitXpWithUpgrade(const IdView& unitId, int exp, bool keppHp = false);
+    bool giveSkillPoint(const IdView& stackId, int amout);
+
 private:
     const game::CMidgardID* getObjectId(int x, int y, game::IdType type) const;
 
