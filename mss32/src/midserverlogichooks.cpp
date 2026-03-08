@@ -36,13 +36,17 @@
 #include "originalfunctions.h"
 #include "racetype.h"
 #include "refreshinfo.h"
+#include "scenarioinfo.h"
 #include "settings.h"
 #include "timer.h"
 #include "unitstovalidate.h"
 #include "unitutils.h"
 #include "utils.h"
 #include <chrono>
+#include <filesystem>
 #include <process.h>
+#include "scripts.h"
+#include <sol/sol.hpp>
 #include <spdlog/spdlog.h>
 #include <string_view>
 #include <unordered_map>
@@ -588,6 +592,42 @@ game::CMidServerLogic* __fastcall midServerLogicCtorHooked(game::CMidServerLogic
 
     NetMsgApi::get().addEntry(netMsgEntryData, (CNetMsgMapEntry*)entry);
     return thisptr;
+}
+
+void __fastcall processZeroTurnHooked(game::CMidServerLogic* thisptr,
+                                      int /*%edx*/,
+                                      std::uint32_t playerNetId,
+                                      int a3)
+{
+    using namespace game;
+
+    auto objectMap{thisptr->coreData->objectMap};
+    auto scenarioInfo = getScenarioInfo(objectMap);
+    bool isTurnZero = (scenarioInfo->currentTurn == 0);
+
+    getOriginalFunctions().processZeroTurn(thisptr, playerNetId, a3);
+
+
+    if (!isTurnZero) {
+        return;
+    }
+    
+    static std::optional<sol::environment> env;
+    static std::optional<sol::function> func;
+    const std::filesystem::path path = scriptsFolder() / "turn.lua";
+
+    if (!env && !func) {
+        func = getScriptFunction(path, "processTurnZero", env, false, true);
+    }
+
+    if (func) {
+        try {
+            lua_State* L = env->lua_state();
+            sol::object resultObj = (*func)();
+        } catch (const std::exception& e) {
+            showErrorMessageBox(fmt::format("Failed to run processTurnZero: {}", e.what()));
+        }
+    }
 }
 
 } // namespace hooks

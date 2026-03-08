@@ -526,6 +526,8 @@ static Hooks getGameHooks()
         {LeadersForHireApi::get().addNobleLeaderToUI, addNobleLeaderToUIHooked},
         {LeadersForHireApi::get().changeStackLeaderInCapital, changeStackLeaderInCapitalHooked, (void**)&orig.changeStackLeaderInCapital},
         {EnrollUnitInterfApi::get().constructor, enrollUnitInterfCtorHooked, (void**)&orig.enrollUnitInterfCtor},
+        // Modify map before game starts
+        {CMidServerLogicApi::get().processZeroTurn, processZeroTurnHooked, (void**)&orig.processZeroTurn},
     };
     // clang-format on
 

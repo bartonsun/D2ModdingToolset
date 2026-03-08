@@ -171,6 +171,11 @@ game::CMidServerLogic* __fastcall midServerLogicCtorHooked(game::CMidServerLogic
                                                            int a5,
                                                            int gameVersion);
 
+void __fastcall processZeroTurnHooked(game::CMidServerLogic* thisptr,
+                                      int /*%edx*/,
+                                      std::uint32_t playerNetId,
+                                      int a3);
+
 } // namespace hooks
 
 #endif // MIDSERVERLOGICHOOKS_H

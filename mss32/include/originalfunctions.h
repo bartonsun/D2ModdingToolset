@@ -179,6 +179,7 @@ struct OriginalFunctions
     game::CMidServerLogicApi::Api::FilterAndProcessEvents filterAndProcessEvents;
     game::CMidServerLogicApi::Api::CheckEventConditions checkEventConditions;
     game::CMidServerLogicApi::Api::ExecuteEventEffects executeEventEffects;
+    game::CMidServerLogicApi::Api::ProcessZeroTurn processZeroTurn;
 
     game::ITestConditionVftable::Test testFrequency;
     game::ITestConditionVftable::Test testLocation;

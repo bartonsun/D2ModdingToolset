@@ -221,6 +221,12 @@ struct Api
     using IsCurrentPlayer = bool(__stdcall*)(CMidServerLogic* serverLogic,
                                              const CMidgardID* playerId);
     IsCurrentPlayer isCurrentPlayer;
+
+    /** Server updates map on day 0, before game starts. */
+    using ProcessZeroTurn = void(__thiscall*)(game::CMidServerLogic* thisptr,
+                                              std::uint32_t playerNetId,
+                                              int a3);
+    ProcessZeroTurn processZeroTurn;
 };
 
 Api& get();
