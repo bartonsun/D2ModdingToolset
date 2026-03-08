@@ -41,6 +41,8 @@
 #include <array>
 #include <spdlog/spdlog.h>
 
+extern std::thread::id mainThreadId;
+
 namespace hooks {
 
 game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
@@ -240,7 +242,8 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
         bindings::PlayerView playerView{player, objectMap};
         bindings::CurrencyView incomeView{*income};
         try {
-            sol::object result = (*getIncome)(playerView, incomeView);
+            bool isInterfaceCall = (std::this_thread::get_id() == mainThreadId);
+            sol::object result = (*getIncome)(playerView, incomeView, isInterfaceCall);
             if (result.is<bindings::CurrencyView>()) {
                 const bindings::CurrencyView& resultView = result.as<bindings::CurrencyView>();
                 income->gold = resultView.bank.gold;
