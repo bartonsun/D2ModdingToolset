@@ -41,6 +41,7 @@
 #include "unitgenerator.h"
 #include "bindings/idview.h"
 #include "bindings/playerview.h"
+#include "bindings/unitview.h"
 #include <filesystem>
 #include <sol/sol.hpp>
 #include <spdlog/spdlog.h>
@@ -191,6 +192,7 @@ bool __stdcall changeStackLeaderInCapitalHooked(game::IMidgardObjectMap* objectM
     auto player = getPlayer(objectMap, &playerId);
     auto stack = getStack(objectMap, &capital->stackId);
     auto currentLeaderId = stack->leaderId;
+    CMidUnit* unit = fn.findUnitById(objectMap, &currentLeaderId);
 
     static std::optional<sol::environment> env;
     static std::optional<sol::function> modifyFunc;
@@ -206,7 +208,8 @@ bool __stdcall changeStackLeaderInCapitalHooked(game::IMidgardObjectMap* objectM
         try {
             lua_State* L = env->lua_state();
             bindings::PlayerView playerView(player, objectMap);
-            sol::object resultObj = (*modifyFunc)(playerView);
+            bindings::UnitView unitView(unit);
+            sol::object resultObj = (*modifyFunc)(playerView, unitView);
 
             if (resultObj.is<bindings::IdView>()) {
                 auto idView = resultObj.as<bindings::IdView>();
