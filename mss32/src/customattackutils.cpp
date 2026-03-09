@@ -230,6 +230,10 @@ UnitSlots getTargets(const game::IMidgardObjectMap* objectMap,
         CMidgardID targetUnitId = targetGroup->positions[i];
         if (targetUnitId != emptyId) {
             auto targetUnit = fn.findUnitById(objectMap, &targetUnitId);
+
+            if (!targetUnit)
+                continue;
+
             if (i % 2 && !isUnitSmall(targetUnit))
                 continue;
 
@@ -275,15 +279,19 @@ std::vector<bindings::UnitSlotView> getAllies(const game::IMidgardObjectMap* obj
         if (allyUnitId == emptyId || allyUnitId == *unitId)
             continue;
 
-        auto allyUnit = fn.findUnitById(objectMap, &allyUnitId);
-        if (i % 2 && !isUnitSmall(allyUnit))
-            continue;
-
         if (battle.getUnitStatus(battleMsgData, &allyUnitId, BattleStatus::Dead)
             || battle.getUnitStatus(battleMsgData, &allyUnitId, BattleStatus::Retreated)
             || battle.getUnitStatus(battleMsgData, &allyUnitId, BattleStatus::Hidden)) {
             continue;
         }
+
+        auto allyUnit = fn.findUnitById(objectMap, &allyUnitId);
+
+        if (!allyUnit)
+            continue;
+
+        if (i % 2 && !isUnitSmall(allyUnit))
+            continue;
 
         value.emplace_back(bindings::UnitSlotView(allyUnit, i, unitGroupId));
     }
