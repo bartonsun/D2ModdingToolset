@@ -395,6 +395,8 @@ void __fastcall beforeBattleRoundHooked(game::BattleMsgData* thisptr, int /*%edx
 {
     using namespace game;
 
+    getOriginalFunctions().beforeBattleRound(thisptr);
+
     auto* objectMap = const_cast<IMidgardObjectMap*>(hooks::getObjectMap());
     if (thisptr && objectMap) {
         auto& battleApi = BattleMsgDataApi::get();
@@ -435,8 +437,6 @@ void __fastcall beforeBattleRoundHooked(game::BattleMsgData* thisptr, int /*%edx
     ftSelf.unitId = emptyId;
     ftSelf.turnCount = 0;
     ftSelf.used = false;
-
-    getOriginalFunctions().beforeBattleRound(thisptr);
 
     std::optional<sol::environment> env;
     static auto onBeforeRound = getScriptFunction(scriptsFolder() / "hooks/hooks.lua",

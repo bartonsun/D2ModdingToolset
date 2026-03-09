@@ -152,6 +152,7 @@ void ScenarioView::bind(sol::state& lua)
 
     scenario["AddUnitXP"] = sol::overload<>(&ScenarioView::addUnitXP);
     scenario["Heal"] = sol::overload<>(&ScenarioView::heal);
+    scenario["SetHealth"] = sol::overload<>(&ScenarioView::setHealth);
     scenario["AddUnitModifier"] = sol::overload<>(&ScenarioView::addUnitModifier);
     scenario["RemoveUnitModifier"] = sol::overload<>(&ScenarioView::removeUnitModifier);
     scenario["SetTransform"] = sol::overload<>(&ScenarioView::setTransform);
@@ -1199,6 +1200,28 @@ bool ScenarioView::heal(const IdView& unitId, int value)
         return false;
 
     visitors.changeUnitHp(&unit->id, value, objMap, 1);
+
+    return true;
+}
+
+bool ScenarioView::setHealth(const IdView& unitId, int value)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+    const auto& visitors = VisitorApi::get();
+
+    auto unit = fn.findUnitById(objectMap, &unitId.id);
+    if (!unit)
+        return false;
+
+    value = std::clamp(value, 0, 9999);
+
+    auto objMap = const_cast<game::IMidgardObjectMap*>(objectMap);
+
+    int diff = value - unit->currentHp;
+
+    visitors.changeUnitHp(&unit->id, diff, objMap, 1);
 
     return true;
 }
