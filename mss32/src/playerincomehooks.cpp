@@ -138,94 +138,97 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
                                          userSettings().additionalCityIncome.mana.tier5};
 
     auto variables{getScenarioVariables(objectMap)};
-    spdlog::debug("Loop through {:d} scenario variables", variables->variables.length);
 
     std::uint32_t listIndex{};
-    for (const auto& variable : variables->variables) {
-        const auto& name = variable.second.name;
+    if (variables && variables->variables.length) {
+        spdlog::debug("Loop through {:d} scenario variables", variables->variables.length);
+        for (const auto& variable : variables->variables) {
+            const auto& name = variable.second.name;
 
-        // Additional income for specific lord
-        if (!strncmp(name, lordPrefix, std::strlen(lordPrefix))) {
-            const auto expectedNameGold{fmt::format("{:s}_GOLD_INCOME", lordPrefix)};
-            const auto expectedNameMana{fmt::format("{:s}_MANA_INCOME", lordPrefix)};
-            if (!strncmp(name, expectedNameGold.c_str(), sizeof(name))) {
-                additionalGoldIncome += variable.second.value;
-                continue;
-            } else if (!strncmp(name, expectedNameMana.c_str(), sizeof(name))) {
-                additionalManaIncome += variable.second.value;
-                continue;
-            }
-        }
-
-        // Additional city income for specific race
-        if (!strncmp(name, racePrefix, std::strlen(racePrefix))) {
-            for (int i = 0; i < 6; ++i) {
-                const auto expectedName{fmt::format("{:s}TIER_{:d}_CITY_INCOME", racePrefix, i)};
-                const auto expectedNameGold{
-                    fmt::format("{:s}TIER_{:d}_CITY_GOLD_INCOME", racePrefix, i)};
-                const auto expectedNameMana{
-                    fmt::format("{:s}TIER_{:d}_CITY_MANA_INCOME", racePrefix, i)};
-                if (!strncmp(name, expectedName.c_str(), sizeof(name))) {
-                    cityGoldIncome[i] += variable.second.value;
-                    break;
-                } else if (!strncmp(name, expectedNameGold.c_str(), sizeof(name))) {
-                    cityGoldIncome[i] += variable.second.value;
-                    break;
+            // Additional income for specific lord
+            if (!strncmp(name, lordPrefix, std::strlen(lordPrefix))) {
+                const auto expectedNameGold{fmt::format("{:s}_GOLD_INCOME", lordPrefix)};
+                const auto expectedNameMana{fmt::format("{:s}_MANA_INCOME", lordPrefix)};
+                if (!strncmp(name, expectedNameGold.c_str(), sizeof(name))) {
+                    additionalGoldIncome += variable.second.value;
+                    continue;
                 } else if (!strncmp(name, expectedNameMana.c_str(), sizeof(name))) {
-                    cityManaIncome[i] += variable.second.value;
-                    break;
+                    additionalManaIncome += variable.second.value;
+                    continue;
                 }
             }
-        }
 
-        // Additional city income for all races
-        if (!strncmp(name, "TIER", 4)) {
-            for (int i = 0; i < 6; ++i) {
-                const auto expectedName{fmt::format("TIER_{:d}_CITY_INCOME", i)};
-                const auto expectedNameGold{fmt::format("TIER_{:d}_CITY_GOLD_INCOME", i)};
-                const auto expectedNameMana{fmt::format("TIER_{:d}_CITY_MANA_INCOME", i)};
-
-                if (!strncmp(name, expectedName.c_str(), sizeof(name))) {
-                    cityGoldIncome[i] += variable.second.value;
-                    break;
-                } else if (!strncmp(name, expectedNameGold.c_str(), sizeof(name))) {
-                    cityGoldIncome[i] += variable.second.value;
-                    break;
-                } else if (!strncmp(name, expectedNameMana.c_str(), sizeof(name))) {
-                    cityManaIncome[i] += variable.second.value;
-                    break;
+            // Additional city income for specific race
+            if (!strncmp(name, racePrefix, std::strlen(racePrefix))) {
+                for (int i = 0; i < 6; ++i) {
+                    const auto expectedName{
+                        fmt::format("{:s}TIER_{:d}_CITY_INCOME", racePrefix, i)};
+                    const auto expectedNameGold{
+                        fmt::format("{:s}TIER_{:d}_CITY_GOLD_INCOME", racePrefix, i)};
+                    const auto expectedNameMana{
+                        fmt::format("{:s}TIER_{:d}_CITY_MANA_INCOME", racePrefix, i)};
+                    if (!strncmp(name, expectedName.c_str(), sizeof(name))) {
+                        cityGoldIncome[i] += variable.second.value;
+                        break;
+                    } else if (!strncmp(name, expectedNameGold.c_str(), sizeof(name))) {
+                        cityGoldIncome[i] += variable.second.value;
+                        break;
+                    } else if (!strncmp(name, expectedNameMana.c_str(), sizeof(name))) {
+                        cityManaIncome[i] += variable.second.value;
+                        break;
+                    }
                 }
             }
-        }
 
-        listIndex++;
+            // Additional city income for all races
+            if (!strncmp(name, "TIER", 4)) {
+                for (int i = 0; i < 6; ++i) {
+                    const auto expectedName{fmt::format("TIER_{:d}_CITY_INCOME", i)};
+                    const auto expectedNameGold{fmt::format("TIER_{:d}_CITY_GOLD_INCOME", i)};
+                    const auto expectedNameMana{fmt::format("TIER_{:d}_CITY_MANA_INCOME", i)};
+
+                    if (!strncmp(name, expectedName.c_str(), sizeof(name))) {
+                        cityGoldIncome[i] += variable.second.value;
+                        break;
+                    } else if (!strncmp(name, expectedNameGold.c_str(), sizeof(name))) {
+                        cityGoldIncome[i] += variable.second.value;
+                        break;
+                    } else if (!strncmp(name, expectedNameMana.c_str(), sizeof(name))) {
+                        cityManaIncome[i] += variable.second.value;
+                        break;
+                    }
+                }
+            }
+
+            listIndex++;
+        }
+        spdlog::debug("Loop done in {:d} iterations", listIndex);
+
+        // Custom cities income
+        auto getVillageIncome = [playerId, cityGoldIncome, cityManaIncome, &additionalGoldIncome,
+                                 &additionalManaIncome](const IMidScenarioObject* obj) {
+            auto fortification = static_cast<const CFortification*>(obj);
+
+            if (fortification->ownerId == *playerId) {
+                auto vftable = static_cast<const CFortificationVftable*>(fortification->vftable);
+                auto category = vftable->getCategory(fortification);
+
+                if (category->id == FortCategories::get().village->id) {
+                    auto village = static_cast<const CMidVillage*>(fortification);
+
+                    additionalGoldIncome += cityGoldIncome[village->tierLevel];
+                    additionalManaIncome += cityManaIncome[village->tierLevel];
+                }
+            }
+        };
+
+        forEachScenarioObject(objectMap, IdType::Fortification, getVillageIncome);
+
+        // Custom capital city income
+        additionalGoldIncome += cityGoldIncome[0];
+        additionalManaIncome += cityManaIncome[0];
     }
 
-    spdlog::debug("Loop done in {:d} iterations", listIndex);
-
-    // Custom cities income
-    auto getVillageIncome = [playerId, cityGoldIncome, cityManaIncome, &additionalGoldIncome,
-                             &additionalManaIncome](const IMidScenarioObject* obj) {
-        auto fortification = static_cast<const CFortification*>(obj);
-
-        if (fortification->ownerId == *playerId) {
-            auto vftable = static_cast<const CFortificationVftable*>(fortification->vftable);
-            auto category = vftable->getCategory(fortification);
-
-            if (category->id == FortCategories::get().village->id) {
-                auto village = static_cast<const CMidVillage*>(fortification);
-
-                additionalGoldIncome += cityGoldIncome[village->tierLevel];
-                additionalManaIncome += cityManaIncome[village->tierLevel];
-            }
-        }
-    };
-
-    forEachScenarioObject(objectMap, IdType::Fortification, getVillageIncome);
-
-    // Custom capital city income
-    additionalGoldIncome += cityGoldIncome[0];
-    additionalManaIncome += cityManaIncome[0];
     const int totalGoldIncome = income->gold + additionalGoldIncome;
     const int totalManaIncome = manaIncome + additionalManaIncome;
 
