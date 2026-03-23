@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2024 Vladimir Makeev.
+ * Copyright (C) 2026 Alexey Voskresensky.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,32 +17,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "globalview.h"
-#include "globaldata.h"
-#include <sol/sol.hpp>
+#ifndef GLOBALUNITSVIEW_H
+#define GLOBALUNITSVIEW_H
+
+#include <optional>
+#include <string>
+
+namespace sol {
+class state;
+}
 
 namespace bindings {
+class UnitImplView;
 
-void GlobalView::bind(sol::state& lua)
+class GlobalUnitsView
 {
-    auto view = lua.new_usertype<GlobalView>("GlobalView");
+public:
+    static void bind(sol::state& lua);
 
-    view["variables"] = sol::property(&GlobalView::getGlobalVariables);
-    view["units"] = sol::property(&GlobalView::getUnits);
-}
-
-GlobalVariablesView GlobalView::getGlobalVariables() const
-{
-    using namespace game;
-
-    const GlobalData* global = *GlobalDataApi::get().getGlobalData();
-
-    return GlobalVariablesView{global->globalVariables};
-}
-
-GlobalUnitsView GlobalView::getUnits() const
-{
-    return GlobalUnitsView();
-}
+    std::optional<UnitImplView> getBaseImpl(const std::string& idStr) const;
+};
 
 } // namespace bindings
+
+#endif // GLOBALUNITSVIEW_H

@@ -21,6 +21,7 @@
 #define GLOBALVIEW_H
 
 #include "globalvariablesview.h"
+#include "globalunitsview.h"
 
 namespace sol {
 class state;
@@ -34,6 +35,7 @@ public:
     static void bind(sol::state& lua);
 
     GlobalVariablesView getGlobalVariables() const;
+    GlobalUnitsView getUnits() const;
 };
 
 } // namespace bindings

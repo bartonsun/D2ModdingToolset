@@ -501,6 +501,7 @@ static void bindApi(sol::state& lua)
     bindings::TrainerView::bind(lua);
     bindings::ResourceMarketView::bind(lua);
     bindings::GlobalVariablesView::bind(lua);
+    bindings::GlobalUnitsView::bind(lua);
     bindings::GlobalView::bind(lua);
     bindings::GameView::bind(lua);
     bindings::BuildingView::bind(lua);
