@@ -732,12 +732,18 @@ bool BattleMsgDataView::setStatus(const IdView& unitId, int status, int value, b
     case BattleStatus::BoostDamageLvl2:
     case BattleStatus::BoostDamageLvl3:
     case BattleStatus::BoostDamageLvl4:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::BoostDamageLvl1, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::BoostDamageLvl2, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::BoostDamageLvl3, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::BoostDamageLvl4, false);
         battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, true);
         battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::BoostDamageLong, isLong);
         return true;
 
     case BattleStatus::LowerDamageLvl1:
     case BattleStatus::LowerDamageLvl2:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerDamageLvl1, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerDamageLvl2, false);
         battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, true);
         battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerDamageLong, isLong);
         return true;
@@ -751,6 +757,69 @@ bool BattleMsgDataView::setStatus(const IdView& unitId, int status, int value, b
     case BattleStatus::Paralyze:
     case BattleStatus::Petrify:
         battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, true);
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+bool BattleMsgDataView::removeStatus(const IdView& unitId, int status)
+{
+    using namespace game;
+    const auto& battleApi = BattleMsgDataApi::get();
+
+    auto* info = battleApi.getUnitInfoById(battleMsgData, &unitId.id);
+    if (!info)
+        return false;
+
+    const BattleStatus battleStatus = BattleStatus(status);
+
+    switch (battleStatus) {
+    case BattleStatus::Poison:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Poison, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::PoisonLong, false);
+        info->dotInfo.poisonDamage = 0;
+        info->poisonAppliedRound = 0;
+        return true;
+
+    case BattleStatus::Frostbite:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Frostbite, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::FrostbiteLong, false);
+        info->dotInfo.frostbiteDamage = 0;
+        info->frostbiteAppliedRound = 0;
+        return true;
+
+    case BattleStatus::Blister:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Blister, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::BlisterLong, false);
+        info->dotInfo.blisterDamage = 0;
+        info->blisterAppliedRound = 0;
+        return true;
+
+    case BattleStatus::BoostDamageLvl1:
+    case BattleStatus::BoostDamageLvl2:
+    case BattleStatus::BoostDamageLvl3:
+    case BattleStatus::BoostDamageLvl4:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::BoostDamageLong, false);
+        return true;
+
+    case BattleStatus::LowerDamageLvl1:
+    case BattleStatus::LowerDamageLvl2:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerDamageLong, false);
+        return true;
+
+    case BattleStatus::LowerInitiative:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerInitiative, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerInitiativeLong, false);
+        return true;
+
+    case BattleStatus::Paralyze:
+    case BattleStatus::Petrify:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::DisableLong, false);
         return true;
 
     default:

@@ -40,11 +40,13 @@
 
 namespace hooks {
 
-    int computeDotDamage(game::CMidgardID* unitId, game::BattleMsgData* battleMsgData, int baseDamage)
+    static int computeDotDamage(game::CMidgardID* unitId,
+                            game::BattleMsgData* battleMsgData,
+                            int baseDamage)
     {
 
         using namespace game;
-        auto& battleApi = BattleMsgDataApi::get();
+        BattleMsgDataApi::Api& battleApi = BattleMsgDataApi::get();
 
         int boost = 0;
         int lower = 0;
@@ -149,12 +151,12 @@ namespace hooks {
                                        game::BattleAttackInfo** attackInfo)
     {
         using namespace game;
-        auto& battle = BattleMsgDataApi::get();
+        BattleMsgDataApi::Api& battle = BattleMsgDataApi::get();
 
-        game::UnitInfo* info = battle.getUnitInfoById(battleMsgData, targetUnitId);
-        game::CMidUnit* targetUnit = static_cast<CMidUnit*>(objectMap->vftable->findScenarioObjectByIdForChange(objectMap, targetUnitId));
+        UnitInfo* info = battle.getUnitInfoById(battleMsgData, targetUnitId);
+        CMidUnit* targetUnit = static_cast<CMidUnit*>(objectMap->vftable->findScenarioObjectByIdForChange(objectMap, targetUnitId));
 
-        game::CAttackImpl* attackImpl = getAttackImpl(thisptr->attack);
+        CAttackImpl* attackImpl = getAttackImpl(thisptr->attack);
 
         int attackNumber = thisptr->attackNumber;
         int damage = (attackNumber == 1) ? computeDotDamage(&thisptr->unitId, battleMsgData,
@@ -162,7 +164,7 @@ namespace hooks {
                                                 : attackImpl->data->qtyDamage;
 
         if (damage > 0) {
-            int curDamage = (info->blisterAttackId == game::emptyId) ? 0 : info->dotInfo.blisterDamage;
+            int curDamage = (info->blisterAttackId == emptyId) ? 0 : info->dotInfo.blisterDamage;
 
             info->blisterAttackId = bindings::IdView{userSettings().extendedBattle.blisterDamageID};
             info->dotInfo.blisterDamage = std::clamp(curDamage + damage, 0, userSettings().extendedBattle.maxDotDamage);
@@ -171,8 +173,9 @@ namespace hooks {
 
             if (thisptr->attack->vftable->getInfinite(thisptr->attack)) {
                 battle.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::BlisterLong, true);
-                info->blisterAppliedRound = battleMsgData->currentRound;
             }
+
+            info->blisterAppliedRound = battleMsgData->currentRound;
         }
 
         BattleAttackUnitInfo attInfo{};
@@ -189,13 +192,13 @@ namespace hooks {
                                        game::BattleAttackInfo** attackInfo)
     {
         using namespace game;
-        auto& battle = BattleMsgDataApi::get();
+        BattleMsgDataApi::Api& battle = BattleMsgDataApi::get();
 
-        game::UnitInfo* info = battle.getUnitInfoById(battleMsgData, targetUnitId);
-        game::CMidUnit* targetUnit = static_cast<CMidUnit*>(
+        UnitInfo* info = battle.getUnitInfoById(battleMsgData, targetUnitId);
+        CMidUnit* targetUnit = static_cast<CMidUnit*>(
             objectMap->vftable->findScenarioObjectByIdForChange(objectMap, targetUnitId));
 
-        game::CAttackImpl* attackImpl = getAttackImpl(thisptr->attack);
+        CAttackImpl* attackImpl = getAttackImpl(thisptr->attack);
 
         int attackNumber = thisptr->attackNumber;
         int damage = (attackNumber == 1) ? computeDotDamage(&thisptr->unitId, battleMsgData,
@@ -203,7 +206,7 @@ namespace hooks {
                                          : attackImpl->data->qtyDamage;
 
         if (damage > 0) {
-            int curDamage = (info->frostbiteAttackId == game::emptyId)
+            int curDamage = (info->frostbiteAttackId == emptyId)
                                 ? 0
                                 : info->dotInfo.frostbiteDamage;
 
@@ -216,8 +219,8 @@ namespace hooks {
 
             if (thisptr->attack->vftable->getInfinite(thisptr->attack)) {
                 battle.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::FrostbiteLong, true);
-                info->frostbiteAppliedRound = battleMsgData->currentRound;
             }
+            info->frostbiteAppliedRound = battleMsgData->currentRound;
         }
 
         BattleAttackUnitInfo attInfo{};
@@ -234,13 +237,13 @@ namespace hooks {
                                        game::BattleAttackInfo** attackInfo)
     {
         using namespace game;
-        auto& battle = BattleMsgDataApi::get();
+        BattleMsgDataApi::Api& battle = BattleMsgDataApi::get();
 
-        game::UnitInfo* info = battle.getUnitInfoById(battleMsgData, targetUnitId);
-        game::CMidUnit* targetUnit = static_cast<CMidUnit*>(
+        UnitInfo* info = battle.getUnitInfoById(battleMsgData, targetUnitId);
+        CMidUnit* targetUnit = static_cast<CMidUnit*>(
             objectMap->vftable->findScenarioObjectByIdForChange(objectMap, targetUnitId));
 
-        game::CAttackImpl* attackImpl = getAttackImpl(thisptr->attack);
+        CAttackImpl* attackImpl = getAttackImpl(thisptr->attack);
 
         int attackNumber = thisptr->attackNumber;
         int damage = (attackNumber == 1) ? computeDotDamage(&thisptr->unitId, battleMsgData,
@@ -248,7 +251,7 @@ namespace hooks {
                                          : attackImpl->data->qtyDamage;
 
         if (damage > 0) {
-            int curDamage = (info->poisonAttackId == game::emptyId) ? 0
+            int curDamage = (info->poisonAttackId == emptyId) ? 0
                                                                       : info->dotInfo.poisonDamage;
 
             info->poisonAttackId = bindings::IdView{userSettings().extendedBattle.poisonDamageID};
@@ -259,8 +262,8 @@ namespace hooks {
 
             if (thisptr->attack->vftable->getInfinite(thisptr->attack)) {
                 battle.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::PoisonLong, true);
-                info->poisonAppliedRound = battleMsgData->currentRound;
             }
+            info->poisonAppliedRound = battleMsgData->currentRound;
         }
 
         BattleAttackUnitInfo attInfo{};

@@ -152,6 +152,7 @@ public:
     int getStatusDamage(const IdView& unitId, const int status);
 
     bool setStatus(const IdView& unitId, int status, int value, bool isLong);
+    bool removeStatus(const IdView& unitId, int status);
     bool cure(const IdView& unitId);
 
     void removeAttackSourceWard(const IdView& unitId, int attackSourceId);
@@ -234,6 +235,7 @@ protected:
         view["SetShatteredArmor"] = &BattleMsgDataView::setShatteredArmor;
         view["GetStatusDamage"] = &BattleMsgDataView::getStatusDamage;
         view["SetStatus"] = &BattleMsgDataView::setStatus;
+        view["RemoveStatus"] = &BattleMsgDataView::removeStatus;
         view["Cure"] = &BattleMsgDataView::cure;
         view["RemoveAttackSourceWard"] = &BattleMsgDataView::removeAttackSourceWard;
         view["RemoveAttackClassWard"] = &BattleMsgDataView::removeAttackClassWard;

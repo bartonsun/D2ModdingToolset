@@ -362,8 +362,6 @@ void __stdcall applyCBatAttackUntransformEffectHooked(game::IMidgardObjectMap* o
                                                       game::BattleMsgData* battleMsgData,
                                                       game::CResultSender* resultSender,
                                                       char sendResult);
-;
-
 } // namespace hooks
 
 #endif // HOOKS_H
