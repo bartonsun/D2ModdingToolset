@@ -41,6 +41,8 @@
 #include <array>
 #include <spdlog/spdlog.h>
 
+extern std::thread::id mainThreadId;
+
 namespace hooks {
 
 game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
@@ -159,8 +161,10 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
         if (!strncmp(name, racePrefix, std::strlen(racePrefix))) {
             for (int i = 0; i < 6; ++i) {
                 const auto expectedName{fmt::format("{:s}TIER_{:d}_CITY_INCOME", racePrefix, i)};
-                const auto expectedNameGold{fmt::format("{:s}TIER_{:d}_CITY_GOLD_INCOME", racePrefix, i)};
-                const auto expectedNameMana{fmt::format("{:s}TIER_{:d}_CITY_MANA_INCOME", racePrefix, i)};
+                const auto expectedNameGold{
+                    fmt::format("{:s}TIER_{:d}_CITY_GOLD_INCOME", racePrefix, i)};
+                const auto expectedNameMana{
+                    fmt::format("{:s}TIER_{:d}_CITY_MANA_INCOME", racePrefix, i)};
                 if (!strncmp(name, expectedName.c_str(), sizeof(name))) {
                     cityGoldIncome[i] += variable.second.value;
                     break;
@@ -236,10 +240,22 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
     }
     if (getIncome) {
         bindings::PlayerView playerView{player, objectMap};
-        bindings::CurrencyView prevValue{*income};
+        bindings::CurrencyView incomeView{*income};
         try {
-            income = (*getIncome)(playerView, prevValue);
-
+            bool isInterfaceCall = (std::this_thread::get_id() == mainThreadId);
+            sol::object result = (*getIncome)(playerView, incomeView, isInterfaceCall);
+            if (result.is<bindings::CurrencyView>()) {
+                const bindings::CurrencyView& resultView = result.as<bindings::CurrencyView>();
+                income->gold = resultView.bank.gold;
+                income->infernalMana = resultView.bank.infernalMana;
+                income->lifeMana = resultView.bank.lifeMana;
+                income->deathMana = resultView.bank.deathMana;
+                income->runicMana = resultView.bank.runicMana;
+                income->groveMana = resultView.bank.groveMana;
+                spdlog::debug("Income modified by Lua");
+            } else {
+                spdlog::debug("Lua function did not return a Currency object, income unchanged");
+            }
         } catch (const std::exception& e) {
             showErrorMessageBox(fmt::format("Failed to run '{:s}' script.\n"
                                             "Reason: '{:s}'",

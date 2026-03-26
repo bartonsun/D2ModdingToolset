@@ -40,6 +40,7 @@ static std::array<Api, 3> functions = {{
         (Api::Constructor)0x41fea6,
         (Api::GetPlayerInfo)0x429866,
         (Api::IsCurrentPlayer)0x41e77f,
+        (Api::ProcessZeroTurn)0x421b49,
     },
     // Russobit
     Api{
@@ -56,6 +57,7 @@ static std::array<Api, 3> functions = {{
         (Api::Constructor)0x41fea6,
         (Api::GetPlayerInfo)0x429866,
         (Api::IsCurrentPlayer)0x41e77f,
+        (Api::ProcessZeroTurn)0x421b49,
     },
     // Gog
     Api{
@@ -72,6 +74,7 @@ static std::array<Api, 3> functions = {{
         (Api::Constructor)0x41f98e,
         (Api::GetPlayerInfo)0x429291,
         (Api::IsCurrentPlayer)0x41e267,
+        (Api::ProcessZeroTurn)0x421667,
     },
 }};
 

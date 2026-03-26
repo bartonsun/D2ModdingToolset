@@ -29,6 +29,7 @@ struct LAttitudesCategory;
 struct LItemCategory;
 struct LSiteCategory;
 struct CMqPoint;
+struct CMidStack;
 
 /**
  * Base for all visitor classes.
@@ -309,6 +310,12 @@ struct Api
                                                   IMidgardObjectMap* objectMap,
                                                   int apply);
     ChangeSiteAiPriority changeSiteAiPriority;
+
+    using ChangeStackLeader = bool(__stdcall*)(CMidgardID* stackId,
+                                               CMidgardID* unitId,
+                                               IMidgardObjectMap* objectMap,
+                                               int apply);
+    ChangeStackLeader changeStackLeader;
 };
 
 Api& get();

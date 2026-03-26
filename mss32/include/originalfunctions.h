@@ -37,11 +37,13 @@
 #include "enclayoutspell.h"
 #include "enclayoutstack.h"
 #include "enclayoutunit.h"
+#include "enrollunitinterf.h"
 #include "exchangeinterf.h"
 #include "game.h"
 #include "gameimages.h"
 #include "globalvariables.h"
 #include "imagelayerlist.h"
+#include "leadersforhire.h"
 #include "mainview2.h"
 #include "menubase.h"
 #include "menuload.h"
@@ -177,6 +179,7 @@ struct OriginalFunctions
     game::CMidServerLogicApi::Api::FilterAndProcessEvents filterAndProcessEvents;
     game::CMidServerLogicApi::Api::CheckEventConditions checkEventConditions;
     game::CMidServerLogicApi::Api::ExecuteEventEffects executeEventEffects;
+    game::CMidServerLogicApi::Api::ProcessZeroTurn processZeroTurn;
 
     game::ITestConditionVftable::Test testFrequency;
     game::ITestConditionVftable::Test testLocation;
@@ -230,6 +233,10 @@ struct OriginalFunctions
     game::BattleMsgDataApi::Api::DecreaseUnitAttacks decreaseUnitAttacks;
 
     game::CBatLogicApi::Api::ApplyCBatAttackUntransformEffect applyCBatAttackUntransformEffect;
+
+    game::LeadersForHireApi::Api::ChangeStackLeaderInCapital changeStackLeaderInCapital;
+
+    game::EnrollUnitInterfApi::Api::Constructor enrollUnitInterfCtor;
 };
 
 OriginalFunctions& getOriginalFunctions();

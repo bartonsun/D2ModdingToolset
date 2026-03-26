@@ -1562,12 +1562,6 @@
     <ClCompile Include="src\batattackhealhooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
-    <ClCompile Include="src\batattackblister.cpp" />
-    <ClCompile Include="src\batattackfrostbite.cpp" />
-    <ClCompile Include="src\batattackpoison.cpp" />
-    <ClCompile Include="src\dotattackhooks.cpp" />
-    <ClCompile Include="src\batattacklowerdamage.cpp" />
-    <ClCompile Include="src\batattackboostdamage.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3896,6 +3890,21 @@
       <Filter>game</Filter>
     </ClInclude>
     <ClInclude Include="include\batattackhealhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\unitsforhirehooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\leadersforhire.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\leadersforhirehooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\enrollunitinterf.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\enrollunitinterfhooks.h">
       <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\batattackblister.h" />

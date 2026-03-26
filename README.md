@@ -111,6 +111,66 @@
   </details>
 - Provides recommended game settings: add contents of [Disciple.ini](Examples/Disciple.ini) to `Disciple.ini`;
 
+- <details>
+    <summary><b>Lua-controlled hiring of leaders and units</b> – allows full modification of hire lists and starting leaders via scripts;</summary>
+
+    The toolset adds Lua scripting support for customizing which leaders and units appear in the hire dialog (`DLG_HIRE_LEADER_2`), as well as controlling the starting leader in the capital on the first turn.
+
+    #### Lua API used
+    - **`Id`** – represents a `CMidgardID`. Can be created from string: `Id("G000UU0096")`. Has methods `.value`, `.type`, `.typeIndex`, and supports equality comparison.
+    - **`PlayerView`** – read-only view of the player. Provides access to player's id, race, lord category (`Lord.Warrior`, `Lord.Mage`, `Lord.Diplomat`), etc.
+    - **`FortView`** – read-only view of the fortification (city). Provides access to the city's id, race, tier, etc.
+
+    #### Script file: `hire.lua`
+    Place this file in the `Scripts` folder. The following functions are called automatically when the corresponding UI is opened:
+
+    ##### 1. Modifying the list of hireable leaders
+    ```lua
+    function getLeadersHireList(originalList, playerView)
+        -- originalList: table of Id objects (leaders available by default)
+        -- playerView: PlayerView object for the current player
+        -- Must return a table of Id objects (the modified list)
+        local modified = {}
+        for i, id in ipairs(originalList) do
+            -- Your filtering logic here
+            table.insert(modified, id)
+        end
+        return modified
+    end
+    ```
+
+    ##### 2. Modifying the list of hireable units
+    ```lua
+    function getUnitsHireList(originalList, fortView)
+        -- originalList: table of Id objects (units available by default)
+        -- fortView: FortView object for the current city
+        -- Must return a table of Id objects (the modified list)
+        return originalList
+    end
+    ```
+
+    ##### 3. Selecting the starting leader in the capital (called only on turn 0)
+    ```lua
+    function getStartingLeader(playerView)
+        -- playerView: PlayerView object
+        -- Return an Id of the leader to place in the capital stack, or empty to keep default
+        local race = playerView.race
+        local lord = playerView.lord
+        if race == Race.Undead and lord == Lord.Warrior then
+            return Id("G000UU0100")  -- specific leader
+        end
+        return
+    end
+    ```
+
+    #### Important notes
+    - If a Lua function is missing or returns an invalid value (e.g., an Id not present in the game), the game falls back to the original behavior or the original list.
+    - The hire list can be empty – in that case, the "Hire" button is automatically disabled to prevent crashes.
+    - When changing the starting leader, the game correctly handles level generation: nobles (thieves) always get level 1, while normal leaders get the scenario's suggested level.
+    - All returned Ids must correspond to existing unit implementations (from `GUnits.dbf`) and must be of the correct type (leader/noble for `getLeadersHireList` and `getStartingLeader`; soldier for `getUnitsHireList`). Invalid Ids are ignored and logged.
+    - For debugging, enable `debugHooks` in `settings.lua` to see detailed logs from the Lua calls.
+  </details>
+
 #### User interface
 - <details>
     <summary>Allows banners, resources panel and converted land percentage to be displayed by default;</summary>
