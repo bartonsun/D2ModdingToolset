@@ -759,6 +759,10 @@ bool BattleMsgDataView::setStatus(const IdView& unitId, int status, int value, b
         battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, true);
         return true;
 
+    case BattleStatus::Defend:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Defend, true);
+        return true;
+
     default:
         return false;
     }
@@ -820,6 +824,10 @@ bool BattleMsgDataView::removeStatus(const IdView& unitId, int status)
     case BattleStatus::Petrify:
         battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, false);
         battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::DisableLong, false);
+        return true;
+
+    case BattleStatus::Defend:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Defend, false);
         return true;
 
     default:
