@@ -32,8 +32,10 @@
 #include "scripts.h"
 #include "unitgenerator.h"
 #include "unitimplview.h"
+#include "unitslotview.h"
 #include "unitview.h"
 #include "ussoldier.h"
+#include "usracialsoldier.h"
 #include "usunitimpl.h"
 #include "utils.h"
 #include "visitors.h"
@@ -85,6 +87,11 @@ static void tableToIdList(const sol::table& table, game::IdList* list, bool canB
             continue;
         }
 
+        auto racialSoldier = fn.castUnitImplToRacialSoldier(unitImpl);
+        if (!racialSoldier) {
+            spdlog::debug("Skipping non-soldier unit ID: {}", hooks::idToString(&id));
+            continue;
+        }
 
         if (!canBig && !soldier->vftable->getSizeSmall(soldier)) {
             spdlog::debug("Skipping big unit - no space: {}", hooks::idToString(&id));
@@ -188,27 +195,36 @@ void __fastcall summonAttackOnHitHooked(game::CBatAttackSummon* thisptr,
 
     auto summoner = fn.findUnitById(objectMap, &thisptr->unitId);
 
-    IdList summonImplIds{};
-    listApi.constructor(&summonImplIds);
-
-    fn.fillAttackTransformIdList(globalData->transf, &summonImplIds, attackId, !canSummonBig);
-
     static std::optional<sol::environment> env;
-    static std::optional<sol::function> getSummonList;
+    static std::optional<sol::function> getListFunc;
     const std::filesystem::path path = scriptsFolder() / "summon.lua";
 
-    if (!env && !getSummonList) {
-        getSummonList = getScriptFunction(path, "getSummonList", env, false, true);
+    if (!env && !getListFunc) {
+        getListFunc = getScriptFunction(path, "getSummonList", env, false, true);
     }
 
-    if (getSummonList) {
+    if (getListFunc) {
+        IdList summonImplIds{};
+        listApi.constructor(&summonImplIds);
+
+        fn.fillAttackTransformIdList(globalData->transf, &summonImplIds, attackId, !canSummonBig);
+
+        const CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
+
         try {
             lua_State* L = env->lua_state();
             const bindings::BattleMsgDataView battleView{battleMsgData, objectMap};
             bindings::UnitView summonerView{summoner};
             sol::table inputList = idListToTable(L, &summonImplIds);
-            sol::table outputList = (*getSummonList)(battleView, summonerView, inputList, position,
-                                                     canSummonBig, &thisptr->unitOrItemId);
+            bindings::UnitSlotView UnitSlotView{targetUnit, position, &targetGroupId};
+            sol::table outputList{};
+            if (CMidgardIDApi::get().getType(&thisptr->unitOrItemId) == IdType::Item) {
+                const bindings::ItemView itemView{&thisptr->unitOrItemId, objectMap};
+                outputList = (*getListFunc)(battleView, summonerView, inputList, UnitSlotView,
+                                            canSummonBig, itemView);
+            } else
+                outputList = (*getListFunc)(battleView, summonerView, inputList, UnitSlotView,
+                                            canSummonBig, nullptr);
 
             if (outputList.is<sol::table>()) {
                 IdList newList;
@@ -238,9 +254,9 @@ void __fastcall summonAttackOnHitHooked(game::CBatAttackSummon* thisptr,
                                             path.string(), e.what()));
             spdlog::error("Lua error in {}: {}", path.string(), e.what());
         }
-    }
 
-    listApi.destructor(&summonImplIds);
+        listApi.destructor(&summonImplIds);
+    }
 
     if (summonImplId == emptyId) {
         fn.getSummonUnitImplId(&summonImplId, objectMap, attackId, &targetGroupId, targetUnitId,
