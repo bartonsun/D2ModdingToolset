@@ -189,10 +189,15 @@ bool __stdcall changeStackLeaderInCapitalHooked(game::IMidgardObjectMap* objectM
         return result;
     }
 
-    auto player = getPlayer(objectMap, &playerId);
     auto stack = getStack(objectMap, &capital->stackId);
+    if (!stack) {
+        return result;
+    }
+
     auto currentLeaderId = stack->leaderId;
     CMidUnit* unit = fn.findUnitById(objectMap, &currentLeaderId);
+
+    auto player = getPlayer(objectMap, &playerId);
 
     static std::optional<sol::environment> env;
     static std::optional<sol::function> modifyFunc;
