@@ -1562,6 +1562,20 @@
     <ClCompile Include="src\batattackhealhooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\batattackblister.cpp" />
+    <ClCompile Include="src\batattackfrostbite.cpp" />
+    <ClCompile Include="src\batattackpoison.cpp" />
+    <ClCompile Include="src\dotattackhooks.cpp" />
+    <ClCompile Include="src\batattacklowerdamage.cpp" />
+    <ClCompile Include="src\batattackboostdamage.cpp" />
+    <ClCompile Include="src\enrollunitinterf.cpp" />
+    <ClCompile Include="src\enrollunitinterfhooks.cpp" />
+    <ClCompile Include="src\leadersforhire.cpp" />
+    <ClCompile Include="src\leadersforhirehooks.cpp" />
+    <ClCompile Include="src\unitsforhirehooks.cpp" />
+    <ClCompile Include="src\bindings\globalunitsview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3913,6 +3927,9 @@
     <ClInclude Include="include\dotattackhooks.h" />
     <ClInclude Include="include\batattacklowerdamage.h" />
     <ClInclude Include="include\batattackboostdamage.h" />
+    <ClInclude Include="include\bindings\globalunitsview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="mss32.rc">

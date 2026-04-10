@@ -179,6 +179,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\batattackblister.cpp" />
     <ClCompile Include="src\batattackfrostbite.cpp" />
     <ClCompile Include="src\batattackpoison.cpp" />
+    <ClCompile Include="src\bindings\globalunitsview.cpp" />
     <ClCompile Include="src\dotattackhooks.cpp" />
     <ClCompile Include="src\batattacklowerdamage.cpp" />
     <ClCompile Include="src\batattackboostdamage.cpp" />
@@ -723,6 +724,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\batattackblister.h" />
     <ClInclude Include="include\batattackfrostbite.h" />
     <ClInclude Include="include\batattackpoison.h" />
+    <ClInclude Include="include\bindings\globalunitsview.h" />
     <ClInclude Include="include\dotattackhooks.h" />
     <ClInclude Include="include\batattacklowerdamage.h" />
     <ClInclude Include="include\batattackboostdamage.h" />

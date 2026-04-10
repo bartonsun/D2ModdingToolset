@@ -37,14 +37,76 @@
 #include "unitgenerator.h"
 #include "unitimplview.h"
 #include "unitutils.h"
+#include "unitslotview.h"
 #include "unitview.h"
 #include "ussoldier.h"
+#include "usracialsoldier.h"
 #include "usunitimpl.h"
 #include "utils.h"
 #include "visitors.h"
 #include <spdlog/spdlog.h>
 
 namespace hooks {
+
+static sol::table idListToTable(lua_State* L, const game::IdList* list)
+{
+    sol::state_view lua(L);
+    sol::table result = lua.create_table();
+    for (const auto& id : *list) {
+        result.add(bindings::IdView(&id));
+    }
+    return result;
+}
+
+static void tableToIdList(const sol::table& table, game::IdList* list, bool isSmall)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+    const auto& listApi = IdListApi::get();
+    const auto& idApi = CMidgardIDApi::get();
+    const auto& global = GlobalDataApi::get();
+    const auto globalData = *global.getGlobalData();
+
+    listApi.clear(list);
+
+    for (auto& kv : table) {
+        sol::object obj = kv.second;
+        if (!obj.is<bindings::IdView>()) {
+            spdlog::debug("Skipping non-IdView value in Lua table");
+            continue;
+        }
+
+        auto idView = obj.as<bindings::IdView>();
+        const CMidgardID& id = idView;
+
+        auto unitImpl = static_cast<TUsUnitImpl*>(global.findById(globalData->units, &id));
+        if (!unitImpl) {
+            spdlog::debug("Skipping non-existent unit ID: {}", hooks::idToString(&id));
+            continue;
+        }
+
+        auto soldier = fn.castUnitImplToSoldier(unitImpl);
+        if (!soldier) {
+            spdlog::debug("Skipping non-soldier unit ID: {}", hooks::idToString(&id));
+            continue;
+        }
+
+        auto racialSoldier = fn.castUnitImplToRacialSoldier(unitImpl);
+        if (!racialSoldier) {
+            spdlog::debug("Skipping non-soldier unit ID: {}", hooks::idToString(&id));
+            continue;
+        }
+
+        if (isSmall != soldier->vftable->getSizeSmall(soldier))
+        {
+            spdlog::debug("Skipping not matching size. Unit ID: {}", hooks::idToString(&id));
+            continue;
+        }
+
+        listApi.pushBack(list, &id);
+    }
+}
 
 static int getTransformSelfLevel(const game::CMidUnit* unit,
                                  game::TUsUnitImpl* transformImpl,
@@ -174,6 +236,9 @@ void __fastcall transformSelfAttackOnHitHooked(game::CBatAttackTransformSelf* th
     using namespace game;
 
     const auto& fn = gameFunctions();
+    const auto& listApi = IdListApi::get();
+    const auto& global = GlobalDataApi::get();
+    auto globalData = *global.getGlobalData();
 
     bool targetSelf = thisptr->unitId == *targetUnitId;
     if (!targetSelf) {
@@ -185,6 +250,7 @@ void __fastcall transformSelfAttackOnHitHooked(game::CBatAttackTransformSelf* th
         }
     }
 
+    auto attackId = &thisptr->id2;
     auto attack = fn.getAttackById(objectMap, &thisptr->id2, thisptr->attackNumber, false);
 
     CMidgardID targetGroupId{emptyId};
@@ -192,12 +258,79 @@ void __fastcall transformSelfAttackOnHitHooked(game::CBatAttackTransformSelf* th
 
     const auto position = fn.getUnitPositionInGroup(objectMap, &targetGroupId, targetUnitId);
 
+    CMidgardID transformImplId{emptyId};
+
     const CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
     const CMidgardID targetUnitImplId{targetUnit->unitImpl->id};
+    bool targetIsSmall = isUnitSmall(targetUnit);
 
-    CMidgardID transformImplId{emptyId};
-    fn.getSummonUnitImplIdByAttack(&transformImplId, &attack->id, position,
-                                   isUnitSmall(targetUnit));
+    static std::optional<sol::environment> env;
+    static std::optional<sol::function> getListFunc;
+    const std::filesystem::path path = scriptsFolder() / "transformSelf.lua";
+
+    if (!env && !getListFunc) {
+        getListFunc = getScriptFunction(path, "getTransformSelfList", env, false, true);
+    }
+
+    if (getListFunc) {
+        const auto targetPosition = fn.getUnitPositionInGroup(objectMap, &targetGroupId,
+                                                              targetUnitId);
+
+        IdList transformImplIds{};
+        listApi.constructor(&transformImplIds);
+        fn.fillAttackTransformIdList(globalData->transf, &transformImplIds, attackId,
+                                     targetIsSmall);
+
+        try {
+            lua_State* L = env->lua_state();
+            bindings::BattleMsgDataView battleView{battleMsgData, objectMap};
+            bindings::UnitView attackerView{fn.findUnitById(objectMap, &thisptr->unitId)};
+            bindings::UnitView targetView{targetUnit};
+            bindings::UnitSlotView UnitSlotView{targetUnit, targetPosition, &targetGroupId};
+            sol::table inputList = idListToTable(L, &transformImplIds);
+
+            sol::table outputList{};
+            if (CMidgardIDApi::get().getType(&thisptr->id2) == IdType::Item) {
+                const bindings::ItemView itemView{&thisptr->id2, objectMap};
+                outputList = (*getListFunc)(battleView, attackerView, targetView, inputList,
+                                            UnitSlotView, itemView);
+            } else
+                outputList = (*getListFunc)(battleView, attackerView, targetView, inputList,
+                                            UnitSlotView, nullptr);
+
+            if (outputList.is<sol::table>()) {
+                IdList newList;
+                listApi.constructor(&newList);
+                tableToIdList(outputList.as<sol::table>(), &newList, targetIsSmall);
+
+                if (newList.length > 0) {
+                    int randomIndex = getRandomNumber(0, newList.length - 1);
+                    int i = 0;
+                    const CMidgardID* chosenId = nullptr;
+                    for (auto it = newList.begin(); it != newList.end(); ++it) {
+                        if (i == randomIndex) {
+                            chosenId = &(*it);
+                            break;
+                        }
+                        i++;
+                    }
+                    if (chosenId) {
+                        transformImplId = *chosenId;
+                    }
+                }
+                listApi.destructor(&newList);
+            }
+        } catch (const std::exception& e) {
+            showErrorMessageBox(fmt::format("Failed to run transformSelf.lua: {}", e.what()));
+        }
+
+        listApi.destructor(&transformImplIds);
+    }
+
+    if (transformImplId == emptyId) {
+        fn.getSummonUnitImplIdByAttack(&transformImplId, &attack->id, position,
+                                       isUnitSmall(targetUnit));
+    }
 
     if (transformImplId == emptyId) {
         return;

@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2024 Vladimir Makeev.
+ * Copyright (C) 2026 Alexey Voskresensky.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,32 +17,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "globalview.h"
-#include "globaldata.h"
+#include "globalunitsview.h"
+#include "idview.h"
+#include "unitimplview.h"
+#include "unitutils.h"
+#include "usunitimpl.h"
 #include <sol/sol.hpp>
 
 namespace bindings {
 
-void GlobalView::bind(sol::state& lua)
+void GlobalUnitsView::bind(sol::state& lua)
 {
-    auto view = lua.new_usertype<GlobalView>("GlobalView");
-
-    view["variables"] = sol::property(&GlobalView::getGlobalVariables);
-    view["units"] = sol::property(&GlobalView::getUnits);
+    auto view = lua.new_usertype<GlobalUnitsView>("GlobalUnitsView");
+    view["getBaseImpl"] = &GlobalUnitsView::getBaseImpl;
 }
 
-GlobalVariablesView GlobalView::getGlobalVariables() const
+std::optional<UnitImplView> GlobalUnitsView::getBaseImpl(const std::string& idStr) const
 {
-    using namespace game;
-
-    const GlobalData* global = *GlobalDataApi::get().getGlobalData();
-
-    return GlobalVariablesView{global->globalVariables};
-}
-
-GlobalUnitsView GlobalView::getUnits() const
-{
-    return GlobalUnitsView();
+    IdView idView(idStr);
+    game::TUsUnitImpl* rawImpl = hooks::getGlobalUnitImpl(&idView.id);
+    if (!rawImpl) {
+        return std::nullopt;
+    }
+    const game::IUsUnit* baseImpl = static_cast<const game::IUsUnit*>(rawImpl);
+    return UnitImplView(baseImpl);
 }
 
 } // namespace bindings
