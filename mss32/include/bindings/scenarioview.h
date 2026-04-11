@@ -235,7 +235,7 @@ public:
     bool removeUnitModifier(const IdView& unitId, const std::string& modifierId);
     
     bool setTransform(const IdView& unitId, const std::string& unitIdTransform, bool saveXp);
-    bool setUnitXpWithUpgrade(const IdView& unitId, int exp, bool keppHp = false);
+    bool addUnitXpWithUpgrade(const IdView& unitId, int exp);
     bool giveSkillPoint(const IdView& stackId, int amout);
 
 private:

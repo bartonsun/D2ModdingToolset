@@ -108,7 +108,7 @@ struct CCustomModifier
     game::CMidgardID getAttackDescTxt(bool primary, const game::CMidgardID& baseId) const;
     game::CMidgardID getAttackBaseDescTxt(const game::IAttack* attack) const;
 
-    template <typename F, typename T>
+    /*template <typename F, typename T>
     T getValue(F function, const char* functionName, const T& prev) const
     {
         try {
@@ -152,8 +152,64 @@ struct CCustomModifier
         }
 
         return prev;
+    }*/
+    template <typename F, typename T>
+    T getValue(F function, const char* functionName, const T& prev) const
+    {
+        try {
+            if (function) {
+                if (!unit)
+                    return prev;
+                const auto unitImpl = getPrev();
+                if (!unitImpl)
+                    return prev;
+                bindings::UnitView unitView{unit, unitImpl};
+                return (*function)(unitView, prev);
+            }
+        } catch (const std::exception& e) {
+            showScriptErrorMessage(functionName, e.what());
+        }
+        return prev;
     }
 
+    template <typename F, typename T>
+    T getValueAs(F function, const char* functionName, const T& prev) const
+    {
+        try {
+            if (function) {
+                if (!unit)
+                    return prev;
+                const auto unitImpl = getPrev();
+                if (!unitImpl)
+                    return prev;
+                bindings::UnitView unitView{unit, unitImpl};
+                sol::table result = (*function)(unitView, prev);
+                return result.as<T>();
+            }
+        } catch (const std::exception& e) {
+            showScriptErrorMessage(functionName, e.what());
+        }
+        return prev;
+    }
+
+    template <typename F, typename T, typename P>
+    T getValueParam(F function, const char* functionName, const P& param, const T& prev) const
+    {
+        try {
+            if (function) {
+                if (!unit)
+                    return prev;
+                const auto unitImpl = getPrev();
+                if (!unitImpl)
+                    return prev;
+                bindings::UnitView unitView{unit, unitImpl};
+                return (*function)(unitView, param, prev);
+            }
+        } catch (const std::exception& e) {
+            showScriptErrorMessage(functionName, e.what());
+        }
+        return prev;
+    }
     template <typename F, typename T>
     T getValueNoParam(F function, const char* functionName, T def) const
     {

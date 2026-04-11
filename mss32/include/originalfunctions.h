@@ -234,6 +234,8 @@ struct OriginalFunctions
 
     game::CBatLogicApi::Api::ApplyCBatAttackUntransformEffect applyCBatAttackUntransformEffect;
 
+    game::IBatViewerVftable::ShowAttackEffect showAttackEffect;
+
     game::LeadersForHireApi::Api::ChangeStackLeaderInCapital changeStackLeaderInCapital;
 
     game::EnrollUnitInterfApi::Api::Constructor enrollUnitInterfCtor;

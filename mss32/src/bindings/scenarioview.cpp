@@ -68,6 +68,13 @@
 #include <usstackleader.h>
 #include <midstack.h>
 
+#include <interfmanager.h>
+#include <dialoginterf.h>
+#include <battleviewerinterf.h>
+#include <batlogichooks.h>
+#include <battleviewerinterfhooks.h>
+#include <batattackutils.h>
+
 namespace bindings {
 
 ScenarioView::ScenarioView(const game::IMidgardObjectMap* objectMap)
@@ -156,7 +163,7 @@ void ScenarioView::bind(sol::state& lua)
     scenario["AddUnitModifier"] = sol::overload<>(&ScenarioView::addUnitModifier);
     scenario["RemoveUnitModifier"] = sol::overload<>(&ScenarioView::removeUnitModifier);
     scenario["SetTransform"] = sol::overload<>(&ScenarioView::setTransform);
-    scenario["setUnitXpWithUpgrade"] = sol::overload<>(&ScenarioView::setUnitXpWithUpgrade);
+    scenario["addUnitXpWithUpgrade"] = sol::overload<>(&ScenarioView::addUnitXpWithUpgrade);
     scenario["GiveSkillPoint"] = &ScenarioView::giveSkillPoint;
 }
 
@@ -1324,7 +1331,43 @@ bool ScenarioView::setTransform(const IdView& unitId, const std::string& unitIdT
     return true;
 }
 
-bool ScenarioView::setUnitXpWithUpgrade(const IdView& unitId, int exp, bool keepHp)
+game::CBattleViewerInterf* findBattleViewerInterf()
+{
+    using namespace game;
+
+    InterfManagerImplPtr managerPtr;
+    CInterfManagerImplApi::get().get(&managerPtr);
+    if (!managerPtr.data)
+        return nullptr;
+
+    const auto* batViewerVftable = BattleViewerInterfApi::vftable();
+    auto& interfaces = managerPtr.data->data->interfaces;
+
+    for (auto it = interfaces.begin(); it != interfaces.end(); ++it) {
+        CInterface* interf = *it;
+        if (!interf)
+            continue;
+
+        auto* viewer = reinterpret_cast<CBattleViewerInterf*>(interf);
+
+        if (viewer->batViewer.vftable != batViewerVftable)
+            continue;
+
+        auto* dialog = CDragAndDropInterfApi::get().getDialog(
+            reinterpret_cast<CDragAndDropInterf*>(interf));
+        if (!dialog || !dialog->data)
+            continue;
+
+        if (strcmp(dialog->data->dialogName, "DLG_BATTLE_A") != 0)
+            continue;
+
+        return viewer;
+    }
+
+    return nullptr;
+}
+
+bool ScenarioView::addUnitXpWithUpgrade(const IdView& unitId, int exp)
 {
     if (exp < 1)
         return false;
@@ -1349,7 +1392,6 @@ bool ScenarioView::setUnitXpWithUpgrade(const IdView& unitId, int exp, bool keep
     auto stack = const_cast<CMidStack*>(hooks::getStackByUnitId(objectMap, &unitId.id));
     const bool isLeader = stack && (stack->leaderId == unitId.id);
 
-    // ������ �� ������������
     if (exp > INT_MAX - attackUnit->currentXp)
         exp = INT_MAX;
     else
@@ -1358,9 +1400,7 @@ bool ScenarioView::setUnitXpWithUpgrade(const IdView& unitId, int exp, bool keep
     const auto playerIdByUnit = hooks::getPlayerIdByUnitId(objectMap, &attackUnit->id);
     const auto player = hooks::getPlayer(objectMap, &playerIdByUnit);
 
-    int curHp;
-    if (keepHp)
-        curHp = attackUnit->currentHp;
+    int currHp = 0;
 
     while (exp > 0) {
         const int xpNext = soldier->vftable->getXpNext(soldier);
@@ -1406,10 +1446,18 @@ bool ScenarioView::setUnitXpWithUpgrade(const IdView& unitId, int exp, bool keep
         exp -= xpNext;
     }
 
-    if (keepHp)
-        attackUnit->currentHp = curHp;
-
     attackUnit->currentXp = exp;
+    
+    auto battleLogic = hooks::getBatLogic();
+
+    if (battleLogic && battleLogic->battleMsgData) {
+        attackUnit->currentHp = currHp;
+
+        hooks::requestUnitVisualUpdate(attackUnit->id);
+
+        //Update unit info
+        hooks::heal(battleLogic->objectMap, battleLogic->battleMsgData, attackUnit, 0);
+    }
     return true;
 }
 

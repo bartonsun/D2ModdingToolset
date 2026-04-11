@@ -125,10 +125,19 @@ CCustomModifier* castAttackToCustomModifier(const game::IAttack* attack)
     return nullptr;
 }
 
+static bool isValidCustomModifier(const CCustomModifier* thiz)
+{
+    return thiz != nullptr && thiz->umModifier.vftable == &rttiInfo.umModifier.vftable
+           && thiz->umModifier.data != nullptr;
+}
+
 const game::IUsUnit* CCustomModifier::getPrev() const
 {
+    if (!umModifier.data)
+        return nullptr;
     return umModifier.data->prev;
 }
+
 
 const game::IUsSoldier* CCustomModifier::getPrevSoldier() const
 {
@@ -453,6 +462,10 @@ CCustomModifier* customModifierCopyCtor(CCustomModifier* thisptr, const CCustomM
 void customModifierDtor(CCustomModifier* thisptr, char flags)
 {
     using namespace game;
+
+    thisptr->attack.prev = nullptr;
+    thisptr->attack2.prev = nullptr;
+    thisptr->altAttack.prev = nullptr;
 
     thisptr->scriptFileName.~basic_string();
 
@@ -1045,7 +1058,12 @@ void __fastcall attackDtor(game::IAttack* thisptr, int /*%edx*/, char flags)
 const char* __fastcall attackGetName(const game::IAttack* thisptr, int /*%edx*/)
 {
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     if (attackHasAltAttack(prev)) {
         return prev->vftable->getName(prev);
@@ -1059,7 +1077,12 @@ const char* __fastcall attackGetName(const game::IAttack* thisptr, int /*%edx*/)
 const char* __fastcall attackGetDescription(const game::IAttack* thisptr, int /*%edx*/)
 {
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     if (attackHasAltAttack(prev)) {
         return prev->vftable->getDescription(prev);
@@ -1078,7 +1101,12 @@ const game::LAttackClass* __fastcall attackGetAttackClass(const game::IAttack* t
     const auto& classes = AttackClassCategories::get();
 
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     auto prevValue = prev->vftable->getAttackClass(prev);
     if (attackHasAltAttack(prev)) {
@@ -1158,7 +1186,12 @@ const game::LAttackSource* __fastcall attackGetAttackSource(const game::IAttack*
     const auto& sources = AttackSourceCategories::get();
 
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     auto prevValue = prev->vftable->getAttackSource(prev);
     if (attackHasAltAttack(prev)) {
@@ -1199,7 +1232,12 @@ int __fastcall attackGetInitiative(const game::IAttack* thisptr, int /*%edx*/)
     const auto& restrictions = game::gameRestrictions();
 
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     auto prevValue = prev->vftable->getInitiative(prev);
     if (thisptr == &thiz->attack2 || attackHasAltAttack(prev)) {
@@ -1216,7 +1254,12 @@ int* __fastcall attackGetPower(const game::IAttack* thisptr, int /*%edx*/, int* 
     const auto& restrictions = game::gameRestrictions();
 
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     auto prevValue = prev->vftable->getPower(prev, power);
     if (attackHasAltAttack(prev)) {
@@ -1238,7 +1281,12 @@ const game::LAttackReach* __fastcall attackGetAttackReach(const game::IAttack* t
     const auto& reaches = AttackReachCategories::get();
 
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     auto prevValue = prev->vftable->getAttackReach(prev);
     if (thisptr == &thiz->attack2 || attackHasAltAttack(prev)) {
@@ -1268,7 +1316,12 @@ int __fastcall attackGetQtyDamage(const game::IAttack* thisptr, int /*%edx*/)
     const auto& fn = game::gameFunctions();
 
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     auto prevValue = prev->vftable->getQtyDamage(prev);
     if (attackHasAltAttack(prev)) {
@@ -1287,7 +1340,12 @@ int __fastcall attackGetQtyHeal(const game::IAttack* thisptr, int /*%edx*/)
     const auto& restrictions = game::gameRestrictions();
 
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     auto prevValue = prev->vftable->getQtyHeal(prev);
     if (attackHasAltAttack(prev)) {
@@ -1303,7 +1361,12 @@ int __fastcall attackGetQtyHeal(const game::IAttack* thisptr, int /*%edx*/)
 int __fastcall attackGetDrain(const game::IAttack* thisptr, int /*%edx*/, int damage)
 {
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     auto prevValue = prev->vftable->getDrain(prev, damage);
     if (attackHasAltAttack(prev)) {
@@ -1318,7 +1381,12 @@ int __fastcall attackGetDrain(const game::IAttack* thisptr, int /*%edx*/, int da
 int __fastcall attackGetLevel(const game::IAttack* thisptr, int /*%edx*/)
 {
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     auto prevValue = prev->vftable->getLevel(prev);
     if (attackHasAltAttack(prev)) {
@@ -1333,7 +1401,12 @@ int __fastcall attackGetLevel(const game::IAttack* thisptr, int /*%edx*/)
 const game::CMidgardID* __fastcall attackGetAltAttackId(const game::IAttack* thisptr, int /*%edx*/)
 {
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     auto prevValue = prev->vftable->getAltAttackId(prev);
     if (*prevValue == game::emptyId) {
@@ -1355,7 +1428,12 @@ const game::CMidgardID* __fastcall attackGetAltAttackId(const game::IAttack* thi
 bool __fastcall attackGetInfinite(const game::IAttack* thisptr, int /*%edx*/)
 {
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     auto prevValue = prev->vftable->getInfinite(prev);
     if (attackHasAltAttack(prev)) {
@@ -1370,7 +1448,12 @@ bool __fastcall attackGetInfinite(const game::IAttack* thisptr, int /*%edx*/)
 game::IdVector* __fastcall attackGetWards(const game::IAttack* thisptr, int /*%edx*/)
 {
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     auto prevValue = prev->vftable->getWards(prev);
     if (attackHasAltAttack(prev)) {
@@ -1393,7 +1476,12 @@ game::IdVector* __fastcall attackGetWards(const game::IAttack* thisptr, int /*%e
 bool __fastcall attackGetCritHit(const game::IAttack* thisptr, int /*%edx*/)
 {
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return 0;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return 0;
 
     auto prevValue = prev->vftable->getCritHit(prev);
     if (attackHasAltAttack(prev)) {
@@ -1408,7 +1496,12 @@ bool __fastcall attackGetCritHit(const game::IAttack* thisptr, int /*%edx*/)
 void __fastcall attackGetData(const game::IAttack* thisptr, int /*%edx*/, game::CAttackData* value)
 {
     auto thiz = castAttackToCustomModifier(thisptr);
+    if (!isValidCustomModifier(thiz))
+        return;
+
     auto prev = thiz->getPrevAttack(thisptr);
+    if (!prev)
+        return;
 
     prev->vftable->getData(prev, value);
 }

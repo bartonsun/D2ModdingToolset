@@ -31,6 +31,9 @@
 #include "scripts.h"
 #include <spdlog/spdlog.h>
 
+extern std::thread::id mainThreadId;
+static std::atomic<game::CBatLogic*> g_batLogic{nullptr};
+
 namespace hooks {
 
 void __fastcall battleTurnHooked(game::CBatLogic* thisptr,
@@ -43,6 +46,13 @@ void __fastcall battleTurnHooked(game::CBatLogic* thisptr,
     using namespace game;
 
     const CBatLogicApi::Api& batLogicApi = CBatLogicApi::get();
+
+    if (!g_batLogic)
+    {
+        BattleMsgDataApi::get().beforeBattleTurn(thisptr->battleMsgData, thisptr->objectMap, a4);
+    }
+
+    g_batLogic = thisptr;
 
     batLogicApi.updateUnitsBattleXp(thisptr->objectMap, thisptr->battleMsgData);
 
@@ -104,7 +114,6 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
                 const bindings::GroupView win{winnerGroup, globalObjMap, &winnerGroupId};
                 const bindings::BattleMsgDataView battleView{thisptr->battleMsgData, globalObjMap};
                 (*OnBattleEnd)(win, battleView);
-                //(*OnBattleEnd)(win, nullptr);
             }
         } catch (const std::exception& e) {
             showErrorMessageBox(fmt::format("Lua Error (OnBattleEnd): {:s}", e.what()));
@@ -116,6 +125,17 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
     batLogicApi.restoreLeaderPositionsAfterDuel(objMap, msgData);
 
     listApi.destructor(&unitInfos);
+
+    g_batLogic = nullptr;
+}
+
+game::CBatLogic* hooks::getBatLogic()
+{
+    if (std::this_thread::get_id() == mainThreadId)
+        return nullptr;
+
+    auto* batLogic = g_batLogic.load();
+    return batLogic ? batLogic : nullptr;
 }
 
 } // namespace hooks

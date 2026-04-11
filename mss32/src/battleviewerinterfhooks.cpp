@@ -44,6 +44,8 @@
 #include "unitslotview.h"
 #include "unitutils.h"
 
+static std::vector<game::CMidgardID> g_unitsNeedsVisualUpdate;
+
 namespace hooks {
 
 void markAttackTarget(game::CBattleViewerInterf* viewer,
@@ -538,6 +540,16 @@ void __fastcall battleViewerInterfUpdateHooked(game::IBatViewer* thisptr,
     viewer->data->unitId = *unitId;
     battle.copyAssignment(&viewer->data->battleMsgData, battleMsgData);
 
+    if (!g_unitsNeedsVisualUpdate.empty()) {
+        for (const auto& unitId : g_unitsNeedsVisualUpdate) {
+            auto** anim = viewerApi.getUnitAnimation(viewer, &unitId);
+            if (anim && *anim) {
+                animApi.update(*anim, &viewer->data->battleMsgData, false);
+            }
+        }
+        g_unitsNeedsVisualUpdate.clear();
+    }
+
     CMidgardID attackerGroupId{};
     id.validateId(&attackerGroupId, viewer->data->battleMsgData.attackerGroupId);
 
@@ -852,6 +864,11 @@ void __fastcall batBigFaceUpdateHooked(game::CBatBigFace* thisptr,
     }
 
     unitInfoListApi.destructor(&unitInfos);
+}
+
+void hooks::requestUnitVisualUpdate(const game::CMidgardID& unitId)
+{
+    g_unitsNeedsVisualUpdate.push_back(unitId);
 }
 
 } // namespace hooks

@@ -21,6 +21,7 @@
 #define BATTLEVIEWERINTERFHOOKS_H
 
 #include "d2set.h"
+#include "battleattackinfo.h" 
 
 namespace game {
 struct CBattleViewerInterf;
@@ -56,6 +57,7 @@ void __fastcall batBigFaceUpdateHooked(game::CBatBigFace* thisptr,
                                        int /*%edx*/,
                                        const game::BattleMsgData* battleMsgData);
 
+void requestUnitVisualUpdate(const game::CMidgardID& unitId);
 } // namespace hooks
 
 #endif // BATTLEVIEWERINTERFHOOKS_H

@@ -379,6 +379,9 @@ bool canApplyAnyModifier(game::IAttack* attack,
     const CMidUnit* targetUnit = gameFunctions().findUnitById(objectMap, targetUnitId);
 
     const auto wards = attack->vftable->getWards(attack);
+    if (!wards)
+        return false;
+
     for (const CMidgardID* modifierId = wards->bgn; modifierId != wards->end; modifierId++) {
         if (canApplyModifier(battleMsgData, targetUnit, modifierId))
             return true;
@@ -474,6 +477,7 @@ bool applyModifier(const game::CMidgardID* unitId,
     if (!addModifiedUnitInfo(unitId, battleMsgData, targetUnit, modifierId)) {
         return false;
     }
+
     if (targetUnit->transformed) {
         addUniqueIdToList(targetUnit->origModifiers, modifierId);
     }
@@ -765,9 +769,6 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
     static const auto scriptPath = scriptsFolder() / "hooks/modifiers.lua";
     std::optional<sol::environment> env;
 
-    //auto modifierImpl = unitModifier->vftable->createModifier(unitModifier);
-    //if (!modifierImpl)
-       //return false;
 
     const bindings::UnitView target{unit};
     const bindings::ModifierView mods{unitModifier->data->modifier};

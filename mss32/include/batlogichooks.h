@@ -39,6 +39,7 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
                                                  int /*%edx*/,
                                                  game::CResultSender* resultSender);
 
+game::CBatLogic* getBatLogic();
 } // namespace hooks
 
 #endif // CBATLOGICHOOKS_H

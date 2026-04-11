@@ -250,9 +250,14 @@
 #include "batattackboostdamage.h"
 #include "dotattackhooks.h"
 
-//#include "taskspell.h"
-//#include <batattackutils.h>
-//#include <batnotify.h>
+struct PendingBattleEffect
+{
+    game::CMidgardID unitId;
+    game::AttackEffect effect;
+};
+static std::vector<PendingBattleEffect> g_pendingBattleEffects;
+//static bool g_hasPendingEffect{false};
+//static PendingBattleEffect g_pendingEffect{};
 
 namespace hooks {
 
@@ -528,6 +533,8 @@ static Hooks getGameHooks()
         {EnrollUnitInterfApi::get().constructor, enrollUnitInterfCtorHooked, (void**)&orig.enrollUnitInterfCtor},
         // Modify map before game starts
         {CMidServerLogicApi::get().processZeroTurn, processZeroTurnHooked, (void**)&orig.processZeroTurn},
+        // SHOWATTACKEFFFECT, requestBattleEffect doen't work correctly. Don't use.
+        {BattleViewerInterfApi::vftable()->showAttackEffect, showAttackEffectHooked, (void**)&orig.showAttackEffect},
     };
     // clang-format on
 
@@ -1722,7 +1729,7 @@ void __stdcall afterBattleTurnHooked(game::BattleMsgData* battleMsgData,
 
         if (unitInfo && userSet.dotDamageCanStack != baseSet.dotDamageCanStack) {
             auto updateDot = [](const CMidgardID& attackId, int damage) {
-                if (attackId != game::emptyId) {
+                if (attackId != emptyId) {
                     if (auto* tempAttackImpl = getAttackImpl(const_cast<CMidgardID*>(&attackId))) {
                         if (tempAttackImpl->data) {
                             tempAttackImpl->data->qtyDamage = damage;
@@ -1767,7 +1774,6 @@ void __stdcall afterBattleTurnHooked(game::BattleMsgData* battleMsgData,
             } else {
                 (*f)(battleView, nullptr, unitNextView);
             }
-
         } catch (const std::exception& e) {
             showErrorMessageBox(fmt::format("Lua Error in 'OnAfterBattleTurn':\n{:s}", e.what()));
         }
@@ -3024,6 +3030,32 @@ void __stdcall applyCBatAttackUntransformEffectHooked(game::IMidgardObjectMap* o
 {
     getOriginalFunctions().applyCBatAttackUntransformEffect(objectMap, unitId, battleMsgData,
                                                             resultSender, sendResult);
+}
+
+void __fastcall showAttackEffectHooked(game::IBatViewer* thisptr,
+    int /*%edx*/,
+    const game::BattleMsgData* battleMsgData,
+    const game::BattleAttackInfo** attackInfo,
+    const game::LAttackClass* attackClass)
+{
+    using namespace game;
+
+    if (!g_pendingBattleEffects.empty() && attackInfo && *attackInfo) {
+        auto* info = const_cast<BattleAttackInfo*>(*attackInfo);
+        for (const auto& pending : g_pendingBattleEffects) {
+            info->unitId = pending.unitId;
+            info->effect = pending.effect;
+        }
+        g_pendingBattleEffects.clear();
+    }
+
+    getOriginalFunctions().showAttackEffect(thisptr, battleMsgData, attackInfo,
+                                                    attackClass);
+}
+
+void requestBattleEffect(const game::CMidgardID& unitId, game::AttackEffect effect)
+{
+    g_pendingBattleEffects.push_back({unitId, effect});
 }
 
 } // namespace hooks

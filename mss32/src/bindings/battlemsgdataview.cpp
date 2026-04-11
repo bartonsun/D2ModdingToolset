@@ -49,6 +49,8 @@
 #include <gameinfo.h>
 #include <hooks.h>
 
+#include <unitgenerator.h>
+
 namespace bindings {
 
 BattleTurnView::BattleTurnView(const game::CMidgardID& unitId,
@@ -757,6 +759,12 @@ bool BattleMsgDataView::setStatus(const IdView& unitId, int status, int value, b
     case BattleStatus::Paralyze:
     case BattleStatus::Petrify:
         battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, true);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::DisableLong, true);
+        hooks::requestUnitVisualUpdate(unitId.id);
+        return true;
+
+    case BattleStatus::Retreat:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, true);
         return true;
 
     case BattleStatus::Defend:
@@ -824,6 +832,11 @@ bool BattleMsgDataView::removeStatus(const IdView& unitId, int status)
     case BattleStatus::Petrify:
         battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, false);
         battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::DisableLong, false);
+        hooks::requestUnitVisualUpdate(unitId.id);
+        return true;
+    
+    case BattleStatus::Retreat:
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, battleStatus, false);
         return true;
 
     case BattleStatus::Defend:

@@ -30,6 +30,7 @@
 #include <vector>
 #include <batviewer.h>
 #include <batlogic.h>
+#include "battleattackinfo.h"
 
 namespace game {
 struct DialogScriptData;
@@ -362,6 +363,13 @@ void __stdcall applyCBatAttackUntransformEffectHooked(game::IMidgardObjectMap* o
                                                       game::BattleMsgData* battleMsgData,
                                                       game::CResultSender* resultSender,
                                                       char sendResult);
+void __fastcall showAttackEffectHooked(game::IBatViewer* thisptr,
+                                       int /*%edx*/,
+                                       const game::BattleMsgData* battleMsgData,
+                                       const game::BattleAttackInfo** attackInfo,
+                                       const game::LAttackClass* attackClass);
+
+void requestBattleEffect(const game::CMidgardID& unitId, game::AttackEffect effect);
 } // namespace hooks
 
 #endif // HOOKS_H

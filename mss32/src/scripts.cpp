@@ -19,6 +19,9 @@
 
 #include "scripts.h"
 #include "attackview.h"
+#include "batlogic.h"
+#include "batlogichooks.h"
+#include "battlemsgdataview.h"
 #include "battlemsgdata.h"
 #include "battlemsgdataviewmutable.h"
 #include "buildingview.h"
@@ -125,6 +128,9 @@ static std::shared_ptr<spdlog::logger> createLogger(bool client)
 
 static void bindApi(sol::state& lua)
 {
+    static std::mutex bindMutex;
+    std::lock_guard<std::mutex> lock(bindMutex);
+
     using namespace game;
 
     // clang-format off
@@ -467,6 +473,8 @@ static void bindApi(sol::state& lua)
     bindings::UnitViewDummy::bind(lua);
     bindings::UnitImplView::bind(lua);
     bindings::UnitSlotView::bind(lua);
+    bindings::GroupView::bind(lua);
+    bindings::ModifierView::bind(lua);
     bindings::DynUpgradeView::bind(lua);
     bindings::ScenarioView::bind(lua);
     bindings::LocationView::bind(lua);
@@ -478,14 +486,14 @@ static void bindApi(sol::state& lua)
     bindings::StackView::bind(lua);
     bindings::FortView::bind(lua);
     bindings::RuinView::bind(lua);
-    bindings::GroupView::bind(lua);
+    //bindings::GroupView::bind(lua);
     bindings::LandmarkView::bind(lua);
-    bindings::AttackView::bind(lua);
+    //bindings::AttackView::bind(lua);
     bindings::CurrencyView::bind(lua);
     bindings::ItemBaseView::bind(lua);
     bindings::ItemView::bind(lua);
     bindings::PlayerView::bind(lua);
-    bindings::ModifierView::bind(lua);
+    //bindings::ModifierView::bind(lua);
     bindings::BattleTurnView::bind(lua);
     bindings::BattleMsgDataView::bind(lua);
     bindings::BattleMsgDataViewMutable::bind(lua);
@@ -505,6 +513,7 @@ static void bindApi(sol::state& lua)
     bindings::GlobalView::bind(lua);
     bindings::GameView::bind(lua);
     bindings::BuildingView::bind(lua);
+    bindings::AttackView::bind(lua);
 
     if (std::this_thread::get_id() == mainThreadId) {
         createLogger(true);
@@ -556,6 +565,15 @@ bindings::ScenarioView getScenario()
     return {getObjectMap()};
 }
 
+std::optional<bindings::BattleMsgDataView> getBattleMsgData()
+{
+    auto battleLogic = getBatLogic();
+    if (battleLogic && battleLogic->battleMsgData) {
+        return bindings::BattleMsgDataView{battleLogic->battleMsgData, getObjectMap()};
+    }
+    return std::nullopt;
+}
+
 bindings::GlobalView getGlobal()
 {
     return bindings::GlobalView();
@@ -583,6 +601,7 @@ sol::environment executeScript(const std::string& source,
 
     if (bindScenario) {
         env["getScenario"] = &getScenario;
+        env["getBattle"] = &getBattleMsgData;
     }
 
     return env;
