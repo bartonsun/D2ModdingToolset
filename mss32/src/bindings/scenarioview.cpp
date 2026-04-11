@@ -1400,7 +1400,7 @@ bool ScenarioView::addUnitXpWithUpgrade(const IdView& unitId, int exp)
     const auto playerIdByUnit = hooks::getPlayerIdByUnitId(objectMap, &attackUnit->id);
     const auto player = hooks::getPlayer(objectMap, &playerIdByUnit);
 
-    int currHp = 0;
+    int currHp = attackUnit->currentHp;
 
     while (exp > 0) {
         const int xpNext = soldier->vftable->getXpNext(soldier);
