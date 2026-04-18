@@ -76,6 +76,18 @@ void __stdcall aiChooseBattleActionHooked(const game::IMidgardObjectMap* objectM
                                           game::CMidgardID* targetUnitId,
                                           game::CMidgardID* attackerUnitId);
 
+/**
+ * If unitId is the first unit in turnsOrder, invokes beforeBattleTurnHooked once per battle
+ * (deduped by attacker/defender group ids). Covers AI opening turn when the battle viewer path
+ * does not run first.
+ */
+void tryFirePreTurnHookOnce(game::IMidgardObjectMap* objectMap,
+                            game::BattleMsgData* battleMsgData,
+                            const game::CMidgardID* unitId);
+
+void resetPreTurnHookState();
+
+bool getFiredBattleKeys();
 } // namespace hooks
 
 #endif // BATTLEMSGDATAHOOKS_H

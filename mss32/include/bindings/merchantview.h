@@ -53,6 +53,8 @@ public:
 
     std::vector<MerchantItemView> getItems() const;
     bool isMission() const;
+
+    bool addItem(const IdView& itemId, int amount);
 };
 
 } // namespace bindings

@@ -165,6 +165,7 @@ public:
     
     bool isItemUsed(const IdView& itemId);
 
+    bool positiveTransform(const IdView& unitId, const IdView& transformId);
 
 protected:
     template <typename T>
@@ -243,6 +244,7 @@ protected:
         view["ResetUnitAttackSourceWard"] = &BattleMsgDataView::resetUnitAttackSourceWard;
         view["ResetUnitAttackClassWard"] = &BattleMsgDataView::resetUnitAttackClassWard;
         view["IsItemUsed"] = &BattleMsgDataView::isItemUsed;
+        view["PositiveTransform"] = &BattleMsgDataView::positiveTransform;
     }
 
 private:

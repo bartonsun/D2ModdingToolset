@@ -249,6 +249,7 @@
 #include "batattacklowerdamage.h"
 #include "batattackboostdamage.h"
 #include "dotattackhooks.h"
+#include "batunitanim.h"
 
 struct PendingBattleEffect
 {
@@ -1845,6 +1846,10 @@ void __stdcall beforeBattleTurnHooked(game::BattleMsgData* battleMsgData,
             showErrorMessageBox(fmt::format("Lua Error in 'OnBeforeBattleTurn':\n{:s}", e.what()));
         }
     }
+
+    const CBatLogicApi::Api& batLogicApi = CBatLogicApi::get();
+
+    batLogicApi.updateUnitsBattleXp(objectMap, battleMsgData);
 }
 
 void __stdcall throwExceptionHooked(const game::os_exception* thisptr, const void* throwInfo)
@@ -2843,6 +2848,7 @@ void __fastcall battleEndHooked(game::IBatViewer* thisptr,
                                 const game::BattleMsgData* battleMsgData,
                                 const game::CMidgardID* a3)
 {
+    resetPreTurnHookState();
     getOriginalFunctions().battleEnd(thisptr, battleMsgData, a3);
 }
 
@@ -3056,6 +3062,63 @@ void __fastcall showAttackEffectHooked(game::IBatViewer* thisptr,
 void requestBattleEffect(const game::CMidgardID& unitId, game::AttackEffect effect)
 {
     g_pendingBattleEffects.push_back({unitId, effect});
+}
+
+bool addItemToMerchant(game::CMidSiteMerchant* merchant,
+                       const bindings::IdView& itemGlobalId,
+                       int amount)
+{
+    using namespace game;
+
+    auto* objectMap = const_cast<IMidgardObjectMap*>(getObjectMap());
+
+    if (!merchant || !objectMap)
+        return false;
+
+    if (CMidgardIDApi::get().getType(&itemGlobalId.id) != IdType::ItemGlobal)
+        return false;
+
+    if (amount == 0)
+        return false;
+
+    using ItemPair = Pair<CMidgardID, int>;
+    using Node = ListNode<ItemPair>;
+
+    for (auto& pair : merchant->items) {
+        if (pair.first == itemGlobalId) {
+            pair.second += amount;
+
+            if (pair.second <= 0) {
+                Node* nodeToDelete = reinterpret_cast<Node*>(reinterpret_cast<char*>(&pair) - offsetof(Node, data));
+
+                nodeToDelete->prev->next = nodeToDelete->next;
+                nodeToDelete->next->prev = nodeToDelete->prev;
+                --merchant->items.length;
+
+                delete nodeToDelete;
+            }
+
+            objectMap->vftable->findScenarioObjectByIdForChange(objectMap, &merchant->id);
+            return true;
+        }
+    }
+
+    if (amount > 0) {
+        Node* newNode = new Node;
+        newNode->data = {itemGlobalId, amount};
+
+        Node* headNode = merchant->items.head;
+        newNode->next = headNode;
+        newNode->prev = headNode->prev;
+        headNode->prev->next = newNode;
+        headNode->prev = newNode;
+        ++merchant->items.length;
+
+        objectMap->vftable->findScenarioObjectByIdForChange(objectMap, &merchant->id);
+        return true;
+    }
+
+    return false;
 }
 
 } // namespace hooks

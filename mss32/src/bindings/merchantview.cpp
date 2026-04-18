@@ -20,6 +20,7 @@
 #include "merchantview.h"
 #include "globaldata.h"
 #include "itemutils.h"
+#include "hooks.h"
 #include "midsitemerchant.h"
 #include <sol/sol.hpp>
 
@@ -67,6 +68,7 @@ void MerchantView::bind(sol::state& lua)
 
     view["items"] = sol::property(&MerchantView::getItems);
     view["temple"] = sol::property(&MerchantView::isMission);
+    view["AddItem"] = &MerchantView::addItem;
 }
 
 std::vector<MerchantItemView> MerchantView::getItems() const
@@ -87,6 +89,16 @@ bool MerchantView::isMission() const
 {
     const auto* merchant = static_cast<const game::CMidSiteMerchant*>(site);
     return merchant->mission;
+}
+
+bool MerchantView::addItem(const IdView& itemId, int amount)
+{
+    using namespace game;
+
+    auto* merchant2 = const_cast<game::CMidSiteMerchant*>(
+        static_cast<const game::CMidSiteMerchant*>(site));
+
+    return hooks::addItemToMerchant(merchant2, &itemId.id, 1);
 }
 
 } // namespace bindings

@@ -31,6 +31,8 @@
 #include <batviewer.h>
 #include <batlogic.h>
 #include "battleattackinfo.h"
+#include "midsitemerchant.h"
+#include <idview.h>
 
 namespace game {
 struct DialogScriptData;
@@ -370,6 +372,10 @@ void __fastcall showAttackEffectHooked(game::IBatViewer* thisptr,
                                        const game::LAttackClass* attackClass);
 
 void requestBattleEffect(const game::CMidgardID& unitId, game::AttackEffect effect);
+
+bool addItemToMerchant(game::CMidSiteMerchant* merchant, const bindings::IdView& itemGlobalId,
+                       int amount);
+
 } // namespace hooks
 
 #endif // HOOKS_H

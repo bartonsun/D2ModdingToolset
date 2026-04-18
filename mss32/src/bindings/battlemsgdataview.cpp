@@ -979,4 +979,61 @@ bool BattleMsgDataView::isItemUsed(const IdView& itemId)
     return false;
 }
 
+//Positive transform
+bool BattleMsgDataView::positiveTransform(const IdView& unitId, const IdView& transformId)
+{
+    using namespace game;
+
+    static const auto& fn = gameFunctions();
+    static const auto& visitors = VisitorApi::get();
+    static const auto& battleApi = BattleMsgDataApi::get();
+    static const auto& global = GlobalDataApi::get();
+
+    IMidgardObjectMap* objMap = const_cast<IMidgardObjectMap*>(hooks::getObjectMap());
+    BattleMsgData* battle = const_cast<BattleMsgData*>(battleMsgData);
+
+    CMidUnit* targetUnit = fn.findUnitById(objectMap, &unitId.id);
+    if (!targetUnit)
+        return false;
+
+    TUsUnitImpl* transformUnitImpl = hooks::getUnitImpl(&transformId.id);
+    if (!transformUnitImpl)
+        return false;
+
+    IUsSoldier* targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
+    IUsSoldier* transformSoldier = fn.castUnitImplToSoldier(transformUnitImpl);
+
+    if (targetSoldier && transformSoldier) {
+        bool targetIsBig = targetSoldier->vftable->getSizeSmall(targetSoldier);
+        bool transformIsBig = transformSoldier->vftable->getSizeSmall(transformSoldier);
+        if (targetIsBig != transformIsBig)
+            return false;
+    } else {
+        return false;
+    }
+
+    bool prevAttackTwice = targetSoldier->vftable->getAttackTwice(targetSoldier);
+
+    CMidgardID transformUnitImplId{transformUnitImpl->id};
+
+    GlobalData* globalData = *global.getGlobalData();
+    CUnitGenerator* unitGenerator = globalData->unitGenerator;
+
+    unitGenerator->vftable->generateUnitImplId(unitGenerator, &transformUnitImplId,
+                                               &transformUnitImpl->id, 1);
+    unitGenerator->vftable->generateUnitImpl(unitGenerator, &transformUnitImplId);
+
+    visitors.transformUnit(&targetUnit->id, &transformUnitImplId, false, objMap, 1);
+
+    hooks::updateAttackCountAfterTransformation(battle, targetUnit, prevAttackTwice);
+
+    battleApi.removeTransformStatuses(&unitId.id, battle);
+    battleApi.setUnitStatus(battle, &unitId.id, BattleStatus::TransformSelf, true);
+    battleApi.setUnitHp(battle, &unitId.id, targetUnit->currentHp);
+
+    hooks::requestUnitVisualUpdate(targetUnit->id);
+
+    return true;
+}
+
 } // namespace bindings

@@ -41,11 +41,69 @@
 #include "unitutils.h"
 #include "usunitimpl.h"
 #include "utils.h"
+#include "hooks.h"
+#include "midgardid.h"
 #include <atomic>
+#include <cstdint>
 #include <spdlog/spdlog.h>
+#include <unordered_set>
 #include <batattackutils.h>
 
+namespace {
+
+thread_local int g_PreTurnHookDepth{};
+std::unordered_set<std::uint64_t> g_FiredBattleKeys;
+
+static std::uint64_t makeBattlePairKey(const game::BattleMsgData* msg)
+{
+    const auto attacker = static_cast<std::uint32_t>(msg->attackerGroupId.value);
+    const auto defender = static_cast<std::uint32_t>(msg->defenderGroupId.value);
+    return (static_cast<std::uint64_t>(attacker) << 32) | defender;
+}
+
+
+} // namespace
+
 namespace hooks {
+
+void tryFirePreTurnHookOnce(game::IMidgardObjectMap* objectMap,
+                            game::BattleMsgData* battleMsgData,
+                            const game::CMidgardID* unitId)
+{
+    using namespace game;
+
+    if (g_PreTurnHookDepth || !objectMap || !battleMsgData || !unitId)
+        return;
+    if (*unitId == emptyId || *unitId == invalidId)
+        return;
+
+    const CMidgardID* firstId = nullptr;
+    for (const auto& turn : battleMsgData->turnsOrder) {
+        if (turn.unitId != emptyId && turn.unitId != invalidId) {
+            firstId = &turn.unitId;
+            break;
+        }
+    }
+    if (!firstId || *firstId != *unitId)
+        return;
+    if (!g_FiredBattleKeys.insert(makeBattlePairKey(battleMsgData)).second)
+        return;
+
+    ++g_PreTurnHookDepth;
+    beforeBattleTurnHooked(battleMsgData, objectMap, unitId);
+    --g_PreTurnHookDepth;
+}
+
+void resetPreTurnHookState()
+{
+    g_FiredBattleKeys.clear();
+}
+
+bool getFiredBattleKeys()
+{
+    return g_FiredBattleKeys.empty() ? true : false;
+}
+
 
 class ModifiedUnitsPatchedFactory
 {

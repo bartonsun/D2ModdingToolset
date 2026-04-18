@@ -20,18 +20,17 @@
 #include "batlogichooks.h"
 #include "batlogic.h"
 #include "battlemsgdata.h"
+#include "battlemsgdatahooks.h"
 #include "game.h"
 #include "midunit.h"
 #include "originalfunctions.h"
 #include "unitinfolist.h"
-
 #include "battlemsgdataviewmutable.h"
 #include "gameutils.h"
 #include "groupview.h"
 #include "scripts.h"
 #include <spdlog/spdlog.h>
 
-extern std::thread::id mainThreadId;
 static std::atomic<game::CBatLogic*> g_batLogic{nullptr};
 
 namespace hooks {
@@ -47,12 +46,7 @@ void __fastcall battleTurnHooked(game::CBatLogic* thisptr,
 
     const CBatLogicApi::Api& batLogicApi = CBatLogicApi::get();
 
-    if (!g_batLogic)
-    {
-        BattleMsgDataApi::get().beforeBattleTurn(thisptr->battleMsgData, thisptr->objectMap, a4);
-    }
-
-    g_batLogic = thisptr;
+    g_batLogic.store(thisptr, std::memory_order_release);
 
     batLogicApi.updateUnitsBattleXp(thisptr->objectMap, thisptr->battleMsgData);
 
@@ -65,6 +59,23 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
 {
     using namespace game;
     auto& batLogicApi = CBatLogicApi::get();
+
+    // Available whenever battle logic runs — earlier and more often than battleTurn alone
+    // (e.g. first human turn may not enter battleTurn until an action is resolved).
+    if (thisptr)
+        g_batLogic.store(thisptr, std::memory_order_release);
+
+    if (getFiredBattleKeys()) 
+    {
+        for (const auto& turn : thisptr->battleMsgData->turnsOrder) 
+        {
+            if (turn.unitId != emptyId && turn.unitId != invalidId) 
+            {
+                tryFirePreTurnHookOnce(thisptr->objectMap, thisptr->battleMsgData, &turn.unitId);
+                break;
+            }
+        }
+    }
 
     if (!batLogicApi.isBattleOver(thisptr)) {
         return;
@@ -126,14 +137,11 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
 
     listApi.destructor(&unitInfos);
 
-    g_batLogic = nullptr;
+    g_batLogic.store(nullptr, std::memory_order_release);
 }
 
 game::CBatLogic* hooks::getBatLogic()
 {
-    if (std::this_thread::get_id() == mainThreadId)
-        return nullptr;
-
     auto* batLogic = g_batLogic.load();
     return batLogic ? batLogic : nullptr;
 }
