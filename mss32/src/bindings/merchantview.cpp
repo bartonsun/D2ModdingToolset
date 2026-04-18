@@ -98,7 +98,7 @@ bool MerchantView::addItem(const IdView& itemId, int amount)
     auto* merchant2 = const_cast<game::CMidSiteMerchant*>(
         static_cast<const game::CMidSiteMerchant*>(site));
 
-    return hooks::addItemToMerchant(merchant2, &itemId.id, 1);
+    return hooks::addItemToMerchant(merchant2, &itemId.id, amount);
 }
 
 } // namespace bindings
