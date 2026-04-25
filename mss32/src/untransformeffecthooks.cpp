@@ -43,6 +43,8 @@ void __fastcall untransformEffectAttackOnHitHooked(game::CBatAttackUntransformEf
     const CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
     const CMidgardID targetUnitImplId{targetUnit->unitImpl->id};
 
+    int currHp = targetUnit->currentHp;
+
     const auto targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
     bool prevAttackTwice = targetSoldier && targetSoldier->vftable->getAttackTwice(targetSoldier);
 
@@ -59,7 +61,8 @@ void __fastcall untransformEffectAttackOnHitHooked(game::CBatAttackUntransformEf
     const auto& battle = BattleMsgDataApi::get();
     battle.removeTransformStatuses(targetUnitId, battleMsgData);
 
-    battle.setUnitHp(battleMsgData, targetUnitId, targetUnit->currentHp);
+    visitors.changeUnitHp(targetUnitId, (currHp - targetUnit->currentHp), objectMap, true);
+    battle.setUnitHp(battleMsgData, targetUnitId, currHp);
 }
 
 } // namespace hooks
