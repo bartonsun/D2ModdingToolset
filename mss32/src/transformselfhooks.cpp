@@ -264,8 +264,6 @@ void __fastcall transformSelfAttackOnHitHooked(game::CBatAttackTransformSelf* th
     const CMidgardID targetUnitImplId{targetUnit->unitImpl->id};
     bool targetIsSmall = isUnitSmall(targetUnit);
 
-    int currHp = targetUnit->currentHp;
-
     static std::optional<sol::environment> env;
     static std::optional<sol::function> getListFunc;
     const std::filesystem::path path = scriptsFolder() / "transformSelf.lua";
@@ -379,8 +377,7 @@ void __fastcall transformSelfAttackOnHitHooked(game::CBatAttackTransformSelf* th
     battle.removeTransformStatuses(targetUnitId, battleMsgData);
     battle.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::TransformSelf, true);
 
-    visitors.changeUnitHp(targetUnitId, (currHp - targetUnit->currentHp), objectMap, true);
-    battle.setUnitHp(battleMsgData, targetUnitId, currHp);
+    battle.setUnitHp(battleMsgData, targetUnitId, targetUnit->currentHp);
 }
 
 void __fastcall transformSelfAttackFillTargetsListHooked(game::CBatAttackTransformSelf* thisptr,

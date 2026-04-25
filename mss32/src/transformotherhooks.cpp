@@ -166,8 +166,6 @@ void __fastcall transformOtherAttackOnHitHooked(game::CBatAttackTransformOther* 
     const CMidgardID targetUnitImplId{targetUnit->unitImpl->id};
     bool targetIsSmall = isUnitSmall(targetUnit);
 
-    int currHp = targetUnit->currentHp;
-
     auto attackId = &thisptr->attack->id;
 
     CMidgardID transformImplId{emptyId};
@@ -284,8 +282,7 @@ void __fastcall transformOtherAttackOnHitHooked(game::CBatAttackTransformOther* 
     if (targetUnitInfo)
         targetUnitInfo->transformAppliedRound = battleMsgData->currentRound;
 
-    visitors.changeUnitHp(targetUnitId, (currHp - targetUnit->currentHp), objectMap, true);
-    battle.setUnitHp(battleMsgData, targetUnitId, currHp);
+    battle.setUnitHp(battleMsgData, targetUnitId, targetUnit->currentHp);
 }
 
 } // namespace hooks
