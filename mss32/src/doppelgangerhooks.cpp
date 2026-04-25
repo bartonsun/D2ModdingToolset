@@ -232,8 +232,6 @@ void __fastcall doppelgangerAttackOnHitHooked(game::CBatAttackDoppelganger* this
                                                               &thisptr->attackImplUnitId,
                                                               battleMsgData);
 
-    int currHp = unit->currentHp;
-
     CMidgardID transformUnitImplId{targetUnit->unitImpl->id};
     CUnitGenerator* unitGenerator = (*(GlobalDataApi::get().getGlobalData()))->unitGenerator;
     unitGenerator->vftable->generateUnitImplId(unitGenerator, &transformUnitImplId,
@@ -254,8 +252,7 @@ void __fastcall doppelgangerAttackOnHitHooked(game::CBatAttackDoppelganger* this
     battle.setUnitStatus(battleMsgData, &thisptr->unitId, BattleStatus::TransformDoppelganger,
                          true);
 
-    visitors.changeUnitHp(targetUnitId, (currHp - unit->currentHp), objectMap, true);
-    battle.setUnitHp(battleMsgData, targetUnitId, currHp);
+    battle.setUnitHp(battleMsgData, &thisptr->unitId, unit->currentHp);
 }
 
 bool __stdcall cannotUseDoppelgangerAttackHooked(const game::CMidgardID* unitId,
