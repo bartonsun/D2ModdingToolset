@@ -21,6 +21,7 @@
 #define INTERFACEUTILS_H
 
 #include "menubase.h"
+#include "textids.h"
 #include <string>
 
 namespace game {
@@ -97,6 +98,10 @@ void setEditBoxText(game::CDialogInterf* dialog,
                     const char* editName,
                     const char* text,
                     bool moveCursorPos);
+void openInBrowser(const std::string& url);
+std::string resolveLink(const hooks::LinkItem& item);
+bool hasControl(game::CDialogInterf* dialog, const char* name);
+
 
 } // namespace hooks
 

@@ -21,8 +21,15 @@
 #define TEXTIDS_H
 
 #include <string>
+#include <vector>
 
 namespace hooks {
+
+struct LinkItem
+{
+    std::string textId;
+    std::string fallback;
+};
 
 struct TextIds
 {
@@ -62,6 +69,7 @@ struct TextIds
         std::string infiniteText;
         std::string removedAttackWard;
         std::string currentTurn;
+        std::vector<LinkItem> mainMenuLinks;
     } interf;
 
     struct Events

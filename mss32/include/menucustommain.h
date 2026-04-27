@@ -34,7 +34,8 @@ class CMenuCustomMain
 public:
     static constexpr char loginAccountDialogName[] = "DLG_LOGIN_ACCOUNT";
     static constexpr char registerAccountDialogName[] = "DLG_REGISTER_ACCOUNT";
-
+    
+    static void __fastcall linkBtnHandler(game::CMenuBase* param, int);
     CMenuCustomMain(game::CMenuPhase* menuPhase);
     ~CMenuCustomMain();
 
@@ -43,7 +44,9 @@ protected:
     static void __fastcall destructor(CMenuCustomMain* thisptr, int /*%edx*/, char flags);
 
     static void __fastcall tutorialBtnHandler(CMenuCustomMain* thisptr, int /*%edx*/);
-
+    void bindLinkButton(game::CDialogInterf* dialog,
+                        const char* buttonName,
+                        const std::string& url);
     void showLoginDialog();
     void hideLoginDialog();
     void showRegisterDialog();
@@ -116,6 +119,7 @@ private:
     LobbyCallback m_lobbyCallback;
     CLoginAccountInterf* m_loginDialog;
     CRegisterAccountInterf* m_registerDialog;
+    std::vector<std::string> m_linkStorage;
 };
 
 assert_offset(CMenuCustomMain, vftable, 0);
