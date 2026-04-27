@@ -30,13 +30,49 @@
 #include "restrictions.h"
 #include "settings.h"
 #include "textboxinterf.h"
-#include "textids.h"
 #include "utils.h"
 #include <spdlog/spdlog.h>
 
 namespace hooks {
+    
+void __fastcall CMenuCustomMain::linkBtnHandler(game::CMenuBase* param, int)
+{
+    auto url = reinterpret_cast<std::string*>(param);
 
-CMenuCustomMain::CMenuCustomMain(game::CMenuPhase* menuPhase)
+    std::string finalUrl;
+
+    if (url && !url->empty()) {
+        finalUrl = *url;
+    } else {
+        static const char* fallbackUrls[] =
+            {"https://ru.wikipedia.org/wiki/Disciples_II:_Dark_Prophecy",
+             "https://www.gog.com/en/game/disciples_2_gold",
+             "https://github.com/VladimirMakeev/D2ModdingToolset"};
+
+        finalUrl = fallbackUrls[rand() % 3];
+    }
+
+    openInBrowser(finalUrl);
+}
+
+void CMenuCustomMain::bindLinkButton(game::CDialogInterf* dialog,
+                                     const char* buttonName,
+                                     const std::string& url)
+{
+    using namespace game;
+
+    auto button = CDialogInterfApi::get().findButton(dialog, buttonName);
+    if (!button)
+        return;
+
+    m_linkStorage.push_back(url);
+
+    std::string* urlPtr = &m_linkStorage.back();
+
+    hooks::setButtonCallback(button, (void*)CMenuCustomMain::linkBtnHandler, (void*)urlPtr);
+}
+
+    CMenuCustomMain::CMenuCustomMain(game::CMenuPhase* menuPhase)
     : CMenuCustomBase{this}
     , m_peerCallback{this}
     , m_lobbyCallback{this}
@@ -66,6 +102,22 @@ CMenuCustomMain::CMenuCustomMain(game::CMenuPhase* menuPhase)
 
     // Since original button does not work anyway, this is the ideal spot
     setButtonCallback(dialog, "BTN_TUTORIAL", tutorialBtnHandler, this);
+
+    const auto& links = textIds().interf.mainMenuLinks;
+
+    m_linkStorage.clear();
+    m_linkStorage.reserve(links.size());
+
+    for (size_t i = 0; i < links.size() && i < 20; ++i) {
+        std::string name = fmt::format("BTN_LINK_{}", i + 1);
+
+        if (!hasControl(dialog, name.c_str()))
+            continue;
+
+        std::string url = resolveLink(links[i]);
+
+        bindLinkButton(dialog, name.c_str(), url);
+    }
 }
 
 CMenuCustomMain ::~CMenuCustomMain()
