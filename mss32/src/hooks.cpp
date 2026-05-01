@@ -1747,7 +1747,8 @@ void __stdcall afterBattleTurnHooked(game::BattleMsgData* battleMsgData,
         battle.removeFiniteBoostLowerDamage(battleMsgData, unitId);
     } else {
         if (unitInfo && !battle.getUnitStatus(battleMsgData, nextUnitId, BattleStatus::Defend)) {
-            unitInfo->unitFlags.parts.attackedOnceOfTwice = true;
+            if (!unitInfo->unitFlags.parts.waited)
+                unitInfo->unitFlags.parts.attackedOnceOfTwice = true;
         }
     }
 
