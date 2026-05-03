@@ -41,6 +41,7 @@
 #include "usunitimpl.h"
 #include "utils.h"
 #include <fmt/format.h>
+#include <windows.h>
 
 namespace hooks {
 
@@ -465,6 +466,67 @@ void setButtonCallback(game::CDialogInterf* dialog,
     CButtonInterfApi::get().assignFunctor(dialog, buttonName, dialog->data->dialogName, &functor,
                                           0);
     SmartPointerApi::get().createOrFreeNoDtor(&functor, nullptr);
+}
+
+void openInBrowser(const std::string& url)
+{
+    if (url.empty())
+        return;
+
+    std::string command = "cmd /c start \"\" \"" + url + "\"";
+
+    STARTUPINFOA si{};
+    PROCESS_INFORMATION pi{};
+    si.cb = sizeof(si);
+
+    if (CreateProcessA(nullptr, command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr,
+                       nullptr, &si, &pi)) {
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+    }
+}
+static bool isValidUrl(const std::string& str)
+{
+    return str.find("http://") == 0 || str.find("https://") == 0 || str.find("www.") == 0;
+}
+
+std::string resolveLink(const hooks::LinkItem& item)
+{
+
+    std::string result;
+
+    if (!item.textId.empty()) {
+        auto text = getInterfaceText(item.textId.c_str());
+
+        if (!text.empty() && isValidUrl(text)) {
+            result = text;
+        }
+    }
+
+    if (result.empty() && !item.fallback.empty()) {
+        if (isValidUrl(item.fallback)) {
+            result = item.fallback;
+        }
+    }
+
+    return result;
+}
+
+bool hasControl(game::CDialogInterf* dialog, const char* name)
+{
+    using namespace game;
+
+    if (!dialog || !dialog->data)
+        return false;
+
+    auto& tree = dialog->data->childControls;
+
+    for (auto it = tree.begin(); it != tree.end(); ++it) {
+        if (strcmp(it->first, name) == 0)
+            return true;
+    }
+
+    return false;
 }
 
 void setButtonCallback(game::CButtonInterf* button, void* callback, void* callbackParam)

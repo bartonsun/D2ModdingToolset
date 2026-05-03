@@ -211,6 +211,18 @@ void readInterfTextIds(const sol::table& table, TextIds::Interf& value)
     value.infiniteText = interf.value().get_or("infiniteText", std::string());
     value.removedAttackWard = interf.value().get_or("removedAttackWard", std::string());
     value.currentTurn = interf.value().get_or("currentTurn", std::string());
+    auto links = interf.value().get<sol::optional<sol::table>>("mainMenuLinks");
+    if (links.has_value()) {
+        for (auto& kv : links.value()) {
+            auto entry = kv.second.as<sol::table>();
+
+            hooks::LinkItem item;
+            item.textId = entry.get_or("textId", std::string());
+            item.fallback = entry.get_or("fallback", std::string());
+
+            value.mainMenuLinks.push_back(item);
+        }
+    }
 }
 
 void initialize(TextIds& value)
