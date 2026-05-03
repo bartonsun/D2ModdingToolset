@@ -1710,6 +1710,7 @@ int __stdcall getAttackQtyDamageOrHealHooked(const game::IAttack* attack, int da
 }
 
 static game::CMidgardID currUnitId = game::emptyId;
+static bool prevWasSameUnit = false;
 void __stdcall afterBattleTurnHooked(game::BattleMsgData* battleMsgData,
                                      const game::CMidgardID* unitId,
                                      const game::CMidgardID* nextUnitId)
@@ -1743,15 +1744,20 @@ void __stdcall afterBattleTurnHooked(game::BattleMsgData* battleMsgData,
             updateDot(unitInfo->poisonAttackId, unitInfo->dotInfo.poisonDamage);
         }
 
+        if (unitInfo && unitInfo->unitFlags.parts.waited) {
+            unitInfo->unitFlags.parts.attackedOnceOfTwice = false;
+        }
+
         battleMsgData->battleStateFlags2.parts.shouldUpdateUnitEffects = true;
         battle.removeFiniteBoostLowerDamage(battleMsgData, unitId);
     } else {
         if (unitInfo && !battle.getUnitStatus(battleMsgData, nextUnitId, BattleStatus::Defend)) {
-            if (!unitInfo->unitFlags.parts.waited)
+            if (!unitInfo->unitFlags.parts.waited && currUnitId == *unitId && !prevWasSameUnit)
                 unitInfo->unitFlags.parts.attackedOnceOfTwice = true;
         }
     }
 
+    prevWasSameUnit = isSameUnit;
     currUnitId = *unitId;
 
     static const auto scriptPath = scriptsFolder() / "hooks/hooks.lua";
@@ -1847,10 +1853,6 @@ void __stdcall beforeBattleTurnHooked(game::BattleMsgData* battleMsgData,
             showErrorMessageBox(fmt::format("Lua Error in 'OnBeforeBattleTurn':\n{:s}", e.what()));
         }
     }
-
-    const CBatLogicApi::Api& batLogicApi = CBatLogicApi::get();
-
-    batLogicApi.updateUnitsBattleXp(objectMap, battleMsgData);
 }
 
 void __stdcall throwExceptionHooked(const game::os_exception* thisptr, const void* throwInfo)
