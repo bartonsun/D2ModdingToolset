@@ -161,6 +161,41 @@ textids = {
 		-- The text must contain keywords "%ATTACK%" and "%INFINITE%".
 		-- Fallback text is "%ATTACK% (%INFINITE%)".
 		infiniteText = "",
+		
+		-- Defines text id to format the "current turn" label in the strategic interface.
+        -- The text must contain the keyword "%TURN%".
+        -- Fallback text is "%TURN%".
+		currentTurn = "",
+		--X070TA1026
+		
+		
+		mainMenuLinks = {
+			-- Each entry describes a clickable link in the main menu.
+			--
+			-- Fields:
+			--   textId  - optional string ID from DBF (e.g. "X150TA1002")
+			--   fallback - direct URL string (https://...)
+			--
+			-- Resolution logic (see resolveLink in code):
+			--   1) If textId is provided → try to resolve it via getInterfaceText()
+			--   2) If resolved value is a valid URL → use it
+			--   3) Otherwise → fallback is used
+			--
+			-- Notes:
+			--   - textId has priority over fallback
+			--   - fallback is required if textId may be missing or invalid
+			--   - if both textId and fallback are empty → entry will be ignored
+			--   - if textId resolves to non-URL text → fallback will be used
+			--
+			-- Examples:
+
+			{ textId = "",             fallback = "" },                         -- invalid / ignored
+			{ textId = "X070TA1027",   fallback = "https://site2.com" },        -- prefers DBF, fallback as backup
+			{ textId = "X150TA1002",   fallback = "https://example.com" },      -- typical usage
+			{ textId = "X150TA1002",   fallback = "https://example.com" },
+			{ textId = "X150TA1002",   fallback = "https://example.com" },
+			{ textId = "",             fallback = "https://site3.com" }         -- fallback-only (no DBF)
+		},
 	},
 
 	-- Text ids related to events logic
@@ -305,6 +340,148 @@ textids = {
 		-- The text can contain optional keywords "%NAME%", "%HOST%", "%CLIENTS_SEPARATOR%", "%CLIENTS%", "%PLAYERS_NUM%", "%PLAYERS_MAX%".
 		-- Fallback text "\\fMedBold;%NAME%\\fNormal;\nVersion: %VERSION%\n\\fNormal;Players (%PLAYERS_NUM%/%PLAYERS_MAX%): \\fMedBold;%HOST%\\fNormal;%CLIENTS_SEPARATOR%%CLIENTS%"
 		roomInfoInList = "",
+		
+		-- Help window description text.
+		-- Can be either:
+		--   1) Raw string with formatting tags (e.g. "\fSmall;\vT;...")
+		--   2) Text ID (e.g. "X150TA0592") from DBF tables
+		--
+		-- If a Text ID is used, the string will be resolved via getInterfaceText().
+		-- IMPORTANT: when moving text into DBF, you must include all formatting tags
+		-- (alignment, font size, colors, etc.) inside the DBF string itself,
+		-- because the game will NOT add them automatically.
+		
+		-- Examples:
+		helpDescription =
+			"\\vT;\\fSmall;"
+			.. "Select a section on the left.\n"
+			.. "Useful resources for players.\n\n"
+			.. "\\fMedBold;CTRL + Click\\fSmall; — copy link\n"
+			.. "\\fMedBold;SHIFT + Click\\fSmall; — open in browser",
+
+		help = {
+			{
+				-- Entry title.
+				-- Can be either:
+				--   1) Raw formatted string (with \hC;, \fMedBold;, etc.)
+				--   2) Text ID (e.g. "X150TA0592")
+				--
+				-- If Text ID is used, it will be resolved automatically.
+				-- IMPORTANT: formatting tags must be included inside DBF text if using Text ID.
+				--title = "X150TA0592",
+
+				-- URL for this entry.
+				-- Can be either:
+				--   1) Direct URL string (https://...)
+				--   2) Text ID that resolves to a valid URL
+				--
+				-- If Text ID is used, it must resolve to a valid URL string,
+				-- otherwise the link will be ignored.
+				--url = "https://discord.gg/y296hteD3z"
+			},
+
+			{
+				title = "\\hC;\\fMedBold;Find PvP Players (sMNS mod)",
+				url = "https://discord.gg/NxcVS7sukU"
+			},
+			{
+				title = "\\hC;\\fMedBold;Trading Bot #1",
+				url = "https://discord.gg/2x5yKTaKCJ"
+			},
+			{
+				title = "\\hC;\\fMedBold;Trading Bot #2",
+				url = "https://discord.gg/b7zM8SczYP"
+			},
+			{
+				title = "\\hC;\\fMedBold;Rules",
+				url = "https://discord.gg/H55ndTufPG"
+			},
+			{
+				title = "\\hC;\\fMedBold;Knowledge Base",
+				url = "https://discord.gg/K7ccapmVeF"
+			},
+			{
+				title = "\\hC;\\fMedBold;Ranking Website (sMNS mod)",
+				url = "https://d2mm.ru/"
+			},
+			{
+				title = "\\hC;\\fMedBold;D2launcher (mods/templates downloader)",
+				url = "https://discord.gg/PmCuqQRnGK"
+			},
+
+			{
+				title = "\\hC;\\fMedBold;FindmeTV Server",
+				url = "https://discord.gg/NdMHv2grRf"
+			},
+			{
+				title = "\\hC;\\fMedBold;DIIWANE 2.0 Server (sMNS)",
+				url = "https://discord.gg/2hNpXqSsXw"
+			},
+			{
+				title = "\\hC;\\fMedBold;Disciples 2 Maps Server",
+				url = "https://discord.gg/PRRMsJmsx2"
+			},
+			{
+				title = "\\hC;\\fMedBold;Mod Development Server (by Nazar)",
+				url = "https://discord.gg/MKXp3sk3yF"
+			},
+
+			{
+				title = "\\hC;\\fMedBold;Find PvP Players (Motlin mod)",
+				url = "https://discord.gg/YZyq7HNRVy"
+			},
+			{
+				title = "\\hC;\\fMedBold;Useful Tools for Disciples 2",
+				url = "https://norvezskayasemga.pro/programs"
+			},
+			{
+				title = "\\hC;\\fMedBold;PvE Maps",
+				url = "https://norvezskayasemga.pro/maps"
+			},
+
+			{
+				title = "\\hC;\\fMedBold;Download PvP Mod (sMNS)",
+				url = "https://d2mm.ru/download/"
+			},
+			{
+				title = "\\hC;\\fMedBold;Download PvP Mod (Motlin)",
+				url = "https://norvezskayasemga.pro/mods/24"
+			},
+			{
+				title = "\\hC;\\fMedBold;Download PvE Mod (MNS)",
+				url = "https://norvezskayasemga.pro/mods/1"
+			},
+			{
+				title = "\\hC;\\fMedBold;Download PvE Mod (Alternative)",
+				url = "https://norvezskayasemga.pro/mods/12"
+			},
+			{
+				title = "\\hC;\\fMedBold;Download Disciples 2 Mod by Nazar",
+				url = "https://disciples2bynazar.tilda.ws/"
+			},
+			{
+				title = "\\hC;\\fMedBold;MNS / Motlin Wiki",
+				url = "https://dis2modding.fandom.com/ru/wiki/Dis2modding_%D0%92%D0%B8%D0%BA%D0%B8"
+			},
+
+			{
+				title = "\\hC;\\fMedBold;Nagas’: Forsaken Tribe (ForT) Development",
+				url = "https://naga-faction.com/"
+			},
+			{
+				title = "\\hC;\\fMedBold;Nagas’: Forsaken Tribe Telegram",
+				url = "https://t.me/Nagas_ForT"
+			},
+
+			{
+				title = "\\hC;\\fMedBold;Nevendaar Library Server",
+				url = "https://discord.gg/FG3Fbcjmtg"
+			},
+			{
+				title = "\\hC;\\fMedBold;Nevendaar Library Telegram",
+				url = "https://t.me/alldisciples"
+			},
+		},
 	},
 
 	generator = {

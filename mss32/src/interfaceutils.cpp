@@ -485,6 +485,32 @@ void openInBrowser(const std::string& url)
         CloseHandle(pi.hThread);
     }
 }
+void copyToClipboard(const std::string& text)
+{
+    if (OpenClipboard(nullptr)) {
+        EmptyClipboard();
+        HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, text.size() + 1);
+        if (hMem) {
+            memcpy(GlobalLock(hMem), text.c_str(), text.size() + 1);
+            GlobalUnlock(hMem);
+            SetClipboardData(CF_TEXT, hMem);
+        }
+        CloseClipboard();
+    }
+}
+
+static bool looksLikeTextId(const std::string& str)
+{
+    // like X123TA1234
+    if (str.size() < 6)
+        return false;
+
+    if (str[0] != 'X')
+        return false;
+
+    return str.find("TA") != std::string::npos;
+}
+
 static bool isValidUrl(const std::string& str)
 {
     return str.find("http://") == 0 || str.find("https://") == 0 || str.find("www.") == 0;
@@ -510,6 +536,29 @@ std::string resolveLink(const hooks::LinkItem& item)
     }
 
     return result;
+}
+
+std::string resolveTextSmart(const std::string& input, bool expectUrl)
+{
+    if (input.empty())
+        return "";
+
+
+    if (looksLikeTextId(input)) {
+        auto text = getInterfaceText(input.c_str());
+
+        if (!text.empty()) {
+            if (!expectUrl || isValidUrl(text)) {
+                return text;
+            }
+        }
+    }
+
+    if (!expectUrl || isValidUrl(input)) {
+        return input;
+    }
+
+    return "";
 }
 
 bool hasControl(game::CDialogInterf* dialog, const char* name)
