@@ -527,6 +527,7 @@ static Hooks getGameHooks()
         {BattleViewerInterfApi::vftable()->battleEnd, battleEndHooked, (void**)&orig.battleEnd},
         {battle.decreaseUnitAttacks, decreaseUnitAttacksHooked, (void**)&orig.decreaseUnitAttacks},
         {CBatLogicApi::get().applyCBatAttackUntransformEffect, applyCBatAttackUntransformEffectHooked, (void**)&orig.applyCBatAttackUntransformEffect},
+
         // Allow modify leaders hire list with lua
         {LeadersForHireApi::get().getLeadersHireList, getLeadersHireListHooked},
         {LeadersForHireApi::get().addNobleLeaderToUI, addNobleLeaderToUIHooked},
@@ -538,7 +539,7 @@ static Hooks getGameHooks()
         {BattleViewerInterfApi::vftable()->showAttackEffect, showAttackEffectHooked, (void**)&orig.showAttackEffect},
     };
     // clang-format on
-
+    
     // Extended battle options
     if (userSettings().extendedBattle.dotDamageCanStack
         != baseSettings().extendedBattle.dotDamageCanStack) {
@@ -739,6 +740,28 @@ static Hooks getScenarioEditorHooks()
     return hooks;
 }
 
+using SendSaveGameMsgFn = void(__thiscall*)(void* thisPtr, const char* filename);
+
+SendSaveGameMsgFn SendSaveGameMsg = (SendSaveGameMsgFn)0x0048FED7;
+
+using KeyHandler = int(__thiscall*)(void* thisPtr, int key, int a3);
+
+KeyHandler originalKeyHandler = nullptr;
+
+int __fastcall HookedKeyHandler(void* thisPtr, void*, int key, int a3)
+{
+    if ((key == 'O' || key == 'o') && (GetAsyncKeyState(VK_CONTROL) & 0x8000)) {
+        void* realThis = (char*)thisPtr - 4;
+
+        SendSaveGameMsg(realThis, "Jora"); // или saveFilename если есть
+
+        return 1;
+    }
+
+    return originalKeyHandler(thisPtr, key, a3);
+}
+
+
 Hooks getHooks()
 {
     using namespace game;
@@ -747,6 +770,9 @@ Hooks getHooks()
 
     auto& fn = gameFunctions();
     auto& orig = getOriginalFunctions();
+
+
+    hooks.emplace_back(HookInfo{(void*)0x0048EDA9, HookedKeyHandler, (void**)&originalKeyHandler});
 
     // Register buildings with custom branch category as unit buildings
     hooks.emplace_back(HookInfo{fn.createBuildingType, createBuildingTypeHooked});
@@ -3040,6 +3066,7 @@ void __stdcall applyCBatAttackUntransformEffectHooked(game::IMidgardObjectMap* o
     getOriginalFunctions().applyCBatAttackUntransformEffect(objectMap, unitId, battleMsgData,
                                                             resultSender, sendResult);
 }
+
 
 void __fastcall showAttackEffectHooked(game::IBatViewer* thisptr,
     int /*%edx*/,
