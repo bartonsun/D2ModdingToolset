@@ -43,19 +43,172 @@
 #include "originalfunctions.h"
 #include "phasegame.h"
 #include "pickupdropinterf.h"
+#include "midserver.h"
 #include "scenarioinfo.h"
 #include "scenarioview.h"
+#include "settings.h"
 #include "sitemerchantinterf.h"
 #include "textids.h"
 #include "utils.h"
 #include "visitors.h"
 #include <gameutils.h>
 #include <optional>
+#include "midscenvariables.h"
 #include <spdlog/spdlog.h>
 #include <vector>
 #include <windows.h>
 
 namespace hooks {
+
+    // Global cooldown value for city-to-capital transfers.
+    // -1 = feature disabled
+    //  0 = no cooldown
+    // >0 = cooldown in turns
+    static constexpr const char* CITY_CAPITAL_TRANSF_COOLDOWN_MOD = "CITY_CAPITAL_TRANSF_COOLDOWN_MOD";
+
+    // Returns scenario variable name used to store the next allowed transfer turn
+    // for a specific race.
+    //
+    // Race-based variables are used instead of player-based ones because race ids
+    // are stable and deterministic across all scenarios.
+    static const char* getRaceTransferVarName(int raceId)
+{
+    using namespace game;
+
+    const auto& races = RaceCategories::get();
+
+    if (raceId == (int)races.human->id)
+        return "CITY_CAPITAL_TRANSF_COOLDOWN_HU";
+
+    if (raceId == (int)races.undead->id)
+        return "CITY_CAPITAL_TRANSF_COOLDOWN_UN";
+
+    if (raceId == (int)races.heretic->id)
+        return "CITY_CAPITAL_TRANSF_COOLDOWN_HE";
+
+    if (raceId == (int)races.dwarf->id)
+        return "CITY_CAPITAL_TRANSF_COOLDOWN_DW";
+
+    if (raceId == (int)races.elf->id)
+        return "CITY_CAPITAL_TRANSF_COOLDOWN_EL";
+
+    return nullptr;
+}
+
+    // Resolves race-based cooldown variable for the fort owner.
+    static const char* getFortTransferVarName(const game::CFortification* fort,
+                                          const game::IMidgardObjectMap* objectMap)
+{
+    using namespace bindings;
+
+    if (!fort || !objectMap)
+        return nullptr;
+
+    FortView fortView(fort, objectMap);
+
+    auto owner = fortView.getOwner();
+
+    if (!owner)
+        return nullptr;
+
+    int raceId = owner->getRaceCategoryId();
+
+    return getRaceTransferVarName(raceId);
+}
+
+    bool hasItemsInInventory(const game::IMidgardObjectMap* objectMap,
+                             const game::CMidgardID& fortId)
+    {
+        using namespace game;
+
+        auto obj = objectMap->vftable->findScenarioObjectById(objectMap, &fortId);
+        if (!obj)
+            return false;
+
+        auto fort = static_cast<CFortification*>(obj);
+
+        const auto& items = fort->inventory.items;
+
+        return items.bgn != items.end;
+    }
+
+    bool isCapital(const game::IMidgardObjectMap* objectMap, const game::CMidgardID& fortId)
+    {
+        using namespace game;
+
+        auto obj = objectMap->vftable->findScenarioObjectById(objectMap, &fortId);
+        if (!obj)
+            return false;
+
+        auto fort = static_cast<CFortification*>(obj);
+        auto vftable = static_cast<const CFortificationVftable*>(fort->vftable);
+
+        int tier = vftable->getTier(fort, objectMap);
+
+        return tier == 6;
+    }
+
+    // Returns global cooldown value for city-to-capital transfers.
+    //
+    // Missing variable defaults to -1 which disables the feature.
+    static int getTransferCooldown(const game::IMidgardObjectMap* objectMap)
+    {
+        using namespace game;
+
+        if (!objectMap)
+            return -1;
+
+        return hooks::getScenarioVariableByName(hooks::getScenarioVariables(objectMap),
+                                                CITY_CAPITAL_TRANSF_COOLDOWN_MOD, -1);
+    }
+
+    // Determines whether transfer-to-capital action is currently available.
+    static bool isCityTransferAllowed(const game::IMidgardObjectMap* objectMap,
+                                      game::CFortification* fort)
+    {
+        using namespace game;
+
+        if (!fort)
+            return false;
+
+        int cooldown = getTransferCooldown(objectMap);
+
+        // Feature disabled globally.
+        if (cooldown == -1)
+            return false;
+
+        // Transfers from capital to itself are not allowed.
+        if (isCapital(objectMap, fort->id))
+            return false;
+
+        // Cooldown disabled.
+        if (cooldown == 0)
+            return true;
+
+        const char* varName = getFortTransferVarName(fort, objectMap);
+
+        if (!varName) {
+            spdlog::error("[CT] failed to resolve race cooldown variable");
+            return false;
+        }
+
+        // Missing race variable blocks transfer but does not crash the game.
+        if (!hooks::hasScenarioVariableByName(hooks::getScenarioVariables(objectMap), varName)) {
+            spdlog::error("[CT] missing scenario variable {}", varName);
+            return false;
+        }
+
+        auto* info = getScenarioInfo(objectMap);
+
+        int currentTurn = info ? info->currentTurn : 0;
+
+        int nextAllowedTurn = hooks::getScenarioVariableByName(hooks::getScenarioVariables(
+                                                                   objectMap),
+                                                               varName, 0);
+
+        return currentTurn >= nextAllowedTurn;
+    }
+
 
 using ItemFilter = std::function<bool(game::IMidgardObjectMap* objectMap,
                                       const game::CMidgardID* itemId)>;
@@ -228,6 +381,92 @@ CAT_MATCHER(isTravel, travelItem)
 CAT_MATCHER(isSpecial, special)
 #undef CAT_MATCHER
 
+
+
+static std::string toLower(std::string s)
+{
+    std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+    return s;
+}
+
+static std::optional<ItemFilter> getFilterByName(const std::string& name)
+{
+    if (name == "armor")
+        return isArmor;
+    if (name == "jewel")
+        return isJewel;
+    if (name == "weapon")
+        return isWeapon;
+    if (name == "banner")
+        return isBanner;
+    if (name == "potionboost")
+        return isPotionBoost;
+    if (name == "potionheal")
+        return isPotionHeal;
+    if (name == "potionrevive")
+        return isPotionRevive;
+    if (name == "potionpermanent")
+        return isPotionPermanent;
+    if (name == "scroll")
+        return isScroll;
+    if (name == "wand")
+        return isWand;
+    if (name == "valuable")
+        return isValuable;
+    if (name == "orb")
+        return isOrb;
+    if (name == "talisman")
+        return isTalisman;
+    if (name == "travelitem")
+        return isTravel;
+    if (name == "special")
+        return isSpecial;
+
+    return std::nullopt;
+}
+
+static std::vector<ItemFilter> getDefaultFilters()
+{
+    return {
+        isArmor,
+        isJewel,
+        isWeapon,
+        isBanner,
+        isPotionBoost,
+        isPotionHeal,
+        isPotionRevive,
+        isPotionPermanent,
+        isScroll,
+        isWand,
+        isValuable,
+        isOrb,
+        isTalisman,
+        isTravel,
+        isSpecial
+    };
+}
+
+static std::vector<ItemFilter> getCustomFilters()
+{
+    std::vector<ItemFilter> result;
+
+    const auto& order = hooks::userSettings().customSortOrder;
+
+    for (const auto& nameRaw : order) {
+        std::string name = toLower(nameRaw);
+
+        auto f = getFilterByName(name);
+        if (f)
+            result.push_back(*f);
+    }
+
+    if (result.empty()) {
+        return getDefaultFilters();
+    }
+
+    return result;
+}
+
 static bool isPotion(game::IMidgardObjectMap* objectMap, const game::CMidgardID* itemId)
 {
     using namespace game;
@@ -268,6 +507,7 @@ static void transferItems(const std::vector<game::CMidgardID>& items,
                           const char* srcObjectName)
 {
     using namespace game;
+
 
     auto objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
     const auto& exchangeItem = VisitorApi::get().exchangeItem;
@@ -317,7 +557,7 @@ static void transferCityToStack(game::CPhaseGame* phaseGame,
 }
 
 static std::optional<bindings::PlayerView> getFortOwner(game::CFortification* fort,
-                                                        game::IMidgardObjectMap* map)
+                                                        const game::IMidgardObjectMap* map)
 {
     if (!fort || !map)
         return std::nullopt;
@@ -337,7 +577,7 @@ static bool isSameOwner(const std::optional<bindings::PlayerView>& a,
     return memcmp(&id1, &id2, sizeof(game::CMidgardID)) == 0;
 }
 
-static game::CFortification* findCapital(game::IMidgardObjectMap* map,
+static game::CFortification* findCapital(const game::IMidgardObjectMap* map,
                                          const std::optional<bindings::PlayerView>& owner)
 {
     using namespace game;
@@ -373,69 +613,116 @@ static game::CFortification* findCapital(game::IMidgardObjectMap* map,
     return nullptr;
 }
 
-/** Transfers city items to its capital  */
+// Transfers all city inventory items to the owner's capital.
+//
+// Cooldown state is stored in scenario variables and synchronized per race.
 static void transferCityToCapital(game::CPhaseGame* phaseGame,
                                   const game::CMidgardID* cityId,
-                                  std::optional<ItemFilter> filter = std::nullopt)
+                                  const game::IMidgardObjectMap* objectMap)
 {
     using namespace game;
-
-    static std::unordered_map<std::string, int> lastTurnByOwner;
-
-    auto* objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
-    if (!objectMap)
-        return;
+    using namespace bindings;
 
     auto* info = hooks::getScenarioInfo(objectMap);
-    if (!info)
+    if (!info) {
+        spdlog::error("[CT] no scenario info");
         return;
+    }
 
     int currentTurn = info->currentTurn;
+    int cooldown = getTransferCooldown(objectMap);
 
     auto obj = objectMap->vftable->findScenarioObjectById(objectMap, cityId);
     if (!obj) {
-        spdlog::error("Could not find city {:s}", idToString(cityId));
+        spdlog::error("[CT] city not found");
         return;
     }
 
-    auto* fortification = static_cast<CFortification*>(obj);
-    const std::string ownerKey = idToString(&fortification->ownerId);
+    auto* fort = static_cast<CFortification*>(obj);
 
-    int& lastTurn = lastTurnByOwner[ownerKey];
-    if (lastTurn == currentTurn) {
-        spdlog::info("Transfer already used on turn {} for owner={}", currentTurn, ownerKey);
+    // Capital cannot transfer items to itself.
+    if (isCapital(objectMap, fort->id))
+        return;
+
+    if (!hasItemsInInventory(objectMap, fort->id))
+        return;
+
+    const char* varName = getFortTransferVarName(fort, objectMap);
+
+    if (!varName) {
+        spdlog::error("[CT] invalid race cooldown variable");
         return;
     }
-    lastTurn = currentTurn;
+
+    int nextAllowedTurn = hooks::getScenarioVariableByName(hooks::getScenarioVariables(objectMap),
+                                                           varName, 0);
+
+    // Cooldown check.
+    if (cooldown > 0 && currentTurn < nextAllowedTurn)
+        return;
 
     std::vector<CMidgardID> items;
-    const int total = fortification->inventory.vftable->getItemsCount(&fortification->inventory);
+
+    int total = fort->inventory.vftable->getItemsCount(&fort->inventory);
+
     for (int i = 0; i < total; ++i) {
-        if (auto id = fortification->inventory.vftable->getItem(&fortification->inventory, i)) {
-            if (!filter || (*filter)(objectMap, id)) {
-                items.push_back(*id);
-            }
-        }
-    }
-    if (items.empty()) {
-        spdlog::info("No items in city {:s}", idToString(cityId));
-        return;
+        if (auto id = fort->inventory.vftable->getItem(&fort->inventory, i))
+            items.push_back(*id);
     }
 
-    auto fortOwner = getFortOwner(fortification, objectMap);
-    auto* capital = findCapital(objectMap, fortOwner);
+    if (items.empty())
+        return;
+
+    auto owner = getFortOwner(fort, objectMap);
+    auto* capital = findCapital(objectMap, owner);
+
     if (!capital) {
-        spdlog::warn("No capital found for owner={}", idToString(&fortification->ownerId));
+        spdlog::error("[CT] no capital found");
         return;
     }
 
     CMidgardID capId = capital->id;
+
     transferItems(items, phaseGame, &capId, "cityStack", cityId, "city");
+
+    // Save next allowed transfer turn.
+    if (cooldown > 0) {
+        bool ok = hooks::setScenarioVariableByName(const_cast<game::CMidScenVariables*>(
+                                                       hooks::getScenarioVariables(objectMap)),
+                                                   varName, currentTurn + cooldown);
+
+        if (!ok)
+            spdlog::error("[CT] failed to save cooldown");
+    }
 }
 
 void __fastcall cityTransferBtn(game::CCityStackInterf* thisptr, int)
 {
-    transferCityToCapital(thisptr->dragDropInterf.phaseGame, &thisptr->data->fortificationId);
+    using namespace game;
+
+    // Server object map is required here because scenario variables must be
+    // modified in live game state. Cached client maps may not propagate changes.
+    auto* objectMap = hooks::getServerObjectMap();
+
+    if (!objectMap)
+        return;
+
+    transferCityToCapital(thisptr->dragDropInterf.phaseGame, &thisptr->data->fortificationId,objectMap);
+
+  
+    int cooldown = getTransferCooldown(objectMap);
+    if (cooldown == 0)
+        return;
+
+    auto dialog = CDragAndDropInterfApi::get().getDialog(&thisptr->dragDropInterf);
+    if (!dialog)
+        return;
+
+   auto* ctrl = CDialogInterfApi::get().findControl(dialog, "BTN_TRANSF_R_CITY_CAPITAL");
+    if (ctrl) {
+        auto* button = reinterpret_cast<game::CButtonInterf*>(ctrl);
+        button->vftable->setEnabled(button, false);
+    }
 }
 
 void __fastcall cityInterfTransferAllToStack(game::CCityStackInterf* thisptr, int /*%edx*/)
@@ -628,6 +915,19 @@ static void sortCityInterface(game::CCityStackInterf* thisptr,
                       filters, modeR);
 }
 
+static void __fastcall sortCityCustomL(game::CCityStackInterf* thisptr, int)
+{
+    auto filters = getCustomFilters();
+
+    sortCityInterface(thisptr, filters, true);
+}
+
+static void __fastcall sortCityCustomR(game::CCityStackInterf* thisptr, int)
+{
+    auto filters = getCustomFilters();
+    sortCityInterface(thisptr, filters, false); // left -> right
+}
+
 static void sortPickupInterface(game::CPickUpDropInterf* thisptr,
                                 std::vector<ItemFilter> filters,
                                 bool modeR)
@@ -641,6 +941,20 @@ static void sortPickupInterface(game::CPickUpDropInterf* thisptr,
                       &thisptr->data->stackId, // left = stack
                       &thisptr->data->bagId,   // right = bag
                       filters, modeR);
+}
+
+static void __fastcall sortPickupCustomL(game::CPickUpDropInterf* thisptr, int)
+{
+    auto filters = getCustomFilters();
+
+    sortPickupInterface(thisptr, filters, false);
+}
+
+static void __fastcall sortPickupCustomR(game::CPickUpDropInterf* thisptr, int)
+{
+    auto filters = getCustomFilters();
+
+    sortPickupInterface(thisptr, filters, true);
 }
 
 static void sortExchangeInterface(game::CExchangeInterf* thisptr,
@@ -657,6 +971,21 @@ static void sortExchangeInterface(game::CExchangeInterf* thisptr,
                       &thisptr->data->stackRightSideId, // right = stack
                       filters, modeR);
 }
+
+static void __fastcall sortExchangeCustomL(game::CExchangeInterf* thisptr, int)
+{
+    auto filters = getCustomFilters();
+
+    sortExchangeInterface(thisptr, filters, false);
+}
+
+static void __fastcall sortExchangeCustomR(game::CExchangeInterf* thisptr, int)
+{
+    auto filters = getCustomFilters();
+
+    sortExchangeInterface(thisptr, filters, true);
+}
+
 template <typename T>
 static void sortInterface(T* thisptr, std::vector<hooks::ItemFilter> filters, bool modeR)
 {
@@ -1056,10 +1385,53 @@ static void setupCityStackButtons(game::CCityStackInterf* thisptr, game::CDialog
     hook("BTN_TRANSF_R_SPELLS", (CB::Callback)cityInterfTransferSpellsToCity);
     hook("BTN_TRANSF_L_VALUABLES", (CB::Callback)cityInterfTransferValuablesToStack);
     hook("BTN_TRANSF_R_VALUABLES", (CB::Callback)cityInterfTransferValuablesToCity);
-    hook("BTN_TRANSF_R_CITY_CAPITAL", (CB::Callback)cityTransferBtn);
+    if (dlg.findControl(dialog, "BTN_TRANSF_R_CITY_CAPITAL")) {
+        cb.callback = (CB::Callback)cityTransferBtn;
+        api.createButtonFunctor(&fun, 0, thisptr, &cb);
 
-    // --- Sor buttons ---
+        auto* btnPtr = btn.assignFunctor(dialog, "BTN_TRANSF_R_CITY_CAPITAL", name, &fun, 0);
+        free(&fun, nullptr);
+
+        if (btnPtr) {
+
+            /*auto* objectMap = game::CPhaseApi::get().getDataCache(
+                &thisptr->dragDropInterf.phaseGame->phase);*/
+
+            //auto* objectMap = hooks::getObjectMap();
+
+            // Use live server object map here because button state depends on
+            // scenario variables updated during gameplay.
+            auto* objectMap = hooks::getServerObjectMap();
+
+            if (!objectMap) {
+
+                spdlog::error("[CT] no server objectMap");
+
+                return;
+            }
+
+
+            if (objectMap) {
+                auto obj = objectMap->vftable
+                               ->findScenarioObjectById(objectMap, &thisptr->data->fortificationId);
+
+                if (!obj)
+                    return;
+
+                auto* fort = static_cast<game::CFortification*>(obj);
+
+                // Button state is derived entirely from scenario variables and cooldown logic.
+                bool enabled = isCityTransferAllowed(objectMap, fort);
+
+                btnPtr->vftable->setEnabled(btnPtr, enabled);
+            }
+        }
+    }
+
+    // --- Sort buttons ---
     setupCitySortButtons(api, btn, dlg, thisptr, dialog, fun, cb, free, name);
+    hook("BTN_SORT_L_CUSTOM", (CB::Callback)sortCityCustomL);
+    hook("BTN_SORT_R_CUSTOM", (CB::Callback)sortCityCustomR);
 }
 
 game::CCityStackInterf* __fastcall cityStackInterfCtorHooked(game::CCityStackInterf* thisptr,
@@ -1322,6 +1694,8 @@ static void setupPickupButtons(game::CPickUpDropInterf* thisptr, game::CDialogIn
 
     // --- SORT buttons ---
     setupPickupSortButtons(api, btn, dlg, thisptr, dialog, fun, cb, free, name);
+    hook("BTN_SORT_L_CUSTOM", (CB::Callback)sortPickupCustomL);
+    hook("BTN_SORT_R_CUSTOM", (CB::Callback)sortPickupCustomR);
 }
 
 static void setupExchangeButtons(game::CExchangeInterf* thisptr, game::CDialogInterf* dialog)
@@ -1359,6 +1733,8 @@ static void setupExchangeButtons(game::CExchangeInterf* thisptr, game::CDialogIn
 
     // --- SORT buttons ---
     setupExchangeSortButtons(api, btn, dlg, thisptr, dialog, fun, cb, free, name);
+    hook("BTN_SORT_L_CUSTOM", (Callback)sortExchangeCustomL);
+    hook("BTN_SORT_R_CUSTOM", (Callback)sortExchangeCustomR);
 }
 
 game::CExchangeInterf* __fastcall exchangeInterfCtorHooked(game::CExchangeInterf* thisptr,

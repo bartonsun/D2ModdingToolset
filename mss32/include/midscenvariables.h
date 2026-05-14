@@ -59,6 +59,7 @@ struct Api
     using FindById = ScenarioVariableData*(__thiscall*)(const CMidScenVariables* thisptr,
                                                         int variableId);
     FindById findById;
+
 };
 
 Api& get();
