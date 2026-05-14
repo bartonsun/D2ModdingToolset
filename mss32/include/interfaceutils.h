@@ -99,6 +99,8 @@ void setEditBoxText(game::CDialogInterf* dialog,
                     const char* text,
                     bool moveCursorPos);
 void openInBrowser(const std::string& url);
+void copyToClipboard(const std::string& text);
+std::string resolveTextSmart(const std::string& input, bool expectUrl = false);
 std::string resolveLink(const hooks::LinkItem& item);
 bool hasControl(game::CDialogInterf* dialog, const char* name);
 

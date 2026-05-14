@@ -45,6 +45,20 @@ static std::string readSetting(const sol::table& table, const char* name, const 
     return table.get_or(name, def);
 }
 
+
+static void readCustomSortSettings(const sol::table& table, Settings& settings)
+{
+    settings.customSortOrder.clear();
+
+    auto arr = table.get<sol::optional<sol::table>>("customSortOrder");
+    if (!arr.has_value()) {
+        return;
+    }
+
+    for (auto& kv : arr.value()) {
+        settings.customSortOrder.push_back(kv.second.as<std::string>());
+    }
+}
 static void readAiAttackPowerSettings(const sol::table& table, Settings::AiAttackPowerBonus& value)
 {
     const auto& def = defaultSettings().aiAttackPowerBonus;
@@ -442,6 +456,7 @@ static void readSettings(const sol::table& table, Settings& settings)
     readAdditionalLordIncomeSettings(table, settings.additionalLordIncome);
     readAdditionalCityIncomeSettings(table, settings.additionalCityIncome);
     readExtandedBattleSettings(table, settings.extendedBattle);
+    readCustomSortSettings(table, settings);
 }
 
 static void readDebugMode(Settings& settings)

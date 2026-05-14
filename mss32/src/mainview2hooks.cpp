@@ -143,6 +143,12 @@ void __fastcall mainView2ShowIsoDialogHooked(game::CMainView2* thisptr, int /*%e
     static const char turnTextName[]{"TXT_TURN"};
     const auto& textApi = CTextBoxInterfApi::get();
 
+    // Check if control exists at all
+    if (!dialogApi.findControl(dialog, turnTextName)) {
+        // TXT_TURN was not added to Interf.dlg, skip
+        return;
+    }
+
     auto textBox = dialogApi.findTextBox(dialog, turnTextName);
     if (textBox && textBox->data) {
         auto objectMap = CPhaseApi::get().getDataCache(&thisptr->phaseGame->phase);
