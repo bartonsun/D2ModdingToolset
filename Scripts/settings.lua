@@ -53,6 +53,42 @@ settings = {
 	criticalHitDamage = 5,
 	-- Percentage chance of critical hit [0 : 100]
 	criticalHitChance = 100,
+	
+	-- Custom item category order used by:
+	-- BTN_SORT_L_CUSTOM
+	-- BTN_SORT_R_CUSTOM
+	--
+	-- Categories are sorted from top to bottom in the exact order listed here.
+	--
+	-- You may specify only the categories you want to prioritize.
+	-- Any categories omitted from this list will use the default internal order
+	-- and will be placed after the custom categories.
+	--
+	-- This section may also be omitted completely.
+	-- In that case, the built-in default sort order will be used.
+	customSortOrder = {
+		"PotionRevive",   -- Resurrection potions
+		"PotionHeal",     -- Healing potions
+
+		"Weapon",         -- Weapons and offensive artifacts
+		"Armor",          -- Armor and defensive artifacts
+
+		"Jewel",          -- Jewels and rings
+		"Banner",         -- Banners and standards
+
+		"PotionBoost",    -- Temporary stat boost potions
+		"PotionPermanent",-- Permanent stat increase potions
+
+		"Scroll",         -- Spell scrolls
+		"Wand",           -- Magic wands
+
+		"Talisman",       -- Talismans
+		"Orb",            -- Orbs
+
+		"Valuable",       -- Valuable trade items
+		"Travelitem",     -- Travel and utility items
+		"Special"         -- Special quest or unique items
+	},
 
 	-- Multiplies total damage dealt by split damage (DAM_SPLIT) [1 : 6]
 	-- Split damage is introduced by "custom attack damage ratio"

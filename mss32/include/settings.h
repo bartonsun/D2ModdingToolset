@@ -83,6 +83,8 @@ struct Settings
     bool freeTransformSelfAttackInfinite;
     bool fixEffectiveHpFormula;
 
+    std::vector<std::string> customSortOrder;
+
     struct AdditionalLordIncome
     {   
         struct Gold
@@ -180,6 +182,7 @@ struct Settings
         Color outlineColor{};
         bool show{};
     } movementCost;
+
 
     struct Lobby
     {
