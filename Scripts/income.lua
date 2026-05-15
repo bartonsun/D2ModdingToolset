@@ -6,7 +6,7 @@
 
   Returns:
     currencyView
-    If the returned value is empty or nil, the original default unit will be used.
+    If the returned value is empty or nil, the original value will be used.
 ]]--
 function getTurnIncome(player, prev, interfaceCall)
 	return prev
