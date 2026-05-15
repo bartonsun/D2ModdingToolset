@@ -1,5 +1,5 @@
 --[[
-  Returns:
+  Args:
 	player			: playerView
 	currentLeader	: unitView - current stack leader in capital
 
@@ -12,7 +12,7 @@ function getStartingLeader(player, currentLeader)
 end
 
 --[[
-  Returns:
+  Args:
 	hireList    	: table of Id objects – the default list of leaders for hire
 	player			: playerView
 
@@ -25,7 +25,7 @@ function getLeadersHireList(hireList, player)
 end
 
 --[[
-  Returns:
+  Args:
 	hireList    	: table of Id objects – the default list of units for hire
 	player			: playerView
 
