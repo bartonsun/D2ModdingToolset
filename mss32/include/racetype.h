@@ -58,11 +58,42 @@ struct CRacePlayerDesc
     char unknown[18];
 };
 
-/** Holds city information read from GCityInf.dbf. */
-struct TRaceTypeCityInformation;
+struct TRaceTypeCityTierData
+{
+    int scout;                       /**< Fog reveal radius after city recalculation. */
+    int regen;                       /**< REGEN_F field from GCityInf.dbf. */
+    CMidgardID protectionModifierId; /**< PROTECTION field from GCityInf.dbf. */
+    int resourceMultiplier;          /**< RES_M field from GCityInf.dbf. */
+    Bank upgradePrice;               /**< GROWTH field from GCityInf.dbf. */
+    int padding;
+};
 
+assert_size(TRaceTypeCityTierData, 32);
+
+/** Internal lookup entry used by TRaceTypeCityInformation. */
+struct TRaceTypeCityTierEntry
+{
+    int tier;
+    TRaceTypeCityTierData* data;
+};
+
+assert_size(TRaceTypeCityTierEntry, 8);
+
+
+
+/** Holds city information read from GCityInf.dbf. */
+struct TRaceTypeCityInformation
+{
+    TRaceTypeCityTierEntry** entries;
+};
+
+assert_size(TRaceTypeCityInformation, 4);
+
+
+    
 struct TRaceTypeData
 {
+    //
     LRaceCategory raceType;
     TextAndId name;
     bool playable;

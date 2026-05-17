@@ -86,6 +86,7 @@ struct LSiteCategory;
 struct CMidSite;
 struct CTextBoxInterf;
 struct CCmdNobleResultMsg;
+struct CMidServerLogicData;
 
 enum class ModifierElementTypeFlag : int;
 
@@ -775,6 +776,19 @@ using GetSideshowUnitImpl = game::CMidgardID*(__thiscall*)(TRaceType* thisptr,
 using FindCapitalByPlayerId = game::CFortification*(__stdcall*)(game::CMidgardID* playerId,
                                                                 game::IMidgardObjectMap* objectMap);
 
+/**
+ * Called when a player's turn begins.
+ *
+ * Executes core begin turn logic inside CMidServerLogicData.
+ * Invoked for all players, including neutral factions.
+ *
+ * @param thisptr Pointer to server logic data instance.
+ * @param playerId Identifier of the player whose turn is starting.
+ */
+using MidServerLogicDataBeginTurn = void(__thiscall*)(CMidServerLogicData* thisptr,
+                                                      CMidgardID* playerId);
+
+
 /** Game and editor functions that can be hooked. */
 struct Functions
 {
@@ -914,6 +928,7 @@ struct Functions
     AddSideshowUnitToUI addSideshowUnitToUI;
     GetSideshowUnitImpl getSideshowUnitImpl;
     FindCapitalByPlayerId findCapitalByPlayerId;
+    MidServerLogicDataBeginTurn midServerLogicDataBeginTurn;
 };
 
 /** Global variables used in game. */
