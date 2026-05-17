@@ -71,6 +71,9 @@ static CImage2Memory* createPreviewImage(CMenuRandomScenario* menu)
     for (int i = 0; i < width; ++i) {
         for (int j = 0; j < height; ++j) {
             rsg::Position pos{i, j};
+            const int index = pixelIndex(i, j, width);
+            const int zoneId = generator->zoneColoring[generator->posToIndex(pos)];
+            const int colorIndex = zoneId % 100;
 
             static const Color colors[] = {
                 Color{255, 0, 0, 255},     // Zone id 0: red
@@ -88,16 +91,46 @@ static CImage2Memory* createPreviewImage(CMenuRandomScenario* menu)
                 Color{158, 57, 0, 255},    // 12: dark red
             };
 
-            const int index{pixelIndex(i, j, width)};
-            const auto zoneId{generator->zoneColoring[generator->posToIndex(pos)]};
-            const int colorsTotal{static_cast<int>(std::size(colors))};
-
-            if (zoneId < colorsTotal) {
-                tileColoring[index] = colors[zoneId];
+            const int colorsTotal = static_cast<int>(std::size(colors));
+            if (colorIndex < colorsTotal) {
+                tileColoring[index] = colors[colorIndex];
             } else {
-                const std::uint8_t c = 32 + 10 * (zoneId - colorsTotal);
-
+                const uint8_t c = 32 + (colorIndex - colorsTotal) * 2;
                 tileColoring[index] = Color(c, c, c, 255);
+            }
+        }
+    }
+
+    const Color color1(0, 0, 0, 255);
+    const Color color2(255, 215, 0, 255);
+
+    for (const auto& [id, zone] : generator->zones) {
+        if (zone->type == rsg::TemplateZoneType::PlayerStart
+            || zone->type == rsg::TemplateZoneType::AiStart) {
+            rsg::Position townPos = zone->getPosition();
+
+            // Square 5x5
+            for (int dx = -2; dx <= 2; ++dx) {
+                for (int dy = -2; dy <= 2; ++dy) {
+                    if (std::abs(dx) == 2 && std::abs(dy) == 2)
+                        continue;
+                    rsg::Position p = townPos + rsg::Position{dx, dy};
+                    if (p.x >= 0 && p.x < size && p.y >= 0 && p.y < size) {
+                        int idx = pixelIndex(p.x, p.y, width);
+                        tileColoring[idx] = color1;
+                    }
+                }
+            }
+
+            // Square 3x3
+            for (int dx = -1; dx <= 1; ++dx) {
+                for (int dy = -1; dy <= 1; ++dy) {
+                    rsg::Position p = townPos + rsg::Position{dx, dy};
+                    if (p.x >= 0 && p.x < size && p.y >= 0 && p.y < size) {
+                        int idx = pixelIndex(p.x, p.y, width);
+                        tileColoring[idx] = color2;
+                    }
+                }
             }
         }
     }
