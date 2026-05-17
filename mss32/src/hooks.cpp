@@ -752,8 +752,9 @@ Hooks getHooks()
     
   
  // Called when a player's turn begins.Invoked for all players, including neutral factions.
-    hooks.emplace_back(HookInfo{fn.midServerLogicDataBeginTurn, getBeginTurnHooked(),
-                                getBeginTurnOrig()});
+    if (hooks::executableIsGame() && fn.midServerLogicDataBeginTurn) {
+        hooks.emplace_back(HookInfo{fn.midServerLogicDataBeginTurn, getBeginTurnHooked(), getBeginTurnOrig()});
+    }
     // Register buildings with custom branch category as unit buildings
     hooks.emplace_back(HookInfo{fn.createBuildingType, createBuildingTypeHooked});
     // Support custom building branch category
