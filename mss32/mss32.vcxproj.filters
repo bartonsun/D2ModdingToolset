@@ -1576,6 +1576,9 @@
     <ClCompile Include="src\bindings\globalunitsview.cpp">
       <Filter>bindings</Filter>
     </ClCompile>
+    <ClCompile Include="src\turnhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3929,6 +3932,9 @@
     <ClInclude Include="include\batattackboostdamage.h" />
     <ClInclude Include="include\bindings\globalunitsview.h">
       <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\turnhooks.h">
+      <Filter>hooks</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
