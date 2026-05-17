@@ -34,10 +34,16 @@ public:
     const rsg::UnitsInfo& getUnits() const override;
     const rsg::UnitInfoArray& getLeaders() const override;
     const rsg::UnitInfoArray& getSoldiers() const override;
+    const rsg::UnitInfoArray& getNobles() const override;
+    const rsg::UnitInfoArray& getGuardians() const override;
     int getMinLeaderValue() const override;
     int getMaxLeaderValue() const override;
     int getMinSoldierValue() const override;
     int getMaxSoldierValue() const override;
+    int getMinNobleValue() const override;
+    int getMaxNobleValue() const override;
+    int getMinGuardianValue() const override;
+    int getMaxGuardianValue() const override;
 
     const rsg::ItemsInfo& getItemsInfo() const override;
     const rsg::ItemInfoArray& getItems() const override;
@@ -85,12 +91,20 @@ private:
     rsg::UnitsInfo unitsInfo{};
     rsg::UnitInfoArray leaders{};
     rsg::UnitInfoArray soldiers{};
+    rsg::UnitInfoArray nobles{};
+    rsg::UnitInfoArray guardians{};
 
     int minLeaderValue{};
     int maxLeaderValue{};
 
     int minSoldierValue{};
     int maxSoldierValue{};
+
+    int minNobleValue{};
+    int maxNobleValue{};
+
+    int minGuardianValue{};
+    int maxGuardianValue{};
 
     rsg::ItemsInfo itemsInfo;
     rsg::ItemInfoArray allItems;
