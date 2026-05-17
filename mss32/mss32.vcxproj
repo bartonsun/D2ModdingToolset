@@ -596,6 +596,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\trainingcampinterf.cpp" />
     <ClCompile Include="src\transformotherhooks.cpp" />
     <ClCompile Include="src\transformselfhooks.cpp" />
+    <ClCompile Include="src\turnhooks.cpp" />
     <ClCompile Include="src\uievent.cpp" />
     <ClCompile Include="src\uimanager.cpp" />
     <ClCompile Include="src\umattack.cpp" />
@@ -1331,6 +1332,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\textmessage.h" />
     <ClInclude Include="include\timer.h" />
     <ClInclude Include="include\trainingcampinterf.h" />
+    <ClInclude Include="include\turnhooks.h" />
     <ClInclude Include="include\unitsforhirehooks.h" />
     <ClInclude Include="include\visitorcreatesite.h" />
     <ClInclude Include="include\visitorcreatesitehooks.h" />

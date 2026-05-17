@@ -132,6 +132,7 @@
 #include "menunewskirmishmultihooks.h"
 #include "menunewskirmishsingle.h"
 #include "menunewskirmishsinglehooks.h"
+#include "turnhooks.h"
 #include "menuphasehooks.h"
 #include "midautodlgimages.h"
 #include "midautodlgimageshooks.h"
@@ -748,6 +749,11 @@ Hooks getHooks()
     auto& fn = gameFunctions();
     auto& orig = getOriginalFunctions();
 
+    
+  
+ // Called when a player's turn begins.Invoked for all players, including neutral factions.
+    hooks.emplace_back(HookInfo{fn.midServerLogicDataBeginTurn, getBeginTurnHooked(),
+                                getBeginTurnOrig()});
     // Register buildings with custom branch category as unit buildings
     hooks.emplace_back(HookInfo{fn.createBuildingType, createBuildingTypeHooked});
     // Support custom building branch category
