@@ -53,6 +53,96 @@ static int pixelIndex(int x, int y, int size, float scaleFactor = 1.0f)
     return i + size * j;
 }
 
+static void drawChar(char ch,
+                     rsg::Position topLeft,
+                     int mapWidth,
+                     int mapHeight,
+                     std::vector<game::Color>& tileColoring)
+{
+    using namespace game;
+
+    // Pixel font 5x7 [0-9], [A-Z]
+    static const uint8_t font[36][7] = {
+        // 0-9 (indexes 0-9)
+        {0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E}, // 0
+        {0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E}, // 1
+        {0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F}, // 2
+        {0x1F, 0x02, 0x04, 0x02, 0x01, 0x11, 0x0E}, // 3
+        {0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02}, // 4
+        {0x1F, 0x10, 0x1E, 0x01, 0x01, 0x11, 0x0E}, // 5
+        {0x06, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E}, // 6
+        {0x1F, 0x01, 0x01, 0x02, 0x04, 0x08, 0x10}, // 7
+        {0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E}, // 8
+        {0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x0C}, // 9
+
+        // A-Z (indexes 10-35)
+        {0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11}, // A
+        {0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E}, // B
+        {0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E}, // C
+        {0x1C, 0x12, 0x11, 0x11, 0x11, 0x12, 0x1C}, // D
+        {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F}, // E
+        {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10}, // F
+        {0x0E, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0E}, // G
+        {0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11}, // H
+        {0x0E, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E}, // I
+        {0x07, 0x02, 0x02, 0x02, 0x02, 0x12, 0x0C}, // J
+        {0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11}, // K
+        {0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1F}, // L
+        {0x11, 0x1B, 0x15, 0x11, 0x11, 0x11, 0x11}, // M
+        {0x11, 0x19, 0x15, 0x13, 0x11, 0x11, 0x11}, // N
+        {0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E}, // O
+        {0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10}, // P
+        {0x0E, 0x11, 0x11, 0x11, 0x15, 0x12, 0x0D}, // Q
+        {0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11}, // R
+        {0x0E, 0x11, 0x10, 0x0E, 0x01, 0x11, 0x0E}, // S
+        {0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04}, // T
+        {0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E}, // U
+        {0x11, 0x11, 0x11, 0x11, 0x11, 0x0A, 0x04}, // V
+        {0x11, 0x11, 0x11, 0x11, 0x15, 0x15, 0x0A}, // W
+        {0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11}, // X
+        {0x11, 0x11, 0x11, 0x0A, 0x04, 0x04, 0x04}, // Y
+        {0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F}  // Z
+    };
+
+    int index = -1;
+    if (ch >= '0' && ch <= '9')
+        index = ch - '0';
+    else if (ch >= 'A' && ch <= 'Z')
+        index = ch - 'A' + 10;
+    else
+        return;
+
+    const uint8_t* rows = font[index];
+    const Color fg(255, 255, 255, 255); // white
+    const Color bg(0, 0, 0, 255);       // black
+
+    // Background 7x9
+    for (int dy = 0; dy < 9; ++dy) {
+        for (int dx = 0; dx < 7; ++dx) {
+            rsg::Position p(topLeft.x + dx, topLeft.y + dy);
+            if (p.x >= 0 && p.x < mapWidth && p.y >= 0 && p.y < mapHeight) {
+                int idx = pixelIndex(p.x, p.y, mapWidth);
+                tileColoring[idx] = bg;
+            }
+        }
+    }
+
+    // Image 5x7
+    for (int y = 0; y < 7; ++y) {
+        uint8_t mask = 0x10;
+        for (int x = 0; x < 5; ++x) {
+            rsg::Position p(topLeft.x + 1 + x, topLeft.y + 1 + y);
+            if (p.x >= 0 && p.x < mapWidth && p.y >= 0 && p.y < mapHeight) {
+                int idx = pixelIndex(p.x, p.y, mapWidth);
+                if (rows[y] & mask) {
+                    tileColoring[idx] = fg;
+                }
+                mask >>= 1;
+            }
+        }
+    }
+}
+
 static CImage2Memory* createPreviewImage(CMenuRandomScenario* menu)
 {
     using namespace game;
@@ -101,38 +191,10 @@ static CImage2Memory* createPreviewImage(CMenuRandomScenario* menu)
         }
     }
 
-    const Color color1(0, 0, 0, 255);
-    const Color color2(255, 215, 0, 255);
-
     for (const auto& [id, zone] : generator->zones) {
-        if (zone->type == rsg::TemplateZoneType::PlayerStart
-            || zone->type == rsg::TemplateZoneType::AiStart) {
-            rsg::Position townPos = zone->getPosition();
-
-            // Square 5x5
-            for (int dx = -2; dx <= 2; ++dx) {
-                for (int dy = -2; dy <= 2; ++dy) {
-                    if (std::abs(dx) == 2 && std::abs(dy) == 2)
-                        continue;
-                    rsg::Position p = townPos + rsg::Position{dx, dy};
-                    if (p.x >= 0 && p.x < size && p.y >= 0 && p.y < size) {
-                        int idx = pixelIndex(p.x, p.y, width);
-                        tileColoring[idx] = color1;
-                    }
-                }
-            }
-
-            // Square 3x3
-            for (int dx = -1; dx <= 1; ++dx) {
-                for (int dy = -1; dy <= 1; ++dy) {
-                    rsg::Position p = townPos + rsg::Position{dx, dy};
-                    if (p.x >= 0 && p.x < size && p.y >= 0 && p.y < size) {
-                        int idx = pixelIndex(p.x, p.y, width);
-                        tileColoring[idx] = color2;
-                    }
-                }
-            }
-        }
+        char label = zone->getLabel();
+        rsg::Position topLeft(zone->getPosition().x - 3, zone->getPosition().y - 4);
+        drawChar(label, topLeft, width, height, tileColoring);
     }
 
     // Scale tile coloring up to 144 x 144 pixels.
