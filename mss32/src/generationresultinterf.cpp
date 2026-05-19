@@ -61,7 +61,7 @@ static void drawChar(char ch,
 {
     using namespace game;
 
-    // Pixel font 5x7 [0-9], [A-Z]
+    // Pixel font 5x7 [0-9][A-Z]
     static const uint8_t font[36][7] = {
         // 0-9 (indexes 0-9)
         {0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E}, // 0
@@ -114,30 +114,39 @@ static void drawChar(char ch,
 
     const uint8_t* rows = font[index];
     const Color fg(255, 255, 255, 255); // white
-    const Color bg(0, 0, 0, 255);       // black
+    const Color outline(0, 0, 0, 255);  // black
 
-    // Background 7x9
+    // 7x9
     for (int dy = 0; dy < 9; ++dy) {
         for (int dx = 0; dx < 7; ++dx) {
             rsg::Position p(topLeft.x + dx, topLeft.y + dy);
-            if (p.x >= 0 && p.x < mapWidth && p.y >= 0 && p.y < mapHeight) {
-                int idx = pixelIndex(p.x, p.y, mapWidth);
-                tileColoring[idx] = bg;
-            }
-        }
-    }
+            if (p.x < 0 || p.x >= mapWidth || p.y < 0 || p.y >= mapHeight)
+                continue;
 
-    // Image 5x7
-    for (int y = 0; y < 7; ++y) {
-        uint8_t mask = 0x10;
-        for (int x = 0; x < 5; ++x) {
-            rsg::Position p(topLeft.x + 1 + x, topLeft.y + 1 + y);
-            if (p.x >= 0 && p.x < mapWidth && p.y >= 0 && p.y < mapHeight) {
-                int idx = pixelIndex(p.x, p.y, mapWidth);
-                if (rows[y] & mask) {
-                    tileColoring[idx] = fg;
+            int idx = pixelIndex(p.x, p.y, mapWidth);
+            // 5x7
+            bool isSymbol = (dx >= 1 && dx <= 5 && dy >= 1 && dy <= 7
+                             && (rows[dy - 1] & (0x10 >> (dx - 1))));
+
+            if (isSymbol) {
+                tileColoring[idx] = fg;
+            } else {
+                bool isOutline = false;
+                for (int ny = dy - 1; ny <= dy + 1; ++ny) {
+                    for (int nx = dx - 1; nx <= dx + 1; ++nx) {
+                        if (nx >= 1 && nx <= 5 && ny >= 1 && ny <= 7) {
+                            if (rows[ny - 1] & (0x10 >> (nx - 1))) {
+                                isOutline = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (isOutline)
+                        break;
                 }
-                mask >>= 1;
+                if (isOutline) {
+                    tileColoring[idx] = outline;
+                }
             }
         }
     }
