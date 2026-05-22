@@ -217,6 +217,10 @@ static CImage2Memory* createPreviewImage(CMenuRandomScenario* menu)
         }
     }
 
+    std::vector<uint8_t> pngData;
+    hooks::writeImageToMemory(preview, pngData);
+    menu->scenario->setPreviewImage(pngData);
+
     return preview;
 }
 
