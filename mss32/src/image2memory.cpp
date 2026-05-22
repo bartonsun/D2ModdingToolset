@@ -20,6 +20,7 @@
 #include "image2memory.h"
 #include "mempool.h"
 #include "surfacedecompressdata.h"
+#include <stb_image_write.h>
 
 namespace hooks {
 
@@ -112,6 +113,20 @@ CImage2Memory* createImage2Memory(std::uint32_t width, std::uint32_t height)
     img2Memory->IMqTexture::vftable = &image2MemoryTextureVftable;
 
     return img2Memory;
+}
+
+void hooks::writeImageToMemory(const CImage2Memory* image, std::vector<uint8_t>& out)
+{
+    const int width = image->size.x;
+    const int height = image->size.y;
+
+    stbi_write_png_to_func(
+        [](void* context, void* data, int size) {
+            auto* vec = static_cast<std::vector<uint8_t>*>(context);
+            vec->insert(vec->end(), (uint8_t*)data, (uint8_t*)data + size);
+        },
+        &out, width, height, 4,
+        image->pixels.data(), width * 4);
 }
 
 } // namespace hooks

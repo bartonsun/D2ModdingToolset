@@ -36,6 +36,8 @@ struct CImage2Memory : public game::CMqImage2Surface16
 
 CImage2Memory* createImage2Memory(std::uint32_t width, std::uint32_t height);
 
+void writeImageToMemory(const CImage2Memory* image, std::vector<uint8_t>& out);
+
 } // namespace hooks
 
 #endif // IMAGE2MEMORY_H
