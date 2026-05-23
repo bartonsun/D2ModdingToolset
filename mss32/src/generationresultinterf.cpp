@@ -45,6 +45,13 @@ static void __fastcall cancelButtonHandler(CGenerationResultInterf* thisptr, int
     thisptr->onCancel(thisptr->menu);
 }
 
+static void __fastcall copyButtonHandler(CGenerationResultInterf* thisptr, int /*%edx*/)
+{
+    if (thisptr && thisptr->previewImage) {
+        copyImageToClipboard(thisptr->previewImage);
+    }
+}
+
 static int pixelIndex(int x, int y, int size, float scaleFactor = 1.0f)
 {
     const int i = static_cast<int>(x / scaleFactor);
@@ -217,10 +224,6 @@ static CImage2Memory* createPreviewImage(CMenuRandomScenario* menu)
         }
     }
 
-    std::vector<uint8_t> pngData;
-    hooks::writeImageToMemory(preview, pngData);
-    menu->scenario->setPreviewImage(pngData);
-
     return preview;
 }
 
@@ -235,6 +238,8 @@ CGenerationResultInterf* createGenerationResultInterf(CMenuRandomScenario* menu,
 
     const auto& allocateMemory = Memory::get().allocate;
 
+    CImage2Memory* previewImage = nullptr;
+
     auto popup = (CGenerationResultInterf*)allocateMemory(sizeof(CGenerationResultInterf));
     CPopupDialogInterfApi::get().constructor(popup, dialogName, nullptr);
 
@@ -246,6 +251,7 @@ CGenerationResultInterf* createGenerationResultInterf(CMenuRandomScenario* menu,
     CDialogInterf* dialog{*popup->dialog};
 
     using ButtonCallback = CMenuBaseApi::Api::ButtonCallback;
+    const auto& dialogApi{CDialogInterfApi::get()};
 
     const auto& createButtonFunctor = CMenuBaseApi::get().createButtonFunctor;
     const auto& assignFunctor = CButtonInterfApi::get().assignFunctor;
@@ -274,9 +280,22 @@ CGenerationResultInterf* createGenerationResultInterf(CMenuRandomScenario* menu,
         smartPtrFree(&functor, nullptr);
     }
 
+    static const char btnCopyName[]{"BTN_COPY"};
+    if (dialogApi.findControl(dialog, btnCopyName)) {
+        auto callback = (ButtonCallback)copyButtonHandler;
+        createButtonFunctor(&functor, 0, (CMenuBase*)popup, &callback);
+        assignFunctor(dialog, btnCopyName, dialogName, &functor, 0);
+        smartPtrFree(&functor, nullptr);
+    }
+
     {
         IMqImage2* border = AutoDialogApi::get().loadImage("ZONES_BORDER");
         CImage2Memory* preview = createPreviewImage(menu);
+        popup->previewImage = preview;
+
+        std::vector<uint8_t> pngData;
+        hooks::writeImageToMemory(preview, pngData);
+        menu->scenario->setPreviewImage(pngData);
 
         CMultiLayerImg* image{(CMultiLayerImg*)allocateMemory(sizeof(CMultiLayerImg))};
 

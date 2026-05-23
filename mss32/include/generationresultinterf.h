@@ -21,6 +21,7 @@
 #define GENERATIONRESULTINTERF_H
 
 #include "popupdialoginterf.h"
+#include "image2memory.h"
 
 namespace hooks {
 
@@ -36,6 +37,7 @@ struct CGenerationResultInterf : public game::CPopupDialogInterf
     OnGenerationResultRejected onReject;
     OnGenerationResultCanceled onCancel;
     CMenuRandomScenario* menu;
+    CImage2Memory* previewImage;
 };
 
 CGenerationResultInterf* createGenerationResultInterf(CMenuRandomScenario* menu,
