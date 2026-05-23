@@ -129,4 +129,76 @@ void hooks::writeImageToMemory(const CImage2Memory* image, std::vector<uint8_t>&
         image->pixels.data(), width * 4);
 }
 
+void copyImageToClipboard(const CImage2Memory* image)
+{
+    if (!image || image->pixels.empty())
+        return;
+
+    // 1. PNG
+    std::vector<uint8_t> pngData;
+    writeImageToMemory(image, pngData);
+
+    // 2. DIB
+    const int width = image->size.x;
+    const int height = image->size.y;
+    const int bpp = 24;
+    const int rowSize = ((width * bpp + 31) / 32) * 4;
+    const int dataSize = rowSize * height;
+    const int headerSize = sizeof(BITMAPINFOHEADER);
+
+    HGLOBAL hDib = GlobalAlloc(GMEM_MOVEABLE, headerSize + dataSize);
+    if (hDib) {
+        BYTE* pData = (BYTE*)GlobalLock(hDib);
+        BITMAPINFOHEADER* pHeader = (BITMAPINFOHEADER*)pData;
+        pHeader->biSize = sizeof(BITMAPINFOHEADER);
+        pHeader->biWidth = width;
+        pHeader->biHeight = -height;
+        pHeader->biPlanes = 1;
+        pHeader->biBitCount = bpp;
+        pHeader->biCompression = BI_RGB;
+        pHeader->biSizeImage = dataSize;
+        pHeader->biXPelsPerMeter = 0;
+        pHeader->biYPelsPerMeter = 0;
+        pHeader->biClrUsed = 0;
+        pHeader->biClrImportant = 0;
+        BYTE* pPixels = pData + headerSize;
+        for (int y = 0; y < height; ++y) {
+            BYTE* row = pPixels + y * rowSize;
+            for (int x = 0; x < width; ++x) {
+                const game::Color& color = image->pixels[y * width + x];
+                row[x * 3 + 0] = color.b;
+                row[x * 3 + 1] = color.g;
+                row[x * 3 + 2] = color.r;
+            }
+        }
+        GlobalUnlock(hDib);
+    }
+
+    // To clipboard
+    if (OpenClipboard(nullptr)) {
+        EmptyClipboard();
+
+        // PNG format
+        if (!pngData.empty()) {
+            HGLOBAL hPng = GlobalAlloc(GMEM_MOVEABLE, pngData.size());
+            if (hPng) {
+                memcpy(GlobalLock(hPng), pngData.data(), pngData.size());
+                GlobalUnlock(hPng);
+                UINT pngFormat = RegisterClipboardFormatA("PNG");
+                SetClipboardData(pngFormat, hPng);
+            }
+        }
+
+        // DIB format
+        if (hDib) {
+            SetClipboardData(CF_DIB, hDib);
+        }
+
+        CloseClipboard();
+    } else {
+        if (hDib)
+            GlobalFree(hDib);
+    }
+}
+
 } // namespace hooks
