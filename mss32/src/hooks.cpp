@@ -26,6 +26,8 @@
 #include "autodialog.h"
 #include "autodialoghooks.h"
 #include "batattackbestowwards.h"
+#include "batattackdefend.h"
+#include "batattackrevive.h"
 #include "batattackdoppelganger.h"
 #include "batattackdrain.h"
 #include "batattackdrainlevel.h"
@@ -39,6 +41,7 @@
 #include "batattacktransformother.h"
 #include "batattacktransformself.h"
 #include "batattackuntransformeffect.h"
+#include "batattackutils.h"
 #include "batbigface.h"
 #include "batlogic.h"
 #include "batlogichooks.h"
@@ -250,6 +253,9 @@
 #include "batattackboostdamage.h"
 #include "dotattackhooks.h"
 #include "batunitanim.h"
+#include <midbag.h>
+#include <miditem.h>
+#include <midruin.h>
 
 struct PendingBattleEffect
 {
@@ -521,12 +527,8 @@ static Hooks getGameHooks()
         {CBatAttackHealApi::vftable()->canPerform, healAttackCanPerformHooked},
         // On heal can affect boost and lower damage
         {CBatAttackHealApi::vftable()->onHit, healAttackOnHitHooked},
-        //Fixed an issue where a unit with "attackCount" 3 or more incorrectly reduce its attack count.
+        //Hooks for status effects.
         {battle.setUnitStatus, setUnitStatusHooked, (void**)&orig.setUnitStatus},
-        //For future updates
-        {BattleViewerInterfApi::vftable()->battleEnd, battleEndHooked, (void**)&orig.battleEnd},
-        {battle.decreaseUnitAttacks, decreaseUnitAttacksHooked, (void**)&orig.decreaseUnitAttacks},
-        {CBatLogicApi::get().applyCBatAttackUntransformEffect, applyCBatAttackUntransformEffectHooked, (void**)&orig.applyCBatAttackUntransformEffect},
         // Allow modify leaders hire list with lua
         {LeadersForHireApi::get().getLeadersHireList, getLeadersHireListHooked},
         {LeadersForHireApi::get().addNobleLeaderToUI, addNobleLeaderToUIHooked},
@@ -536,6 +538,13 @@ static Hooks getGameHooks()
         {CMidServerLogicApi::get().processZeroTurn, processZeroTurnHooked, (void**)&orig.processZeroTurn},
         // SHOWATTACKEFFFECT, requestBattleEffect doen't work correctly. Don't use.
         {BattleViewerInterfApi::vftable()->showAttackEffect, showAttackEffectHooked, (void**)&orig.showAttackEffect},
+        //Fixed an issue where a unit with an attack of 3 or more would incorrectly reset the attackCount after using a block.
+        {CBatAttackDefendApi::vftable()->onHit, defendOnHitHooked},
+        {CBatAttackReviveApi::vftable()->onHit, reviveAttackOnHitHooked},
+        //Not used
+        {BattleViewerInterfApi::vftable()->battleEnd, battleEndHooked, (void**)&orig.battleEnd},
+        {battle.decreaseUnitAttacks, decreaseUnitAttacksHooked, (void**)&orig.decreaseUnitAttacks},
+        {CBatLogicApi::get().applyCBatAttackUntransformEffect, applyCBatAttackUntransformEffectHooked, (void**)&orig.applyCBatAttackUntransformEffect},
     };
     // clang-format on
 
@@ -563,8 +572,7 @@ static Hooks getGameHooks()
 
     //Alchemist can save extra aatacks
     if (userSettings().alchemistKeepsAttackCount != baseSettings().alchemistKeepsAttackCount) {
-        hooks.emplace_back(
-            HookInfo{CBatAttackGiveAttackApi::vftable()->onHit, giveAttackOnHitHooked});
+        //hooks.emplace_back(HookInfo{CBatAttackGiveAttackApi::vftable()->onHit, giveAttackOnHitHooked});
     }
 
     // Advanced cure
@@ -2792,22 +2800,6 @@ void __fastcall setUnitStatusHooked(const game::BattleMsgData* battleMsgData,
             }
             callLuaHook("OnUnitDeath", battle, objectMap, unitId);
         } else {
-            if (userSettings().reviveUsesQtyHeal != baseSettings().reviveUsesQtyHeal) {
-                const auto& turns = battle->turnsOrder;
-                const auto& fn = gameFunctions();
-
-                const auto* targetUnit = fn.findUnitById(objectMap, &turns[0].unitId);
-                const auto* curUnit = fn.findUnitById(objectMap, unitId);
-
-                if (targetUnit && targetUnit->unitImpl && curUnit) {
-                    if (const auto* attack = getAttack(targetUnit->unitImpl, true, false)) {
-                        int qtyHeal = attack->vftable->getQtyHeal(attack);
-                        if (qtyHeal) {
-                            VisitorApi::get().changeUnitHp(unitId, qtyHeal - curUnit->currentHp, objectMap, 1);
-                        }
-                    }
-                }
-            }
             callLuaHook("OnResurrection", battle, objectMap, unitId);
         }
         break;
@@ -3013,34 +3005,6 @@ void __fastcall boostDamageOnHitHooked(game::CBatAttackBoostDamage* thisptr,
     BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
 }
 
-bool __fastcall decreaseUnitAttacksHooked(game::BattleMsgData* battleMsgData,
-                                          int /*%edx*/,
-                                          const game::CMidgardID* unitId)
-{
-    using namespace game;
-
-    for (auto& turn : battleMsgData->turnsOrder) {
-        if (turn.unitId == *unitId) {
-            if (turn.attackCount < 1 || BattleMsgDataApi::get().getUnitStatus(battleMsgData, unitId, BattleStatus::Defend))
-                turn.attackCount = 1;
-
-            break;
-        }
-    }
-
-    return getOriginalFunctions().decreaseUnitAttacks(battleMsgData, unitId);
-}
-
-void __stdcall applyCBatAttackUntransformEffectHooked(game::IMidgardObjectMap* objectMap,
-    game::CMidgardID* unitId,
-    game::BattleMsgData* battleMsgData,
-    game::CResultSender* resultSender,
-    char sendResult)
-{
-    getOriginalFunctions().applyCBatAttackUntransformEffect(objectMap, unitId, battleMsgData,
-                                                            resultSender, sendResult);
-}
-
 void __fastcall showAttackEffectHooked(game::IBatViewer* thisptr,
     int /*%edx*/,
     const game::BattleMsgData* battleMsgData,
@@ -3062,66 +3026,110 @@ void __fastcall showAttackEffectHooked(game::IBatViewer* thisptr,
                                                     attackClass);
 }
 
-void requestBattleEffect(const game::CMidgardID& unitId, game::AttackEffect effect)
-{
-    g_pendingBattleEffects.push_back({unitId, effect});
-}
-
-bool addItemToMerchant(game::CMidSiteMerchant* merchant,
-                       const bindings::IdView& itemGlobalId,
-                       int amount)
+void __fastcall defendOnHitHooked(game::CBatAttackDefend* thisptr,
+                                  int /*%edx*/,
+                                  game::IMidgardObjectMap* objectMap,
+                                  game::BattleMsgData* battleMsgData,
+                                  game::CMidgardID* targetUnitId,
+                                  game::BattleAttackInfo** attackInfo)
 {
     using namespace game;
 
-    auto* objectMap = const_cast<IMidgardObjectMap*>(getObjectMap());
+    static const BattleMsgDataApi::Api& battleApi = BattleMsgDataApi::get();
 
-    if (!merchant || !objectMap)
-        return false;
+    while (battleApi.decreaseUnitAttacks(battleMsgData, &thisptr->unitId));
 
-    if (CMidgardIDApi::get().getType(&itemGlobalId.id) != IdType::ItemGlobal)
-        return false;
+    battleApi.setUnitStatus(battleMsgData, &thisptr->unitId, BattleStatus::Defend, true);
 
-    if (amount == 0)
-        return false;
+    const CMidUnit* unit = gameFunctions().findUnitById(objectMap, targetUnitId);
 
-    using ItemPair = Pair<CMidgardID, int>;
-    using Node = ListNode<ItemPair>;
+    BattleAttackUnitInfo info{};
+    info.unitId = *targetUnitId;
+    info.unitImplId = unit->unitImpl->id;
+    info.attackMissed = false;
+    info.damage = 0;
 
-    for (auto& pair : merchant->items) {
-        if (pair.first == itemGlobalId) {
-            pair.second += amount;
+    BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+}
 
-            if (pair.second <= 0) {
-                Node* nodeToDelete = reinterpret_cast<Node*>(reinterpret_cast<char*>(&pair) - offsetof(Node, data));
+void __fastcall reviveAttackOnHitHooked(game::CBatAttackRevive* thisptr,
+                                        int /*%edx*/,
+                                        game::IMidgardObjectMap* objectMap,
+                                        game::BattleMsgData* battleMsgData,
+                                        game::CMidgardID* targetUnitId,
+                                        game::BattleAttackInfo** attackInfo)
+{
+    using namespace game;
 
-                nodeToDelete->prev->next = nodeToDelete->next;
-                nodeToDelete->next->prev = nodeToDelete->prev;
-                --merchant->items.length;
+    static const auto& idApi = CMidgardIDApi::get();
+    static const auto& battleApi = BattleMsgDataApi::get();
+    static const auto& visitor = VisitorApi::get();
+    static const auto& fn = gameFunctions();
+    const auto& settings = userSettings();
 
-                delete nodeToDelete;
-            }
+    CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
+    if (!targetUnit)
+        return;
 
-            objectMap->vftable->findScenarioObjectByIdForChange(objectMap, &merchant->id);
-            return true;
-        }
+    UnitInfo* targetUnitInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
+
+    visitor.reviveUnit(&targetUnit->id, objectMap, 1);
+    targetUnitInfo->unitFlags.parts.revived = true;
+
+    int qtyHealed = 1;
+    const bool isItem = idApi.getType(&thisptr->attackImplUnitId) == IdType::Item;
+
+    if (!isItem && settings.reviveAttacksUsesQtyHeal == 1) {
+        const CMidUnit* reviveUnit = fn.findUnitById(objectMap, &thisptr->unitId);
+        const IAttack* attack = getAttack(reviveUnit->unitImpl, true, false);
+        const int qtyHeal = attack->vftable->getQtyHeal(attack);
+        if (qtyHeal)
+            qtyHealed = computeBoostedHeal(&thisptr->unitId, battleMsgData, qtyHeal);
+    } else {
+        const IAttack* reviveAttack = thisptr->attackImpl;
+        const int reviveQtyHeal = reviveAttack->vftable->getQtyHeal(reviveAttack);
+        const IUsSoldier* soldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
+        const int maxHp = soldier->vftable->getHitPoints(soldier);
+        int targetHp = reviveQtyHeal * maxHp / 100;
+
+        if (!isItem && settings.reviveAttacksUsesQtyHeal == 2)
+            targetHp = computeBoostedHeal(&thisptr->unitId, battleMsgData, reviveQtyHeal);
+
+        if (isItem && settings.reviveItemsUsesQtyHeal)
+            targetHp = reviveQtyHeal;
+
+        qtyHealed = targetHp;
     }
 
-    if (amount > 0) {
-        Node* newNode = new Node;
-        newNode->data = {itemGlobalId, amount};
+    visitor.changeUnitHp(targetUnitId, qtyHealed - 1, objectMap, 1);
 
-        Node* headNode = merchant->items.head;
-        newNode->next = headNode;
-        newNode->prev = headNode->prev;
-        headNode->prev->next = newNode;
-        headNode->prev = newNode;
-        ++merchant->items.length;
+    battleApi.setUnitStatus(battleMsgData, &targetUnit->id, BattleStatus::Dead, false);
+    battleApi.setUnitStatus(battleMsgData, &targetUnit->id, BattleStatus::XpCounted, false);
 
-        objectMap->vftable->findScenarioObjectByIdForChange(objectMap, &merchant->id);
-        return true;
-    }
+    battleApi.setUnitHp(battleMsgData, targetUnitId, targetUnit->currentHp);
 
-    return false;
+    BattleAttackUnitInfo info{};
+    info.unitId = targetUnit->id;
+    info.unitImplId = targetUnit->unitImpl->id;
+    BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+}
+
+//Not used
+bool __fastcall decreaseUnitAttacksHooked(game::BattleMsgData* battleMsgData,
+                                          int /*%edx*/,
+                                          const game::CMidgardID* unitId)
+{
+    return getOriginalFunctions().decreaseUnitAttacks(battleMsgData, unitId);
+}
+
+void __stdcall applyCBatAttackUntransformEffectHooked(game::IMidgardObjectMap* objectMap,
+                                                      game::CMidgardID* unitId,
+                                                      game::BattleMsgData* battleMsgData,
+                                                      game::CResultSender* resultSender,
+                                                      char sendResult)
+{
+    getOriginalFunctions().applyCBatAttackUntransformEffect(objectMap, unitId, battleMsgData,
+                                                            resultSender, sendResult);
 }
 
 } // namespace hooks

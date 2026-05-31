@@ -74,6 +74,10 @@
 #include <batlogichooks.h>
 #include <battleviewerinterfhooks.h>
 #include <batattackutils.h>
+#include <bagview.h>
+#include <midbag.h>
+#include <magetowerview.h>
+#include <midsitemage.h>
 
 namespace bindings {
 
@@ -156,6 +160,8 @@ void ScenarioView::bind(sol::state& lua)
     scenario["forEachTrainer"] = &ScenarioView::forEachTrainer;
     scenario["forEachMarket"] = &ScenarioView::forEachMarket;
     scenario["forEachLandmark"] = &ScenarioView::forEachLandmark;
+    scenario["forEachBag"] = &ScenarioView::forEachBag;
+    scenario["forEachMageTower"] = &ScenarioView::forEachMageTower;
 
     scenario["AddUnitXP"] = sol::overload<>(&ScenarioView::addUnitXP);
     scenario["Heal"] = sol::overload<>(&ScenarioView::heal);
@@ -165,6 +171,17 @@ void ScenarioView::bind(sol::state& lua)
     scenario["SetTransform"] = sol::overload<>(&ScenarioView::setTransform);
     scenario["addUnitXpWithUpgrade"] = sol::overload<>(&ScenarioView::addUnitXpWithUpgrade);
     scenario["GiveSkillPoint"] = &ScenarioView::giveSkillPoint;
+    scenario["CreateRod"] = &ScenarioView::createRod;
+
+    scenario["getBag"] = sol::overload<>(&ScenarioView::getBag, &ScenarioView::getBagById,
+                                           &ScenarioView::getBagByCoordinates,
+                                           &ScenarioView::getBagByPoint);
+    scenario["getMageTower"] = sol::overload<>(&ScenarioView::getMageTower,
+                                               &ScenarioView::getMageTowerById,
+                                               &ScenarioView::getMageTowerByCoordinates,
+                                               &ScenarioView::getMageTowerByPoint);
+    scenario["SetVariable"] = sol::overload<>(&ScenarioView::setVariableByName,
+                                              &ScenarioView::setVariableById);
 }
 
 std::optional<LocationView> ScenarioView::getLocation(const std::string& id) const
@@ -1478,6 +1495,190 @@ bool ScenarioView::giveSkillPoint(const IdView& stackId, int amout)
 
     return true;
 
+}
+
+std::optional<BagView> ScenarioView::getBag(const std::string& id) const
+{
+    return getBagById(IdView{id});
+}
+
+std::optional<BagView> ScenarioView::getBagById(const IdView& id) const
+{
+    using namespace game;
+
+    if (!objectMap) {
+        return std::nullopt;
+    }
+
+    auto obj = objectMap->vftable->findScenarioObjectById(objectMap, &id.id);
+    if (!obj) {
+        return std::nullopt;
+    }
+
+    CMidBag* bag{static_cast<CMidBag*>(obj)};
+    if (!bag) {
+        return std::nullopt;
+    }
+
+    return BagView{bag, objectMap};
+}
+
+std::optional<BagView> ScenarioView::getBagByCoordinates(int x, int y) const
+{
+    auto bagId = getObjectId(x, y, game::IdType::Bag);
+    if (!bagId) {
+        return std::nullopt;
+    }
+
+    return getBagById(IdView{bagId});
+}
+
+std::optional<BagView> ScenarioView::getBagByPoint(const Point& p) const
+{
+    return getBagByCoordinates(p.x, p.y);
+}
+
+void ScenarioView::forEachBag(const std::function<void(const BagView&)>& callback) const
+{
+    if (!objectMap) {
+        return;
+    }
+
+    using namespace game;
+
+    auto runCallback = [this, &callback](const IMidScenarioObject* obj) {
+        auto* bag{static_cast<const CMidBag*>(obj)};
+
+        const BagView bagView{bag, objectMap};
+        callback(bagView);
+    };
+
+    hooks::forEachScenarioObject(objectMap, IdType::Bag, runCallback);
+}
+
+//Mage Tower
+std::optional<MageTowerView> ScenarioView::getMageTower(const std::string& id) const
+{
+    return getMageTowerById(IdView{id});
+}
+
+std::optional<MageTowerView> ScenarioView::getMageTowerById(const IdView& id) const
+{
+    using namespace game;
+
+    if (!objectMap) {
+        return std::nullopt;
+    }
+
+    if (CMidgardIDApi::get().getType(&id.id) != IdType::Site) {
+        return std::nullopt;
+    }
+
+    auto obj = objectMap->vftable->findScenarioObjectById(objectMap, &id.id);
+    if (!obj) {
+        return std::nullopt;
+    }
+
+    auto site = static_cast<const CMidSite*>(obj);
+    if (site->siteCategory.id != SiteCategories::get().mageTower->id) {
+        return std::nullopt;
+    }
+
+    return MageTowerView{static_cast<const CMidSiteMage*>(site), objectMap};
+}
+
+std::optional<MageTowerView> ScenarioView::getMageTowerByCoordinates(int x, int y) const
+{
+    auto mageId = getObjectId(x, y, game::IdType::Site);
+    if (!mageId) {
+        return std::nullopt;
+    }
+
+    return getMageTowerById(IdView{mageId});
+}
+
+std::optional<MageTowerView> ScenarioView::getMageTowerByPoint(const Point& p) const
+{
+    return getMageTowerByCoordinates(p.x, p.y);
+}
+
+void ScenarioView::forEachMageTower(const std::function<void(const MageTowerView&)>& callback) const
+{
+    if (!objectMap) {
+        return;
+    }
+
+    using namespace game;
+
+    const auto mageId{SiteCategories::get().mageTower->id};
+
+    auto runCallback = [this, &callback, &mageId](const IMidScenarioObject* obj) {
+        const auto* site{static_cast<const CMidSite*>(obj)};
+        if (site->siteCategory.id != mageId) {
+            return;
+        }
+
+        const MageTowerView view{static_cast<const CMidSiteMage*>(site), objectMap};
+        callback(view);
+    };
+
+    hooks::forEachScenarioObject(objectMap, IdType::Site, runCallback);
+}
+
+bool ScenarioView::setVariableByName(const std::string& id, int value)
+{
+    using namespace game;
+
+    CMidScenVariables* variables = const_cast<CMidScenVariables*>(
+        hooks::getScenarioVariables(objectMap));
+
+    if (!variables)
+        return false;
+
+    for (auto it = variables->variables.begin(); it != variables->variables.end(); ++it) {
+        if (strcmp(it->second.name, id.c_str()) == 0) {
+            it->second.value = value;
+        }
+    }
+
+    return true;
+}
+
+bool ScenarioView::setVariableById(const int id, int value)
+{
+    using namespace game;
+
+    CMidScenVariables* variables = const_cast<CMidScenVariables*>(hooks::getScenarioVariables(objectMap));
+
+    if (!variables)
+        return false;
+
+    auto& scenVariablesApi = CMidScenVariablesApi::get();
+
+    ScenarioVariableData* data = scenVariablesApi.findById(variables, id);
+    if (data) {
+        data->value = value;
+        return true;
+    }
+
+    return false;
+}
+
+bool ScenarioView::createRod(IdView& ownerId, int x, int y)
+{
+    using namespace game;
+
+    const auto &visitor = VisitorApi::get();
+
+    const auto pos = CMqPoint{x, y};
+
+    const auto obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    visitor.createRod(&ownerId.id, &pos, obj, 1);
+
+    const auto& terrains = TerrainCategories::get();
+
+    return true;
 }
 
 } // namespace bindings

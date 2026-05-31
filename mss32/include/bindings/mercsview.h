@@ -25,6 +25,7 @@
 
 namespace game {
 struct CMidSiteMercs;
+struct MercenaryUnit;
 }
 
 namespace bindings {
@@ -32,16 +33,17 @@ namespace bindings {
 class MercenaryUnitView
 {
 public:
-    MercenaryUnitView(const game::CMidgardID& unitImplId, bool unique);
-
+    MercenaryUnitView(game::MercenaryUnit* mercUnit);
+    
     static void bind(sol::state& lua);
 
     UnitImplView getImpl() const;
     bool isUnique() const;
+    int getLevel() const;
+    void setUnique(bool value);
 
 private:
-    game::CMidgardID unitImplId;
-    bool unique;
+    game::MercenaryUnit* mercUnit;
 };
 
 class MercsView : public SiteView
@@ -52,6 +54,12 @@ public:
     static void bind(sol::state& lua);
 
     std::vector<MercenaryUnitView> getUnits() const;
+
+    bool addUnit(const IdView& unitImplId, int level, bool unique);
+    bool addUnitByString(const std::string& id, int level, bool unique);
+
+    bool removeUnit(const IdView& unitImplId, int level);
+    bool removeUnitById(const std::string& id, int level);
 };
 
 } // namespace bindings

@@ -50,6 +50,7 @@
 #include <hooks.h>
 
 #include <unitgenerator.h>
+#include <midgardobjectmap.h>
 
 namespace bindings {
 
@@ -552,7 +553,11 @@ int BattleMsgDataView::heal(const IdView& unitId, int value)
         return 0;
 
     auto* objectMap = const_cast<IMidgardObjectMap*>(hooks::getObjectMap());
-    CMidUnit* targetUnit = gameFunctions().findUnitById(objectMap, &unitId.id);
+    //CMidUnit* targetUnit = gameFunctions().findUnitById(objectMap, &unitId.id);
+
+    CMidUnit* targetUnit = static_cast<CMidUnit*>(
+        objectMap->vftable->findScenarioObjectByIdForChange(objectMap, &unitId.id));
+
     if (!targetUnit)
         return 0;
 
@@ -855,6 +860,26 @@ bool BattleMsgDataView::cure(const IdView& unitId)
 
     if (!battleApi.getUnitInfoById(battleMsgData, &unitId.id)) {
         return false;
+    }
+
+    battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Blister, false);
+    battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::BlisterLong, false);
+    battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Frostbite, false);
+    battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::FrostbiteLong, false);
+    battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Poison, false);
+    battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::PoisonLong, false);
+    battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Paralyze, false);
+    battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Petrify, false);
+    battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::DisableLong, false);
+
+    bool settings = hooks::userSettings().advancedCure != hooks::baseSettings().advancedCure;
+    if (settings)
+    {
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerDamageLvl1, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerDamageLvl2, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerDamageLong, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerInitiative, false);
+        battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerInitiativeLong, false);
     }
 
     battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Cured, true);

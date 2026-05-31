@@ -28,6 +28,7 @@ struct CScenarioVisitorVftable;
 struct LAttitudesCategory;
 struct LItemCategory;
 struct LSiteCategory;
+struct LTerrainCategory;
 struct CMqPoint;
 struct CMidStack;
 
@@ -193,6 +194,90 @@ struct Api
                                                   IMidgardObjectMap* objectMap,
                                                   int apply);
     ExtractUnitFromGroup extractUnitFromGroup;
+
+    /**
+     * Reinserts unit back into group.
+     * Uses CVisitorReinsertUnitIntoGroup.
+     * @param[in] unitId id of unit to reinsert.
+     * @param[in] groupId id of group to reinsert into.
+     * @param[in] objectMap interface used for objects search.
+     * @param apply specifies whether unit reinsertion should be applied.
+     * @returns true if unit was reinserted when apply set to 1. If apply set to 0, returns whether
+     * visitor can be applied.
+     */
+    using ReinsertUnitIntoGroup = bool(__stdcall*)(const CMidgardID* unitId,
+                                                   const CMidgardID* groupId,
+                                                   int position,
+                                                   IMidgardObjectMap* objectMap,
+                                                   int apply);
+    ReinsertUnitIntoGroup reinsertUnitIntoGroup;
+
+    /**
+    * Swap unit position. Can't swap if firstPosition is empty and secondPosition is a small unit.
+    * Uses CVisitorSwapUnitPosition.
+    * @param firstPosition unit position in group.
+    * @param[in] stackId id of group. Can be stack->id, fort->id, ruin->id.
+    * @param firstPosition position in group.
+    * @param[in] otherStackId id of group. Can be stack->id, fort->id, ruin->id.
+    * @param[in] objectMap interface used for objects search.
+    * @returns true if player attitude was changed when apply set to 1. If apply set to 0, returns
+    * whether visitor can be applied. 
+    **/
+
+    using SwapUnitPosition = bool(__stdcall*)(int firstPosition, const CMidgardID* stackId, int secondPosition, const CMidgardID* otherStackId, IMidgardObjectMap* objectMap, int apply);
+    SwapUnitPosition swapUnitPosition;
+
+    using ReviveUnit = bool(__stdcall*)(const CMidgardID* unitId,
+                                        IMidgardObjectMap* objectMap,
+                                        int apply);
+    ReviveUnit reviveUnit;
+
+
+    /**
+    * Create item and add to inventory.
+    * Uses CVisitorCreateItem.
+    * @param[in] itemImplId id of the item impl to create.
+    * @param[in] ownerId id of the owner. It can be stack, fort, bag.
+    * @param[in] objectMap interface used for objects search.
+    * @param apply specifies whether unit reinsertion should be applied.
+    * @returns true if unit was reinserted when apply set to 1. If apply set to 0, returns whether
+    * visitor can be applied.
+    **/
+    using CreateItem = bool(__stdcall*)(const CMidgardID* ownerId,
+                                        const CMidgardID* itemImplId,
+                                        IMidgardObjectMap* objectMap,
+                                        int apply);
+    CreateItem createItem;
+
+    using DestroyItem = bool(__stdcall*)(const CMidgardID* ownerId,
+                                         const CMidgardID* itemId,
+                                         IMidgardObjectMap* objectMap,
+                                         int apply);
+    DestroyItem destroyItem;
+
+    using MerchantAddItem = bool(__stdcall*)(const CMidgardID* merchantId,
+                                             const CMidgardID* itemImplId,
+                                             int amount,
+                                             IMidgardObjectMap* objectMap,
+                                             int apply);
+    MerchantAddItem merchantAddItem;
+
+    using MerchantDelItem = bool(__stdcall*)(const CMidgardID* merchantId,
+                                             const CMidgardID* itemImplId,
+                                             IMidgardObjectMap* objectMap,
+                                             int apply);
+    MerchantDelItem merchantDelItem;
+
+    using CreateRod = bool(__stdcall*)(const CMidgardID* ownerId, 
+                                       const CMqPoint* position, 
+                                       IMidgardObjectMap* objectMap, 
+                                       int apply);
+    CreateRod createRod;
+
+    using DestroyRod = bool(__stdcall*)(const CMidgardID* rodId,
+                                        IMidgardObjectMap* objectMap,
+                                        int apply);
+    DestroyRod destroyRod;
 
     /**
      * Changes player attitude.

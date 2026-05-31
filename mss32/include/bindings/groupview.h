@@ -22,6 +22,7 @@
 
 #include "idview.h"
 #include <vector>
+#include <optional>
 
 namespace sol {
 class state;
@@ -62,6 +63,11 @@ public:
     int getUnitPositionById(const bindings::IdView& unitId) const;
 
     int getSubrace() const;
+
+    bool removeUnit(const IdView& unit);
+    std::optional<UnitView> addUnit(const IdView& unitImplId, int position, int level);
+
+    bool moveUnitInGroup(int fromSlot, int toSlot, const IdView& groupId);
 
 protected:
     const game::CMidUnitGroup* group;

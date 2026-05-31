@@ -29,7 +29,16 @@
 #include "midunitgroup.h"
 #include "unitslotview.h"
 #include "unitview.h"
+#include "visitors.h"
 #include <sol/sol.hpp>
+#include <variant>
+
+#include <unitutils.h>
+#include <ussoldier.h>
+#include <usunit.h>
+#include <unitgenerator.h>
+#include <scenarioinfo.h>
+#include <midunit.h>
 
 namespace bindings {
 
@@ -51,6 +60,12 @@ void GroupView::bind(sol::state& lua)
     group["getUnitPosition"] = sol::overload<>(&GroupView::getUnitPosition,
                                                &GroupView::getUnitPositionById);
     group["subrace"] = sol::property(&GroupView::getSubrace);
+    group["AddUnit"] = &GroupView::addUnit;
+    group["RemoveUnit"] = &GroupView::removeUnit;
+    ///[](MercsView& self, const IdView& id, int level) { return self.addUnit(id, level, false); },
+    group["SwapSlots"] = sol::overload(&GroupView::moveUnitInGroup, 
+        [](GroupView& self, int fromSlot, int toSlot) { return self.moveUnitInGroup(fromSlot, toSlot, self.groupId);
+    });
 }
 
 IdView GroupView::getId() const
@@ -148,6 +163,113 @@ int GroupView::getSubrace() const
     }
 
     return game::emptyCategoryId;
+}
+
+std::optional<UnitView> GroupView::addUnit(const IdView& unitImplId, int position, int level)
+{ 
+    using namespace game;
+
+    const auto& globalApi = GlobalDataApi::get();
+    const auto globalData = *globalApi.getGlobalData();
+    static const auto& visitor = VisitorApi::get();
+
+    IMidgardObjectMap* obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    IUsUnit* unit = (IUsUnit*)globalApi.findById(globalData->units, &unitImplId.id);
+    IUsSoldier* soldier = gameFunctions().castUnitImplToSoldier(unit);
+    bool isSmall = soldier->vftable->getSizeSmall(soldier);
+
+    int pos = position;
+    auto positions = group->positions;
+
+    if (pos < 0) {
+        if (!isSmall) {
+            for (int bigSlot : {0, 2, 4}) {
+                if (positions[bigSlot] == emptyId && positions[bigSlot + 1] == emptyId) {
+                    pos = bigSlot;
+                    break;
+                }
+            }
+        } else {
+            for (int i = 0; i < 6; i++) {
+                if (positions[i] == emptyId) {
+                    pos = i;
+                    break;
+                }
+            }
+        }
+        if (pos < 0)
+            return std::nullopt;
+    } else {
+        if (isSmall) {
+            if (positions[pos] != emptyId)
+                return std::nullopt;
+        } else {
+            if (pos % 2 != 0) {
+                pos = pos - 1;
+            }
+            if (pos > 4 || positions[pos] != emptyId || positions[pos + 1] != emptyId) {
+                return std::nullopt;
+            }
+        }
+    }
+
+    CMidgardID implId = unitImplId.id;
+    if (level > 0) {
+        CUnitGenerator* unitGenerator = globalData->unitGenerator;
+        CMidgardID genId{};
+        int lvl = std::min(level, hooks::getGeneratedUnitImplLevelMax());
+        unitGenerator->vftable->generateUnitImplId(unitGenerator, &genId, &implId, lvl);
+        if (genId != implId && unitGenerator->vftable->isUnitGenerated(unitGenerator, &genId)) {
+            if (unitGenerator->vftable->generateUnitImpl(unitGenerator, &genId)) {
+                implId = genId;
+            }
+        }
+    }
+
+    int creationTurn = hooks::getScenarioInfo(objectMap)->currentTurn;
+
+    if (!visitor.addUnitToGroup(&implId, &groupId, pos, &creationTurn, 1, obj, 1))
+        return std::nullopt;
+
+    return UnitView(game::gameFunctions().findUnitById(objectMap, &group->positions[pos]));
+}
+
+bool GroupView::removeUnit(const IdView& unit)
+{ 
+    using namespace game;
+
+    static const auto& visitor = VisitorApi::get();
+    IMidgardObjectMap* obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    const auto type = CMidgardIDApi::get().getType(&groupId);
+
+    if (type != IdType::Stack && type != IdType::Fortification && type != IdType::Ruin)
+        return false;
+    
+    if (type == IdType::Stack)
+    {
+        CMidStack* stack = hooks::getStack(objectMap, &groupId);
+        if (stack->leaderId == unit.id)
+            return false;
+    }
+
+    return visitor.extractUnitFromGroup(&unit.id, &groupId, obj, 1);
+}
+
+bool GroupView::moveUnitInGroup(int fromSlot, int toSlot, const IdView& toGroupId)
+{
+    using namespace game;
+
+    static const auto& visitor = VisitorApi::get();
+    const auto& idApi = CMidgardIDApi::get();
+    const auto& unitGroupApi = CMidUnitGroupApi::get();
+
+    IMidgardObjectMap* obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    if (visitor.swapUnitPosition(fromSlot, &groupId, toSlot, &toGroupId.id, obj, 0))
+        return visitor.swapUnitPosition(fromSlot, &groupId, toSlot, &toGroupId.id, obj, 1);
+    return visitor.swapUnitPosition(toSlot, &toGroupId.id, fromSlot, &groupId, obj, 1);
 }
 
 } // namespace bindings

@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
- * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2022 Vladimir Makeev.
+ * (https://github.com/Rapthos/Experimental-version)
+ * Copyright (C) 2026 Rapthos.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,45 +17,34 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RODVIEW_H
-#define RODVIEW_H
+#ifndef MAGETOWERVIEW_H
+#define MAGETOWERVIEW_H
 
 #include "idview.h"
-#include "point.h"
-#include <optional>
-
-namespace sol {
-class state;
-}
+#include "siteview.h"
 
 namespace game {
-struct CMidRod;
-struct IMidgardObjectMap;
-} // namespace game
+struct CMidSiteMage;
+}
 
 namespace bindings {
 
-class PlayerView;
-
-class RodView
+class MageTowerView : public SiteView
 {
 public:
-    RodView(const game::CMidRod* rod, const game::IMidgardObjectMap* objectMap);
+    MageTowerView(const game::CMidSiteMage* mage, const game::IMidgardObjectMap* objectMap);
 
     static void bind(sol::state& lua);
 
-    IdView getId() const;
-    Point getPosition() const;
-    std::optional<PlayerView> getOwner() const;
+    std::vector<IdView> getSpells() const;
 
-    bool destroyRod();
-    bool changeOwner(const IdView& ownerId);
+    bool addSpell(const IdView& spellId);
+    bool addSpellByString(const std::string& spellId);
 
-private:
-    const game::CMidRod* rod;
-    const game::IMidgardObjectMap* objectMap;
+    bool removeSpell(const IdView& spellId);
+    bool removeSpellByString(const std::string& spellId);
 };
 
 } // namespace bindings
 
-#endif // RODVIEW_H
+#endif // MAGETOWERVIEW_H

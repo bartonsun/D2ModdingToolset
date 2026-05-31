@@ -175,6 +175,8 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\autodialogfile.cpp" />
     <ClCompile Include="src\autodialoghooks.cpp" />
     <ClCompile Include="src\autoptr.cpp" />
+    <ClCompile Include="src\bindings\bagview.cpp" />
+    <ClCompile Include="src\magetowerview.cpp" />
     <ClCompile Include="src\batattackbestowwards.cpp" />
     <ClCompile Include="src\batattackblister.cpp" />
     <ClCompile Include="src\batattackfrostbite.cpp" />
@@ -183,6 +185,9 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\dotattackhooks.cpp" />
     <ClCompile Include="src\batattacklowerdamage.cpp" />
     <ClCompile Include="src\batattackboostdamage.cpp" />
+    <ClCompile Include="src\batattackdefend.cpp" />
+    <ClCompile Include="src\batattackcure.cpp" />
+    <ClCompile Include="src\batattackrevive.cpp" />
     <ClCompile Include="src\batattackdoppelganger.cpp" />
     <ClCompile Include="src\batattackdrain.cpp" />
     <ClCompile Include="src\batattackdrainlevel.cpp" />
@@ -719,6 +724,8 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\autodialoghooks.h" />
     <ClInclude Include="include\autoptr.h" />
     <ClInclude Include="include\avoidflickerimage.h" />
+    <ClInclude Include="include\bindings\bagview.h" />
+    <ClInclude Include="include\magetowerview.h" />
     <ClInclude Include="include\batattack.h" />
     <ClInclude Include="include\batattackbestowwards.h" />
     <ClInclude Include="include\batattackblister.h" />
@@ -728,6 +735,9 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\dotattackhooks.h" />
     <ClInclude Include="include\batattacklowerdamage.h" />
     <ClInclude Include="include\batattackboostdamage.h" />
+    <ClInclude Include="include\batattackdefend.h" />
+    <ClInclude Include="include\batattackcure.h" />
+    <ClInclude Include="include\batattackrevive.h" />
     <ClInclude Include="include\batattackdoppelganger.h" />
     <ClInclude Include="include\batattackdrain.h" />
     <ClInclude Include="include\batattackdrainlevel.h" />

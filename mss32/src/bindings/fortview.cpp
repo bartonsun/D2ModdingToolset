@@ -21,9 +21,14 @@
 #include "fortification.h"
 #include "gameutils.h"
 #include "itemview.h"
+#include "hooks.h"
 #include "midgardobjectmap.h"
 #include "midsubrace.h"
 #include "stackview.h"
+#include "visitors.h"
+#include "miditem.h"
+#include "midinventory.h"
+#include "idvector.h"
 #include <sol/sol.hpp>
 
 namespace bindings {
@@ -46,6 +51,7 @@ void FortView::bind(sol::state& lua)
     fortView["inventory"] = sol::property(&FortView::getInventoryItems);
     fortView["capital"] = sol::property(&FortView::isCapital);
     fortView["tier"] = sol::property(&FortView::getTier);
+    fortView["AddItem"] = sol::overload<>(&FortView::addItem, &FortView::addItemByString);
 }
 
 IdView FortView::getId() const
@@ -123,6 +129,61 @@ int FortView::getTier() const
     const auto* vftable{static_cast<const game::CFortificationVftable*>(fort->vftable)};
 
     return vftable->getTier(fort, objectMap);
+}
+
+bool FortView::addItem(const IdView& itemId, int amount)
+{
+    using namespace game;
+
+    if (amount == 0)
+        return false;
+
+    static const auto& visitor = VisitorApi::get();
+
+    const auto obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    if (amount > 0) {
+        for (int i = 0; i < amount; i++) {
+            if (!visitor.createItem(&fort->id, &itemId.id, obj, 1))
+                return false;
+        }
+        return true;
+    }
+
+    const int toRemove = -amount;
+    int removed = 0;
+
+    const CMidItem* item = static_cast<const CMidItem*>(objectMap->vftable->findScenarioObjectById(objectMap, &itemId.id));
+
+    if (item == nullptr) {
+        auto inv = fort->inventory;
+        const int count = static_cast<int>(inv.items.end - inv.items.bgn);
+        for (int i = count - 1; i >= 0 && removed < toRemove; i--) {
+            const CMidgardID& instanceId = inv.items.bgn[i];
+
+            const IMidScenarioObject* obj2 = objectMap->vftable->findScenarioObjectById(objectMap, &instanceId);
+            if (!obj2)
+                continue;
+
+            const CMidItem* invItem = static_cast<const CMidItem*>(obj2);
+            if (invItem->globalItemId != itemId.id)
+                continue;
+
+            if (!visitor.destroyItem(&fort->id, &instanceId, obj, 1))
+                return false;
+
+            removed++;
+        }
+    } else {
+        return visitor.destroyItem(&fort->id, &itemId.id, obj, 1);
+    }
+
+    return removed == toRemove;
+}
+
+bool FortView::addItemByString(const std::string& itemId, int amount)
+{
+    return addItem(IdView{itemId}, amount);
 }
 
 } // namespace bindings

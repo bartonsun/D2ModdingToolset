@@ -45,6 +45,8 @@ struct CBuildingBranch;
 struct IUsSoldier;
 struct IMidgardObjectMap;
 struct BattleMsgData;
+struct CBatAttackDefend;
+struct CBatAttackRevive;
 struct CBatAttackGiveAttack;
 struct CBatAttackShatter;
 struct BattleAttackInfo;
@@ -371,11 +373,19 @@ void __fastcall showAttackEffectHooked(game::IBatViewer* thisptr,
                                        const game::BattleAttackInfo** attackInfo,
                                        const game::LAttackClass* attackClass);
 
-void requestBattleEffect(const game::CMidgardID& unitId, game::AttackEffect effect);
+void __fastcall defendOnHitHooked(game::CBatAttackDefend* thisptr,
+                                  int /*%edx*/,
+                                  game::IMidgardObjectMap* objectMap,
+                                  game::BattleMsgData* battleMsgData,
+                                  game::CMidgardID* targetUnitId,
+                                  game::BattleAttackInfo** attackInfo);
 
-bool addItemToMerchant(game::CMidSiteMerchant* merchant, const bindings::IdView& itemGlobalId,
-                       int amount);
-
+void __fastcall reviveAttackOnHitHooked(game::CBatAttackRevive* thisptr,
+                                  int /*%edx*/,
+                                  game::IMidgardObjectMap* objectMap,
+                                  game::BattleMsgData* battleMsgData,
+                                  game::CMidgardID* targetUnitId,
+                                  game::BattleAttackInfo** attackInfo);
 } // namespace hooks
 
 #endif // HOOKS_H

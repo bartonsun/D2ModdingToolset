@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
- * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2022 Stanislav Egorov.
+ * (https://github.com/Rapthos/Experimental-version)
+ * Copyright (C) 2026 Rapthos.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FORTVIEW_H
-#define FORTVIEW_H
+#ifndef BAGTVIEW_H
+#define BAGTVIEW_H
 
 #include "groupview.h"
 #include "idview.h"
@@ -32,42 +32,34 @@ class state;
 }
 
 namespace game {
-struct CFortification;
+struct CMidBag;
 struct IMidgardObjectMap;
 } // namespace game
 
 namespace bindings {
 
-class StackView;
 class ItemView;
 
-class FortView
+class BagView
 {
 public:
-    FortView(const game::CFortification* fort, const game::IMidgardObjectMap* objectMap);
+    BagView(const game::CMidBag* bag, const game::IMidgardObjectMap* objectMap);
 
     static void bind(sol::state& lua);
 
     IdView getId() const;
     Point getPosition() const;
-    Point getEntrance() const;
-    std::optional<PlayerView> getOwner() const;
-    GroupView getGroup() const;
-    std::optional<StackView> getVisitor() const;
-    int getSubrace() const;
+    int BagView::getImage();
     std::vector<ItemView> getInventoryItems() const;
-
-    bool isCapital() const;
-    int getTier() const;
 
     bool addItem(const IdView& itemId, int amount);
     bool addItemByString(const std::string& itemId, int amount);
 
 private:
-    const game::CFortification* fort;
+    const game::CMidBag* bag;
     const game::IMidgardObjectMap* objectMap;
 };
 
 } // namespace bindings
 
-#endif // FORTVIEW_H
+#endif // BAGVIEW_H

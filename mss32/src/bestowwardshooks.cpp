@@ -211,8 +211,7 @@ bool __fastcall bestowWardsAttackIsImmuneHooked(game::CBatAttackBestowWards* thi
         return false;
     }
 
-    IAttack* attack = fn.getAttackById(objectMap, &thisptr->attackImplUnitId, thisptr->attackNumber,
-                                       false);
+    IAttack* attack = fn.getAttackById(objectMap, &thisptr->attackImplUnitId, thisptr->attackNumber, false);
 
     if (!attack) {
         return false;

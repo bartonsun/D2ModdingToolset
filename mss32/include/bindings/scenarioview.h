@@ -43,6 +43,7 @@ class LocationView;
 class ScenVariablesView;
 class TileView;
 class StackView;
+class BagView;
 class FortView;
 class RuinView;
 class UnitView;
@@ -51,6 +52,7 @@ class RodView;
 class DiplomacyView;
 class ItemView;
 class CrystalView;
+class MageTowerView;
 class MerchantView;
 class MercsView;
 class TrainerView;
@@ -89,6 +91,15 @@ public:
     std::optional<StackView> getStackByCoordinates(int x, int y) const;
     /** Searches for stack at specified point. */
     std::optional<StackView> getStackByPoint(const Point& p) const;
+
+    /** Searches for bag by id string. */
+    std::optional<BagView> getBag(const std::string& id) const;
+    /** Searches for bag by id. */
+    std::optional<BagView> getBagById(const IdView& id) const;
+    /** Searches for bag by coordinate pair. */
+    std::optional<BagView> getBagByCoordinates(int x, int y) const;
+    /** Searches for bag at specified point. */
+    std::optional<BagView> getBagByPoint(const Point& p) const;
 
     /** Searches for fort by id string. */
     std::optional<FortView> getFort(const std::string& id) const;
@@ -140,6 +151,15 @@ public:
     std::optional<CrystalView> getCrystalByCoordinates(int x, int y) const;
     /** Searches for crystal at specified point. */
     std::optional<CrystalView> getCrystalByPoint(const Point& p) const;
+
+    /** Searches for magetower by id string. */
+    std::optional<MageTowerView> getMageTower(const std::string& id) const;
+    /** Searches for magetower by id. */
+    std::optional<MageTowerView> getMageTowerById(const IdView& id) const;
+    /** Searches for magetower by coordinate pair. */
+    std::optional<MageTowerView> getMageTowerByCoordinates(int x, int y) const;
+    /** Searches for magetower at specified point. */
+    std::optional<MageTowerView> getMageTowerByPoint(const Point& p) const;
 
     /** Searches for merchant by id string. */
     std::optional<MerchantView> getMerchant(const std::string& id) const;
@@ -227,6 +247,8 @@ public:
     void forEachTrainer(const std::function<void(const TrainerView&)>& callback) const;
     void forEachMarket(const std::function<void(const ResourceMarketView&)>& callback) const;
     void forEachLandmark(const std::function<void(const LandmarkView&)>& callback) const;
+    void forEachBag(const std::function<void(const BagView&)>& callback) const;
+    void forEachMageTower(const std::function<void(const MageTowerView&)>& callback) const;
 
     int addUnitXP(const IdView& unitId, int value);
     bool heal(const IdView& unitId, int value);
@@ -238,7 +260,12 @@ public:
     bool addUnitXpWithUpgrade(const IdView& unitId, int exp);
     bool giveSkillPoint(const IdView& stackId, int amout);
 
-private:
+    bool setVariableByName(const std::string& id, int value);
+    bool setVariableById(const int id, int value);
+
+    bool createRod(IdView& ownerId, int x, int y);
+
+ private:
     const game::CMidgardID* getObjectId(int x, int y, game::IdType type) const;
 
     const game::IMidgardObjectMap* objectMap;

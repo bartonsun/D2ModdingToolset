@@ -73,7 +73,6 @@ namespace hooks {
         return result;
     }
 
-
     bool __fastcall blisterCanPerformHooked(game::CBatAttackBlister* thisptr,
                                             int /*%edx*/,
                                             game::IMidgardObjectMap* objectMap,
@@ -93,6 +92,10 @@ namespace hooks {
             // Can't target allies
             return false;
         }
+
+        if (BattleMsgDataApi::get().getUnitStatus(battleMsgData, targetUnitId,
+                                                  BattleStatus::Retreat))
+            return false;
 
         return true;
     }
@@ -117,6 +120,10 @@ namespace hooks {
             return false;
         }
 
+        if (BattleMsgDataApi::get().getUnitStatus(battleMsgData, targetUnitId,
+                                                  BattleStatus::Retreat))
+            return false;
+
         return true;
     }
 
@@ -139,6 +146,10 @@ namespace hooks {
             // Can't target allies
             return false;
         }
+
+        if (BattleMsgDataApi::get().getUnitStatus(battleMsgData, targetUnitId,
+                                                  BattleStatus::Retreat))
+            return false;
 
         return true;
     }

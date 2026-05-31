@@ -424,7 +424,8 @@ static void readSettings(const sol::table& table, Settings& settings)
     settings.fixEffectiveHpFormula = readSetting(table, "fixEffectiveHpFormula", defaultSettings().fixEffectiveHpFormula);
     settings.alchemistKeepsAttackCount = readSetting(table, "alchemistKeepsAttackCount", defaultSettings().alchemistKeepsAttackCount);
     settings.instantBuffRemoval = readSetting(table, "instantBuffRemoval", defaultSettings().instantBuffRemoval);
-    settings.reviveUsesQtyHeal = readSetting(table, "reviveUsesQtyHeal", defaultSettings().reviveUsesQtyHeal);
+    settings.reviveAttacksUsesQtyHeal = readSetting(table, "reviveAttacksUsesQtyHeal", defaultSettings().reviveAttacksUsesQtyHeal);
+    settings.reviveItemsUsesQtyHeal = readSetting(table, "reviveItemsUsesQtyHeal", defaultSettings().reviveItemsUsesQtyHeal);
     settings.advancedCure = readSetting(table, "advancedCure", defaultSettings().advancedCure);
     // People keep forgetting to turn this off in release packages
     //settings.debugMode = readSetting(table, "debugHooks", defaultSettings().debugMode);
@@ -539,7 +540,8 @@ const Settings& baseSettings()
 
         settings.alchemistKeepsAttackCount = false;
         settings.instantBuffRemoval = false;
-        settings.reviveUsesQtyHeal = false;
+        settings.reviveAttacksUsesQtyHeal = 0;
+        settings.reviveItemsUsesQtyHeal = false;
         settings.advancedCure = false;
 
         settings.extendedBattle.dotDamageCanStack = false;

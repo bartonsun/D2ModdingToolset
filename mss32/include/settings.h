@@ -227,7 +227,8 @@ struct Settings
 
     bool alchemistKeepsAttackCount;
     bool instantBuffRemoval;
-    bool reviveUsesQtyHeal;
+    int reviveAttacksUsesQtyHeal;
+    bool reviveItemsUsesQtyHeal;
     bool advancedCure;
 
     struct ExtendedBattle
