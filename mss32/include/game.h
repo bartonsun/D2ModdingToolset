@@ -86,6 +86,7 @@ struct LSiteCategory;
 struct CMidSite;
 struct CTextBoxInterf;
 struct CCmdNobleResultMsg;
+struct CMidServerLogicData;
 
 enum class ModifierElementTypeFlag : int;
 
@@ -776,6 +777,7 @@ using FindCapitalByPlayerId = game::CFortification*(__stdcall*)(game::CMidgardID
                                                                 game::IMidgardObjectMap* objectMap);
 
 
+
 /**
  * Handles keyboard input in strategy map interface.
  * @returns 1 if key was processed, 0 otherwise.
@@ -789,6 +791,20 @@ using StratInterfKeyHandler = int(__thiscall*)(void* thisPtr, int key, int a3);
  */
 using StratInterfSendSaveGameMsgToServer = void(__thiscall*)(void* thisPtr,
                                                              const char* saveFilename);
+
+/**
+ * Called when a player's turn begins.
+ *
+ * Executes core begin turn logic inside CMidServerLogicData.
+ * Invoked for all players, including neutral factions.
+ *
+ * @param thisptr Pointer to server logic data instance.
+ * @param playerId Identifier of the player whose turn is starting.
+ */
+using MidServerLogicDataBeginTurn = void(__thiscall*)(CMidServerLogicData* thisptr,
+                                                      CMidgardID* playerId);
+
+
 
 /** Game and editor functions that can be hooked. */
 struct Functions
@@ -931,6 +947,7 @@ struct Functions
     FindCapitalByPlayerId findCapitalByPlayerId;
     StratInterfKeyHandler stratInterfKeyHandler;
     StratInterfSendSaveGameMsgToServer sendSaveGameMsgToServer;
+    MidServerLogicDataBeginTurn midServerLogicDataBeginTurn;
 };
 
 /** Global variables used in game. */

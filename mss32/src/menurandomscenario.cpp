@@ -655,6 +655,10 @@ static void generateScenario(CMenuRandomScenario* menu, std::time_t seed)
                 return;
             }
 
+            if (!scenario) {
+                continue;
+            }
+
             // Successfully generated, save results
             menu->scenario = std::move(scenario);
             menu->generator = std::make_unique<rsg::MapGenerator>(std::move(generator));

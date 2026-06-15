@@ -120,6 +120,23 @@ const game::IMidgardObjectMap* getObjectMap()
     }
 }
 
+const game::IMidgardObjectMap* getServerObjectMap()
+{
+    using namespace game;
+
+    auto midgard = CMidgardApi::get().instance();
+
+    if (!midgard || !midgard->data || !midgard->data->server)
+        return nullptr;
+
+    auto server = midgard->data->server;
+
+    if (!server->data || !server->data->serverLogic)
+        return nullptr;
+
+    return CMidServerLogicApi::get().getObjectMap(server->data->serverLogic);
+}
+
 game::CMidUnitGroup* getGroup(game::IMidgardObjectMap* objectMap,
                               const game::CMidgardID* groupId,
                               bool forChange)
@@ -300,6 +317,79 @@ const game::CMidScenVariables* getScenarioVariables(const game::IMidgardObjectMa
 
     return static_cast<const game::CMidScenVariables*>(obj);
 }
+
+// Scenario variables should be modified only through live server-side object map.
+// Cached/client-side maps may not propagate updates to actual gameplay state.
+bool setScenarioVariableByName(game::CMidScenVariables* variables,
+                               const std::string& name,
+                               int value)
+{
+    if (!variables) {
+        return false;
+    }
+
+    for (auto it = variables->variables.begin(); it != variables->variables.end(); ++it) {
+        if (std::strcmp(it->second.name, name.c_str()) == 0) {
+            it->second.value = value;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool setScenarioVariableById(game::CMidScenVariables* variables, int id, int value)
+{
+    using namespace game;
+
+    if (!variables) {
+        return false;
+    }
+
+    auto& scenVariablesApi = CMidScenVariablesApi::get();
+
+    auto data = scenVariablesApi.findById(variables, id);
+    if (!data) {
+        return false;
+    }
+
+    data->value = value;
+
+    return true;
+}
+
+int getScenarioVariableByName(const game::CMidScenVariables* variables,
+                              const std::string& name,
+                              int defaultValue)
+{
+    if (!variables) {
+        return defaultValue;
+    }
+
+    for (auto it = variables->variables.begin(); it != variables->variables.end(); ++it) {
+        if (std::strcmp(it->second.name, name.c_str()) == 0) {
+            return it->second.value;
+        }
+    }
+
+    return defaultValue;
+}
+
+bool hasScenarioVariableByName(const game::CMidScenVariables* variables, const std::string& name)
+{
+    if (!variables) {
+        return false;
+    }
+
+    for (auto it = variables->variables.begin(); it != variables->variables.end(); ++it) {
+        if (std::strcmp(it->second.name, name.c_str()) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 
 const game::CMidgardPlan* getMidgardPlan(const game::IMidgardObjectMap* objectMap)
 {
