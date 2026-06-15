@@ -179,6 +179,9 @@ struct GlobalVariablesDataHooked : public GlobalVariablesData
     /** 'S_ITM_VAL' */
     int stealItemValue;
 
+    /** 'S_SPL_VAL' */
+    int stealSpellValue;
+
 
 };
 

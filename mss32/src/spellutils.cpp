@@ -17,14 +17,47 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ADDSTEALITEMHOOKS_H
-#define ADDSTEALITEMHOOKS_H
+// ============================================================
+// File: spellutils.cpp
+// ============================================================
 
-namespace hooks {
+#include "spellutils.h"
+#include "version.h"
 
-void* getAddStealItemHooked();
-void** getAddStealItemOrig();
+#include <array>
 
-} // namespace hooks
+namespace game::SpellUtilsApi {
 
-#endif
+// clang-format off
+
+static std::array<Api, 4> functions = {{
+
+    // Akella
+    Api{
+        (Api::FindSpellById)0x005dbef3
+    },
+
+    // Russobit
+    Api{
+        (Api::FindSpellById)0x005dbef3
+    },
+
+    // Gog
+    Api{
+        (Api::FindSpellById)0x005DAC28
+    },
+
+    // Scenario Editor
+    Api{
+        (Api::FindSpellById)0x005dbef3
+    }
+}};
+
+// clang-format on
+
+Api& get()
+{
+    return functions[static_cast<int>(hooks::gameVersion())];
+}
+
+} // namespace game::SpellUtilsApi

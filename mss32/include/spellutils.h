@@ -17,39 +17,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "addstealitem.h"
-#include "version.h"
-#include <array>
+// ============================================================
+// File: spellutils.h
+// ============================================================
 
-namespace game::AddStealItemApi {
+#ifndef SPELLUTILS_H
+#define SPELLUTILS_H
 
-// clang-format off
-static std::array<Api, 4> functions = {{
-    // Akella
-    Api{
-        (Api::AddStealItem)0x4a5bca,
-    },
+#include "midgardid.h"
 
-    // Russobit
-    Api{
-        (Api::AddStealItem)0x4a5bca,
-    },
+namespace game {
 
-    // Gog
-    Api{
-        (Api::AddStealItem)0x4a542b,
-    },
+struct TStrategicSpell;
 
-    // Scenario Editor
-    Api{
-        (Api::AddStealItem)0x455744,
-    }
-}};
-// clang-format on
+namespace SpellUtilsApi {
 
-Api& get()
+struct Api
 {
-    return functions[static_cast<int>(hooks::gameVersion())];
-}
+    using FindSpellById = TStrategicSpell*(__stdcall*)(CMidgardID* spellId);
 
-} // namespace game::AddStealItemApi
+    FindSpellById findSpellById;
+};
+
+Api& get();
+
+} // namespace SpellUtilsApi
+
+} // namespace game
+
+#endif
