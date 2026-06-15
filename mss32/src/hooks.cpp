@@ -250,6 +250,7 @@
 #include "batattackboostdamage.h"
 #include "dotattackhooks.h"
 #include "batunitanim.h"
+#include "quicksavehook.h"
 
 struct PendingBattleEffect
 {
@@ -275,6 +276,10 @@ static Hooks getGameHooks()
 
     // clang-format off
     Hooks hooks{
+
+          // Quick save hotkey for host in multiplayer 
+         {(void*)fn.stratInterfKeyHandler, hookedKeyHandler, (void**)&originalKeyHandler},
+
         // Fix game crash in battles with summoners
         {CMidUnitApi::get().removeModifier, removeModifierHooked},
         // Fix unit transformation to include hp mods into current hp recalculation
@@ -740,28 +745,6 @@ static Hooks getScenarioEditorHooks()
     return hooks;
 }
 
-using SendSaveGameMsgFn = void(__thiscall*)(void* thisPtr, const char* filename);
-
-SendSaveGameMsgFn SendSaveGameMsg = (SendSaveGameMsgFn)0x0048FED7;
-
-using KeyHandler = int(__thiscall*)(void* thisPtr, int key, int a3);
-
-KeyHandler originalKeyHandler = nullptr;
-
-int __fastcall HookedKeyHandler(void* thisPtr, void*, int key, int a3)
-{
-    if ((key == 'O' || key == 'o') && (GetAsyncKeyState(VK_CONTROL) & 0x8000)) {
-        void* realThis = (char*)thisPtr - 4;
-
-        SendSaveGameMsg(realThis, "Jora"); // или saveFilename если есть
-
-        return 1;
-    }
-
-    return originalKeyHandler(thisPtr, key, a3);
-}
-
-
 Hooks getHooks()
 {
     using namespace game;
@@ -771,8 +754,6 @@ Hooks getHooks()
     auto& fn = gameFunctions();
     auto& orig = getOriginalFunctions();
 
-
-    hooks.emplace_back(HookInfo{(void*)0x0048EDA9, HookedKeyHandler, (void**)&originalKeyHandler});
 
     // Register buildings with custom branch category as unit buildings
     hooks.emplace_back(HookInfo{fn.createBuildingType, createBuildingTypeHooked});

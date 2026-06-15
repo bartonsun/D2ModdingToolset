@@ -405,6 +405,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\paperdollchildinterf.cpp" />
     <ClCompile Include="src\phasegame.cpp" />
     <ClCompile Include="src\phasegamehooks.cpp" />
+    <ClCompile Include="src\quicksavehook.cpp" />
     <ClCompile Include="src\resourcemarketinterface.cpp" />
     <ClCompile Include="src\resourcetype.cpp" />
     <ClCompile Include="src\resultsender.cpp" />
@@ -988,6 +989,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\paperdollchildinterf.h" />
     <ClInclude Include="include\phasegamehooks.h" />
     <ClInclude Include="include\playerlistentry.h" />
+    <ClInclude Include="include\quicksavehook.h" />
     <ClInclude Include="include\quickstring.h" />
     <ClInclude Include="include\refreshinfo.h" />
     <ClInclude Include="include\nativegameinfo.h" />
