@@ -18,8 +18,8 @@
  */
 
 #include "hooks.h"
-#include "addstealitemhooks.h"
-#include "addstealitem.h"
+#include "stealitemhooks.h"
+#include "stealmerchantiteminterf.h"
 #include "aigiveitemsaction.h"
 #include "aigiveitemsactionhooks.h"
 #include "attackimpl.h"
@@ -255,6 +255,9 @@
 #include "batattackboostdamage.h"
 #include "dotattackhooks.h"
 #include "batunitanim.h"
+#include "stealspellinterf.h"
+#include "addstealspellhooks.h"
+
 
 struct PendingBattleEffect
 {
@@ -689,6 +692,53 @@ static Hooks getGameHooks()
         hookSendObjectsChanges = true;
     }
 
+
+    //
+    // build spell list
+    //
+    hooks.emplace_back(HookInfo{(void*)game::StealSpellInterfApi::get().buildSpellList,
+
+                                hooks::getBuildSpellListHooked(),
+
+                                hooks::getBuildSpellListOrig()});
+
+    //
+    // filtered insertion
+    //
+    hooks.emplace_back(HookInfo{(void*)game::IdSetApi::get().insert,
+
+                                hooks::getSortedIdListInsertHooked(),
+
+                                hooks::getSortedIdListInsertOrig()});
+
+    //
+    // Steal spell
+    //
+    hooks.emplace_back(HookInfo{(void*)game::StealSpellInterfApi::get().constructor,
+
+                                hooks::getStealSpellInterfCtorHooked(),
+
+                                hooks::getStealSpellInterfCtorOrig()});
+
+
+
+
+    //
+    // Steal merchant items
+    //
+
+     hooks.emplace_back(HookInfo{(void*) game::StealMerchantItemInterfApi::get().constructor,
+        hooks::getStealItemCtorHooked(),
+        hooks::getStealItemCtorOrig()});
+
+     //
+     // Steal merchant items
+     //
+     hooks.emplace_back(HookInfo{(void*) game::StealMerchantItemInterfApi::get().addStealItem,
+            hooks::getAddStealItemHooked(),
+            hooks::getAddStealItemOrig()});
+      
+
     if (hookSendObjectsChanges) {
         hooks.emplace_back(HookInfo{CMidServerLogicApi::vftable().midMsgSender->sendObjectsChanges,
                                     midServerLogicSendObjectsChangesHooked,
@@ -845,7 +895,6 @@ Hooks getHooks()
     auto& orig = getOriginalFunctions();
 
 
-    
   
  // Called when a player's turn begins.Invoked for all players, including neutral factions.
     if (hooks::executableIsGame() && fn.midServerLogicDataBeginTurn) {

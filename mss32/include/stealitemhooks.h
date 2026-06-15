@@ -17,34 +17,50 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ADDSTEALITEM_H
-#define ADDSTEALITEM_H
+// ============================================================
+// File: stealitemhooks.h
+// ============================================================
 
-#include "currency.h"
+#ifndef STEALITEMHOOKS_H
+#define STEALITEMHOOKS_H
+
 #include "midgardid.h"
+#include "stealmerchantiteminterf.h"
 
 namespace game {
 
-struct StealItemEntry
+struct IMidgardObjectMap;
+
+}
+
+namespace hooks {
+
+struct StealItemBuildContext
 {
-    CMidgardID itemId;
-    Bank value;
-    int unknown;
+    bool active{false};
+
+    int insertedCount{0};
+
+    bool lastBuildHadVisibleItems{true};
+
+    game::CMidgardID merchantId;
+    game::CMidgardID playerId;
+
+    const game::IMidgardObjectMap* objectMap{};
 };
 
-namespace AddStealItemApi {
+extern thread_local StealItemBuildContext g_stealItemCtx;
 
-struct Api
-{
-    using AddStealItem = char*(__thiscall*)(void* thisptr, StealItemEntry* entry);
+bool shouldDisplayStealItem(const game::CMidgardID* merchantId, game::StealItemEntry* entry);
 
-    AddStealItem addStealItem;
-};
+void* getStealItemCtorHooked();
 
-Api& get();
+void** getStealItemCtorOrig();
 
-} // namespace AddStealItemApi
+void* getAddStealItemHooked();
 
-} // namespace game
+void** getAddStealItemOrig();
 
-#endif // ADDSTEALITEM_H
+} // namespace hooks
+
+#endif
