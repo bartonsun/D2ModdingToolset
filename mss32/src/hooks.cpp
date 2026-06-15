@@ -18,6 +18,8 @@
  */
 
 #include "hooks.h"
+#include "addstealitemhooks.h"
+#include "addstealitem.h"
 #include "aigiveitemsaction.h"
 #include "aigiveitemsactionhooks.h"
 #include "attackimpl.h"
@@ -144,6 +146,7 @@
 #include "midgard.h"
 #include "midgardhooks.h"
 #include "midgardid.h"
+#include "strategicspell.h"
 #include "midgardmsgbox.h"
 #include "midgardscenariomap.h"
 #include "midgardstreamenv.h"
@@ -174,6 +177,7 @@
 #include "objectinterfhooks.h"
 #include "originalfunctions.h"
 #include "phasegame.h"
+#include "MIDITEM.h"
 #include "phasegamehooks.h"
 #include "playerbuildings.h"
 #include "playerincomehooks.h"
@@ -740,6 +744,97 @@ static Hooks getScenarioEditorHooks()
     return hooks;
 }
 
+
+using FindSpellByIdFunc = game::TStrategicSpell*(__stdcall*)(game::CMidgardID* spellId);
+
+static auto findSpellById = (FindSpellByIdFunc)0x005dbef3;
+
+using AddStealSpellFunc = int*(__thiscall*)(void* thisptr, game::CMidgardID* spellId);
+
+static AddStealSpellFunc addStealSpellOrig;
+
+int* __fastcall addStealSpellHooked(void* thisptr, int, game::CMidgardID* spellId)
+{
+    //
+    // only steal spell dialog
+    //
+
+    auto returnAddress = (std::uintptr_t)_ReturnAddress();
+
+    if (returnAddress != 0x4A6257) {
+        return addStealSpellOrig(thisptr, spellId);
+    }
+
+    //
+    // validate
+    //
+
+    if (!spellId) {
+        spdlog::info("spellId == nullptr");
+
+        return addStealSpellOrig(thisptr, spellId);
+    }
+
+    //
+    // debug
+    //
+
+    spdlog::info("STEAL SPELL {}", idToString(spellId));
+
+    //
+    // find spell
+    //
+
+    const auto* spell = findSpellById(spellId);
+
+    if (!spell) {
+
+        spdlog::info("spell not found");
+
+        return addStealSpellOrig(thisptr, spellId);
+    }
+
+    //
+    // validate spell data
+    //
+
+    if (!spell->data) {
+
+        spdlog::info("spell->data == nullptr");
+
+        return addStealSpellOrig(thisptr, spellId);
+    }
+
+    //
+    // get buy cost
+    //
+
+    int gold = spell->data->buyCost.gold;
+
+    spdlog::info("spell={} gold={}", idToString(spellId), gold);
+
+    //
+    // filter
+    //
+
+    if (gold <= 200) {
+
+        spdlog::info("FILTERED {}", idToString(spellId));
+
+        //
+        // skip pushback
+        //
+
+        return reinterpret_cast<int*>(thisptr);
+    }
+
+    //
+    // original
+    //
+
+    return addStealSpellOrig(thisptr, spellId);
+}
+
 Hooks getHooks()
 {
     using namespace game;
@@ -749,12 +844,14 @@ Hooks getHooks()
     auto& fn = gameFunctions();
     auto& orig = getOriginalFunctions();
 
+
     
   
  // Called when a player's turn begins.Invoked for all players, including neutral factions.
     if (hooks::executableIsGame() && fn.midServerLogicDataBeginTurn) {
         hooks.emplace_back(HookInfo{fn.midServerLogicDataBeginTurn, getBeginTurnHooked(), getBeginTurnOrig()});
     }
+
     // Register buildings with custom branch category as unit buildings
     hooks.emplace_back(HookInfo{fn.createBuildingType, createBuildingTypeHooked});
     // Support custom building branch category
