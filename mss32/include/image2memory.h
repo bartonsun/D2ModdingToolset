@@ -22,6 +22,7 @@
 
 #include "d2color.h"
 #include "mqimage2surface16.h"
+#include <windows.h>
 #include <vector>
 
 namespace hooks {
@@ -35,6 +36,10 @@ struct CImage2Memory : public game::CMqImage2Surface16
 };
 
 CImage2Memory* createImage2Memory(std::uint32_t width, std::uint32_t height);
+
+void writeImageToMemory(const CImage2Memory* image, std::vector<uint8_t>& out);
+
+void copyImageToClipboard(const CImage2Memory* image);
 
 } // namespace hooks
 
