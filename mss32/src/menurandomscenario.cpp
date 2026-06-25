@@ -35,6 +35,7 @@
 #include "menuphase.h"
 #include "multilayerimg.h"
 #include "nativegameinfo.h"
+#include "netcustomservice.h"
 #include "scenariotemplates.h"
 #include "spinbuttoninterf.h"
 #include "stringarray.h"
@@ -938,6 +939,14 @@ static void __fastcall buttonGenerateHandler(CMenuRandomScenario* thisptr, int /
         sol::state lua;
         rsg::bindLuaApi(lua);
         rsg::readTemplateSettings(templates[selectedIndex].filename, lua);
+
+        auto service = CNetCustomService::get();
+
+        if (service) {
+            spdlog::info("Selected template '{}'", templates[selectedIndex].filename);
+            service->setTemplateInfo(
+                std::filesystem::path(templates[selectedIndex].filename).filename().string());
+        }
         // Create template contents depending on size and races
         rsg::readTemplateContents(thisptr->scenarioTemplate, lua);
 

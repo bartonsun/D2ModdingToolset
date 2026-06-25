@@ -163,6 +163,7 @@ static std::array<Functions, 4> functions = {{
         (FindCapitalByPlayerId)0x5ea751,
         (StratInterfKeyHandler)0x048eda9,
         (StratInterfSendSaveGameMsgToServer)0x048fed7,
+        (StratInterfOpenSelectedObject)0x490c28,
         (MidServerLogicDataBeginTurn)0x41e7a8,
     },
     // Russobit
@@ -303,6 +304,7 @@ static std::array<Functions, 4> functions = {{
         (FindCapitalByPlayerId)0x5ea751,
         (StratInterfKeyHandler)0x048eda9,
         (StratInterfSendSaveGameMsgToServer)0x048fed7,
+        (StratInterfOpenSelectedObject)0x490c28,
         (MidServerLogicDataBeginTurn)0x41e7a8,
     },
     // Gog
@@ -443,6 +445,7 @@ static std::array<Functions, 4> functions = {{
         (FindCapitalByPlayerId)0x5e9450,
         (StratInterfKeyHandler)0x048e8e3,
         (StratInterfSendSaveGameMsgToServer)0x048fa11,
+        (StratInterfOpenSelectedObject)0x49072c,
         (MidServerLogicDataBeginTurn)0x41e290,
     },
     // Scenario Editor
@@ -583,6 +586,7 @@ static std::array<Functions, 4> functions = {{
         (FindCapitalByPlayerId)nullptr,
         (StratInterfKeyHandler)nullptr,
         (StratInterfSendSaveGameMsgToServer)nullptr,
+        (StratInterfOpenSelectedObject)0x490C28,
         (MidServerLogicDataBeginTurn)nullptr,
     },
 }};

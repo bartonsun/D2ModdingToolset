@@ -89,6 +89,26 @@ settings = {
 		"Travelitem",     -- Travel and utility items
 		"Special"         -- Special quest or unique items
 	},
+	
+	-- Configurable hotkeys for the strategic map interface. 
+	-- Defaults: ctrl/shift/alt is false,
+	-- openSelectedObject = "I"	
+	-- quickSave = ctrl + "Q"	
+	hotkeys = {
+
+		openSelectedObject = {  -- inventory from selected stack or city
+			key = "I",
+			ctrl = false,
+			shift = false,
+			alt = false,
+		},
+		
+		quickSave = { -- quickSave, work in multiplayers game for host
+        key = "Q",
+        ctrl = true,
+		},
+
+	},
 
 	-- Multiplies total damage dealt by split damage (DAM_SPLIT) [1 : 6]
 	-- Split damage is introduced by "custom attack damage ratio"
