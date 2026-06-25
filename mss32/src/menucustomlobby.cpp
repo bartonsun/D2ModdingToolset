@@ -674,6 +674,28 @@ void __fastcall CMenuCustomLobby::joinBtnHandler(CMenuCustomLobby* thisptr, int 
         }
         thisptr->hideWaitDialog();
         showMessageBox(message);
+    } else if (!room->templateHash.empty()) {
+        auto templatePath = templatesFolder() / room->templateName;
+
+        if (!std::filesystem::exists(templatePath)) {
+            thisptr->hideWaitDialog();
+
+            showMessageBox(
+                fmt::format("Required map template was not found:\n{}", room->templateName));
+
+            return;
+        }
+
+        auto localHash = computeHash({templatePath});
+
+        if (localHash != room->templateHash) {
+            thisptr->hideWaitDialog();
+
+            showMessageBox(
+                fmt::format("Map template differs from the host version:\n{}", room->templateName));
+
+            return;
+        }
     } else if (!room->password.empty()) {
         // Store selected room info because the room list can be updated while the dialog is shown
         thisptr->m_joiningRoomId = room->id;
@@ -867,25 +889,58 @@ bool __fastcall CMenuCustomLobby::ansInfoMsgHandler(CMenuCustomLobby* menu,
 CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* roomDescriptor)
 {
     std::vector<std::string> clientNames;
+
     const auto& roomMembers = roomDescriptor->roomMemberList;
+
     for (unsigned int i = 0; i < roomMembers.Size(); ++i) {
         const auto& member = roomMembers[i];
+
         if (member.roomMemberMode != RMM_MODERATOR) {
             clientNames.push_back(member.name.C_String());
         }
     }
 
-    // Add 1 to used and total slots because they are not counting room moderator
+    auto gameNameProperty = roomDescriptor->GetProperty(CNetCustomService::gameNameColumnName);
+
+    auto passwordProperty = roomDescriptor->GetProperty(CNetCustomService::passwordColumnName);
+
+    auto filesHashProperty = roomDescriptor->GetProperty(
+        CNetCustomService::gameFilesHashColumnName);
+
+    auto templateNameProperty = roomDescriptor->GetProperty(
+        CNetCustomService::templateNameColumnName);
+
+    auto templateHashProperty = roomDescriptor->GetProperty(
+        CNetCustomService::templateHashColumnName);
+
+    auto gameVersionProperty = roomDescriptor->GetProperty(
+        CNetCustomService::gameVersionColumnName);
+
+    auto scenarioNameProperty = roomDescriptor->GetProperty(
+        CNetCustomService::scenarioNameColumnName);
+
+    auto scenarioDescriptionProperty = roomDescriptor->GetProperty(
+        CNetCustomService::scenarioDescriptionColumnName);
+
     return {roomDescriptor->lobbyRoomId,
             getRoomModerator(roomDescriptor->roomMemberList)->name,
-            roomDescriptor->GetProperty(CNetCustomService::gameNameColumnName)->c,
-            roomDescriptor->GetProperty(CNetCustomService::passwordColumnName)->c,
-            roomDescriptor->GetProperty(CNetCustomService::gameFilesHashColumnName)->c,
-            roomDescriptor->GetProperty(CNetCustomService::gameVersionColumnName)->c,
-            roomDescriptor->GetProperty(CNetCustomService::scenarioNameColumnName)->c,
-            roomDescriptor->GetProperty(CNetCustomService::scenarioDescriptionColumnName)->c,
+
+            gameNameProperty ? gameNameProperty->c : "",
+            passwordProperty ? passwordProperty->c : "",
+            filesHashProperty ? filesHashProperty->c : "",
+
+            templateNameProperty ? templateNameProperty->c : "",
+            templateHashProperty ? templateHashProperty->c : "",
+
+            gameVersionProperty ? gameVersionProperty->c : "",
+            scenarioNameProperty ? scenarioNameProperty->c : "",
+            scenarioDescriptionProperty ? scenarioDescriptionProperty->c : "",
+
             std::move(clientNames),
+
+            // Add 1 to used and total slots because they are not counting room moderator
             (int)roomDescriptor->GetProperty(DefaultRoomColumns::TC_USED_PUBLIC_SLOTS)->i + 1,
+
             (int)roomDescriptor->GetProperty(DefaultRoomColumns::TC_TOTAL_PUBLIC_SLOTS)->i + 1};
 }
 

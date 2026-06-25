@@ -174,6 +174,8 @@ protected:
         std::string gameName;
         std::string password;
         std::string gameFilesHash;
+        std::string templateName;
+        std::string templateHash;
         std::string gameVersion;
         std::string scenarioName;
         std::string scenarioDescription;

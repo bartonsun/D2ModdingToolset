@@ -18,10 +18,11 @@
  */
 
 #include "quicksavehook.h"
-
+// TODO: If more strategic interface hotkeys are added, rename this file to better reflect its broader purpose.
 #include "game.h"
 
 #include <Windows.h>
+#include <settings.h>
 using namespace game;
 
 namespace hooks {
@@ -31,13 +32,36 @@ KeyHandler originalKeyHandler = nullptr;
 
 constexpr const char* QuickSaveName = "QuickSave";
 
+bool isHotkeyPressed(const Settings::Hotkey& hotkey, int key)
+{
+    if (static_cast<std::uint32_t>(std::toupper(static_cast<unsigned char>(key))) != hotkey.key) {
+        return false;
+    }
+
+    if (hotkey.ctrl != ((GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0))
+        return false;
+
+    if (hotkey.shift != ((GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0))
+        return false;
+
+    if (hotkey.alt != ((GetAsyncKeyState(VK_MENU) & 0x8000) != 0))
+        return false;
+
+    return true;
+}
+
 int __fastcall hookedKeyHandler(void* thisPtr, void*, int key, int a3)
 {
-    if ((key == 'Q' || key == 'q') && (GetAsyncKeyState(VK_CONTROL) & 0x8000)) {
-        auto realThis = reinterpret_cast<char*>(thisPtr) - 4;
+    auto realThis = reinterpret_cast<char*>(thisPtr) - 4;
 
+    if (isHotkeyPressed(userSettings().hotkeys.quickSave, key)) {
         gameFunctions().sendSaveGameMsgToServer(realThis, QuickSaveName);
+        return 1;
+    }
 
+
+    if (isHotkeyPressed(userSettings().hotkeys.openSelectedObject, key)) {
+        gameFunctions().stratInterfOpenSelectedObject(realThis);
         return 1;
     }
 

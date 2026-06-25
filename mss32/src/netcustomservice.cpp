@@ -407,6 +407,36 @@ std::vector<CNetCustomService::ChatMessage> CNetCustomService::readChatMessages(
     return result;
 }
 
+void CNetCustomService::setTemplateInfo(const std::string& name)
+{
+    m_templateName = name;
+    m_templateHash.clear();
+}
+
+const std::string& CNetCustomService::getTemplateName() const
+{
+    return m_templateName;
+}
+
+const std::string& CNetCustomService::getTemplateHash()
+{
+    if (m_templateHash.empty() && !m_templateName.empty()) {
+        m_templateHash = computeTemplateHash(m_templateName);
+    }
+
+    return m_templateHash;
+}
+
+std::string CNetCustomService::computeTemplateHash(const std::string& templateName) const
+{
+    auto file = templatesFolder() / templateName;
+
+    if (!std::filesystem::exists(file))
+        return {};
+
+    return computeHash({file});
+}
+
 bool CNetCustomService::createRoom(const char* gameName,
                                    const char* scenarioName,
                                    const char* scenarioDescription,
@@ -450,8 +480,19 @@ bool CNetCustomService::createRoom(const char* gameName,
     auto scenDescColumn{
         properties.AddColumn(scenarioDescriptionColumnName, DataStructures::Table::STRING)};
 
+    auto templateNameColumn{
+        properties.AddColumn(templateNameColumnName, DataStructures::Table::STRING)};
+
+    auto templateHashColumn{
+        properties.AddColumn(templateHashColumnName, DataStructures::Table::STRING)};
+
+    const auto& templateName = getTemplateName();
+    const auto& templateHash = getTemplateHash();
+
     auto row = properties.AddRow(0);
     row->UpdateCell(hashColumn, filesHash.c_str());
+    row->UpdateCell(templateNameColumn, templateName.c_str());
+    row->UpdateCell(templateHashColumn, templateHash.c_str());
     row->UpdateCell(versionColumn, gameVersion.c_str());
     row->UpdateCell(gameNameColumn, gameName);
     row->UpdateCell(passwordColumn, password);

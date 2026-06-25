@@ -793,6 +793,18 @@ using StratInterfSendSaveGameMsgToServer = void(__thiscall*)(void* thisPtr,
                                                              const char* saveFilename);
 
 /**
+ * Opens interface for currently selected object.
+ * Depending on selected object type opens:
+ * - stack management
+ * - city stack
+ * - village
+ * - capital
+ * - ruin
+ * etc.
+ */
+using StratInterfOpenSelectedObject = void(__thiscall*)(void* thisPtr);
+
+/**
  * Called when a player's turn begins.
  *
  * Executes core begin turn logic inside CMidServerLogicData.
@@ -947,6 +959,7 @@ struct Functions
     FindCapitalByPlayerId findCapitalByPlayerId;
     StratInterfKeyHandler stratInterfKeyHandler;
     StratInterfSendSaveGameMsgToServer sendSaveGameMsgToServer;
+    StratInterfOpenSelectedObject stratInterfOpenSelectedObject;
     MidServerLogicDataBeginTurn midServerLogicDataBeginTurn;
 };
 
