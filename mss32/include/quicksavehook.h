@@ -18,6 +18,8 @@
  */
 #pragma once
 
+// TODO: If more strategic interface hotkeys are added, rename this file to better reflect its broader purpose.
+
 namespace hooks {
 using KeyHandler = int(__thiscall*)(void* thisPtr, int key, int a3);
 

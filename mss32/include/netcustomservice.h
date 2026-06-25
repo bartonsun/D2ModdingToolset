@@ -101,6 +101,8 @@ public:
     static constexpr char passwordColumnName[] = "Password";
     static constexpr char scenarioNameColumnName[] = "ScenarioName";
     static constexpr char scenarioDescriptionColumnName[] = "ScenarioDescription";
+    static constexpr char templateNameColumnName[] = "TemplateName";
+    static constexpr char templateHashColumnName[] = "TemplateHash";
     // See SLNet::Lobby2Message::ValidatePassword
     static constexpr std::uint32_t passwordMaxLength{50};
 
@@ -122,6 +124,12 @@ public:
               PacketPriority priority) const;
     const std::string& getGameFilesHash();
     std::vector<std::filesystem::path> getGameFilesToHash() const;
+    void setTemplateInfo(const std::string& name);
+
+    const std::string& getTemplateName() const;
+    const std::string& getTemplateHash();
+
+    std::string computeTemplateHash(const std::string& templateName) const;
     UserInfo getUserInfo() const;
     void processPeerMessages() const;
 
@@ -295,6 +303,8 @@ private:
     std::vector<NetPeerCallback*> m_peerCallbacks;
     mutable std::mutex m_peerCallbacksMutex;
     std::string m_gameFilesHash;
+    std::string m_templateName;
+    std::string m_templateHash;
 };
 
 assert_offset(CNetCustomService, vftable, 0);
