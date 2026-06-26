@@ -929,26 +929,33 @@ CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* 
     auto scenarioDescriptionProperty = roomDescriptor->GetProperty(
         CNetCustomService::scenarioDescriptionColumnName);
 
-    return {roomDescriptor->lobbyRoomId,
-            getRoomModerator(roomDescriptor->roomMemberList)->name,
+    auto usedSlotsProperty = roomDescriptor->GetProperty(DefaultRoomColumns::TC_USED_PUBLIC_SLOTS);
 
-            gameNameProperty ? gameNameProperty->c : "",
-            passwordProperty ? passwordProperty->c : "",
-            filesHashProperty ? filesHashProperty->c : "",
+    auto totalSlotsProperty = roomDescriptor->GetProperty(
+        DefaultRoomColumns::TC_TOTAL_PUBLIC_SLOTS);
 
-            templateNameProperty ? templateNameProperty->c : "",
-            templateHashProperty ? templateHashProperty->c : "",
+    auto* moderator = getRoomModerator(roomDescriptor->roomMemberList);
 
-            gameVersionProperty ? gameVersionProperty->c : "",
-            scenarioNameProperty ? scenarioNameProperty->c : "",
-            scenarioDescriptionProperty ? scenarioDescriptionProperty->c : "",
+    return {roomDescriptor->lobbyRoomId, moderator ? moderator->name.C_String() : "",
+
+            (gameNameProperty && gameNameProperty->c) ? gameNameProperty->c : "",
+            (passwordProperty && passwordProperty->c) ? passwordProperty->c : "",
+            (filesHashProperty && filesHashProperty->c) ? filesHashProperty->c : "",
+
+            (templateNameProperty && templateNameProperty->c) ? templateNameProperty->c : "",
+            (templateHashProperty && templateHashProperty->c) ? templateHashProperty->c : "",
+
+            (gameVersionProperty && gameVersionProperty->c) ? gameVersionProperty->c : "",
+            (scenarioNameProperty && scenarioNameProperty->c) ? scenarioNameProperty->c : "",
+            (scenarioDescriptionProperty && scenarioDescriptionProperty->c)
+                ? scenarioDescriptionProperty->c
+                : "",
 
             std::move(clientNames),
 
             // Add 1 to used and total slots because they are not counting room moderator
-            (int)roomDescriptor->GetProperty(DefaultRoomColumns::TC_USED_PUBLIC_SLOTS)->i + 1,
-
-            (int)roomDescriptor->GetProperty(DefaultRoomColumns::TC_TOTAL_PUBLIC_SLOTS)->i + 1};
+            usedSlotsProperty ? (int)usedSlotsProperty->i + 1 : 0,
+            totalSlotsProperty ? (int)totalSlotsProperty->i + 1 : 0};
 }
 
 SLNet::RoomMemberDescriptor* CMenuCustomLobby::getRoomModerator(
