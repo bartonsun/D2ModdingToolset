@@ -41,6 +41,7 @@
 #include "usunitimpl.h"
 #include "utils.h"
 #include <fmt/format.h>
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 namespace hooks {

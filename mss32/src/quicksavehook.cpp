@@ -20,7 +20,7 @@
 #include "quicksavehook.h"
 // TODO: If more strategic interface hotkeys are added, rename this file to better reflect its broader purpose.
 #include "game.h"
-
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <settings.h>
 using namespace game;
