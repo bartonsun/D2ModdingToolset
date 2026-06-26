@@ -411,6 +411,16 @@ void CNetCustomService::setTemplateInfo(const std::string& name)
 {
     m_templateName = name;
     m_templateHash.clear();
+
+    if (name.empty()) {
+        return;
+    }
+
+    const auto templatePath = templatesFolder() / name;
+
+    if (std::filesystem::exists(templatePath)) {
+        m_templateHash = computeHash({templatePath});
+    }
 }
 
 const std::string& CNetCustomService::getTemplateName() const
