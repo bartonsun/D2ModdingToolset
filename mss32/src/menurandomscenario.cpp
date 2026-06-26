@@ -935,18 +935,23 @@ static void __fastcall buttonGenerateHandler(CMenuRandomScenario* thisptr, int /
         // Roll actual races instead of random
         settings.replaceRandomRaces(rnd);
 
+        // Capture the template at the start of generation.
+        if (auto* service = CNetCustomService::get()) {
+            const auto templateName = std::filesystem::path(templates[selectedIndex].filename)
+                                          .filename()
+                                          .string();
+
+            spdlog::info("Starting generation using template '{}'", templateName);
+
+            service->setTemplateInfo(templateName);
+        }
+
+
         // TODO: handle this in a better way
         sol::state lua;
         rsg::bindLuaApi(lua);
         rsg::readTemplateSettings(templates[selectedIndex].filename, lua);
 
-        auto service = CNetCustomService::get();
-
-        if (service) {
-            spdlog::info("Selected template '{}'", templates[selectedIndex].filename);
-            service->setTemplateInfo(
-                std::filesystem::path(templates[selectedIndex].filename).filename().string());
-        }
         // Create template contents depending on size and races
         rsg::readTemplateContents(thisptr->scenarioTemplate, lua);
 
