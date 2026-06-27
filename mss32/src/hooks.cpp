@@ -1842,14 +1842,15 @@ void __stdcall afterBattleTurnHooked(game::BattleMsgData* battleMsgData,
             CMidUnit* cMidUnitNext = fn.findUnitById(objMap, nextUnitId);
 
             const bindings::BattleMsgDataView battleView{battleMsgData, objMap};
-            const bindings::UnitView unitNextView{cMidUnitNext};
+            std::optional<bindings::UnitView> unitView;
+            std::optional<bindings::UnitView> unitNextView;
+            if (cMidUnit)
+                unitView.emplace(cMidUnit);
+            if (cMidUnitNext)
+                unitNextView.emplace(cMidUnitNext);
 
-            if (cMidUnit) {
-                const bindings::UnitView unitView{cMidUnit};
-                (*f)(battleView, unitView, unitNextView);
-            } else {
-                (*f)(battleView, nullptr, unitNextView);
-            }
+            (*f)(battleView, unitView ? unitView : nullptr,
+                 unitNextView ? unitNextView : nullptr);
         } catch (const std::exception& e) {
             showErrorMessageBox(fmt::format("Lua Error in 'OnAfterBattleTurn':\n{:s}", e.what()));
         }
