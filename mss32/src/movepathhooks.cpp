@@ -37,6 +37,7 @@
 #include "pathinfolist.h"
 #include "settings.h"
 #include "ussoldier.h"
+#include "usstackleader.h"
 #include "utils.h"
 #include <array>
 #include <cmath>
@@ -81,6 +82,15 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
     auto leaderObj = objectMap->vftable->findScenarioObjectById(objectMap, &stack->leaderId);
     auto leader = static_cast<const CMidUnit*>(leaderObj);
     auto unitImpl = leader->unitImpl;
+
+    auto stackLeader = fn.castUnitImplToStackLeader(unitImpl);
+
+    int maxMovement = 0;
+
+    if (stackLeader)
+        maxMovement = stackLeader->vftable->getMovement(stackLeader);
+
+
     const bool noble = fn.castUnitImplToNoble(unitImpl) != nullptr;
 
     auto soldier = fn.castUnitImplToSoldier(unitImpl);
@@ -148,6 +158,17 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
     bool manyTurnsToTravel{};
 
     std::uint32_t index{};
+    const bool altPressed = GetAsyncKeyState(VK_MENU) & 0x8000;
+
+    CIsoLayer customLayer = *isoLayers().symMovePath;
+    customLayer.value *= 3;
+
+   // всегда
+    MapGraphicsApi::get().hideLayerImages(isoLayers().symMovePath);
+    MapGraphicsApi::get().hideLayerImages(&customLayer);
+
+    const CIsoLayer* drawLayer = altPressed ? &customLayer : isoLayers().symMovePath;
+
     for (auto node = pathInfo.head->next; node != pathInfo.head;
          node = node->next, firstNode = false, ++index) {
         const auto& currentPosition = node->data.position;
@@ -157,6 +178,10 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
         }
 
         pathAllowed = !waterOnlyToLand;
+        spdlog::info("MP max={} cur={} cost={} turn={} pos=({}, {})", maxMovement, stack->movement,
+                     node->data.moveCostTotal, node->data.turnsToReach, currentPosition.x,
+                     currentPosition.y);
+
         if (waterOnly && !fn.isWaterTileSurroundedByWater(&currentPosition, objectMap)) {
             pathAllowed = false;
             waterOnlyToLand = true;
@@ -252,13 +277,26 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
 
         if (pathAllowed && !turnNumberImage) {
             moveCostImage = static_cast<CImage2Text*>(memAlloc(sizeof(CImage2Text)));
-            CImage2TextApi::get().constructor(moveCostImage, 32, 64);
+            CImage2TextApi::get().constructor(moveCostImage, 64, 64);
 
-            const auto moveCostString{fmt::format(
-                "\\fmedium;\\hC;\\vT;\\c{:03d};{:03d};{:03d};\\o{:03d};{:03d};{:03d};{:d}",
+            std::string moveText = fmt::format("{}", node->data.moveCostTotal);
+
+            const bool isActionFlag = endOfPath && pathLeadsToAction;
+
+            if (isActionFlag) {
+                const int spent = node->data.moveCostTotal;
+
+                const int remaining = std::max(0, static_cast<int>(stack->movement) - spent);
+
+                const int afterAction = std::max(0, remaining - (maxMovement + 1) / 2);
+
+                moveText = fmt::format("{} ({})", spent, afterAction);
+            }
+
+            const auto moveCostString = fmt::format(
+                "\\fmedium;\\hC;\\vT;\\c{:03d};{:03d};{:03d};\\o{:03d};{:03d};{:03d};{}",
                 (int)moveCostColor.r, (int)moveCostColor.g, (int)moveCostColor.b,
-                (int)moveCostOutline.r, (int)moveCostOutline.g, (int)moveCostOutline.b,
-                node->data.moveCostTotal)};
+                (int)moveCostOutline.r, (int)moveCostOutline.g, (int)moveCostOutline.b, moveText);
 
             CImage2TextApi::get().setText(moveCostImage, moveCostString.c_str());
         }
@@ -279,7 +317,8 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
         CMqPoint pos;
         pos.x = currentPosition.x;
         pos.y = currentPosition.y;
-        MapGraphicsApi::get().showImageOnMap(&pos, isoLayers().symMovePath, multilayerImg, 0, 0);
+
+        MapGraphicsApi::get().showImageOnMap(&pos, drawLayer, multilayerImg, 0, 0);
     }
 
     imagesApi.createOrFreeGameImages(&imagesPtr, nullptr);
