@@ -427,6 +427,16 @@ static void readSettings(const sol::table& table, Settings& settings)
     settings.reviveAttacksUsesQtyHeal = readSetting(table, "reviveAttacksUsesQtyHeal", defaultSettings().reviveAttacksUsesQtyHeal);
     settings.reviveItemsUsesQtyHeal = readSetting(table, "reviveItemsUsesQtyHeal", defaultSettings().reviveItemsUsesQtyHeal);
     settings.advancedCure = readSetting(table, "advancedCure", defaultSettings().advancedCure);
+
+    auto chances = table.get<sol::optional<sol::table>>("longEffectRemoveChances");
+    if (chances.has_value())
+    {
+        settings.longEffectRemoveChances.clear();
+        for (size_t i = 0; i < chances.value().size(); i++)
+            settings.longEffectRemoveChances.push_back(
+                std::clamp<int>(chances.value()[i + 1], 0, 100));
+    }
+
     // People keep forgetting to turn this off in release packages
     //settings.debugMode = readSetting(table, "debugHooks", defaultSettings().debugMode);
     // clang-format on
@@ -551,6 +561,8 @@ const Settings& baseSettings()
         settings.extendedBattle.maxDotDamage = 300;
         settings.extendedBattle.lowerdamageCanAffectHealer = false;
         settings.extendedBattle.boostdamageCanAffectHealer = false;
+
+        settings.longEffectRemoveChances = {0, 50, 75, 100};
 
         initialized = true;
     }

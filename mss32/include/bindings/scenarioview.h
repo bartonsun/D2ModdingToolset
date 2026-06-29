@@ -58,6 +58,7 @@ class MercsView;
 class TrainerView;
 class ResourceMarketView;
 class LandmarkView;
+class LTerrainCategory;
 
 /**
  * Returns stub values if objectMap is null.
@@ -264,6 +265,9 @@ public:
     bool setVariableById(const int id, int value);
 
     bool createRod(IdView& ownerId, int x, int y);
+    bool mapChangeTerrain(const int terrain, int x, int y);
+
+    bool moveStack(IdView& stackId, int x, int y);
 
  private:
     const game::CMidgardID* getObjectId(int x, int y, game::IdType type) const;

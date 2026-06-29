@@ -39,6 +39,9 @@
 #include <midserver.h>
 #include "midserverlogic.h"
 #include "miditem.h"
+#include "midclient.h"
+#include "midgardplan.h"
+#include "midgardscenariomap.h"
 
 namespace bindings {
 
@@ -350,29 +353,6 @@ std::optional<UnitView> StackView::changeStackLeaeder(const IdView& unitImplId, 
     CMidUnit* leaderUnit{fn.findUnitById(objectMap, &stack->leaderId)};
     IUsSoldier* leader = fn.castUnitImplToSoldier(leaderUnit->unitImpl);
 
-    IUsSoldier* genSoldier = fn.castUnitImplToSoldier(unit);
-
-    auto group = stack->group;
-    int position = 0;
-    for (size_t i = 0; i < std::size(group.positions); ++i) {
-        const auto& unitId{group.positions[i]};
-        if (group.positions[i] == stack->leaderId) {
-            position = i;
-            break;
-        }
-    }
-    if (leader->vftable->getSizeSmall(leader) && !genSoldier->vftable->getSizeSmall(genSoldier))
-    {
-        if (position % 2 == 0 && group.positions[position + 1] != emptyId)
-            return std::nullopt;
-
-        if (position % 2 == 1) {
-            if (group.positions[position & ~1] != emptyId)
-                return std::nullopt;
-            position = position & ~1;
-        }
-    }
-
     int lvl = level <= 0 ? leader->vftable->getLevel(leader) : level;
 
     CUnitGenerator* unitGenerator = globalData->unitGenerator;
@@ -390,34 +370,18 @@ std::optional<UnitView> StackView::changeStackLeaeder(const IdView& unitImplId, 
     IMidgardObjectMap* obj = const_cast<IMidgardObjectMap*>(objectMap);
 
     CMidStack* cStack = static_cast<CMidStack*>(
-        objectMap->vftable->findScenarioObjectByIdForChange(obj, &stack->id));
+        objectMap->vftable->findScenarioObjectById(obj, &stack->id));
 
-    visitor.extractUnitFromGroup(&cStack->leaderId, &cStack->id, obj, 1);
+    visitor.changeStackLeader(&cStack->id, &implId, obj, 1);
 
-    const CScenarioInfo* scenarioInfo = hooks::getScenarioInfo(objectMap);
-    int creationTurn = scenarioInfo->currentTurn;
-    bool result = visitor.addUnitToGroup(&implId, &cStack->id, position, &creationTurn, 1,
-                                         obj, 1);
+    CMidStack* updatedStack = static_cast<CMidStack*>(
+        obj->vftable->findScenarioObjectByIdForChange(obj, &stack->id));
 
-    auto midgard = CMidgardApi::get().instance();
-    auto server = midgard->data->server;
-    auto serverLogic = server->data->serverLogic;
+    updatedStack->facing = (stack->facing + 1) % 8;
 
-    CMidStack* updatedStack = static_cast<CMidStack*>(obj->vftable->findScenarioObjectById(obj, &stack->id));
-
-    game::IMidMsgSender* msgSender = static_cast<IMidMsgSender*>(serverLogic);
-
-    {
-        cStack->facing = (stack->facing + 1) % 8;
-        msgSender->vftable->sendObjectsChanges(msgSender);
-    }
-    {
-        cStack->facing = (stack->facing + 7) % 8;
-        msgSender->vftable->sendObjectsChanges(msgSender);
-    }
-    
     return UnitView(fn.findUnitById(objectMap, &updatedStack->leaderId));
 }
+
 
 bool StackView::setInvisible(const bool value)
 {

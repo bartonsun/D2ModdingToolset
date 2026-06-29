@@ -79,6 +79,20 @@
 #include <magetowerview.h>
 #include <midsitemage.h>
 
+#include "plandata.h"
+#include "mqpointlist.h"
+#include "categoryids.h"
+#include "racetype.h"
+#include "version.h"
+#include <array>
+
+#include <idset.h>
+#include <midserverlogic.h>
+#include <midgard.h>
+#include <midserver.h>
+#include <midclient.h>
+#include <midgardscenariomap.h>
+
 namespace bindings {
 
 ScenarioView::ScenarioView(const game::IMidgardObjectMap* objectMap)
@@ -172,6 +186,8 @@ void ScenarioView::bind(sol::state& lua)
     scenario["addUnitXpWithUpgrade"] = sol::overload<>(&ScenarioView::addUnitXpWithUpgrade);
     scenario["GiveSkillPoint"] = &ScenarioView::giveSkillPoint;
     scenario["CreateRod"] = &ScenarioView::createRod;
+    scenario["MoveStack"] = &ScenarioView::moveStack;
+    scenario["ChangeTerrain"] = &ScenarioView::mapChangeTerrain;
 
     scenario["getBag"] = sol::overload<>(&ScenarioView::getBag, &ScenarioView::getBagById,
                                            &ScenarioView::getBagByCoordinates,
@@ -1667,16 +1683,196 @@ bool ScenarioView::setVariableById(const int id, int value)
 bool ScenarioView::createRod(IdView& ownerId, int x, int y)
 {
     using namespace game;
-
-    const auto &visitor = VisitorApi::get();
+    const auto& visitor = VisitorApi::get();
+    const auto& posApi = CMqPointListApi::get();
+    const auto& planApi = PlanDataApi::get();
+    const auto& racesCat = RaceCategories::get();
 
     const auto pos = CMqPoint{x, y};
-
     const auto obj = const_cast<IMidgardObjectMap*>(objectMap);
 
-    visitor.createRod(&ownerId.id, &pos, obj, 1);
+    if (visitor.createRod(&ownerId.id, &pos, obj, 1)) {
+        auto& categories = TerrainCategories::get();
+
+        CMidPlayer* player = static_cast<CMidPlayer*>(objectMap->vftable->findScenarioObjectById(objectMap, &ownerId.id));
+
+        LRaceCategory* playerRace = &player->raceType->data->raceType;
+
+        game::LTerrainCategory* terrainCategory = nullptr;
+        switch (playerRace->id) {
+        case RaceId::Human:
+            terrainCategory = categories.human;
+            break;
+        case RaceId::Heretic:
+            terrainCategory = categories.heretic;
+            break;
+        case RaceId::Undead:
+            terrainCategory = categories.undead;
+            break;
+        case RaceId::Dwarf:
+            terrainCategory = categories.dwarf;
+            break;
+        case RaceId::Elf:
+            terrainCategory = categories.elf;
+            break;
+        default:
+            return false;
+        }
+
+
+        CMqPointList positions{};
+        posApi.ctor(&positions);
+        posApi.add(&positions, &pos);
+
+        PlanDataBuffer planData{};
+        int zero{};
+        char zeroChar{};
+        planApi.ctor(&planData, &zeroChar, &zero, 0);
+
+        visitor.changeMapTerrain(terrainCategory, &positions, planData.data, obj, 1);
+
+        planApi.dtor(&planData);
+        posApi.dtor(&positions);
+
+        return true;
+    }
+
+    return false;
+}
+
+/*
+const game::LTerrainCategory* getTerrainCategory(const game::LRaceCategory* raceCategory)
+{
+    using namespace game;
 
     const auto& terrains = TerrainCategories::get();
+    switch (raceCategory->id) {
+    case RaceId::Human:
+        return terrains.human;
+    case RaceId::Heretic:
+        return terrains.heretic;
+    case RaceId::Undead:
+        return terrains.undead;
+    case RaceId::Dwarf:
+        return terrains.dwarf;
+    case RaceId::Elf:
+        return terrains.elf;
+    default:
+        return terrains.neutral;
+    }
+}
+*/
+
+bool ScenarioView::mapChangeTerrain(const int terrain, int x, int y)
+{
+    using namespace game;
+
+    const auto& visitor = VisitorApi::get();
+    const auto& posApi = CMqPointListApi::get();
+    const auto& planApi = PlanDataApi::get();
+    const auto& fn = gameFunctions();
+
+    const auto obj = const_cast<IMidgardObjectMap*>(objectMap);
+    const auto pos = CMqPoint{x, y};
+
+    const CMidgardID* stackID = getObjectId(x, y, game::IdType::Stack);
+    CMidStack* midStack = nullptr;
+    if (stackID) {
+        midStack = static_cast<CMidStack*>(objectMap->vftable->findScenarioObjectByIdForChange(obj, stackID));
+        CMidUnit* leaderUnit = fn.findUnitById(objectMap, &midStack->leaderId);
+        IUsSoldier* leaderSoldier = fn.castUnitImplToSoldier(leaderUnit->unitImpl);
+        if (leaderSoldier->vftable->getWaterOnly(leaderSoldier))
+            return false;
+    }
+
+    CMqPointList positions{};
+    posApi.ctor(&positions);
+    posApi.add(&positions, &pos);
+
+    PlanDataBuffer planData{};
+    int zero{};
+    char zeroChar{};
+    planApi.ctor(&planData, &zeroChar, &zero, 0);
+
+    auto& categories = TerrainCategories::get();
+
+    auto terrainId = static_cast<TerrainId>(terrain);
+    game::LTerrainCategory* terrainCategory = nullptr;
+
+    switch (terrainId) {
+    case TerrainId::Human:
+        terrainCategory = categories.human;
+        break;
+    case TerrainId::Dwarf:
+        terrainCategory = categories.dwarf;
+        break;
+    case TerrainId::Heretic:
+        terrainCategory = categories.heretic;
+        break;
+    case TerrainId::Undead:
+        terrainCategory = categories.undead;
+        break;
+    case TerrainId::Neutral:
+        terrainCategory = categories.neutral;
+        break;
+    case TerrainId::Elf:
+        terrainCategory = categories.elf;
+        break;
+    default:
+        planApi.dtor(&planData);
+        posApi.dtor(&positions);
+        return false;
+    }
+
+    visitor.changeMapTerrain(terrainCategory, &positions, planData.data, obj, 1);
+
+    if (midStack) {
+        midStack->facing = (midStack->facing + 1) % 8;
+    }
+
+    planApi.dtor(&planData);
+    posApi.dtor(&positions);
+
+    return true;
+}
+
+bool ScenarioView::moveStack(IdView& stackId, int x, int y)
+{
+    using namespace game;
+
+    const auto& visitor = VisitorApi::get();
+
+    const auto pos = CMqPoint{x, y};
+    const auto obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    auto stack = (CMidStack*)obj->vftable->findScenarioObjectByIdForChange(obj, &stackId.id);
+
+    visitor.moveStack(&stackId.id, &pos, obj, 1);
+    CMidStackApi::get().setPosition(stack, obj, &pos, false);
+
+
+
+
+    //visitor.changeStackMoveAllowance(&stack->id, stack->movement, obj, 1);
+    /*auto stack = hooks::getStack(objectMap, &stackId.id);
+    
+    visitor.moveStack(&stackId.id, &pos, obj, 1);
+
+    auto stack = hooks::getStack(objectMap, &stackId.id);
+
+    const auto& idSetApi = IdSetApi::get();
+
+    auto midgard = CMidgardApi::get().instance();
+    auto server = midgard->data->server;
+    auto serverLogic = server->data->serverLogic;
+
+    auto client = midgard->data->client;
+    auto clientLogic = client->data->phase;*/
+
+    //auto scenarioMap = CMidServerLogicApi::get().getObjectMap(serverLogic);
+
+    //Pair<IdSetIterator, bool> tmp;
+    //idSetApi.insert(&scenarioMap->changedObjects, &tmp, &stackId.id);
 
     return true;
 }

@@ -775,6 +775,8 @@ using GetSideshowUnitImpl = game::CMidgardID*(__thiscall*)(TRaceType* thisptr,
 using FindCapitalByPlayerId = game::CFortification*(__stdcall*)(game::CMidgardID* playerId,
                                                                 game::IMidgardObjectMap* objectMap);
 
+using CheckLongEffectDuration = bool(__stdcall*)(int roundsPassed);
+
 /** Game and editor functions that can be hooked. */
 struct Functions
 {
@@ -914,6 +916,7 @@ struct Functions
     AddSideshowUnitToUI addSideshowUnitToUI;
     GetSideshowUnitImpl getSideshowUnitImpl;
     FindCapitalByPlayerId findCapitalByPlayerId;
+    CheckLongEffectDuration checkLongEffectDuration;
 };
 
 /** Global variables used in game. */

@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
- * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2025 Alexey Voskresensky.
+ * (https://github.com/Rapthos/Experimental-version)
+ * Copyright (C) 2026 Rapthos.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,34 +17,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BATATTACKHEALHOOKS_H
-#define BATATTACKHEALHOOKS_H
+#ifndef BOOSTDAMAGEHOOKS_H
+#define BOOSTDAMAGEHOOKS_H
 
 namespace game {
-struct CBatAttackHeal;
+struct CBatAttackBoostDamage;
 struct IMidgardObjectMap;
 struct BattleMsgData;
 struct CMidgardID;
-struct BattleUiData;
 struct BattleAttackInfo;
 } // namespace game
 
 namespace hooks {
 
-bool __fastcall healAttackCanPerformHooked(game::CBatAttackHeal* thisptr,
-                                           int /*%edx*/,
-                                           game::IMidgardObjectMap* objectMap,
-                                           game::BattleMsgData* battleMsgData,
-                                           game::CMidgardID* unitId);
+bool __fastcall boostDamageCanPerformHooked(game::CBatAttackBoostDamage* thisptr,
+                                            int /*%edx*/,
+                                            game::IMidgardObjectMap* objectMap,
+                                            game::BattleMsgData* battleMsgData,
+                                            game::CMidgardID* unitId);
 
-void __fastcall healAttackOnHitHooked(game::CBatAttackHeal* thisptr,
-                                      int /*%edx*/,
-                                      game::IMidgardObjectMap* objectMap,
-                                      game::BattleMsgData* battleMsgData,
-                                      game::CMidgardID* targetUnitId,
-                                      game::BattleAttackInfo** attackInfo);
+void __fastcall boostDamageOnHitHooked(game::CBatAttackBoostDamage* thisptr,
+                                       int /*%edx*/,
+                                       game::IMidgardObjectMap* objectMap,
+                                       game::BattleMsgData* battleMsgData,
+                                       game::CMidgardID* targetUnitId,
+                                       game::BattleAttackInfo** attackInfo);
 
-bool __fastcall healAttackIsImmuneHooked(game::CBatAttackHeal* thisptr,
+bool __fastcall boostDamageIsImmuneHooked(game::CBatAttackBoostDamage* thisptr,
                                          int /*%edx*/,
                                          game::IMidgardObjectMap* objectMap,
                                          game::BattleMsgData* battleMsgData,
@@ -52,4 +51,4 @@ bool __fastcall healAttackIsImmuneHooked(game::CBatAttackHeal* thisptr,
 
 } // namespace hooks
 
-#endif // BATATTACKHEALHOOKS_H
+#endif

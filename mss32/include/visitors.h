@@ -31,6 +31,8 @@ struct LSiteCategory;
 struct LTerrainCategory;
 struct CMqPoint;
 struct CMidStack;
+struct CMidUnit;
+struct CMqPointList;
 
 /**
  * Base for all visitor classes.
@@ -223,10 +225,18 @@ struct Api
     * @returns true if player attitude was changed when apply set to 1. If apply set to 0, returns
     * whether visitor can be applied. 
     **/
-
     using SwapUnitPosition = bool(__stdcall*)(int firstPosition, const CMidgardID* stackId, int secondPosition, const CMidgardID* otherStackId, IMidgardObjectMap* objectMap, int apply);
     SwapUnitPosition swapUnitPosition;
 
+    /**
+     * Revives a dead unit in a stack.
+     * Uses CVisitorReviveUnit.
+     * @param[in] unitId id of unit to revive.
+     * @param[in] objectMap interface used for unit search.
+     * @param apply specifies whether changes should be applied.
+     * @returns true if unit was revived when apply was selected. If apply set to 0, returns whether
+     * visitor can be applied.
+     */
     using ReviveUnit = bool(__stdcall*)(const CMidgardID* unitId,
                                         IMidgardObjectMap* objectMap,
                                         int apply);
@@ -249,12 +259,33 @@ struct Api
                                         int apply);
     CreateItem createItem;
 
+    /**
+     * Destroys an item from an object's inventory (stack, bag or city).
+     * Uses CVisitorDestroyItem.
+     * @param[in] ownerId id of the object whose inventory contains the item.
+     * @param[in] itemId id of the item to destroy.
+     * @param[in] objectMap interface used for objects search.
+     * @param apply specifies whether item destruction should be applied.
+     * @returns true if item was destroyed when apply set to 1. If apply set to 0, returns whether
+     * visitor can be applied.
+     */
     using DestroyItem = bool(__stdcall*)(const CMidgardID* ownerId,
                                          const CMidgardID* itemId,
                                          IMidgardObjectMap* objectMap,
                                          int apply);
     DestroyItem destroyItem;
 
+    /**
+     * Adds an item to a merchant's inventory for sale.
+     * Uses CVisitorMerchantAddItem.
+     * @param[in] merchantId id of the merchant site.
+     * @param[in] itemId id of the item to add for sale.
+     * @param amount amount of items to add.
+     * @param[in] objectMap interface used for objects search.
+     * @param apply specifies whether item addition should be applied.
+     * @returns true if item was added when apply set to 1. If apply set to 0, returns whether
+     * visitor can be applied.
+     */
     using MerchantAddItem = bool(__stdcall*)(const CMidgardID* merchantId,
                                              const CMidgardID* itemImplId,
                                              int amount,
@@ -262,22 +293,112 @@ struct Api
                                              int apply);
     MerchantAddItem merchantAddItem;
 
+    /**
+     * Removes an item from a merchant's inventory.
+     * Uses CVisitorMerchantDelItem.
+     * @param[in] merchantId id of the merchant site.
+     * @param[in] itemId id of the item to remove from sale.
+     * @param[in] objectMap interface used for objects search.
+     * @param apply specifies whether item removal should be applied.
+     * @returns true if item was removed when apply set to 1. If apply set to 0, returns whether
+     * visitor can be applied.
+     */
     using MerchantDelItem = bool(__stdcall*)(const CMidgardID* merchantId,
                                              const CMidgardID* itemImplId,
                                              IMidgardObjectMap* objectMap,
                                              int apply);
     MerchantDelItem merchantDelItem;
 
+    /**
+     * Creates a rod (territory capture rod) at the specified position.
+     * Uses CVisitorCreateRod.
+     * @param[in] playerId id of the player who will own the rod.
+     * @param[in] position position on the map where to place the rod.
+     * @param[in] objectMap interface used for objects search.
+     * @param apply specifies whether rod creation should be applied.
+     * @returns true if rod was created when apply set to 1. If apply set to 0, returns whether
+     * visitor can be applied.
+     */
     using CreateRod = bool(__stdcall*)(const CMidgardID* ownerId, 
                                        const CMqPoint* position, 
                                        IMidgardObjectMap* objectMap, 
                                        int apply);
     CreateRod createRod;
 
+    /**
+     * Destroys a rod (territory capture rod) on the map.
+     * Uses CVisitorDestroyRod.
+     * @param[in] rodId id of the rod to destroy.
+     * @param[in] objectMap interface used for objects search.
+     * @param apply specifies whether rod destruction should be applied.
+     * @returns true if rod was destroyed when apply set to 1. If apply set to 0, returns whether
+     * visitor can be applied.
+     */
     using DestroyRod = bool(__stdcall*)(const CMidgardID* rodId,
                                         IMidgardObjectMap* objectMap,
                                         int apply);
     DestroyRod destroyRod;
+
+    /**
+     * Moves a stack to the specified position on the map.
+     * Uses CVisitorMoveStack.
+     * @param[in] stackId id of the stack to move.
+     * @param[in] position target position on the map.
+     * @param[in] objectMap interface used for objects search.
+     * @param apply specifies whether movement should be applied.
+     * @returns true if stack was moved when apply set to 1. If apply set to 0, returns whether
+     * visitor can be applied.
+     */
+    using MoveStack = bool(__stdcall*)(const CMidgardID* stackId,
+                                       const CMqPoint* position,
+                                       IMidgardObjectMap* objectMap,
+                                       int apply);
+    MoveStack moveStack;
+
+    /**
+     * Changes stack movement points by specified delta.
+     * Uses CVisitorChangeStackMoveAllowance.
+     * Positive delta decreases movement points, negative delta increases them.
+     * @param[in] stackId id of stack whose movement points to change.
+     * @param movementDelta movement points change amount. Positive value decreases, negative
+     * increases.
+     * @param[in] objectMap interface used for stack search.
+     * @param apply specifies whether changes should be applied.
+     * @returns true if movement points were changed when apply was selected. If apply set to 0,
+     * returns whether visitor can be applied.
+     */
+    using ChangeStackMoveAllowance = bool(__stdcall*)(const CMidgardID* stackId, int movement, IMidgardObjectMap* objectMap, int apply);
+    ChangeStackMoveAllowance changeStackMoveAllowance;
+
+    using ChangeMapTerrain = bool(__stdcall*)(const LTerrainCategory* terrainCategory,
+                                              CMqPointList* positions,
+                                              int* a3,
+                                              IMidgardObjectMap* objectMap,
+                                              int apply);
+    ChangeMapTerrain changeMapTerrain;
+
+    using RunKillStack = bool(__stdcall*)(const CMidgardID* stackId,
+                                          const CMidgardID* killerId,
+                                          const CMidgardID* playerId,
+                                          const CMidgardID* deathSourceId,
+                                          int flags,
+                                          bool destroyItems,
+                                          IMidgardObjectMap* objectMap,
+                                          int apply);
+    RunKillStack runKillStack;
+
+    using CreateStackDestroyed = bool(__stdcall*)(const CMidgardID* stackId,
+                                                     const int* posX,
+                                                     const int* posY,
+                                                     IMidgardObjectMap* objectMap,
+                                                     int apply);
+    CreateStackDestroyed createStackDestroyed;
+
+    using OverlayUnit = bool(__stdcall*)(const CMidgardID* unitId,
+                                         CMidUnit* sourceUnit,
+                                         IMidgardObjectMap* objectMap,
+                                         int apply);
+    OverlayUnit overlayUnit;
 
     /**
      * Changes player attitude.

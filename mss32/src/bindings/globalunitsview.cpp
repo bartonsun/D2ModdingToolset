@@ -30,6 +30,12 @@ void GlobalUnitsView::bind(sol::state& lua)
 {
     auto view = lua.new_usertype<GlobalUnitsView>("GlobalUnitsView");
     view["getBaseImpl"] = &GlobalUnitsView::getBaseImpl;
+
+    view["id"] = sol::property([](const GlobalUnitsView&) -> IdView {
+        throw std::runtime_error("Called '.id' on GlobalUnitsView object. "
+                                 "Did you mean to call '.id' on a UnitView? "
+                                 "Use unit.id, not units.id");
+    });
 }
 
 std::optional<UnitImplView> GlobalUnitsView::getBaseImpl(const std::string& idStr) const

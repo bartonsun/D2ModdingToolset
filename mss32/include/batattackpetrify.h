@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/Rapthos/Experimental-version)
- * Copyright (C) 2025 Rapthos.
+ * Copyright (C) 2026 Rapthos.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BATATTACKBOOSTDAMAGE_H
-#define BATATTACKBOOSTDAMAGE_H
+#ifndef BATATTACKPETRIFYHOOKS_H
+#define BATATTACKPETRIFYHOOKS_H
 
 #include "batattack.h"
 #include "midgardid.h"
@@ -27,26 +27,22 @@ namespace game {
 
 struct IAttack;
 
-struct CBatAttackBoostDamage : public CBatAttackBase
+struct CBatAttackPetrify : public CBatAttackBase
 {
     CMidgardID unitId;
-    CMidgardID attackImplUnitId;
+    CMidgardID id2;
     int attackNumber;
-    IAttack* attackImpl;
-    IAttack* attack2Impl;
-    bool attack2Initialized;
-    char padding[3];
-    int attackImplMagic;
+    IAttack* attack;
 };
 
-assert_size(CBatAttackBoostDamage, 32);
+assert_size(CBatAttackPetrify, 20);
 
-namespace CBatAttackBoostDamageApi {
+namespace CBatAttackPetrifyApi {
 
 IBatAttackVftable* vftable();
 
-} // namespace CBatAttackBoostDamage
+} // namespace CBatAttackPetrifyApi
 
 } // namespace game
 
-#endif // BATATTACKBOOSTDAMAGE_H
+#endif // BATATTACKPETRIFYHOOKS_H

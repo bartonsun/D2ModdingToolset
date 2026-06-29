@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/Rapthos/Experimental-version)
- * Copyright (C) 2025 Rapthos.
+ * Copyright (C) 2026 Rapthos.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,36 +17,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BATATTACKBOOSTDAMAGE_H
-#define BATATTACKBOOSTDAMAGE_H
+#include "batattackpoisoneffect.h"
+#include "version.h"
+#include <array>
 
-#include "batattack.h"
-#include "midgardid.h"
+namespace game::CBatAttackPoisonEffectApi {
 
-namespace game {
+// clang-format off
+static std::array<IBatAttackVftable*, 4> vftables = {{
+    // Akella
+    (IBatAttackVftable*)0x6f518c,
+    // Russobit
+    (IBatAttackVftable*)0x6f518c,
+    // Gog
+    (IBatAttackVftable*)0x6f313c,
+    // Scenario Editor
+    (IBatAttackVftable*)nullptr,
+}};
+// clang-format on
 
-struct IAttack;
-
-struct CBatAttackBoostDamage : public CBatAttackBase
+IBatAttackVftable* vftable()
 {
-    CMidgardID unitId;
-    CMidgardID attackImplUnitId;
-    int attackNumber;
-    IAttack* attackImpl;
-    IAttack* attack2Impl;
-    bool attack2Initialized;
-    char padding[3];
-    int attackImplMagic;
-};
+    return vftables[static_cast<int>(hooks::gameVersion())];
+}
 
-assert_size(CBatAttackBoostDamage, 32);
-
-namespace CBatAttackBoostDamageApi {
-
-IBatAttackVftable* vftable();
-
-} // namespace CBatAttackBoostDamage
-
-} // namespace game
-
-#endif // BATATTACKBOOSTDAMAGE_H
+} // namespace game::CBatAttackPoisonEffectApi

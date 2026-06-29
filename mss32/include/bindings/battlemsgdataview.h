@@ -138,7 +138,8 @@ public:
 
     int getUnitAttackCount(const IdView& unitId) const;
     UnitView getUnitTurn() const;
-    bool setUnitAttackCount(const IdView& unitId, int value);
+    //bool setUnitAttackCount(const IdView& unitId, int value);
+    bool setUnitAttackCount(const IdView& unitId, int value, int turnIndex);
     bool addUnitModifier(const IdView& unitId,
                          const IdView& unitId2,
                          const std::string& modifierId);
@@ -147,8 +148,6 @@ public:
     bool setHealth(const IdView& unitId, int value);
     bool setShatteredArmor(const IdView& unitId, int value);
 
-    int getStatusDamageExtended(const IdView& unitId, const int status);
-    int getStatusDamageBase(const IdView& unitId, const int status);
     int getStatusDamage(const IdView& unitId, const int status);
 
     bool setStatus(const IdView& unitId, int status, int value, bool isLong);
@@ -228,7 +227,8 @@ protected:
 
         view["GetUnitAttackCount"] = &BattleMsgDataView::getUnitAttackCount;
         view["GetUnitTurn"] = &BattleMsgDataView::getUnitTurn;
-        view["SetUnitAttackCount"] = &BattleMsgDataView::setUnitAttackCount;
+        view["SetUnitAttackCount"] = sol::overload(&BattleMsgDataView::setUnitAttackCount,
+            [](BattleMsgDataView& self, const IdView& id, int value) { return self.setUnitAttackCount(id, value, 1); });
         view["AddUnitModifier"] = &BattleMsgDataView::addUnitModifier;
         view["RemoveUnitModifier"] = &BattleMsgDataView::removeUnitModifier;
         view["Heal"] = &BattleMsgDataView::heal;

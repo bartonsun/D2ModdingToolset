@@ -124,6 +124,22 @@ int computeValue(int base,
     return std::clamp(result, min, max);
 }
 
+int computeHeal(int base,
+                int boostDamageLevel,
+                int lowerDamageLevel,
+                const game::IdList* modifiers,
+                int healMax)
+{
+    using namespace game;
+
+    const auto& restrictions = gameRestrictions();
+
+    int boost = hooks::getBoostDamage(boostDamageLevel) - hooks::getLowerDamage(lowerDamageLevel);
+
+    return computeValue(base, restrictions.attackDamage->min, healMax, boost, modifiers,
+                        ModifierElementTypeFlag::QtyDamage);
+}
+
 int computeDamage(int base,
                   int boostDamageLevel,
                   int lowerDamageLevel,
@@ -262,6 +278,21 @@ AttackDescriptor::AttackDescriptor(game::IEncUnitDescriptor* descriptor,
                                 damageMax, data.classId, data.custom.damageSplit);
     data.drain = attackHasDrain(data.classId) ? attack->vftable->getDrain(attack, data.damage) : 0;
     data.power = computePower(data.power, modifiers, data.classId);
+
+    if (attackHasHeal(data.classId)) {
+        using namespace game;
+        const auto& classes = AttackClassCategories::get();
+
+        if (!global && data.classId == classes.revive->id
+            && hooks::userSettings().reviveAttacksUsesQtyHeal == 0) {
+            auto globalAttack = getAttackImpl(descriptor, type);
+            data.heal = globalAttack ? globalAttack->vftable->getQtyHeal(globalAttack) : 0;
+        } else {
+            data.heal = computeHeal(data.heal, boostDamageLevel, lowerDamageLevel, modifiers,
+                                    damageMax);
+        }
+    }
+
     data.infinite = attackHasInfinite(data.classId) ? attack->vftable->getInfinite(attack) : 0;
 
     data.critHit = false;

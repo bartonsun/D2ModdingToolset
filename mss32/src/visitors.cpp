@@ -45,6 +45,12 @@ std::array<Api, 4> functions = {{
         (Api::MerchantDelItem)0x5e8fa3,
         (Api::CreateRod)0x5e99f0,
         (Api::DestroyRod)0x5e9a3e,
+        (Api::MoveStack)0x5e839c,
+        (Api::ChangeStackMoveAllowance)0x5e8B0e,
+        (Api::ChangeMapTerrain)0x5e81d8,
+        (Api::RunKillStack)0x5e8e5c,
+        (Api::CreateStackDestroyed)0x5e8264,
+        (Api::OverlayUnit)0x5E8A21,
         (Api::PlayerSetAttitude)nullptr,
         (Api::SetStackSrcTemplate)0x5e9ef8,
         (Api::MerchantAddBuyCategory)nullptr,
@@ -52,6 +58,7 @@ std::array<Api, 4> functions = {{
         (Api::ChangeSiteInfo)nullptr,
         (Api::ChangeSiteImage)nullptr,
         (Api::ChangeSiteAiPriority)nullptr,
+        (Api::ChangeStackLeader)0x5E8AC0,
     },
     // Russobit
     Api{
@@ -73,6 +80,12 @@ std::array<Api, 4> functions = {{
         (Api::MerchantDelItem)0x5e8fa3,
         (Api::CreateRod)0x5e99f0,
         (Api::DestroyRod)0x5e9a3e,
+        (Api::MoveStack)0x5e839c,
+        (Api::ChangeStackMoveAllowance)0x5e8B0e,
+        (Api::ChangeMapTerrain)0x5e81d8,
+        (Api::RunKillStack)0x5e8e5c,
+        (Api::CreateStackDestroyed)0x5e8264,
+        (Api::OverlayUnit)0x5E8A21,
         (Api::PlayerSetAttitude)nullptr,
         (Api::SetStackSrcTemplate)0x5e9ef8,
         (Api::MerchantAddBuyCategory)nullptr,
@@ -80,6 +93,7 @@ std::array<Api, 4> functions = {{
         (Api::ChangeSiteInfo)nullptr,
         (Api::ChangeSiteImage)nullptr,
         (Api::ChangeSiteAiPriority)nullptr,
+        (Api::ChangeStackLeader)0x5E8AC0,
     },
     // Gog
     Api{
@@ -101,6 +115,12 @@ std::array<Api, 4> functions = {{
         (Api::MerchantDelItem)0x5e7ca2,
         (Api::CreateRod)0x5e86ef,
         (Api::DestroyRod)0x5e873d,
+        (Api::MoveStack)0x5e709b,
+        (Api::ChangeStackMoveAllowance)0x5e780d,
+        (Api::ChangeMapTerrain)0x5e6ed7,
+        (Api::RunKillStack)0x5e7b5b,
+        (Api::CreateStackDestroyed)0x5e6f63,
+        (Api::OverlayUnit)0x5e7720,
         (Api::PlayerSetAttitude)nullptr,
         (Api::SetStackSrcTemplate)0x5e8bf7,
         (Api::MerchantAddBuyCategory)nullptr,
@@ -108,6 +128,7 @@ std::array<Api, 4> functions = {{
         (Api::ChangeSiteInfo)nullptr,
         (Api::ChangeSiteImage)nullptr,
         (Api::ChangeSiteAiPriority)nullptr,
+        (Api::ChangeStackLeader)0x5e77bf,
     },
     // Scenario Editor
     Api{
@@ -129,6 +150,12 @@ std::array<Api, 4> functions = {{
         (Api::MerchantDelItem)0x4eb091,
         (Api::CreateRod)0,
         (Api::DestroyRod)0x4eb7c2,
+        (Api::MoveStack)0x4ea111,
+        (Api::ChangeStackMoveAllowance)0, //TODO
+        (Api::ChangeMapTerrain)0x4e9d30, //?
+        (Api::RunKillStack)0, //TODO
+        (Api::CreateStackDestroyed)0, //TODO
+        (Api::OverlayUnit)0, //?
         (Api::PlayerSetAttitude)0x4e9baa,
         (Api::SetStackSrcTemplate)0,
         (Api::MerchantAddBuyCategory)0x4eb0df,
@@ -136,6 +163,7 @@ std::array<Api, 4> functions = {{
         (Api::ChangeSiteInfo)0x4eadb9,
         (Api::ChangeSiteImage)0x4eae6a,
         (Api::ChangeSiteAiPriority)0x4eaeb8,
+        (Api::ChangeStackLeader)0x4eaa5c,
     },
 }};
 // clang-format on

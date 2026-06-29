@@ -243,6 +243,8 @@ struct Settings
         bool boostdamageCanAffectHealer;
 
     } extendedBattle;
+
+    std::vector<int> longEffectRemoveChances;
 };
 
 const Settings& baseSettings();

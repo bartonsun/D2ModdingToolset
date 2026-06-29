@@ -45,10 +45,11 @@ struct CBuildingBranch;
 struct IUsSoldier;
 struct IMidgardObjectMap;
 struct BattleMsgData;
+struct CBatAttackDamage;
 struct CBatAttackDefend;
 struct CBatAttackRevive;
-struct CBatAttackGiveAttack;
 struct CBatAttackShatter;
+struct IBatAttack;
 struct BattleAttackInfo;
 struct CMidPlayer;
 struct CEncLayoutSpell;
@@ -78,7 +79,6 @@ struct LSiteCategory;
 struct CMidSite;
 struct CTextBoxInterf;
 
-struct CBatAttackBoostDamage;
 struct CBatAttackLowerDamage;
 
 template <typename T>
@@ -135,19 +135,6 @@ bool __stdcall isTurnValidHooked(int turn);
 game::CMidgardID* __stdcall radioButtonIndexToPlayerIdHooked(game::CMidgardID* playerId,
                                                              game::IMidgardObjectMap* objectMap,
                                                              int index);
-
-bool __fastcall giveAttackCanPerformHooked(game::CBatAttackGiveAttack* thisptr,
-                                           int /*%edx*/,
-                                           game::IMidgardObjectMap* objectMap,
-                                           game::BattleMsgData* battleMsgData,
-                                           game::CMidgardID* unitId);
-
-void __fastcall giveAttackOnHitHooked(game::CBatAttackShatter* thisptr,
-                                      int /*%edx*/,
-                                      game::IMidgardObjectMap* objectMap,
-                                      game::BattleMsgData* battleMsgData,
-                                      game::CMidgardID* unitId,
-                                      game::BattleAttackInfo** attackInfo);
 
 bool __fastcall shatterCanPerformHooked(game::CBatAttackShatter* thisptr,
                                         int /*%edx*/,
@@ -345,19 +332,6 @@ bool __fastcall lowerDamageCanPerformHooked(game::CBatAttackLowerDamage* thisptr
                                             game::BattleMsgData* battleMsgData,
                                             game::CMidgardID* unitId);
 
-bool __fastcall boostDamageCanPerformHooked(game::CBatAttackBoostDamage* thisptr,
-                                            int /*%edx*/,
-                                            game::IMidgardObjectMap* objectMap,
-                                            game::BattleMsgData* battleMsgData,
-                                            game::CMidgardID* unitId);
-
-void __fastcall boostDamageOnHitHooked(game::CBatAttackBoostDamage* thisptr,
-                                       int /*%edx*/,
-                                       game::IMidgardObjectMap* objectMap,
-                                       game::BattleMsgData* battleMsgData,
-                                       game::CMidgardID* targetUnitId,
-                                       game::BattleAttackInfo** attackInfo);
-
 bool __fastcall decreaseUnitAttacksHooked(game::BattleMsgData* thisptr,
                                           int /*%edx*/,
                                           const game::CMidgardID* unitId);
@@ -367,6 +341,7 @@ void __stdcall applyCBatAttackUntransformEffectHooked(game::IMidgardObjectMap* o
                                                       game::BattleMsgData* battleMsgData,
                                                       game::CResultSender* resultSender,
                                                       char sendResult);
+
 void __fastcall showAttackEffectHooked(game::IBatViewer* thisptr,
                                        int /*%edx*/,
                                        const game::BattleMsgData* battleMsgData,
@@ -386,6 +361,21 @@ void __fastcall reviveAttackOnHitHooked(game::CBatAttackRevive* thisptr,
                                   game::BattleMsgData* battleMsgData,
                                   game::CMidgardID* targetUnitId,
                                   game::BattleAttackInfo** attackInfo);
+
+bool __fastcall reviveAttackIsImmuneHooked(game::CBatAttackRevive* thisptr,
+                                           int /*%edx*/,
+                                           game::IMidgardObjectMap* objectMap,
+                                           game::BattleMsgData* battleMsgData,
+                                           game::CMidgardID* unitId);
+
+bool __stdcall checkLongEffectDurationHooked(int roundsPassed);
+
+void __fastcall damageAttackOnHitHooked(game::CBatAttackDamage* thisptr,
+                                        int /*%edx*/,
+                                        game::IMidgardObjectMap* objectMap,
+                                        game::BattleMsgData* battleMsgData,
+                                        game::CMidgardID* targetUnitId,
+                                        game::BattleAttackInfo** attackInfo);
 } // namespace hooks
 
 #endif // HOOKS_H
