@@ -48,6 +48,7 @@
 #include "textids.h"
 #include "uimanager.h"
 #include "utils.h"
+#include <unitutils.h>
 #include <spdlog/spdlog.h>
 
 namespace hooks {
@@ -330,6 +331,13 @@ void CMenuCustomLobby::initializeRoomsControls()
         setButtonCallback(btnCreate, createBtnHandler, this);
     }
 
+    auto btnHelp = (CButtonInterf*)findOptionalControl("BTN_HELP", rtti.CButtonInterfType);
+
+    if (btnHelp) {
+        setButtonCallback(btnHelp, helpBtnHandler, this);
+    }
+
+
     auto btnLoad = (CButtonInterf*)findOptionalControl("BTN_LOAD", rtti.CButtonInterfType);
     if (btnLoad) {
         setButtonCallback(btnLoad, loadBtnHandler, this);
@@ -394,6 +402,45 @@ void CMenuCustomLobby::hideRoomPasswordDialog()
     }
 }
 
+void __fastcall CMenuCustomLobby::helpBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
+{
+    using namespace game;
+
+    spdlog::debug("HELP Button pressed");
+
+    if (thisptr->m_helpDialog) {
+        spdlog::debug("HELP Dialog already opened, ignoring");
+        return;
+    }
+
+    spdlog::debug("HELP Allocating help dialog");
+
+    thisptr->m_helpDialog = (CHelpInterf*)Memory::get().allocate(sizeof(CHelpInterf));
+
+    spdlog::debug("HELP Showing help dialog");
+
+    showInterface(new (thisptr->m_helpDialog) CHelpInterf(thisptr));
+}
+
+void __fastcall CMenuCustomLobby::CHelpInterf::closeBtnHandler(CHelpInterf* thisptr, int /*%edx*/)
+{
+    spdlog::debug("HELP Close button pressed");
+
+    auto menu = thisptr->m_menu;
+
+    spdlog::debug("HELP Hiding help interface");
+
+    hideInterface(thisptr);
+
+    spdlog::debug("HELP Calling destructor");
+
+    thisptr->vftable->destructor(thisptr, 1);
+
+    menu->m_helpDialog = nullptr;
+
+    spdlog::debug("HELP Help dialog destroyed and pointer cleared");
+}
+
 void __fastcall CMenuCustomLobby::createBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
 {
     using namespace game;
@@ -411,6 +458,197 @@ void __fastcall CMenuCustomLobby::loadBtnHandler(CMenuCustomLobby* thisptr, int 
     menuPhase->data->host = true;
     CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::CustomLobby2LoadSkirmish);
 }
+void __fastcall CMenuCustomLobby::CHelpInterf::listBoxClickHandler(CHelpInterf* thisptr,
+                                                                   int,
+                                                                   int index)
+{
+    const auto& helpEntries = hooks::textIds().lobby.help;
+
+    if (index < 0 || index >= (int)helpEntries.size())
+        return;
+
+    const auto& entry = helpEntries[index];
+
+    auto link = resolveTextSmart(entry.url, true);
+
+    if (link.empty())
+        return;
+
+    bool ctrl = (GetAsyncKeyState(VK_CONTROL) & 0x8000);
+    bool shift = (GetAsyncKeyState(VK_SHIFT) & 0x8000);
+
+    if (ctrl) {
+        copyToClipboard(link);
+        spdlog::debug("HELP Copied URL: {}", link);
+    } else if (shift) {
+
+        HWND hwnd = GetForegroundWindow();
+        if (hwnd && IsWindow(hwnd)) {
+            ShowWindow(hwnd, SW_MINIMIZE);
+        }
+
+        openInBrowser(link);
+        spdlog::debug("HELP Opened URL: {}", link);
+    }
+}
+
+void __fastcall CMenuCustomLobby::CHelpInterf::listBoxDisplayHandler(CHelpInterf* thisptr,
+                                                                     int,
+                                                                     game::ImagePointList* contents,
+                                                                     const game::CMqRect* lineArea,
+                                                                     int index,
+                                                                     bool selected)
+{
+    using namespace game;
+
+    const auto& helpEntries = hooks::textIds().lobby.help;
+
+    if (index < 0 || index >= (int)helpEntries.size())
+        return;
+
+    const auto& entry = helpEntries[index];
+
+    auto title = resolveTextSmart(entry.title, false);
+
+    const int rowHeight = 24;
+    CMqPoint size{lineArea->right - lineArea->left, rowHeight};
+
+    auto image2Text = (CImage2Text*)Memory::get().allocate(sizeof(CImage2Text));
+
+    CImage2TextApi::get().constructor(image2Text, size.x, size.y);
+
+    CImage2TextApi::get().setText(image2Text, fmt::format("\\fSmall;{}", title).c_str());
+
+    ImagePtrPointPair pair{};
+    SmartPointerApi::get().createOrFree((SmartPointer*)&pair.first, image2Text);
+
+    pair.second.x = 0;
+    pair.second.y = 0;
+
+    ImagePointListApi::get().add(contents, &pair);
+
+    SmartPointerApi::get().createOrFree((SmartPointer*)&pair.first, nullptr);
+
+    if (selected) {
+        game::Color color{};
+        CMqPoint outlineSize{lineArea->right - lineArea->left, rowHeight};
+
+        auto outline = (CImage2Outline*)Memory::get().allocate(sizeof(CImage2Outline));
+
+        CImage2OutlineApi::get().constructor(outline, &outlineSize, &color, 0xff);
+
+        ImagePtrPointPair outlinePair{};
+        SmartPointerApi::get().createOrFree((SmartPointer*)&outlinePair.first, outline);
+
+        outlinePair.second.x = 0;
+        outlinePair.second.y = 0;
+
+        ImagePointListApi::get().add(contents, &outlinePair);
+
+        SmartPointerApi::get().createOrFree((SmartPointer*)&outlinePair.first, nullptr);
+    }
+}
+
+CMenuCustomLobby::CHelpInterf::CHelpInterf(CMenuCustomLobby* menu)
+    : CPopupDialogCustomBase(this, helpDialogName)
+    , m_menu(menu)
+{
+    using namespace game;
+
+    spdlog::debug("HELP Constructing HelpInterf");
+
+    CPopupDialogInterfApi::get().constructor(this, helpDialogName, nullptr);
+
+    setButtonCallback(*dialog, "BTN_CLOSE", closeBtnHandler, this);
+
+    const auto& dialogApi = CDialogInterfApi::get();
+    const auto& pictureApi = CPictureInterfApi::get();
+    const auto& listBoxApi = CListBoxInterfApi::get();
+    const auto& menuBaseApi = CMenuBaseApi::get();
+
+    // ===== Portrait
+    auto img = dialogApi.findPicture(*dialog, "IMG_PLAYER_RBIGFACE");
+    if (img) {
+        const auto& fn = gameFunctions();
+        const auto& idApi = CMidgardIDApi::get();
+
+        CMidgardID unitId{};
+        idApi.fromString(&unitId, "G001UU7582");
+
+        if (unitId.value == 0x3f0000) {
+            spdlog::warn("Invalid id string, using fallback");
+            idApi.fromString(&unitId, "G000UU0152");
+        }
+
+        auto* impl = hooks::getGlobalUnitImpl(&unitId);
+
+        if (!impl) {
+            spdlog::warn("Unit impl not found, fallback");
+
+            idApi.fromString(&unitId, "G000UU0152");
+            impl = hooks::getGlobalUnitImpl(&unitId);
+
+            if (!impl) {
+                spdlog::error("Fallback impl also not found");
+                return;
+            }
+        }
+
+        auto faceImage = fn.createUnitFaceImage(&unitId, true);
+
+        if (!faceImage) {
+            spdlog::error("createUnitFaceImage returned nullptr");
+            return;
+        }
+
+        faceImage->vftable->setPercentHp(faceImage, 100);
+        faceImage->vftable->setUnknown68(faceImage, 0);
+        faceImage->vftable->setLeftSide(faceImage, false);
+
+        CMqPoint offset{-4, 0};
+        pictureApi.setImage(img, (IMqImage2*)faceImage, &offset);
+    }
+
+    // ===== Description from Lua
+    auto txtHelp = dialogApi.findTextBox(*dialog, "TXT_HELP_INFO");
+    if (txtHelp) {
+        auto text = resolveTextSmart(hooks::textIds().lobby.helpDescription, false);
+        CTextBoxInterfApi::get().setString(txtHelp, text.c_str());
+    }
+
+    // ===== ListBox
+    auto listBox = dialogApi.findListBox(*dialog, "LBOX_TEXT_AREA");
+    if (!listBox) {
+        spdlog::error("HELP LBOX_TEXT_AREA not found!");
+        return;
+    }
+
+    // Display callback
+    SmartPointer displayFunctor;
+    auto displayCallback = (CMenuBaseApi::Api::ListBoxDisplayCallback)listBoxDisplayHandler;
+
+    menuBaseApi.createListBoxDisplayFunctor(&displayFunctor, 0, m_menu, &displayCallback);
+
+    listBoxApi.assignDisplaySurfaceFunctor(*dialog, "LBOX_TEXT_AREA", helpDialogName,
+                                           &displayFunctor);
+
+    SmartPointerApi::get().createOrFreeNoDtor(&displayFunctor, nullptr);
+
+    // Click callback
+    SmartPointer clickFunctor;
+    auto clickCallback = (CMenuBaseApi::Api::ListBoxCallback)listBoxClickHandler;
+
+    menuBaseApi.createListBoxFunctor(&clickFunctor, 0, m_menu, &clickCallback);
+
+    listBoxApi.assignFunctor(*dialog, "LBOX_TEXT_AREA", helpDialogName, &clickFunctor);
+
+    SmartPointerApi::get().createOrFreeNoDtor(&clickFunctor, nullptr);
+
+    // set count
+    listBoxApi.setElementsTotal(listBox, (int)hooks::textIds().lobby.help.size());
+}
+
+
 
 void __fastcall CMenuCustomLobby::joinBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
 {
@@ -420,31 +658,60 @@ void __fastcall CMenuCustomLobby::joinBtnHandler(CMenuCustomLobby* thisptr, int 
     }
 
     if (room->usedSlots >= room->totalSlots) {
-        // Could not join game. Host did not report any available race.
         showMessageBox(getInterfaceText("X005TA0886"));
         return;
     }
 
     // Show wait dialog right away because game files hashing can be lengthy
     thisptr->showWaitDialog();
+
     const auto& gameFilesHash = CNetCustomService::get()->getGameFilesHash();
     if (room->gameFilesHash != gameFilesHash) {
-        auto message{getInterfaceText(textIds().lobby.checkFilesFailed.c_str())};
+        auto message = getInterfaceText(textIds().lobby.checkFilesFailed.c_str());
         if (message.empty()) {
             message =
                 "Unable to join the room because the owner's game version or files are different.";
         }
+
         thisptr->hideWaitDialog();
         showMessageBox(message);
-    } else if (!room->password.empty()) {
+        return;
+    }
+
+    if (!room->templateHash.empty()) {
+        auto templatePath = templatesFolder() / room->templateName;
+
+        if (!std::filesystem::exists(templatePath)) {
+            thisptr->hideWaitDialog();
+
+            showMessageBox(
+                fmt::format("Required map template was not found:\n{}", room->templateName));
+
+            return;
+        }
+
+        auto localHash = computeHash({templatePath});
+
+        if (localHash != room->templateHash) {
+            thisptr->hideWaitDialog();
+
+            showMessageBox(
+                fmt::format("Map template differs from the host version:\n{}", room->templateName));
+
+            return;
+        }
+    }
+
+    if (!room->password.empty()) {
         // Store selected room info because the room list can be updated while the dialog is shown
         thisptr->m_joiningRoomId = room->id;
         thisptr->m_joiningRoomPassword = room->password;
         thisptr->hideWaitDialog();
         thisptr->showRoomPasswordDialog();
-    } else {
-        CNetCustomService::get()->joinRoom(room->id);
+        return;
     }
+
+    CNetCustomService::get()->joinRoom(room->id);
 }
 
 void __fastcall CMenuCustomLobby::backBtnHandler(CMenuCustomLobby* thisptr, int /*%edx*/)
@@ -629,26 +896,66 @@ bool __fastcall CMenuCustomLobby::ansInfoMsgHandler(CMenuCustomLobby* menu,
 CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* roomDescriptor)
 {
     std::vector<std::string> clientNames;
+
     const auto& roomMembers = roomDescriptor->roomMemberList;
+
     for (unsigned int i = 0; i < roomMembers.Size(); ++i) {
         const auto& member = roomMembers[i];
+
         if (member.roomMemberMode != RMM_MODERATOR) {
             clientNames.push_back(member.name.C_String());
         }
     }
 
-    // Add 1 to used and total slots because they are not counting room moderator
-    return {roomDescriptor->lobbyRoomId,
-            getRoomModerator(roomDescriptor->roomMemberList)->name,
-            roomDescriptor->GetProperty(CNetCustomService::gameNameColumnName)->c,
-            roomDescriptor->GetProperty(CNetCustomService::passwordColumnName)->c,
-            roomDescriptor->GetProperty(CNetCustomService::gameFilesHashColumnName)->c,
-            roomDescriptor->GetProperty(CNetCustomService::gameVersionColumnName)->c,
-            roomDescriptor->GetProperty(CNetCustomService::scenarioNameColumnName)->c,
-            roomDescriptor->GetProperty(CNetCustomService::scenarioDescriptionColumnName)->c,
+    auto gameNameProperty = roomDescriptor->GetProperty(CNetCustomService::gameNameColumnName);
+
+    auto passwordProperty = roomDescriptor->GetProperty(CNetCustomService::passwordColumnName);
+
+    auto filesHashProperty = roomDescriptor->GetProperty(
+        CNetCustomService::gameFilesHashColumnName);
+
+    auto templateNameProperty = roomDescriptor->GetProperty(
+        CNetCustomService::templateNameColumnName);
+
+    auto templateHashProperty = roomDescriptor->GetProperty(
+        CNetCustomService::templateHashColumnName);
+
+    auto gameVersionProperty = roomDescriptor->GetProperty(
+        CNetCustomService::gameVersionColumnName);
+
+    auto scenarioNameProperty = roomDescriptor->GetProperty(
+        CNetCustomService::scenarioNameColumnName);
+
+    auto scenarioDescriptionProperty = roomDescriptor->GetProperty(
+        CNetCustomService::scenarioDescriptionColumnName);
+
+    auto usedSlotsProperty = roomDescriptor->GetProperty(DefaultRoomColumns::TC_USED_PUBLIC_SLOTS);
+
+    auto totalSlotsProperty = roomDescriptor->GetProperty(
+        DefaultRoomColumns::TC_TOTAL_PUBLIC_SLOTS);
+
+    auto* moderator = getRoomModerator(roomDescriptor->roomMemberList);
+
+    return {roomDescriptor->lobbyRoomId, moderator ? moderator->name.C_String() : "",
+
+            (gameNameProperty && gameNameProperty->c) ? gameNameProperty->c : "",
+            (passwordProperty && passwordProperty->c) ? passwordProperty->c : "",
+            (filesHashProperty && filesHashProperty->c) ? filesHashProperty->c : "",
+
+            (templateNameProperty && templateNameProperty->c) ? templateNameProperty->c : "",
+            (templateHashProperty && templateHashProperty->c) ? templateHashProperty->c : "",
+
+            (gameVersionProperty && gameVersionProperty->c) ? gameVersionProperty->c : "",
+            (scenarioNameProperty && scenarioNameProperty->c) ? scenarioNameProperty->c : "",
+            (scenarioDescriptionProperty && scenarioDescriptionProperty->c)
+                ? scenarioDescriptionProperty->c
+                : "",
+
             std::move(clientNames),
-            (int)roomDescriptor->GetProperty(DefaultRoomColumns::TC_USED_PUBLIC_SLOTS)->i + 1,
-            (int)roomDescriptor->GetProperty(DefaultRoomColumns::TC_TOTAL_PUBLIC_SLOTS)->i + 1};
+
+            // Add 1 to used and total slots because they are not counting room moderator
+            usedSlotsProperty ? (int)usedSlotsProperty->i + 1 : 0,
+            totalSlotsProperty ? (int)totalSlotsProperty->i + 1 : 0};
 }
 
 SLNet::RoomMemberDescriptor* CMenuCustomLobby::getRoomModerator(

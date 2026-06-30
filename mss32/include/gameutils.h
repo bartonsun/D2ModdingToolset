@@ -21,6 +21,8 @@
 #define GAMEUTILS_H
 
 #include "mqpoint.h"
+#include <cstring>
+#include <string>
 
 namespace game {
 struct CMidgardID;
@@ -62,6 +64,29 @@ bool isGreaterPickRandomIfEqual(int first, int second);
  */
 const game::IMidgardObjectMap* getObjectMap();
 
+/**
+ * Returns object map from active server logic.
+ *
+ * Unlike getObjectMap(), this function always tries to access the real server-side
+ * scenario state and should be used when persistent gameplay data must be modified,
+ * for example:
+ *  - scenario variables
+ *  - cooldown timers
+ *  - other synchronized scenario state
+ *
+ * Using maps obtained from sources like:
+ *   game::CPhaseApi::get().getDataCache(...)
+ *
+ * may return a cached/client-side representation that is suitable for UI access,
+ * but changes made through it are not always reflected in the actual server state.
+ *
+ * This became especially important for scenario variables, where reading values
+ * could appear correct, while writes were silently applied to a non-authoritative map.
+ *
+ * Returns nullptr if server logic or object map is unavailable.
+ */
+const game::IMidgardObjectMap* getServerObjectMap();
+
 game::CMidUnitGroup* getGroup(game::IMidgardObjectMap* objectMap,
                               const game::CMidgardID* groupId,
                               bool forChange);
@@ -100,6 +125,36 @@ const game::CMidPlayer* getGroupOwner(const game::IMidgardObjectMap* objectMap,
                                       const game::CMidgardID* groupId);
 
 const game::CMidScenVariables* getScenarioVariables(const game::IMidgardObjectMap* objectMap);
+
+/**
+ * Sets scenario variable value by variable name.
+ *
+ * Returns false if variable was not found or could not be updated.
+ */
+bool setScenarioVariableByName(game::CMidScenVariables* variables,
+                               const std::string& name,
+                               int value);
+
+/**
+ * Sets scenario variable value by internal variable id.
+ *
+ * Returns false if variable was not found or update failed.
+ */
+bool setScenarioVariableById(game::CMidScenVariables* variables, int id, int value);
+
+/**
+ * Returns scenario variable value by name.
+ *
+ * If variable does not exist, returns defaultValue instead.
+ */
+int getScenarioVariableByName(const game::CMidScenVariables* variables,
+                              const std::string& name,
+                              int defaultValue = 0);
+
+/**
+ * Returns true if scenario variable with specified name exists.
+ */
+bool hasScenarioVariableByName(const game::CMidScenVariables* variables, const std::string& name);
 
 const game::CMidgardPlan* getMidgardPlan(const game::IMidgardObjectMap* objectMap);
 game::CMidgardPlan* getMidgardPlanToChange(game::IMidgardObjectMap* objectMap);

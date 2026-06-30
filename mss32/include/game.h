@@ -86,6 +86,7 @@ struct LSiteCategory;
 struct CMidSite;
 struct CTextBoxInterf;
 struct CCmdNobleResultMsg;
+struct CMidServerLogicData;
 
 enum class ModifierElementTypeFlag : int;
 
@@ -777,6 +778,47 @@ using FindCapitalByPlayerId = game::CFortification*(__stdcall*)(game::CMidgardID
 
 using CheckLongEffectDuration = bool(__stdcall*)(int roundsPassed);
 
+
+/**
+ * Handles keyboard input in strategy map interface.
+ * @returns 1 if key was processed, 0 otherwise.
+ */
+using StratInterfKeyHandler = int(__thiscall*)(void* thisPtr, int key, int a3);
+
+
+/**
+ * Sends save game message to server.
+ * Host immediately starts save process, clients send save request.
+ */
+using StratInterfSendSaveGameMsgToServer = void(__thiscall*)(void* thisPtr,
+                                                             const char* saveFilename);
+
+/**
+ * Opens interface for currently selected object.
+ * Depending on selected object type opens:
+ * - stack management
+ * - city stack
+ * - village
+ * - capital
+ * - ruin
+ * etc.
+ */
+using StratInterfOpenSelectedObject = void(__thiscall*)(void* thisPtr);
+
+/**
+ * Called when a player's turn begins.
+ *
+ * Executes core begin turn logic inside CMidServerLogicData.
+ * Invoked for all players, including neutral factions.
+ *
+ * @param thisptr Pointer to server logic data instance.
+ * @param playerId Identifier of the player whose turn is starting.
+ */
+using MidServerLogicDataBeginTurn = void(__thiscall*)(CMidServerLogicData* thisptr,
+                                                      CMidgardID* playerId);
+
+
+
 /** Game and editor functions that can be hooked. */
 struct Functions
 {
@@ -917,6 +959,10 @@ struct Functions
     GetSideshowUnitImpl getSideshowUnitImpl;
     FindCapitalByPlayerId findCapitalByPlayerId;
     CheckLongEffectDuration checkLongEffectDuration;
+    StratInterfKeyHandler stratInterfKeyHandler;
+    StratInterfSendSaveGameMsgToServer sendSaveGameMsgToServer;
+    StratInterfOpenSelectedObject stratInterfOpenSelectedObject;
+    MidServerLogicDataBeginTurn midServerLogicDataBeginTurn;
 };
 
 /** Global variables used in game. */

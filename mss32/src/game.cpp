@@ -162,6 +162,10 @@ static std::array<Functions, 4> functions = {{
         (GetSideshowUnitImpl)0x582c8b,
         (FindCapitalByPlayerId)0x5ea751,
         (CheckLongEffectDuration)0x6278d3,
+        (StratInterfKeyHandler)0x048eda9,
+        (StratInterfSendSaveGameMsgToServer)0x048fed7,
+        (StratInterfOpenSelectedObject)0x490c28,
+        (MidServerLogicDataBeginTurn)0x41e7a8,
     },
     // Russobit
     Functions{
@@ -300,6 +304,10 @@ static std::array<Functions, 4> functions = {{
         (GetSideshowUnitImpl)0x582c8b,
         (FindCapitalByPlayerId)0x5ea751,
         (CheckLongEffectDuration)0x6278d3,
+        (StratInterfKeyHandler)0x048eda9,
+        (StratInterfSendSaveGameMsgToServer)0x048fed7,
+        (StratInterfOpenSelectedObject)0x490c28,
+        (MidServerLogicDataBeginTurn)0x41e7a8,
     },
     // Gog
     Functions{
@@ -438,6 +446,10 @@ static std::array<Functions, 4> functions = {{
         (GetSideshowUnitImpl)0x581ee1,
         (FindCapitalByPlayerId)0x5e9450,
         (CheckLongEffectDuration)0x626413,
+        (StratInterfKeyHandler)0x048e8e3,
+        (StratInterfSendSaveGameMsgToServer)0x048fa11,
+        (StratInterfOpenSelectedObject)0x49072c,
+        (MidServerLogicDataBeginTurn)0x41e290,
     },
     // Scenario Editor
     Functions{
@@ -576,6 +588,10 @@ static std::array<Functions, 4> functions = {{
         (GetSideshowUnitImpl)nullptr,
         (FindCapitalByPlayerId)nullptr,
         (CheckLongEffectDuration)nullptr,
+        (StratInterfKeyHandler)nullptr,
+        (StratInterfSendSaveGameMsgToServer)nullptr,
+        (StratInterfOpenSelectedObject)nullptr,
+        (MidServerLogicDataBeginTurn)nullptr,
     },
 }};
 

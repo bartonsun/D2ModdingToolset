@@ -83,6 +83,23 @@ struct Settings
     bool freeTransformSelfAttackInfinite;
     bool fixEffectiveHpFormula;
 
+    std::vector<std::string> customSortOrder;
+
+    struct Hotkey
+    {
+        std::uint32_t key{'I'};
+
+        bool ctrl{false};
+        bool shift{false};
+        bool alt{false};
+    };
+
+    struct Hotkeys
+    {
+        Hotkey openSelectedObject;
+        Hotkey quickSave;
+    } hotkeys;
+
     struct AdditionalLordIncome
     {   
         struct Gold
@@ -180,6 +197,7 @@ struct Settings
         Color outlineColor{};
         bool show{};
     } movementCost;
+
 
     struct Lobby
     {

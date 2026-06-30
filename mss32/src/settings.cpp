@@ -45,6 +45,20 @@ static std::string readSetting(const sol::table& table, const char* name, const 
     return table.get_or(name, def);
 }
 
+
+static void readCustomSortSettings(const sol::table& table, Settings& settings)
+{
+    settings.customSortOrder.clear();
+
+    auto arr = table.get<sol::optional<sol::table>>("customSortOrder");
+    if (!arr.has_value()) {
+        return;
+    }
+
+    for (auto& kv : arr.value()) {
+        settings.customSortOrder.push_back(kv.second.as<std::string>());
+    }
+}
 static void readAiAttackPowerSettings(const sol::table& table, Settings::AiAttackPowerBonus& value)
 {
     const auto& def = defaultSettings().aiAttackPowerBonus;
@@ -236,6 +250,164 @@ static void readLobbySettings(const sol::table& table, Settings::Lobby& value)
     if (client.has_value()) {
         value.client.port = readSetting(client.value(), "port", settings.client.port);
     }
+}
+
+
+
+static std::uint32_t parseKeyCode(std::string key)
+{
+    std::transform(key.begin(), key.end(), key.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+
+    if (key.empty())
+        return 0;
+
+    if (key.size() == 1)
+        return key[0];
+
+    static const std::unordered_map<std::string, std::uint32_t> keys = {
+        {"TAB", VK_TAB},           {"SPACE", VK_SPACE},     {"ENTER", VK_RETURN},
+        {"RETURN", VK_RETURN},     {"ESC", VK_ESCAPE},      {"ESCAPE", VK_ESCAPE},
+        {"BACKSPACE", VK_BACK},    {"DELETE", VK_DELETE},   {"INSERT", VK_INSERT},
+        {"HOME", VK_HOME},         {"END", VK_END},         {"PAGEUP", VK_PRIOR},
+        {"PAGEDOWN", VK_NEXT},
+
+        {"LEFT", VK_LEFT},         {"RIGHT", VK_RIGHT},     {"UP", VK_UP},
+        {"DOWN", VK_DOWN},
+
+        {"CTRL", VK_CONTROL},      {"SHIFT", VK_SHIFT},     {"ALT", VK_MENU},
+
+        {"NUM0", VK_NUMPAD0},      {"NUM1", VK_NUMPAD1},    {"NUM2", VK_NUMPAD2},
+        {"NUM3", VK_NUMPAD3},      {"NUM4", VK_NUMPAD4},    {"NUM5", VK_NUMPAD5},
+        {"NUM6", VK_NUMPAD6},      {"NUM7", VK_NUMPAD7},    {"NUM8", VK_NUMPAD8},
+        {"NUM9", VK_NUMPAD9},
+
+        {"PLUS", VK_OEM_PLUS},     {"MINUS", VK_OEM_MINUS}, {"COMMA", VK_OEM_COMMA},
+        {"PERIOD", VK_OEM_PERIOD},
+    };
+
+    auto it = keys.find(key);
+    if (it != keys.end())
+        return it->second;
+
+    if (key[0] == 'F') {
+        int number = std::atoi(key.c_str() + 1);
+        if (number >= 1 && number <= 24)
+            return VK_F1 + number - 1;
+    }
+
+    return 0;
+}
+
+static std::string keyCodeToString(std::uint32_t key)
+{
+    if (key >= 'A' && key <= 'Z')
+        return std::string(1, static_cast<char>(key));
+
+    if (key >= '0' && key <= '9')
+        return std::string(1, static_cast<char>(key));
+
+    if (key >= VK_F1 && key <= VK_F24)
+        return "F" + std::to_string(key - VK_F1 + 1);
+
+    switch (key) {
+    case VK_TAB:
+        return "TAB";
+    case VK_SPACE:
+        return "SPACE";
+    case VK_RETURN:
+        return "ENTER";
+    case VK_ESCAPE:
+        return "ESC";
+    case VK_BACK:
+        return "BACKSPACE";
+    case VK_DELETE:
+        return "DELETE";
+    case VK_INSERT:
+        return "INSERT";
+    case VK_HOME:
+        return "HOME";
+    case VK_END:
+        return "END";
+    case VK_PRIOR:
+        return "PAGEUP";
+    case VK_NEXT:
+        return "PAGEDOWN";
+    case VK_LEFT:
+        return "LEFT";
+    case VK_RIGHT:
+        return "RIGHT";
+    case VK_UP:
+        return "UP";
+    case VK_DOWN:
+        return "DOWN";
+
+    case VK_NUMPAD0:
+        return "NUM0";
+    case VK_NUMPAD1:
+        return "NUM1";
+    case VK_NUMPAD2:
+        return "NUM2";
+    case VK_NUMPAD3:
+        return "NUM3";
+    case VK_NUMPAD4:
+        return "NUM4";
+    case VK_NUMPAD5:
+        return "NUM5";
+    case VK_NUMPAD6:
+        return "NUM6";
+    case VK_NUMPAD7:
+        return "NUM7";
+    case VK_NUMPAD8:
+        return "NUM8";
+    case VK_NUMPAD9:
+        return "NUM9";
+
+    case VK_OEM_PLUS:
+        return "PLUS";
+    case VK_OEM_MINUS:
+        return "MINUS";
+    case VK_OEM_COMMA:
+        return "COMMA";
+    case VK_OEM_PERIOD:
+        return "PERIOD";
+    }
+
+    return "";
+}
+
+static void readHotkey(const sol::table& table,
+                       const char* name,
+                       Settings::Hotkey& value,
+                       const Settings::Hotkey& def)
+{
+    auto hotkey = table.get<sol::optional<sol::table>>(name);
+    if (!hotkey.has_value()) {
+        value = def;
+        return;
+    }
+
+    value.key = parseKeyCode(readSetting(hotkey.value(), "key", keyCodeToString(def.key)));
+
+    value.ctrl = readSetting(hotkey.value(), "ctrl", def.ctrl);
+    value.shift = readSetting(hotkey.value(), "shift", def.shift);
+    value.alt = readSetting(hotkey.value(), "alt", def.alt);
+}
+
+static void readHotkeySettings(const sol::table& table, Settings::Hotkeys& value)
+{
+    const auto& def = defaultSettings().hotkeys;
+
+    value = def;
+
+    auto category = table.get<sol::optional<sol::table>>("hotkeys");
+    if (!category.has_value())
+        return;
+
+    readHotkey(category.value(), "openSelectedObject", value.openSelectedObject,
+               def.openSelectedObject);
+
+    readHotkey(category.value(), "quickSave", value.quickSave, def.quickSave);
 }
 
 static void readDebugSettings(const sol::table& table, Settings::Debug& value)
@@ -453,6 +625,8 @@ static void readSettings(const sol::table& table, Settings& settings)
     readAdditionalLordIncomeSettings(table, settings.additionalLordIncome);
     readAdditionalCityIncomeSettings(table, settings.additionalCityIncome);
     readExtandedBattleSettings(table, settings.extendedBattle);
+    readCustomSortSettings(table, settings);
+    readHotkeySettings(table, settings.hotkeys);
 }
 
 static void readDebugMode(Settings& settings)
@@ -563,6 +737,15 @@ const Settings& baseSettings()
         settings.extendedBattle.boostdamageCanAffectHealer = false;
 
         settings.longEffectRemoveChances = {0, 50, 75, 100};
+        settings.hotkeys.openSelectedObject.key = 'I';
+        settings.hotkeys.openSelectedObject.ctrl = false;
+        settings.hotkeys.openSelectedObject.shift = false;
+        settings.hotkeys.openSelectedObject.alt = false;
+
+        settings.hotkeys.quickSave.key = 'Q';
+        settings.hotkeys.quickSave.ctrl = true;
+        settings.hotkeys.quickSave.shift = false;
+        settings.hotkeys.quickSave.alt = false;
 
         initialized = true;
     }

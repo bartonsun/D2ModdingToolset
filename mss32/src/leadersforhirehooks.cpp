@@ -166,7 +166,7 @@ void __stdcall addNobleLeaderToUIHooked(game::IdList* unitIds,
 
 bool __stdcall changeStackLeaderInCapitalHooked(game::IMidgardObjectMap* objectMap,
                                                 game::NetPlayerInfo* playerInfo,
-                                                int dummy)
+                                                int turn)
 {
     using namespace game;
 
@@ -175,27 +175,40 @@ bool __stdcall changeStackLeaderInCapitalHooked(game::IMidgardObjectMap* objectM
     const auto& visitor = VisitorApi::get();
     const auto& global = GlobalDataApi::get();
     const auto globalData = *global.getGlobalData();
+    const auto& groupApi = CMidUnitGroupApi::get();
 
-    bool result = getOriginalFunctions().changeStackLeaderInCapital(objectMap, playerInfo, dummy);
+    bool wasReplaced = getOriginalFunctions().changeStackLeaderInCapital(objectMap, playerInfo, turn);
+
+    if (!wasReplaced) {
+        return wasReplaced;
+    }
 
     auto scenarioInfo = getScenarioInfo(objectMap);
-    if (scenarioInfo->currentTurn > 1) {
-        return result;
+    if (scenarioInfo->currentTurn != turn) {
+        return wasReplaced;
     }
 
     CMidgardID playerId = playerInfo->playerId;
     auto capital = fn.findCapitalByPlayerId(&playerId, objectMap);
     if (!capital) {
-        return result;
+        return wasReplaced;
     }
 
     auto stack = getStack(objectMap, &capital->stackId);
     if (!stack) {
-        return result;
+        return wasReplaced;
+    }
+
+    auto group = fn.getStackFortRuinGroup(nullptr, objectMap, &capital->stackId);
+    if (groupApi.getUnitsCount(group) != 1) {
+        return wasReplaced;
     }
 
     auto currentLeaderId = stack->leaderId;
     CMidUnit* unit = fn.findUnitById(objectMap, &currentLeaderId);
+    if (!unit) {
+        return wasReplaced;
+    }
 
     auto player = getPlayer(objectMap, &playerId);
 
@@ -223,7 +236,7 @@ bool __stdcall changeStackLeaderInCapitalHooked(game::IMidgardObjectMap* objectM
                 void* unitImpl = global.findById(globalData->units, &id);
                 if (!unitImpl) {
                     spdlog::warn("changeStackLeader: ID {} not found", hooks::idToString(&id));
-                    return result;
+                    return wasReplaced;
                 }
                 const IUsUnit* unit = static_cast<const IUsUnit*>(unitImpl);
                 bool isLeader = fn.castUnitImplToLeader(unit) != nullptr;
@@ -231,7 +244,7 @@ bool __stdcall changeStackLeaderInCapitalHooked(game::IMidgardObjectMap* objectM
                 if (!isLeader && !isNoble) {
                     spdlog::warn("changeStackLeader: ID {} is not a leader or noble",
                                  hooks::idToString(&id));
-                    return result;
+                    return wasReplaced;
                 }
                 newLeaderId = id;
             }
@@ -256,32 +269,32 @@ bool __stdcall changeStackLeaderInCapitalHooked(game::IMidgardObjectMap* objectM
         if (leveledImplId == emptyId) {
             spdlog::error("changeStackLeader: failed to generate impl ID for level {}",
                           effectiveLevel);
-            return result;
+            return wasReplaced;
         }
         unitGenerator->vftable->generateUnitImpl(unitGenerator, &leveledImplId);
 
         if (!visitor.extractUnitFromGroup(&currentLeaderId, &capital->stackId, objectMap, 1)) {
             spdlog::error("changeStackLeader: failed to extract current leader");
-            return result;
+            return wasReplaced;
         }
 
         int creationTurn = scenarioInfo->currentTurn;
         if (!visitor.addUnitToGroup(&leveledImplId, &capital->stackId, 2, &creationTurn, 1,
                                     objectMap, 1)) {
             spdlog::error("changeStackLeader: failed to add new leader");
-            return result;
+            return wasReplaced;
         }
 
         auto newStack = getStack(objectMap, &capital->stackId);
         if (!newStack) {
             spdlog::error("changeStackLeader: stack not found after addition");
-            return result;
+            return wasReplaced;
         }
         CMidgardID newUnitId = newStack->leaderId;
         spdlog::debug("Leader replaced: new unit ID {}", hooks::idToString(&newUnitId));
     }
 
-    return result;
+    return wasReplaced;
 }
 
 } // namespace hooks

@@ -138,6 +138,16 @@ struct TextIds
         std::string roomsTotal;
         std::string roomInfo;
         std::string roomInfoInList;
+
+        struct HelpEntry
+        {
+            std::string title;
+            std::string url;
+        };
+
+        std::vector<HelpEntry> help;
+        std::string helpDescription;
+
     } lobby;
 
     struct ScenarioGenerator

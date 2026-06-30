@@ -35,6 +35,7 @@
 #include "menuphase.h"
 #include "multilayerimg.h"
 #include "nativegameinfo.h"
+#include "netcustomservice.h"
 #include "scenariotemplates.h"
 #include "spinbuttoninterf.h"
 #include "stringarray.h"
@@ -655,6 +656,10 @@ static void generateScenario(CMenuRandomScenario* menu, std::time_t seed)
                 return;
             }
 
+            if (!scenario) {
+                continue;
+            }
+
             // Successfully generated, save results
             menu->scenario = std::move(scenario);
             menu->generator = std::make_unique<rsg::MapGenerator>(std::move(generator));
@@ -930,10 +935,23 @@ static void __fastcall buttonGenerateHandler(CMenuRandomScenario* thisptr, int /
         // Roll actual races instead of random
         settings.replaceRandomRaces(rnd);
 
+        // Capture the template at the start of generation.
+        if (auto* service = CNetCustomService::get()) {
+            const auto templateName = std::filesystem::path(templates[selectedIndex].filename)
+                                          .filename()
+                                          .string();
+
+            spdlog::info("Starting generation using template '{}'", templateName);
+
+            service->setTemplateInfo(templateName);
+        }
+
+
         // TODO: handle this in a better way
         sol::state lua;
         rsg::bindLuaApi(lua);
         rsg::readTemplateSettings(templates[selectedIndex].filename, lua);
+
         // Create template contents depending on size and races
         rsg::readTemplateContents(thisptr->scenarioTemplate, lua);
 
