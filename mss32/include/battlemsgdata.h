@@ -182,12 +182,19 @@ struct UnitInfo
     //std::uint64_t unitStatuses2;
     /** Id of attack that applied poison effect. */
     /** Information about DOT damage (for stack) */
-    DotInfo dotInfo;
-    CMidgardID poisonAttackId;
+    //DotInfo dotInfo;
+
+    //Extra params
+    int16_t poisonDamage = 0;
+    int16_t frostbiteDamage = 0;
+    int16_t blisterDamage = 0;
+    int16_t extraAttackCount = 0;
+
+    int poisonAppliedDamage = 0;
     /** Id of attack that applied frostbite effect. */
-    CMidgardID frostbiteAttackId;
+    int frostbiteAppliedDamage = 0;
     /** Id of attack that applied blister effect. */
-    CMidgardID blisterAttackId;
+    int blisterAppliedDamage = 0;
     /** Bitmask with values for each of LAttackSource. */
     AttackSourceImmunityStatusesPatched attackSourceImmunityStatuses;
     /** Bitmask with values for each of LAttackClass. */

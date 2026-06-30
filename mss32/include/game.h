@@ -776,6 +776,7 @@ using GetSideshowUnitImpl = game::CMidgardID*(__thiscall*)(TRaceType* thisptr,
 using FindCapitalByPlayerId = game::CFortification*(__stdcall*)(game::CMidgardID* playerId,
                                                                 game::IMidgardObjectMap* objectMap);
 
+using CheckLongEffectDuration = bool(__stdcall*)(int roundsPassed);
 
 
 /**
@@ -957,6 +958,7 @@ struct Functions
     AddSideshowUnitToUI addSideshowUnitToUI;
     GetSideshowUnitImpl getSideshowUnitImpl;
     FindCapitalByPlayerId findCapitalByPlayerId;
+    CheckLongEffectDuration checkLongEffectDuration;
     StratInterfKeyHandler stratInterfKeyHandler;
     StratInterfSendSaveGameMsgToServer sendSaveGameMsgToServer;
     StratInterfOpenSelectedObject stratInterfOpenSelectedObject;

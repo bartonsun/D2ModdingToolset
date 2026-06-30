@@ -196,6 +196,7 @@ struct Settings
         Color textColor{};
         Color outlineColor{};
         bool show{};
+        bool showMovementAfterAction{};
     } movementCost;
 
 
@@ -245,7 +246,8 @@ struct Settings
 
     bool alchemistKeepsAttackCount;
     bool instantBuffRemoval;
-    bool reviveUsesQtyHeal;
+    int reviveAttacksUsesQtyHeal;
+    bool reviveItemsUsesQtyHeal;
     bool advancedCure;
 
     struct ExtendedBattle
@@ -260,6 +262,8 @@ struct Settings
         bool boostdamageCanAffectHealer;
 
     } extendedBattle;
+
+    std::vector<int> longEffectRemoveChances;
 };
 
 const Settings& baseSettings();

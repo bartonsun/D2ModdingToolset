@@ -389,12 +389,19 @@ std::string getAttackDamageText(const utils::AttackDescriptor& actual,
     } else if (actual.classId() == classes.damage->id || actual.classId() == classes.drain->id
                || actual.classId() == classes.drainOverflow->id) {
         return getDamageDrainAttackDamageText(actual, global, maxTargets, damageMax);
-    } else if (actual.classId() == classes.heal->id
-               || actual.classId() == classes.bestowWards->id) {
-        return getModifiedNumberText(actual.heal(), global.heal(), false);
+    } else if (actual.classId() == classes.heal->id || actual.classId() == classes.bestowWards->id
+               || actual.classId() == classes.revive->id) {
+        if (actual.classId() == classes.revive->id
+            && userSettings().reviveAttacksUsesQtyHeal == 1) {
+            return getNumberText(0, false);
+        }
+        bool percent = actual.classId() == classes.revive->id
+                       && userSettings().reviveAttacksUsesQtyHeal == 0;
+        return getModifiedNumberText(actual.heal(), global.heal(), percent);
     } else if (actual.classId() == classes.poison->id || actual.classId() == classes.frostbite->id
                || actual.classId() == classes.blister->id) {
-        return getNumberText(global.damage(), false);
+        return getDamageText(actual.damage(), global.damage(), damageMax);
+        //return getNumberText(global.damage(), false);
     } else {
         return getDamageText(actual.damage(), global.damage(), damageMax);
     }
@@ -568,7 +575,8 @@ std::string getEffectField(const utils::AttackDescriptor& actual)
 
     const auto& classes = AttackClassCategories::get();
 
-    if (actual.classId() == classes.heal->id || actual.classId() == classes.bestowWards->id)
+    if (actual.classId() == classes.heal->id || actual.classId() == classes.bestowWards->id
+        || actual.classId() == classes.revive->id)
         return getInterfaceText("X005TA0504"); // "Heal"
     else if (actual.classId() == classes.boostDamage->id)
         return getInterfaceText("X005TA0534"); // "Boost"

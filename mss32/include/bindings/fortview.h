@@ -60,6 +60,9 @@ public:
     bool isCapital() const;
     int getTier() const;
 
+    bool addItem(const IdView& itemId, int amount);
+    bool addItemByString(const std::string& itemId, int amount);
+
 private:
     const game::CFortification* fort;
     const game::IMidgardObjectMap* objectMap;

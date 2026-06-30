@@ -48,6 +48,9 @@ public:
     Point getPosition() const;
     std::optional<PlayerView> getOwner() const;
 
+    bool destroyRod();
+    bool changeOwner(const IdView& ownerId);
+
 private:
     const game::CMidRod* rod;
     const game::IMidgardObjectMap* objectMap;

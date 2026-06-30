@@ -47,6 +47,10 @@ bool __fastcall bestowWardsMethod15Hooked(game::CBatAttackBestowWards* thisptr,
                                           int /*%edx*/,
                                           game::BattleMsgData* battleMsgData);
 
+bool __fastcall bestowWardsMethod14Hooked(game::CBatAttackBestowWards* thisptr,
+                                          int /*%edx*/,
+                                          game::BattleMsgData* battleMsgData);
+
 bool __fastcall bestowWardsAttackIsImmuneHooked(game::CBatAttackBestowWards* thisptr,
                                                 int /*%edx*/,
                                                 game::IMidgardObjectMap* objectMap,

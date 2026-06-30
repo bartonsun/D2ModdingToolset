@@ -29,6 +29,7 @@
 
 #include "usunit.h"
 #include "battleattackinfo.h"
+#include "immunecat.h"
 
 namespace hooks {
 
@@ -73,7 +74,7 @@ static bool canPerformSecondaryAttack(game::CBatAttackHeal* thisptr,
     const auto batAttack2 = fn.createBatAttack(objectMap, battleMsgData, &thisptr->unitId,
                                                &thisptr->attackImplUnitId,
                                                thisptr->attackNumber + 1, attack2Class, false);
-
+    
     const bool result = battleApi.canPerformAttackOnUnitWithStatusCheck(objectMap, battleMsgData,
                                                                         batAttack2, targetUnitId);
     batAttack2->vftable->destructor(batAttack2, true);
@@ -150,6 +151,50 @@ void __fastcall healAttackOnHitHooked(game::CBatAttackHeal* thisptr,
     info.unitImplId = targetUnit->unitImpl->id;
     info.damage = qtyHealed;
     attackInfoApi.addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+}
+
+bool __fastcall healAttackIsImmuneHooked(game::CBatAttackHeal* thisptr,
+                                         int /*%edx*/,
+                                         game::IMidgardObjectMap* objectMap,
+                                         game::BattleMsgData* battleMsgData,
+                                         game::CMidgardID* unitId)
+{
+    using namespace game;
+
+    static const auto& battleApi = BattleMsgDataApi::get();
+    static const auto& immuneCategories = ImmuneCategories::get();
+    static const auto& fn = gameFunctions();
+
+    if (*unitId == emptyId || *unitId == invalidId) {
+        return false;
+    }
+
+    IAttack* attack = fn.getAttackById(objectMap, &thisptr->attackImplUnitId, thisptr->attackNumber,
+                                       false);
+
+    if (!attack) {
+        return false;
+    }
+
+    const CMidUnit* targetUnit = fn.findUnitById(objectMap, unitId);
+    if (!targetUnit) {
+        return false;
+    }
+
+    const IUsSoldier* targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
+    const LAttackClass* attackClass = attack->vftable->getAttackClass(attack);
+    const LImmuneCat* immuneCat = targetSoldier->vftable->getImmuneByAttackClass(targetSoldier,
+                                                                                 attackClass);
+    if (immuneCat->id == immuneCategories.once->id) {
+        bool hasWard = battleApi.isUnitAttackClassWardRemoved(battleMsgData, unitId, attackClass);
+        if (!hasWard) {
+            battleApi.removeUnitAttackClassWard(battleMsgData, unitId, attackClass);
+            return true;
+        }
+        return false;
+    }
+
+    return immuneCat->id == immuneCategories.always->id;
 }
 
 } // namespace hooks

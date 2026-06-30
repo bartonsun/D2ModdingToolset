@@ -43,6 +43,13 @@ void __fastcall healAttackOnHitHooked(game::CBatAttackHeal* thisptr,
                                       game::BattleMsgData* battleMsgData,
                                       game::CMidgardID* targetUnitId,
                                       game::BattleAttackInfo** attackInfo);
+
+bool __fastcall healAttackIsImmuneHooked(game::CBatAttackHeal* thisptr,
+                                         int /*%edx*/,
+                                         game::IMidgardObjectMap* objectMap,
+                                         game::BattleMsgData* battleMsgData,
+                                         game::CMidgardID* unitId);
+
 } // namespace hooks
 
 #endif // BATATTACKHEALHOOKS_H

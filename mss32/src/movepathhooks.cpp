@@ -37,12 +37,26 @@
 #include "pathinfolist.h"
 #include "settings.h"
 #include "ussoldier.h"
+#include "usstackleader.h"
 #include "utils.h"
 #include <array>
 #include <cmath>
 #include <spdlog/spdlog.h>
 
+#include "scripts.h"
+#include <optional>
+#include <sol/sol.hpp>
+#include "stackview.h"
+#include "fortview.h"
+#include "ruinview.h"
+#include "siteview.h"
+#include <gameutils.h>
+
 namespace hooks {
+
+static std::optional<sol::environment> env;
+static std::optional<sol::function> movementActionPenaltyLua;
+static bool movementActionPenaltyLuaErrorShown = false;
 
 static bool isIdsEqualOrBothNull(const game::CMidgardID* id1, const game::CMidgardID* id2)
 {
@@ -57,6 +71,77 @@ static bool isIdsEqualOrBothNull(const game::CMidgardID* id1, const game::CMidga
 
     return false;
 };
+
+static void fillMovementTargetContext(sol::table& movementContext,
+                                      const game::IMidgardObjectMap* objectMap,
+                                      const game::CMidgardPlan* plan,
+                                      const game::CMqPoint* pathEnd,
+                                      const game::CMidgardID* targetStackId)
+{
+    using namespace game;
+
+    //
+    // Stack has the highest priority.
+    // The game already resolved which stack is the action target.
+    //
+
+    if (targetStackId) {
+
+        if (hooks::getStack(objectMap, targetStackId)) {
+
+            movementContext["targetId"] = bindings::IdView(*targetStackId);
+            return;
+        }
+    }
+
+    //
+    // No stack target.
+    // Check the destination tile for other interactive objects.
+    // Only the target id is exposed to Lua. The corresponding View
+    // can be obtained later using the existing API.
+    //
+
+    const auto& planApi = CMidgardPlanApi::get();
+
+    //
+    // Fortification (city / capital)
+    //
+
+    {
+        const IdType type = IdType::Fortification;
+
+        if (const auto* id = planApi.getObjectId(plan, pathEnd, &type)) {
+
+            if (hooks::getFort(objectMap, id)) {
+
+                movementContext["targetId"] = bindings::IdView(*id);
+                return;
+            }
+        }
+    }
+
+    //
+    // Ruin
+    //
+
+    {
+        const IdType type = IdType::Ruin;
+
+        if (const auto* id = planApi.getObjectId(plan, pathEnd, &type)) {
+
+            if (hooks::getRuin(objectMap, id)) {
+
+                movementContext["targetId"] = bindings::IdView(*id);
+                return;
+            }
+        }
+    }
+
+    //
+    // Nothing found.
+    // targetId is left unset.
+    //
+}
 
 void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
                                       const game::CMidgardID* stackId,
@@ -81,6 +166,15 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
     auto leaderObj = objectMap->vftable->findScenarioObjectById(objectMap, &stack->leaderId);
     auto leader = static_cast<const CMidUnit*>(leaderObj);
     auto unitImpl = leader->unitImpl;
+
+    auto stackLeader = fn.castUnitImplToStackLeader(unitImpl);
+
+    int maxMovement = 0;
+
+    if (stackLeader)
+        maxMovement = stackLeader->vftable->getMovement(stackLeader);
+
+
     const bool noble = fn.castUnitImplToNoble(unitImpl) != nullptr;
 
     auto soldier = fn.castUnitImplToSoldier(unitImpl);
@@ -88,14 +182,16 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
 
     const CMqPoint* positionPtr{};
     bool pathLeadsToAction{};
+    const game::CMidgardID* targetStackId = nullptr;
     if (!a6) {
         positionPtr = lastReachablePoint;
     } else {
         positionPtr = lastReachablePoint;
 
-        pathLeadsToAction = fn.getBlockingPathNearbyStackId(objectMap, plan, stack,
-                                                            lastReachablePoint, pathEnd, 0)
-                            != nullptr;
+        targetStackId = fn.getBlockingPathNearbyStackId(objectMap, plan, stack, lastReachablePoint,
+                                                        pathEnd, 0);
+
+        pathLeadsToAction = targetStackId != nullptr;
 
         if (!pathLeadsToAction) {
             CMqPoint entrance{};
@@ -148,6 +244,18 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
     bool manyTurnsToTravel{};
 
     std::uint32_t index{};
+    const bool altPressed = GetAsyncKeyState(VK_MENU) & 0x8000;
+
+    CIsoLayer customLayer = *isoLayers().symMovePath;
+    customLayer.value *= 3;
+
+   // Always clear previous path images, even if alt is pressed, because we need to hide previous
+    // path images from the default layer.
+    MapGraphicsApi::get().hideLayerImages(isoLayers().symMovePath);
+    MapGraphicsApi::get().hideLayerImages(&customLayer);
+
+    const CIsoLayer* drawLayer = altPressed ? &customLayer : isoLayers().symMovePath;
+
     for (auto node = pathInfo.head->next; node != pathInfo.head;
          node = node->next, firstNode = false, ++index) {
         const auto& currentPosition = node->data.position;
@@ -157,6 +265,7 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
         }
 
         pathAllowed = !waterOnlyToLand;
+
         if (waterOnly && !fn.isWaterTileSurroundedByWater(&currentPosition, objectMap)) {
             pathAllowed = false;
             waterOnlyToLand = true;
@@ -252,13 +361,98 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
 
         if (pathAllowed && !turnNumberImage) {
             moveCostImage = static_cast<CImage2Text*>(memAlloc(sizeof(CImage2Text)));
-            CImage2TextApi::get().constructor(moveCostImage, 32, 64);
+            CImage2TextApi::get().constructor(moveCostImage, 64, 64);
 
-            const auto moveCostString{fmt::format(
-                "\\fmedium;\\hC;\\vT;\\c{:03d};{:03d};{:03d};\\o{:03d};{:03d};{:03d};{:d}",
+            std::string moveText = fmt::format("{}", node->data.moveCostTotal);
+
+            const bool isActionFlag = endOfPath && pathLeadsToAction;
+
+            if (isActionFlag && userSettings().movementCost.showMovementAfterAction) {
+
+                const int spent = node->data.moveCostTotal;
+
+                const int remaining = std::max(0, static_cast<int>(stack->movement) - spent);
+
+                //
+                // Default formula
+                //
+
+                int movementAfterAction = std::max(0, remaining - (maxMovement + 1) / 2);
+
+                //
+                // Lazy load
+                //
+
+                if (!movementActionPenaltyLua) {
+
+                    const auto path{scriptsFolder() / "movement.lua"};
+
+                    movementActionPenaltyLua = getScriptFunction(path, "movementAfterAction", env,
+                                                                 false, true);
+                }
+
+                //
+                // Lua override
+                //
+
+                if (movementActionPenaltyLua) {
+
+                    try {
+
+                        sol::state_view lua(movementActionPenaltyLua->lua_state());
+
+                        sol::table movementContext = lua.create_table();
+
+                        movementContext["stack"] = bindings::StackView(stack, objectMap);
+
+                        movementContext["maxMovement"] = maxMovement;
+
+                        movementContext["currentMovement"] = static_cast<int>(stack->movement);
+
+                        movementContext["spentMovement"] = static_cast<int>(spent);
+
+                        movementContext["remainingMovement"] = static_cast<int> (remaining);
+
+                        movementContext["afterActionMovement"] = static_cast<int>(movementAfterAction);
+
+                        fillMovementTargetContext(movementContext, objectMap, plan, pathEnd,
+                                                  targetStackId);
+
+                        sol::object result = (*movementActionPenaltyLua)(movementContext);
+
+                        if (result.is<std::int32_t>()) {
+                            movementAfterAction = result.as<std::int32_t>();
+                        }
+
+                    } catch (const std::exception& e) {
+
+                        // Force reload on next call.
+                        movementActionPenaltyLua.reset();
+                        env.reset();
+
+                        spdlog::error("[MOVEMENT] movement.lua: {}", e.what());
+
+                        if (!movementActionPenaltyLuaErrorShown) {
+
+                            movementActionPenaltyLuaErrorShown = true;
+
+                            const auto path{scriptsFolder() / "movement.lua"};
+
+                            showErrorMessageBox(fmt::format("Failed to run "
+                                                            "'{:s}' script.\n"
+                                                            "Reason: '{:s}'",
+                                                            path.string(), e.what()));
+                        }
+                    }
+                }
+
+                moveText = fmt::format("{} ({})", spent, movementAfterAction);
+            }
+
+            const auto moveCostString = fmt::format(
+                "\\fmedium;\\hC;\\vT;\\c{:03d};{:03d};{:03d};\\o{:03d};{:03d};{:03d};{}",
                 (int)moveCostColor.r, (int)moveCostColor.g, (int)moveCostColor.b,
-                (int)moveCostOutline.r, (int)moveCostOutline.g, (int)moveCostOutline.b,
-                node->data.moveCostTotal)};
+                (int)moveCostOutline.r, (int)moveCostOutline.g, (int)moveCostOutline.b, moveText);
 
             CImage2TextApi::get().setText(moveCostImage, moveCostString.c_str());
         }
@@ -279,7 +473,8 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
         CMqPoint pos;
         pos.x = currentPosition.x;
         pos.y = currentPosition.y;
-        MapGraphicsApi::get().showImageOnMap(&pos, isoLayers().symMovePath, multilayerImg, 0, 0);
+
+        MapGraphicsApi::get().showImageOnMap(&pos, drawLayer, multilayerImg, 0, 0);
     }
 
     imagesApi.createOrFreeGameImages(&imagesPtr, nullptr);

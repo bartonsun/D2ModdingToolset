@@ -21,6 +21,7 @@
 #include "gameutils.h"
 #include "midrod.h"
 #include "playerview.h"
+#include "visitors.h"
 #include <sol/sol.hpp>
 
 namespace bindings {
@@ -36,6 +37,8 @@ void RodView::bind(sol::state& lua)
     rodView["id"] = sol::property(&RodView::getId);
     rodView["position"] = sol::property(&RodView::getPosition);
     rodView["owner"] = sol::property(&RodView::getOwner);
+    rodView["Destroy"] = &RodView::destroyRod;
+    rodView["ChangeOwner"] = &RodView::changeOwner;
 }
 
 IdView RodView::getId() const
@@ -56,6 +59,25 @@ std::optional<PlayerView> RodView::getOwner() const
     }
 
     return {PlayerView{player, objectMap}};
+}
+
+bool RodView::destroyRod()
+{
+    using namespace game;
+
+    static const auto& visitor = VisitorApi::get();
+
+    IMidgardObjectMap* obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    return visitor.destroyRod(&rod->id, obj, 1);
+}
+
+bool RodView::changeOwner(const IdView& ownerId)
+{
+    game::CMidRod* cRod = const_cast<game::CMidRod*>(rod);
+    cRod->ownerId = ownerId.id;
+
+    return true;
 }
 
 } // namespace bindings

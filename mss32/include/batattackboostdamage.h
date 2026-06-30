@@ -30,12 +30,16 @@ struct IAttack;
 struct CBatAttackBoostDamage : public CBatAttackBase
 {
     CMidgardID unitId;
-    CMidgardID id2;
+    CMidgardID attackImplUnitId;
     int attackNumber;
-    IAttack* attack;
+    IAttack* attackImpl;
+    IAttack* attack2Impl;
+    bool attack2Initialized;
+    char padding[3];
+    int attackImplMagic;
 };
 
-assert_size(CBatAttackBoostDamage, 20);
+assert_size(CBatAttackBoostDamage, 32);
 
 namespace CBatAttackBoostDamageApi {
 

@@ -26,7 +26,22 @@
 #include "midstack.h"
 #include "midsubrace.h"
 #include "unitview.h"
+#include "visitors.h"
+#include "unitgenerator.h"
+#include "usunitimpl.h"
+#include "ussoldier.h"
+#include "midunit.h"
 #include <sol/sol.hpp>
+#include <hooks.h>
+#include <usstackleader.h>
+#include <scenarioinfo.h>
+#include <midgard.h>
+#include <midserver.h>
+#include "midserverlogic.h"
+#include "miditem.h"
+#include "midclient.h"
+#include "midgardplan.h"
+#include "midgardscenariomap.h"
 
 namespace bindings {
 
@@ -48,6 +63,8 @@ void StackView::bind(sol::state& lua)
     stackView["subrace"] = sol::property(&StackView::getSubrace);
     stackView["invisible"] = sol::property(&StackView::isInvisible);
     stackView["battlesWon"] = sol::property(&StackView::getBattlesWon);
+    stackView["skillpoint"] = sol::property(&StackView::getSkillPoint);
+    stackView["name"] = sol::property(&StackView::gåtName);
 
     stackView["inventory"] = sol::property(&StackView::getInventoryItems);
     stackView["getEquippedItem"] = &StackView::getLeaderEquippedItem;
@@ -55,6 +72,12 @@ void StackView::bind(sol::state& lua)
     stackView["orderTargetId"] = sol::property(&StackView::getOrderTargetId);
     stackView["aiOrder"] = sol::property(&StackView::getAiOrder);
     stackView["GiveSkillPoint"] = &StackView::giveSkillPoint;
+    stackView["AddItem"] = &StackView::addItem;
+    stackView["SetMovement"] = &StackView::setMovement;
+    stackView["AddMovement"] = &StackView::addMovement;
+    stackView["SetName"] = &StackView::setName;
+    stackView["ChangeLeader"] = &StackView::changeStackLeaeder;
+    stackView["SetInvisible"] = &StackView::setInvisible;
 }
 
 IdView StackView::getId() const
@@ -175,6 +198,203 @@ void StackView::giveSkillPoint(int amout)
 
     CMidStack* cStack = const_cast<CMidStack*>(stack);
     cStack->upgCount += amout;
+}
+
+int StackView::getSkillPoint() const
+{
+    return stack->upgCount;
+}
+
+std::string StackView::gåtName() const
+{
+    using namespace game;
+
+    auto& stringApi = StringAndIdApi::get();
+
+    auto obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    CMidUnit* stackLeader = static_cast<CMidUnit*>(
+        objectMap->vftable->findScenarioObjectById(obj, &stack->leaderId));
+
+    return stackLeader->name.string;
+}
+
+bool StackView::addItem(const IdView& itemId, int amount)
+{
+    using namespace game;
+
+    if (amount == 0)
+        return false;
+
+    static const auto& visitor = VisitorApi::get();
+
+    const auto obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    if (amount > 0) {
+        for (int i = 0; i < amount; i++) {
+            if (!visitor.createItem(&stack->id, &itemId.id, obj, 1))
+                return false;
+        }
+        return true;
+    }
+
+    const int toRemove = -amount;
+    int removed = 0;
+
+    const CMidItem* item = static_cast<const CMidItem*>(
+        objectMap->vftable->findScenarioObjectById(objectMap, &itemId.id));
+
+    if (item == nullptr) {
+        auto inv = stack->inventory;
+        const int count = static_cast<int>(inv.items.end - inv.items.bgn);
+        for (int i = count - 1; i >= 0 && removed < toRemove; i--) {
+            const CMidgardID& instanceId = inv.items.bgn[i];
+
+            const IMidScenarioObject* obj2 = objectMap->vftable
+                                                 ->findScenarioObjectById(objectMap, &instanceId);
+            if (!obj2)
+                continue;
+
+            const CMidItem* invItem = static_cast<const CMidItem*>(obj2);
+            if (invItem->globalItemId != itemId.id)
+                continue;
+
+            if (!visitor.destroyItem(&stack->id, &instanceId, obj, 1))
+                return false;
+
+            removed++;
+        }
+    } else {
+        return visitor.destroyItem(&stack->id, &itemId.id, obj, 1);
+    }
+
+    return removed == toRemove;
+}
+
+bool StackView::setMovement(int value)
+{
+    using namespace game;
+    
+    auto obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    CMidStack* cStack = static_cast<CMidStack*>(
+        objectMap->vftable->findScenarioObjectByIdForChange(obj, &stack->id));
+
+    auto leaderUnit{game::gameFunctions().findUnitById(objectMap, &stack->leaderId)};
+    auto leader{game::gameFunctions().castUnitImplToStackLeader(leaderUnit->unitImpl)};
+
+    if (!leader)
+        return false;
+
+    cStack->movement = std::clamp(value, 0, leader->vftable->getMovement(leader));
+    return true;
+}
+
+bool StackView::addMovement(int value)
+{
+    if (value == 0)
+        return false;
+
+    using namespace game;
+
+    auto obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    CMidStack* cStack = static_cast<CMidStack*>(
+        objectMap->vftable->findScenarioObjectByIdForChange(obj, &stack->id));
+
+    auto leaderUnit{game::gameFunctions().findUnitById(objectMap, &stack->leaderId)};
+    auto leader{game::gameFunctions().castUnitImplToStackLeader(leaderUnit->unitImpl)};
+
+    if (!leader)
+        return false;
+
+    cStack->movement = std::clamp(stack->movement + value, 0, leader->vftable->getMovement(leader));
+    return true;
+}
+
+bool StackView::setName(std::string& name)
+{
+    using namespace game;
+
+    if (name.empty())
+        return false;
+    
+    auto& stringApi = StringAndIdApi::get();
+
+    auto obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    CMidUnit* stackLeader = static_cast<CMidUnit*>(
+        objectMap->vftable->findScenarioObjectByIdForChange(obj, &stack->leaderId));
+
+    stringApi.setString(&stackLeader->name, name.c_str());
+
+    return true;
+}
+
+std::optional<UnitView> StackView::changeStackLeaeder(const IdView& unitImplId, int level)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+    const auto& globalApi = GlobalDataApi::get();
+    const auto globalData = *globalApi.getGlobalData();
+    const auto& visitor = VisitorApi::get();
+
+    auto unit = (IUsUnit*)globalApi.findById(globalData->units, &unitImplId.id);
+    if (!unit)
+        return std::nullopt;
+
+    bool isLeader = fn.castUnitImplToLeader(unit) != nullptr;
+    bool isNoble = fn.castUnitImplToNoble(unit) != nullptr;
+
+    if (!isLeader && !isNoble)
+        return std::nullopt;
+
+    CMidUnit* leaderUnit{fn.findUnitById(objectMap, &stack->leaderId)};
+    IUsSoldier* leader = fn.castUnitImplToSoldier(leaderUnit->unitImpl);
+
+    int lvl = level <= 0 ? leader->vftable->getLevel(leader) : level;
+
+    CUnitGenerator* unitGenerator = globalData->unitGenerator;
+
+    CMidgardID implId = unitImplId.id;
+
+    CMidgardID genId{};
+    unitGenerator->vftable->generateUnitImplId(unitGenerator, &genId, &implId, lvl);
+    if (genId != implId && unitGenerator->vftable->isUnitGenerated(unitGenerator, &genId)) {
+        if (unitGenerator->vftable->generateUnitImpl(unitGenerator, &genId)) {
+            implId = genId;
+        }
+    }
+
+    IMidgardObjectMap* obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    CMidStack* cStack = static_cast<CMidStack*>(
+        objectMap->vftable->findScenarioObjectById(obj, &stack->id));
+
+    visitor.changeStackLeader(&cStack->id, &implId, obj, 1);
+
+    CMidStack* updatedStack = static_cast<CMidStack*>(
+        obj->vftable->findScenarioObjectByIdForChange(obj, &stack->id));
+
+    updatedStack->facing = (stack->facing + 1) % 8;
+
+    return UnitView(fn.findUnitById(objectMap, &updatedStack->leaderId));
+}
+
+
+bool StackView::setInvisible(const bool value)
+{
+    using namespace game;
+
+    IMidgardObjectMap* obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    CMidStack* cStack = static_cast<CMidStack*>(
+        objectMap->vftable->findScenarioObjectByIdForChange(obj, &stack->id));
+
+    cStack->invisible = value;
+
+    return true;
 }
 
 } // namespace bindings

@@ -239,6 +239,13 @@ struct OriginalFunctions
     game::LeadersForHireApi::Api::ChangeStackLeaderInCapital changeStackLeaderInCapital;
 
     game::EnrollUnitInterfApi::Api::Constructor enrollUnitInterfCtor;
+
+    game::CheckLongEffectDuration checkLongEffectDuration;
+    
+    game::VisitorApi::Api::RunKillStack runKillStack;
+    game::VisitorApi::Api::CreateStackDestroyed createStackDestroyed;
+
+    game::BattleMsgDataApi::Api::CanPerformAttackOnUnitWithStatusCheck canPerformAttackOnUnitWithStatusCheck;
 };
 
 OriginalFunctions& getOriginalFunctions();

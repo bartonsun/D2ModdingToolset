@@ -29,6 +29,7 @@
 #include "gameutils.h"
 #include "groupview.h"
 #include "scripts.h"
+#include "resultsender.h"
 #include <spdlog/spdlog.h>
 
 static std::atomic<game::CBatLogic*> g_batLogic{nullptr};

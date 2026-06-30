@@ -22,8 +22,11 @@
 
 	namespace game {
 		struct CBatAttackBlister;
+		struct CBatAttackBlisterEffect;
 		struct CBatAttackFrostbite;
+		struct CBatAttackFrostbiteEffect;
 		struct CBatAttackPoison;
+		struct CBatAttackPoisonEffect;
 		struct IMidgardObjectMap;
 		struct BattleMsgData;
 		struct CMidgardID;
@@ -71,6 +74,66 @@
                                       game::CMidgardID* targetUnitId,
                                       game::BattleAttackInfo** attackInfo);
 
+    void __fastcall blisterEffectOnHitHooked(game::CBatAttackBlisterEffect* thisptr,
+                                             int /*%edx*/,
+                                             game::IMidgardObjectMap* objectMap,
+                                             game::BattleMsgData* battleMsgData,
+                                             game::CMidgardID* targetUnitId,
+                                             game::BattleAttackInfo** attackInfo);
+
+    void __fastcall frostbiteEffectOnHitHooked(game::CBatAttackFrostbiteEffect* thisptr,
+                                               int /*%edx*/,
+                                               game::IMidgardObjectMap* objectMap,
+                                               game::BattleMsgData* battleMsgData,
+                                               game::CMidgardID* targetUnitId,
+                                               game::BattleAttackInfo** attackInfo);
+
+    void __fastcall poisonEffectOnHitHooked(game::CBatAttackPoisonEffect* thisptr,
+                                            int /*%edx*/,
+                                            game::IMidgardObjectMap* objectMap,
+                                            game::BattleMsgData* battleMsgData,
+                                            game::CMidgardID* targetUnitId,
+                                            game::BattleAttackInfo** attackInfo);
+
+    //Base onHit attacks
+    bool __fastcall defaultBlisterCanPerformHooked(game::CBatAttackBlister* thisptr,
+                                                   int /*%edx*/,
+                                                   game::IMidgardObjectMap* objectMap,
+                                                   game::BattleMsgData* battleMsgData,
+                                                   game::CMidgardID* targetUnitId);
+
+    void __fastcall defaultBlisterOnHitHooked(game::CBatAttackBlister* thisptr,
+                                              int /*%edx*/,
+                                              game::IMidgardObjectMap* objectMap,
+                                              game::BattleMsgData* battleMsgData,
+                                              game::CMidgardID* targetUnitId,
+                                              game::BattleAttackInfo** attackInfo);
+
+    bool __fastcall defaultPoisonCanPerformHooked(game::CBatAttackPoison* thisptr,
+                                                  int /*%edx*/,
+                                                  game::IMidgardObjectMap* objectMap,
+                                                  game::BattleMsgData* battleMsgData,
+                                                  game::CMidgardID* targetUnitId);
+
+    void __fastcall defaultPoisonOnHitHooked(game::CBatAttackPoison* thisptr,
+                                             int /*%edx*/,
+                                             game::IMidgardObjectMap* objectMap,
+                                             game::BattleMsgData* battleMsgData,
+                                             game::CMidgardID* targetUnitId,
+                                             game::BattleAttackInfo** attackInfo);
+
+    bool __fastcall defaultFrostbiteCanPerformHooked(game::CBatAttackFrostbite* thisptr,
+                                                     int /*%edx*/,
+                                                     game::IMidgardObjectMap* objectMap,
+                                                     game::BattleMsgData* battleMsgData,
+                                                     game::CMidgardID* targetUnitId);
+
+    void __fastcall defaultFrostbiteOnHitHooked(game::CBatAttackFrostbite* thisptr,
+                                                int /*%edx*/,
+                                                game::IMidgardObjectMap* objectMap,
+                                                game::BattleMsgData* battleMsgData,
+                                                game::CMidgardID* targetUnitId,
+                                                game::BattleAttackInfo** attackInfo);
 	} // namespace hooks
 
 #endif

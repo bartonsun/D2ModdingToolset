@@ -46,6 +46,12 @@ package.path = package.path .. ";.\\Scripts\\?.lua"
 require("settings")
 require("textids")
 
+function getAttackHeal(unitImpl, attack, boostDamageLevel, lowerDamageLevel)
+    local heal = attack.heal
+    local boost = getBoostDamage(boostDamageLevel) - getLowerDamage(lowerDamageLevel)
+    return math.min(heal + math.floor(heal * boost / 100), unitImpl.damageMax)
+end
+
 function getSetting(name, default)
 	if settings then
 		local value = settings[name]
@@ -600,35 +606,52 @@ function getDamageDrainAttackDamageText(unitImpl, attack, boostDamageLevel, lowe
 	end
 end
 
+function getAttackHeal(unitImpl, attack, boostDamageLevel, lowerDamageLevel)
+    local heal = attack.heal
+    local boost = getBoostDamage(boostDamageLevel) - getLowerDamage(lowerDamageLevel)
+    return math.min(heal + math.floor(heal * boost / 100), unitImpl.damageMax)
+end
+
 function getAttackDamageText(unitImpl, attack, boostDamageLevel, lowerDamageLevel, maxTargets)
-	local attackType = attack.type
-	if attackType == Attack.BoostDamage then
-		return getBoostDamageAttackDamageText(attack)
-	elseif attackType == Attack.LowerDamage then
-		return getLowerDamageAttackDamageText(attack)
-	elseif attackType == Attack.LowerInitiative then
-		return getLowerInitiativeAttackDamageText(attack)
-	elseif
-		attackType == Attack.Damage or
-		attackType == Attack.Drain or
-		attackType == Attack.DrainOverflow then
-		return getDamageDrainAttackDamageText(unitImpl, attack, boostDamageLevel, lowerDamageLevel, maxTargets)
-	elseif
-		attackType == Attack.Heal or
-		attackType == Attack.BestowWards then
-		return getModifiedNumberText(attack.heal, attack.generated.heal, false)
-	elseif
-		attackType == Attack.Poison or
-		attackType == Attack.Frostbite or
-		attackType == Attack.Blister then
-		-- DOT attacks do no scale from modifiers thus only generated damage is used
-		local damage = attack.generated.damage
-		return getDamageText(damage, damage, unitImpl.damageMax)
-	elseif attackType == Attack.Shatter then
-		return getDamageText(attack.damage, attack.generated.damage, math.min(getSetting("shatterDamageMax", 100), unitImpl.damageMax))
-	else
-		return getNumberText(0, false)
-	end
+    local attackType = attack.type
+    if attackType == Attack.BoostDamage then
+        return getBoostDamageAttackDamageText(attack)
+    elseif attackType == Attack.LowerDamage then
+        return getLowerDamageAttackDamageText(attack)
+    elseif attackType == Attack.LowerInitiative then
+        return getLowerInitiativeAttackDamageText(attack)
+    elseif
+        attackType == Attack.Damage or
+        attackType == Attack.Drain or
+        attackType == Attack.DrainOverflow then
+        return getDamageDrainAttackDamageText(unitImpl, attack, boostDamageLevel, lowerDamageLevel, maxTargets)
+    elseif
+        attackType == Attack.Heal or
+        attackType == Attack.BestowWards then
+        local heal = getAttackHeal(unitImpl, attack, boostDamageLevel, lowerDamageLevel)
+        return getModifiedNumberText(heal, attack.generated.heal, false)
+    elseif attackType == Attack.Revive then
+        local mode = getSetting("reviveAttacksUsesQtyHeal", 1)
+        if mode == 0 then
+            return getNumberText(attack.generated.heal, true)
+        elseif mode == 1 then
+            return getNumberText(0, false)
+        else -- mode 2
+            local heal = getAttackHeal(unitImpl, attack, boostDamageLevel, lowerDamageLevel)
+            return getModifiedNumberText(heal, attack.generated.heal, false)
+        end
+    elseif
+        attackType == Attack.Poison or
+        attackType == Attack.Frostbite or
+        attackType == Attack.Blister then
+        local damage = getAttackDamage(unitImpl, attack, boostDamageLevel, lowerDamageLevel)
+        return getDamageText(damage, attack.generated.damage, unitImpl.damageMax)
+    elseif attackType == Attack.Shatter then
+        return getDamageText(attack.damage, attack.generated.damage,
+                             math.min(getSetting("shatterDamageMax", 100), unitImpl.damageMax))
+    else
+        return getNumberText(0, false)
+    end
 end
 
 function getAttackDrainText(unitImpl, attack, boostDamageLevel, lowerDamageLevel)
@@ -885,20 +908,21 @@ function getHit2Field(unitImpl)
 end
 
 function getEffectField(unitImpl)
-	local attackType = unitImpl.attack1.type
-	if
-		attackType == Attack.Heal or
-		attackType == Attack.BestowWards then
-		return getInterfaceText("X005TA0504") -- "Heal"
-	elseif attackType == Attack.BoostDamage then
-		return getInterfaceText("X005TA0534") -- "Boost"
-	elseif attackType == Attack.LowerDamage then
-		return getInterfaceText("X005TA0547") -- "Lower"
-	elseif attackType == Attack.LowerInitiative then
-		return getInterfaceText("X005TA0551") -- "Lower initiative"
-	else
-		return getInterfaceText("X005TA0503") -- "Damage"
-	end
+    local attackType = unitImpl.attack1.type
+    if
+        attackType == Attack.Heal or
+        attackType == Attack.BestowWards or
+        attackType == Attack.Revive then
+        return getInterfaceText("X005TA0504") -- "Heal"
+    elseif attackType == Attack.BoostDamage then
+        return getInterfaceText("X005TA0534") -- "Boost"
+    elseif attackType == Attack.LowerDamage then
+        return getInterfaceText("X005TA0547") -- "Lower"
+    elseif attackType == Attack.LowerInitiative then
+        return getInterfaceText("X005TA0551") -- "Lower initiative"
+    else
+        return getInterfaceText("X005TA0503") -- "Damage"
+    end
 end
 
 function getDurationField(unitImpl)

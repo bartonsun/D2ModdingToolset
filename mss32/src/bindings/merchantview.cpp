@@ -22,6 +22,7 @@
 #include "itemutils.h"
 #include "hooks.h"
 #include "midsitemerchant.h"
+#include "visitors.h"
 #include <sol/sol.hpp>
 
 namespace bindings {
@@ -98,7 +99,25 @@ bool MerchantView::addItem(const IdView& itemId, int amount)
     auto* merchant2 = const_cast<game::CMidSiteMerchant*>(
         static_cast<const game::CMidSiteMerchant*>(site));
 
-    return hooks::addItemToMerchant(merchant2, &itemId.id, amount);
+    auto obj = const_cast<IMidgardObjectMap*>(objectMap);
+
+    if (amount > 0)
+    {
+        VisitorApi::get().merchantAddItem(&site->id, &itemId.id, amount, obj, 1);
+        return true;
+    }
+
+    const int toRemove = -amount; 
+    bool removed = false;
+
+    for (int i = 0; i < toRemove; i++)
+    {
+        if (!VisitorApi::get().merchantDelItem(&site->id, &itemId.id, obj, 1))
+            break;
+        removed = true;
+    }
+
+    return removed;
 }
 
 } // namespace bindings

@@ -24,6 +24,7 @@
 #include "idset.h"
 #include "imagelayerlist.h"
 #include "midgardid.h"
+#include "midtomb.h"
 #include "smartptr.h"
 
 namespace game {

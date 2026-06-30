@@ -216,6 +216,9 @@ static void readMovementCostSettings(const sol::table& table, Settings::Movement
 
     value.show = readSetting(moveCost.value(), "show", defaultSettings().movementCost.show);
 
+    value.showMovementAfterAction = readSetting(moveCost.value(), "showMovementAfterAction",
+                                          defaultSettings().movementCost.showMovementAfterAction);
+
     auto textColor = moveCost.value().get<sol::optional<sol::table>>("textColor");
     if (textColor.has_value()) {
         value.textColor = readColor(textColor.value(), defTextColor);
@@ -596,8 +599,19 @@ static void readSettings(const sol::table& table, Settings& settings)
     settings.fixEffectiveHpFormula = readSetting(table, "fixEffectiveHpFormula", defaultSettings().fixEffectiveHpFormula);
     settings.alchemistKeepsAttackCount = readSetting(table, "alchemistKeepsAttackCount", defaultSettings().alchemistKeepsAttackCount);
     settings.instantBuffRemoval = readSetting(table, "instantBuffRemoval", defaultSettings().instantBuffRemoval);
-    settings.reviveUsesQtyHeal = readSetting(table, "reviveUsesQtyHeal", defaultSettings().reviveUsesQtyHeal);
+    settings.reviveAttacksUsesQtyHeal = readSetting(table, "reviveAttacksUsesQtyHeal", defaultSettings().reviveAttacksUsesQtyHeal);
+    settings.reviveItemsUsesQtyHeal = readSetting(table, "reviveItemsUsesQtyHeal", defaultSettings().reviveItemsUsesQtyHeal);
     settings.advancedCure = readSetting(table, "advancedCure", defaultSettings().advancedCure);
+
+    auto chances = table.get<sol::optional<sol::table>>("longEffectRemoveChances");
+    if (chances.has_value())
+    {
+        settings.longEffectRemoveChances.clear();
+        for (size_t i = 0; i < chances.value().size(); i++)
+            settings.longEffectRemoveChances.push_back(
+                std::clamp<int>(chances.value()[i + 1], 0, 100));
+    }
+
     // People keep forgetting to turn this off in release packages
     //settings.debugMode = readSetting(table, "debugHooks", defaultSettings().debugMode);
     // clang-format on
@@ -708,12 +722,14 @@ const Settings& baseSettings()
         settings.movementCost.plain.onRoad = 1;
         settings.movementCost.textColor = Color{200, 200, 200};
         settings.movementCost.show = false;
+        settings.movementCost.showMovementAfterAction = false;
         settings.battle.fallbackAction = game::BattleAction::Defend;
         settings.debugMode = false;
 
         settings.alchemistKeepsAttackCount = false;
         settings.instantBuffRemoval = false;
-        settings.reviveUsesQtyHeal = false;
+        settings.reviveAttacksUsesQtyHeal = 0;
+        settings.reviveItemsUsesQtyHeal = false;
         settings.advancedCure = false;
 
         settings.extendedBattle.dotDamageCanStack = false;
@@ -724,6 +740,7 @@ const Settings& baseSettings()
         settings.extendedBattle.lowerdamageCanAffectHealer = false;
         settings.extendedBattle.boostdamageCanAffectHealer = false;
 
+        settings.longEffectRemoveChances = {0, 50, 75, 100};
         settings.hotkeys.openSelectedObject.key = 'I';
         settings.hotkeys.openSelectedObject.ctrl = false;
         settings.hotkeys.openSelectedObject.shift = false;

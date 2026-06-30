@@ -65,6 +65,8 @@ public:
     int getSubrace() const;
     bool isInvisible() const;
     int getBattlesWon() const;
+    int getSkillPoint() const;
+    std::string StackView::gåtName() const;
 
     std::vector<ItemView> getInventoryItems() const;
     std::optional<ItemView> getLeaderEquippedItem(const game::EquippedItemIdx& idx) const;
@@ -74,6 +76,16 @@ public:
     int getAiOrder() const;
 
     void giveSkillPoint(int amout);
+    bool addItem(const IdView& itemId, int amount);
+
+    bool setMovement(int value);
+    bool addMovement(int value);
+
+    bool setName(std::string& name);
+
+    std::optional<UnitView> changeStackLeaeder(const IdView& unitImplId, int level);
+
+    bool setInvisible(const bool value);
 
 private:
     const game::CMidStack* stack;

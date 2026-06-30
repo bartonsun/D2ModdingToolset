@@ -195,6 +195,13 @@ bool __fastcall bestowWardsMethod15Hooked(game::CBatAttackBestowWards* thisptr,
     return true;
 }
 
+bool __fastcall bestowWardsMethod14Hooked(game::CBatAttackBestowWards* thisptr,
+                                          int /*%edx*/,
+                                          game::BattleMsgData* battleMsgData)
+{
+    return true;
+}
+
 bool __fastcall bestowWardsAttackIsImmuneHooked(game::CBatAttackBestowWards* thisptr,
                                                 int /*%edx*/,
                                                 game::IMidgardObjectMap* objectMap,
@@ -211,16 +218,9 @@ bool __fastcall bestowWardsAttackIsImmuneHooked(game::CBatAttackBestowWards* thi
         return false;
     }
 
-    IAttack* attack = fn.getAttackById(objectMap, &thisptr->attackImplUnitId, thisptr->attackNumber,
-                                       false);
+    IAttack* attack = fn.getAttackById(objectMap, &thisptr->attackImplUnitId, thisptr->attackNumber, false);
 
     if (!attack) {
-        return false;
-    }
-
-    bool isDead = battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::Dead);
-
-    if (isDead && canPerformSecondaryAttack(thisptr, objectMap, battleMsgData, unitId)) {
         return false;
     }
 
