@@ -216,6 +216,9 @@ static void readMovementCostSettings(const sol::table& table, Settings::Movement
 
     value.show = readSetting(moveCost.value(), "show", defaultSettings().movementCost.show);
 
+    value.showMovementAfterAction = readSetting(moveCost.value(), "showMovementAfterAction",
+                                          defaultSettings().movementCost.showMovementAfterAction);
+
     auto textColor = moveCost.value().get<sol::optional<sol::table>>("textColor");
     if (textColor.has_value()) {
         value.textColor = readColor(textColor.value(), defTextColor);
@@ -719,6 +722,7 @@ const Settings& baseSettings()
         settings.movementCost.plain.onRoad = 1;
         settings.movementCost.textColor = Color{200, 200, 200};
         settings.movementCost.show = false;
+        settings.movementCost.showMovementAfterAction = false;
         settings.battle.fallbackAction = game::BattleAction::Defend;
         settings.debugMode = false;
 
