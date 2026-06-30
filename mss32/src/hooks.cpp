@@ -551,10 +551,6 @@ static Hooks getGameHooks()
         {CBatAttackHealApi::vftable()->onHit, healAttackOnHitHooked},
         //Hooks for status effects.
         {battle.setUnitStatus, setUnitStatusHooked, (void**)&orig.setUnitStatus},
-        //For future updates
-        {BattleViewerInterfApi::vftable()->battleEnd, battleEndHooked, (void**)&orig.battleEnd},
-        {battle.decreaseUnitAttacks, decreaseUnitAttacksHooked, (void**)&orig.decreaseUnitAttacks},
-        {CBatLogicApi::get().applyCBatAttackUntransformEffect, applyCBatAttackUntransformEffectHooked, (void**)&orig.applyCBatAttackUntransformEffect},
 
         // Allow modify leaders hire list with lua
         {LeadersForHireApi::get().getLeadersHireList, getLeadersHireListHooked},
@@ -3057,14 +3053,6 @@ bool __fastcall reviveAttackIsImmuneHooked(game::CBatAttackRevive* thisptr,
     if (!targetUnit) {
         return false;
     }
-
-void __fastcall showAttackEffectHooked(game::IBatViewer* thisptr,
-    int /*%edx*/,
-    const game::BattleMsgData* battleMsgData,
-    const game::BattleAttackInfo** attackInfo,
-    const game::LAttackClass* attackClass)
-{
-    using namespace game;
 
     const IUsSoldier* targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
     const LAttackClass* attackClass = attack->vftable->getAttackClass(attack);
