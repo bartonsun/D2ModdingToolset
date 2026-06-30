@@ -196,6 +196,7 @@ struct Settings
         Color textColor{};
         Color outlineColor{};
         bool show{};
+        bool showMovementAfterAction{};
     } movementCost;
 
 
