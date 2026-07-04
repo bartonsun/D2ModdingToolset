@@ -208,6 +208,7 @@ void __fastcall summonAttackOnHitHooked(game::CBatAttackSummon* thisptr,
         listApi.constructor(&summonImplIds);
 
         fn.fillAttackTransformIdList(globalData->transf, &summonImplIds, attackId, !canSummonBig);
+        fn.fillAttackTransformIdList(globalData->transf, &summonImplIds, attackId, canSummonBig);
 
         const CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
 
