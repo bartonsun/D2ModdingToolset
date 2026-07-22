@@ -118,7 +118,7 @@ void logObjectsToSend(const game::CMidgardScenarioMap* scenarioMap)
                   addedObjects.length, changedObjects.length, objectsToErase.length);
 
     auto totalLength = addedObjects.length + changedObjects.length + objectsToErase.length;
-    if (totalLength >= userSettings().debug.sendObjectsChangesTreshold) {
+    if (totalLength >= gameSettings().debug.sendObjectsChangesTreshold) {
         for (auto obj : addedObjects) {
             spdlog::debug("Added\t{:s}\t{:s}", idToString(&obj), getMidgardIdTypeDesc(&obj));
         }
@@ -138,11 +138,11 @@ bool __fastcall midServerLogicSendObjectsChangesHooked(game::IMidMsgSender* this
     const auto serverLogic = castMidMsgSenderToMidServerLogic(thisptr);
     auto scenarioMap = CMidServerLogicApi::get().getObjectMap(serverLogic);
 
-    if (userSettings().modifiers.validateUnitsOnGroupChanged) {
+    if (gameSettings().modifiers.validateUnitsOnGroupChanged) {
         addValidatedUnitsToChangedObjects(scenarioMap);
     }
 
-    if (userSettings().debugMode && userSettings().debug.sendObjectsChangesTreshold) {
+    if (gameSettings().debugMode && gameSettings().debug.sendObjectsChangesTreshold) {
         logObjectsToSend(scenarioMap);
     }
 
@@ -159,7 +159,7 @@ bool __fastcall midServerLogicSendRefreshInfoHooked(const game::CMidServerLogic*
     const auto& refreshInfoApi = CRefreshInfoApi::get();
 
     const auto scenarioMap = CMidServerLogicApi::get().getObjectMap(thisptr);
-    const auto limit = userSettings().engine.sendRefreshInfoObjectCountLimit;
+    const auto limit = gameSettings().engine.sendRefreshInfoObjectCountLimit;
 
     auto it = objectsList->begin();
     const auto end = objectsList->end();

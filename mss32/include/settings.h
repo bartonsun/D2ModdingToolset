@@ -31,13 +31,6 @@ enum class BattleAction : int;
 
 namespace hooks {
 
-struct Color
-{
-    std::uint8_t r{};
-    std::uint8_t g{};
-    std::uint8_t b{};
-};
-
 struct Settings
 {
     int unitMaxDamage;
@@ -47,7 +40,6 @@ struct Settings
     int shatterDamageMax;
     int drainAttackHeal;
     int drainOverflowHeal;
-    int carryOverItemsMax;
     std::uint8_t criticalHitDamage;
     std::uint8_t criticalHitChance;
     std::uint8_t mageLeaderAttackPowerReduction;
@@ -64,9 +56,6 @@ struct Settings
         bool absolute;
     } aiAttackPowerBonus;
 
-    bool showBanners;
-    bool showResources;
-    bool showLandConverted;
     bool preserveCapitalBuildings;
     bool buildTempleForWarriorLord;
     bool allowShatterAttackToMiss;
@@ -82,23 +71,6 @@ struct Settings
     bool freeTransformSelfAttack;
     bool freeTransformSelfAttackInfinite;
     bool fixEffectiveHpFormula;
-
-    std::vector<std::string> customSortOrder;
-
-    struct Hotkey
-    {
-        std::uint32_t key{'I'};
-
-        bool ctrl{false};
-        bool shift{false};
-        bool alt{false};
-    };
-
-    struct Hotkeys
-    {
-        Hotkey openSelectedObject;
-        Hotkey quickSave;
-    } hotkeys;
 
     struct AdditionalLordIncome
     {   
@@ -140,20 +112,6 @@ struct Settings
         } mana;
     } additionalCityIncome;
 
-    struct UnitEncyclopedia
-    {
-        bool detailedUnitDescription;
-        bool detailedAttackDescription;
-        bool displayDynamicUpgradeValues;
-        bool displayBonusHp;
-        bool displayBonusXp;
-        bool displayInfiniteAttackIndicator;
-        bool displayCriticalHitTextInAttackName;
-        bool updateOnShiftKeyPress;
-        bool updateOnCtrlKeyPress;
-        bool updateOnAltKeyPress;
-    } unitEncyclopedia;
-
     struct Modifiers
     {
         bool cumulativeUnitRegeneration;
@@ -193,30 +151,7 @@ struct Settings
             int onRoad;
         } plain;
 
-        Color textColor{};
-        Color outlineColor{};
-        bool show{};
-        bool showMovementAfterAction{};
     } movementCost;
-
-
-    struct Lobby
-    {
-        struct Server
-        {
-            std::string ip{"104.248.139.25"};
-            std::uint16_t port{61111};
-        } server;
-
-        struct Client
-        {
-            // 0 means auto-assign by OS
-            std::uint16_t port{0};
-        } client;
-
-        // Stores login information while the game is running, not getting read from settings.lua
-        std::string password;
-    } lobby;
 
     // Do not expose these settings in public 'settings.lua' template so poor souls won't suffer
     // from their own ignorance
@@ -266,10 +201,10 @@ struct Settings
     std::vector<int> longEffectRemoveChances;
 };
 
-const Settings& baseSettings();
-const Settings& defaultSettings();
-const Settings& userSettings();
-Settings::Lobby& lobbySettings();
+const Settings& baseGameSettings();
+const Settings& defaultGameSettings();
+
+const Settings& gameSettings();
 
 } // namespace hooks
 

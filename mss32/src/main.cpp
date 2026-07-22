@@ -97,32 +97,32 @@ static void adjustGameRestrictions()
     // Allow using units with tier higher than 5
     writeProtectedMemory(&restrictions.unitTier->max, 10);
 
-    if (userSettings().unitMaxDamage != baseSettings().unitMaxDamage) {
-        adjustRestrictionMax(restrictions.attackDamage, userSettings().unitMaxDamage,
+    if (gameSettings().unitMaxDamage != baseGameSettings().unitMaxDamage) {
+        adjustRestrictionMax(restrictions.attackDamage, gameSettings().unitMaxDamage,
                              "UnitMaxDamage");
     }
 
-    if (userSettings().unitMaxArmor != baseSettings().unitMaxArmor) {
-        adjustRestrictionMax(restrictions.unitArmor, userSettings().unitMaxArmor, "UnitMaxArmor");
+    if (gameSettings().unitMaxArmor != baseGameSettings().unitMaxArmor) {
+        adjustRestrictionMax(restrictions.unitArmor, gameSettings().unitMaxArmor, "UnitMaxArmor");
     }
 
-    if (userSettings().stackScoutRangeMax != baseSettings().stackScoutRangeMax) {
-        adjustRestrictionMax(restrictions.stackScoutRange, userSettings().stackScoutRangeMax,
+    if (gameSettings().stackScoutRangeMax != baseGameSettings().stackScoutRangeMax) {
+        adjustRestrictionMax(restrictions.stackScoutRange, gameSettings().stackScoutRangeMax,
                              "StackMaxScoutRange");
     }
 
     if (executableIsGame()) {
-        if (userSettings().criticalHitDamage != baseSettings().criticalHitDamage) {
-            spdlog::debug("Set 'criticalHitDamage' to {:d}", (int)userSettings().criticalHitDamage);
-            writeProtectedMemory(restrictions.criticalHitDamage, userSettings().criticalHitDamage);
+        if (gameSettings().criticalHitDamage != baseGameSettings().criticalHitDamage) {
+            spdlog::debug("Set 'criticalHitDamage' to {:d}", (int)gameSettings().criticalHitDamage);
+            writeProtectedMemory(restrictions.criticalHitDamage, gameSettings().criticalHitDamage);
         }
 
-        if (userSettings().mageLeaderAttackPowerReduction
-            != baseSettings().mageLeaderAttackPowerReduction) {
+        if (gameSettings().mageLeaderAttackPowerReduction
+            != baseGameSettings().mageLeaderAttackPowerReduction) {
             spdlog::debug("Set 'mageLeaderPowerReduction' to {:d}",
-                          (int)userSettings().mageLeaderAttackPowerReduction);
+                          (int)gameSettings().mageLeaderAttackPowerReduction);
             writeProtectedMemory(restrictions.mageLeaderAttackPowerReduction,
-                                 userSettings().mageLeaderAttackPowerReduction);
+                                 gameSettings().mageLeaderAttackPowerReduction);
         }
     }
 }
@@ -196,7 +196,7 @@ static void setupDefaultLogger()
     auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(fileName.string(),
                                                                            5u << 20, 3);
     // TODO: setting for all available trace levels (not only debug vs non-debug)
-    fileSink->set_level(hooks::userSettings().debugMode ? spdlog::level::trace
+    fileSink->set_level(hooks::gameSettings().debugMode ? spdlog::level::trace
                                                         : spdlog::level::info);
     sinks.push_back(std::move(fileSink));
 

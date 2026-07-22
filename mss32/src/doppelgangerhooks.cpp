@@ -133,9 +133,9 @@ bool __fastcall doppelgangerAttackCanPerformHooked(game::CBatAttackDoppelganger*
         return false;
 
     bool ally = isAllyTarget(thisptr, battleMsgData, targetUnitId);
-    if (ally && !userSettings().doppelgangerRespectsAllyImmunity)
+    if (ally && !gameSettings().doppelgangerRespectsAllyImmunity)
         return true;
-    if (!ally && !userSettings().doppelgangerRespectsEnemyImmunity)
+    if (!ally && !gameSettings().doppelgangerRespectsEnemyImmunity)
         return true;
 
     IAttack* attack = fn.getAttackById(objectMap, &thisptr->attackImplUnitId, thisptr->attackNumber,
@@ -164,9 +164,9 @@ bool __fastcall doppelgangerAttackIsImmuneHooked(game::CBatAttackDoppelganger* t
     }
 
     bool ally = isAllyTarget(thisptr, battleMsgData, unitId);
-    if (ally && !userSettings().doppelgangerRespectsAllyImmunity)
+    if (ally && !gameSettings().doppelgangerRespectsAllyImmunity)
         return false;
-    if (!ally && !userSettings().doppelgangerRespectsEnemyImmunity)
+    if (!ally && !gameSettings().doppelgangerRespectsEnemyImmunity)
         return false;
 
     const auto& fn = gameFunctions();

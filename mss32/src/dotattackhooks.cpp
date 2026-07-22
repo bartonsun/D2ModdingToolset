@@ -187,7 +187,8 @@ namespace hooks {
 
         int curDamage = targetInfo->blisterAppliedDamage;
 
-        targetInfo->blisterAppliedDamage = std::clamp(curDamage + damage, 0, userSettings().extendedBattle.maxDotDamage);
+        targetInfo->blisterAppliedDamage = std::clamp(curDamage + damage, 0,
+                                                      gameSettings().extendedBattle.maxDotDamage);
 
         battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Blister, true);
 
@@ -232,7 +233,7 @@ namespace hooks {
         int curDamage = targetInfo->frostbiteAppliedDamage;
 
         targetInfo->frostbiteAppliedDamage = std::clamp(curDamage + damage, 0,
-                                                        userSettings().extendedBattle.maxDotDamage);
+                                                        gameSettings().extendedBattle.maxDotDamage);
 
         battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Frostbite, true);
 
@@ -278,7 +279,7 @@ namespace hooks {
         int curDamage = targetInfo->poisonAppliedDamage;
 
         targetInfo->poisonAppliedDamage = std::clamp(curDamage + damage, 0,
-                                                     userSettings().extendedBattle.maxDotDamage);
+                                                     gameSettings().extendedBattle.maxDotDamage);
 
         battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Poison, true);
 
@@ -311,7 +312,7 @@ namespace hooks {
         CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
 
         int damage = std::clamp(targetInfo->blisterAppliedDamage, 0,
-                                userSettings().extendedBattle.maxDotDamage);
+                                gameSettings().extendedBattle.maxDotDamage);
 
         visitorApi.changeUnitHp(targetUnitId, -damage, objectMap, 1);
 
@@ -343,7 +344,7 @@ namespace hooks {
         CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
 
         int damage = std::clamp(targetInfo->frostbiteAppliedDamage, 0,
-                                userSettings().extendedBattle.maxDotDamage);
+                                gameSettings().extendedBattle.maxDotDamage);
 
         visitorApi.changeUnitHp(targetUnitId, -damage, objectMap, 1);
 
@@ -375,7 +376,7 @@ namespace hooks {
         CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
 
         int damage = std::clamp(targetInfo->poisonAppliedDamage, 0,
-                                userSettings().extendedBattle.maxDotDamage);
+                                gameSettings().extendedBattle.maxDotDamage);
 
         visitorApi.changeUnitHp(targetUnitId, -damage, objectMap, 1);
 
@@ -461,7 +462,7 @@ namespace hooks {
         }
 
         targetInfo->blisterAppliedDamage = std::clamp(damage, 0,
-                                                      userSettings().extendedBattle.maxDotDamage);
+                                                      gameSettings().extendedBattle.maxDotDamage);
         targetInfo->blisterAppliedRound = battleMsgData->currentRound;
 
         BattleAttackUnitInfo info{};
@@ -540,7 +541,7 @@ namespace hooks {
         }
 
         targetInfo->poisonAppliedDamage = std::clamp(damage, 0,
-                                                      userSettings().extendedBattle.maxDotDamage);
+                                                     gameSettings().extendedBattle.maxDotDamage);
         targetInfo->poisonAppliedRound = battleMsgData->currentRound;
 
         BattleAttackUnitInfo info{};
@@ -619,7 +620,7 @@ namespace hooks {
         }
 
         targetInfo->frostbiteAppliedDamage = std::clamp(damage, 0,
-                                                        userSettings().extendedBattle.maxDotDamage);
+                                                        gameSettings().extendedBattle.maxDotDamage);
         targetInfo->frostbiteAppliedRound = battleMsgData->currentRound;
 
         BattleAttackUnitInfo info{};

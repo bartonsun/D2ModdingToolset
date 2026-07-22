@@ -46,22 +46,9 @@ static std::string readSetting(const sol::table& table, const char* name, const 
 }
 
 
-static void readCustomSortSettings(const sol::table& table, Settings& settings)
-{
-    settings.customSortOrder.clear();
-
-    auto arr = table.get<sol::optional<sol::table>>("customSortOrder");
-    if (!arr.has_value()) {
-        return;
-    }
-
-    for (auto& kv : arr.value()) {
-        settings.customSortOrder.push_back(kv.second.as<std::string>());
-    }
-}
 static void readAiAttackPowerSettings(const sol::table& table, Settings::AiAttackPowerBonus& value)
 {
-    const auto& def = defaultSettings().aiAttackPowerBonus;
+    const auto& def = defaultGameSettings().aiAttackPowerBonus;
 
     auto bonuses = table.get<sol::optional<sol::table>>("aiAccuracyBonus");
     if (!bonuses.has_value()) {
@@ -78,7 +65,7 @@ static void readAiAttackPowerSettings(const sol::table& table, Settings::AiAttac
 
 static void readAllowBattleItemsSettings(const sol::table& table, Settings::AllowBattleItems& value)
 {
-    const auto& def = defaultSettings().allowBattleItems;
+    const auto& def = defaultGameSettings().allowBattleItems;
 
     auto category = table.get<sol::optional<sol::table>>("allowBattleItems");
     if (!category.has_value()) {
@@ -93,44 +80,9 @@ static void readAllowBattleItemsSettings(const sol::table& table, Settings::Allo
     value.onDoppelganger = readSetting(category.value(), "onDoppelganger", def.onDoppelganger);
 }
 
-static void readUnitEncyclopediaSettings(const sol::table& table, Settings::UnitEncyclopedia& value)
-{
-    const auto& def = defaultSettings().unitEncyclopedia;
-
-    auto category = table.get<sol::optional<sol::table>>("unitEncyclopedia");
-    if (!category.has_value()) {
-        value = def;
-        // For backward compatibility
-        value.detailedAttackDescription = readSetting(table, "detailedAttackDescription",
-                                                      def.detailedAttackDescription);
-        return;
-    }
-
-    value.detailedUnitDescription = readSetting(category.value(), "detailedUnitDescription",
-                                                def.detailedUnitDescription);
-    value.detailedAttackDescription = readSetting(category.value(), "detailedAttackDescription",
-                                                  def.detailedAttackDescription);
-    value.displayDynamicUpgradeValues = readSetting(category.value(), "displayDynamicUpgradeValues",
-                                                    def.displayDynamicUpgradeValues);
-    value.displayBonusHp = readSetting(category.value(), "displayBonusHp", def.displayBonusHp);
-    value.displayBonusXp = readSetting(category.value(), "displayBonusXp", def.displayBonusXp);
-    value.displayInfiniteAttackIndicator = readSetting(category.value(),
-                                                       "displayInfiniteAttackIndicator",
-                                                       def.displayInfiniteAttackIndicator);
-    value.displayCriticalHitTextInAttackName = readSetting(category.value(),
-                                                           "displayCriticalHitTextInAttackName",
-                                                           def.displayCriticalHitTextInAttackName);
-    value.updateOnShiftKeyPress = readSetting(category.value(), "updateOnShiftKeyPress",
-                                              def.updateOnShiftKeyPress);
-    value.updateOnCtrlKeyPress = readSetting(category.value(), "updateOnCtrlKeyPress",
-                                             def.updateOnCtrlKeyPress);
-    value.updateOnAltKeyPress = readSetting(category.value(), "updateOnAltKeyPress",
-                                            def.updateOnAltKeyPress);
-}
-
 static void readModifierSettings(const sol::table& table, Settings::Modifiers& value)
 {
-    const auto& def = defaultSettings().modifiers;
+    const auto& def = defaultGameSettings().modifiers;
 
     auto category = table.get<sol::optional<sol::table>>("modifiers");
     if (!category.has_value()) {
@@ -146,19 +98,10 @@ static void readModifierSettings(const sol::table& table, Settings::Modifiers& v
                                                     def.validateUnitsOnGroupChanged);
 }
 
-static Color readColor(const sol::table& table, const Color& def)
-{
-    Color color{};
-    color.r = readSetting(table, "red", def.r);
-    color.g = readSetting(table, "green", def.g);
-    color.b = readSetting(table, "blue", def.b);
-
-    return color;
-}
 
 static void readWaterMoveCostSettings(const sol::table& table, Settings::MovementCost::Water& water)
 {
-    const auto& def = defaultSettings().movementCost.water;
+    const auto& def = defaultGameSettings().movementCost.water;
 
     water.dflt = readSetting(table, "default", def.dflt, 1);
     water.deadLeader = readSetting(table, "withDeadLeader", def.deadLeader, 1);
@@ -169,7 +112,7 @@ static void readWaterMoveCostSettings(const sol::table& table, Settings::Movemen
 static void readForestMoveCostSettings(const sol::table& table,
                                        Settings::MovementCost::Forest& forest)
 {
-    const auto& def = defaultSettings().movementCost.forest;
+    const auto& def = defaultGameSettings().movementCost.forest;
 
     forest.dflt = readSetting(table, "default", def.dflt, 1);
     forest.deadLeader = readSetting(table, "withDeadLeader", def.deadLeader, 1);
@@ -178,7 +121,7 @@ static void readForestMoveCostSettings(const sol::table& table,
 
 static void readPlainMoveCostSettings(const sol::table& table, Settings::MovementCost::Plain& plain)
 {
-    const auto& def = defaultSettings().movementCost.plain;
+    const auto& def = defaultGameSettings().movementCost.plain;
 
     plain.dflt = readSetting(table, "default", def.dflt, 1);
     plain.deadLeader = readSetting(table, "withDeadLeader", def.deadLeader, 1);
@@ -187,12 +130,6 @@ static void readPlainMoveCostSettings(const sol::table& table, Settings::Movemen
 
 static void readMovementCostSettings(const sol::table& table, Settings::MovementCost& value)
 {
-    const auto& defTextColor = defaultSettings().movementCost.textColor;
-    const auto& defOutlineColor = defaultSettings().movementCost.outlineColor;
-
-    value.show = defaultSettings().movementCost.show;
-    value.textColor = defTextColor;
-    value.outlineColor = defOutlineColor;
 
     auto moveCost = table.get<sol::optional<sol::table>>("movementCost");
     if (!moveCost.has_value()) {
@@ -213,209 +150,12 @@ static void readMovementCostSettings(const sol::table& table, Settings::Movement
     if (plain.has_value()) {
         readPlainMoveCostSettings(plain.value(), value.plain);
     }
-
-    value.show = readSetting(moveCost.value(), "show", defaultSettings().movementCost.show);
-
-    value.showMovementAfterAction = readSetting(moveCost.value(), "showMovementAfterAction",
-                                          defaultSettings().movementCost.showMovementAfterAction);
-
-    auto textColor = moveCost.value().get<sol::optional<sol::table>>("textColor");
-    if (textColor.has_value()) {
-        value.textColor = readColor(textColor.value(), defTextColor);
-    }
-
-    auto outlineColor = moveCost.value().get<sol::optional<sol::table>>("outlineColor");
-    if (outlineColor.has_value()) {
-        value.outlineColor = readColor(outlineColor.value(), defOutlineColor);
-    }
-}
-
-static void readLobbySettings(const sol::table& table, Settings::Lobby& value)
-{
-    const auto& settings = defaultSettings().lobby;
-
-    value.server.ip = settings.server.ip;
-    value.server.port = settings.server.port;
-    value.client.port = settings.client.port;
-
-    auto lobby = table.get<sol::optional<sol::table>>("lobby");
-    if (!lobby.has_value()) {
-        return;
-    }
-
-    auto server = lobby.value().get<sol::optional<sol::table>>("server");
-    if (server.has_value()) {
-        value.server.ip = readSetting(server.value(), "ip", settings.server.ip);
-        value.server.port = readSetting(server.value(), "port", settings.server.port);
-    }
-
-    auto client = lobby.value().get<sol::optional<sol::table>>("client");
-    if (client.has_value()) {
-        value.client.port = readSetting(client.value(), "port", settings.client.port);
-    }
-}
-
-
-
-static std::uint32_t parseKeyCode(std::string key)
-{
-    std::transform(key.begin(), key.end(), key.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-
-    if (key.empty())
-        return 0;
-
-    if (key.size() == 1)
-        return key[0];
-
-    static const std::unordered_map<std::string, std::uint32_t> keys = {
-        {"TAB", VK_TAB},           {"SPACE", VK_SPACE},     {"ENTER", VK_RETURN},
-        {"RETURN", VK_RETURN},     {"ESC", VK_ESCAPE},      {"ESCAPE", VK_ESCAPE},
-        {"BACKSPACE", VK_BACK},    {"DELETE", VK_DELETE},   {"INSERT", VK_INSERT},
-        {"HOME", VK_HOME},         {"END", VK_END},         {"PAGEUP", VK_PRIOR},
-        {"PAGEDOWN", VK_NEXT},
-
-        {"LEFT", VK_LEFT},         {"RIGHT", VK_RIGHT},     {"UP", VK_UP},
-        {"DOWN", VK_DOWN},
-
-        {"CTRL", VK_CONTROL},      {"SHIFT", VK_SHIFT},     {"ALT", VK_MENU},
-
-        {"NUM0", VK_NUMPAD0},      {"NUM1", VK_NUMPAD1},    {"NUM2", VK_NUMPAD2},
-        {"NUM3", VK_NUMPAD3},      {"NUM4", VK_NUMPAD4},    {"NUM5", VK_NUMPAD5},
-        {"NUM6", VK_NUMPAD6},      {"NUM7", VK_NUMPAD7},    {"NUM8", VK_NUMPAD8},
-        {"NUM9", VK_NUMPAD9},
-
-        {"PLUS", VK_OEM_PLUS},     {"MINUS", VK_OEM_MINUS}, {"COMMA", VK_OEM_COMMA},
-        {"PERIOD", VK_OEM_PERIOD},
-    };
-
-    auto it = keys.find(key);
-    if (it != keys.end())
-        return it->second;
-
-    if (key[0] == 'F') {
-        int number = std::atoi(key.c_str() + 1);
-        if (number >= 1 && number <= 24)
-            return VK_F1 + number - 1;
-    }
-
-    return 0;
-}
-
-static std::string keyCodeToString(std::uint32_t key)
-{
-    if (key >= 'A' && key <= 'Z')
-        return std::string(1, static_cast<char>(key));
-
-    if (key >= '0' && key <= '9')
-        return std::string(1, static_cast<char>(key));
-
-    if (key >= VK_F1 && key <= VK_F24)
-        return "F" + std::to_string(key - VK_F1 + 1);
-
-    switch (key) {
-    case VK_TAB:
-        return "TAB";
-    case VK_SPACE:
-        return "SPACE";
-    case VK_RETURN:
-        return "ENTER";
-    case VK_ESCAPE:
-        return "ESC";
-    case VK_BACK:
-        return "BACKSPACE";
-    case VK_DELETE:
-        return "DELETE";
-    case VK_INSERT:
-        return "INSERT";
-    case VK_HOME:
-        return "HOME";
-    case VK_END:
-        return "END";
-    case VK_PRIOR:
-        return "PAGEUP";
-    case VK_NEXT:
-        return "PAGEDOWN";
-    case VK_LEFT:
-        return "LEFT";
-    case VK_RIGHT:
-        return "RIGHT";
-    case VK_UP:
-        return "UP";
-    case VK_DOWN:
-        return "DOWN";
-
-    case VK_NUMPAD0:
-        return "NUM0";
-    case VK_NUMPAD1:
-        return "NUM1";
-    case VK_NUMPAD2:
-        return "NUM2";
-    case VK_NUMPAD3:
-        return "NUM3";
-    case VK_NUMPAD4:
-        return "NUM4";
-    case VK_NUMPAD5:
-        return "NUM5";
-    case VK_NUMPAD6:
-        return "NUM6";
-    case VK_NUMPAD7:
-        return "NUM7";
-    case VK_NUMPAD8:
-        return "NUM8";
-    case VK_NUMPAD9:
-        return "NUM9";
-
-    case VK_OEM_PLUS:
-        return "PLUS";
-    case VK_OEM_MINUS:
-        return "MINUS";
-    case VK_OEM_COMMA:
-        return "COMMA";
-    case VK_OEM_PERIOD:
-        return "PERIOD";
-    }
-
-    return "";
-}
-
-static void readHotkey(const sol::table& table,
-                       const char* name,
-                       Settings::Hotkey& value,
-                       const Settings::Hotkey& def)
-{
-    auto hotkey = table.get<sol::optional<sol::table>>(name);
-    if (!hotkey.has_value()) {
-        value = def;
-        return;
-    }
-
-    value.key = parseKeyCode(readSetting(hotkey.value(), "key", keyCodeToString(def.key)));
-
-    value.ctrl = readSetting(hotkey.value(), "ctrl", def.ctrl);
-    value.shift = readSetting(hotkey.value(), "shift", def.shift);
-    value.alt = readSetting(hotkey.value(), "alt", def.alt);
-}
-
-static void readHotkeySettings(const sol::table& table, Settings::Hotkeys& value)
-{
-    const auto& def = defaultSettings().hotkeys;
-
-    value = def;
-
-    auto category = table.get<sol::optional<sol::table>>("hotkeys");
-    if (!category.has_value())
-        return;
-
-    readHotkey(category.value(), "openSelectedObject", value.openSelectedObject,
-               def.openSelectedObject);
-
-    readHotkey(category.value(), "quickSave", value.quickSave, def.quickSave);
+  
 }
 
 static void readDebugSettings(const sol::table& table, Settings::Debug& value)
 {
-    const auto& def = defaultSettings().debug;
+    const auto& def = defaultGameSettings().debug;
 
     // 'debug' is reserved to Lua standard debug library
     auto category = table.get<sol::optional<sol::table>>("debugging");
@@ -432,7 +172,7 @@ static void readDebugSettings(const sol::table& table, Settings::Debug& value)
 
 static void readEngineSettings(const sol::table& table, Settings::Engine& value)
 {
-    const auto& def = defaultSettings().engine;
+    const auto& def = defaultGameSettings().engine;
 
     auto category = table.get<sol::optional<sol::table>>("engine");
     if (!category.has_value()) {
@@ -447,7 +187,7 @@ static void readEngineSettings(const sol::table& table, Settings::Engine& value)
 
 static void readBattleSettings(const sol::table& table, Settings::Battle& value)
 {
-    const auto& def = defaultSettings().battle;
+    const auto& def = defaultGameSettings().battle;
 
     auto category = table.get<sol::optional<sol::table>>("battle");
     if (!category.has_value()) {
@@ -470,7 +210,7 @@ static void readBattleSettings(const sol::table& table, Settings::Battle& value)
 static void readAdditionalLordIncomeSettings(const sol::table& table,
                                              Settings::AdditionalLordIncome& value)
 {
-    const auto& def = defaultSettings().additionalLordIncome;
+    const auto& def = defaultGameSettings().additionalLordIncome;
 
     auto income = table.get<sol::optional<sol::table>>("additionalLordIncome");
     if (!income.has_value()) {
@@ -503,7 +243,7 @@ static void readAdditionalLordIncomeSettings(const sol::table& table,
 static void readAdditionalCityIncomeSettings(const sol::table& table,
                                              Settings::AdditionalCityIncome& value)
 {
-    const auto& def = defaultSettings().additionalCityIncome;
+    const auto& def = defaultGameSettings().additionalCityIncome;
 
     auto income = table.get<sol::optional<sol::table>>("additionalCityIncome");
     if (!income.has_value()) {
@@ -540,7 +280,7 @@ static void readAdditionalCityIncomeSettings(const sol::table& table,
 
 static void readExtandedBattleSettings(const sol::table& table, Settings::ExtendedBattle& value)
 {
-    const auto& def = defaultSettings().extendedBattle;
+    const auto& def = defaultGameSettings().extendedBattle;
 
     auto category = table.get<sol::optional<sol::table>>("extendedBattle");
     if (!category.has_value()) {
@@ -565,43 +305,39 @@ static void readExtandedBattleSettings(const sol::table& table, Settings::Extend
 static void readSettings(const sol::table& table, Settings& settings)
 {
     // clang-format off
-    settings.unitMaxDamage = readSetting(table, "unitMaxDamage", defaultSettings().unitMaxDamage);
-    settings.unitMaxArmor = readSetting(table, "unitMaxArmor", defaultSettings().unitMaxArmor);
-    settings.stackScoutRangeMax = readSetting(table, "stackMaxScoutRange", defaultSettings().stackScoutRangeMax);
-    settings.shatteredArmorMax = readSetting(table, "shatteredArmorMax", defaultSettings().shatteredArmorMax, 0, baseSettings().shatteredArmorMax);
-    settings.shatterDamageMax = readSetting(table, "shatterDamageMax", defaultSettings().shatterDamageMax, 0, baseSettings().shatterDamageMax);
-    settings.drainAttackHeal = readSetting(table, "drainAttackHeal", defaultSettings().drainAttackHeal);
-    settings.drainOverflowHeal = readSetting(table, "drainOverflowHeal", defaultSettings().drainOverflowHeal);
-    settings.carryOverItemsMax = readSetting(table, "carryOverItemsMax", defaultSettings().carryOverItemsMax, 0);
-    settings.criticalHitDamage = readSetting(table, "criticalHitDamage", defaultSettings().criticalHitDamage);
-    settings.criticalHitChance = readSetting(table, "criticalHitChance", defaultSettings().criticalHitChance, (uint8_t)0, (uint8_t)100);
-    settings.mageLeaderAttackPowerReduction = readSetting(table, "mageLeaderAccuracyReduction", defaultSettings().mageLeaderAttackPowerReduction);
-    settings.disableAllowedRoundMax = readSetting(table, "disableAllowedRoundMax", defaultSettings().disableAllowedRoundMax, (uint8_t)1);
-    settings.shatterDamageUpgradeRatio = readSetting(table, "shatterDamageUpgradeRatio", defaultSettings().shatterDamageUpgradeRatio);
-    settings.splitDamageMultiplier = readSetting(table, "splitDamageMultiplier", defaultSettings().splitDamageMultiplier, (uint8_t)1, (uint8_t)6);
-    settings.showBanners = readSetting(table, "showBanners", defaultSettings().showBanners);
-    settings.showResources = readSetting(table, "showResources", defaultSettings().showResources);
-    settings.showLandConverted = readSetting(table, "showLandConverted", defaultSettings().showLandConverted);
-    settings.preserveCapitalBuildings = readSetting(table, "preserveCapitalBuildings", defaultSettings().preserveCapitalBuildings);
-    settings.buildTempleForWarriorLord = readSetting(table, "buildTempleForWarriorLord", defaultSettings().buildTempleForWarriorLord);
-    settings.allowShatterAttackToMiss = readSetting(table, "allowShatterAttackToMiss", defaultSettings().allowShatterAttackToMiss);
-    settings.doppelgangerRespectsEnemyImmunity = readSetting(table, "doppelgangerRespectsEnemyImmunity", defaultSettings().doppelgangerRespectsEnemyImmunity);
-    settings.doppelgangerRespectsAllyImmunity = readSetting(table, "doppelgangerRespectsAllyImmunity", defaultSettings().doppelgangerRespectsAllyImmunity);
-    settings.leveledDoppelgangerAttack = readSetting(table, "leveledDoppelgangerAttack", defaultSettings().leveledDoppelgangerAttack);
-    settings.leveledTransformSelfAttack = readSetting(table, "leveledTransformSelfAttack", defaultSettings().leveledTransformSelfAttack);
-    settings.leveledTransformOtherAttack = readSetting(table, "leveledTransformOtherAttack", defaultSettings().leveledTransformOtherAttack);
-    settings.leveledDrainLevelAttack = readSetting(table, "leveledDrainLevelAttack", defaultSettings().leveledDrainLevelAttack);
-    settings.leveledSummonAttack = readSetting(table, "leveledSummonAttack", defaultSettings().leveledSummonAttack);
-    settings.missChanceSingleRoll = readSetting(table, "missChanceSingleRoll", defaultSettings().missChanceSingleRoll);
-    settings.unrestrictedBestowWards = readSetting(table, "unrestrictedBestowWards", defaultSettings().unrestrictedBestowWards);
-    settings.freeTransformSelfAttack = readSetting(table, "freeTransformSelfAttack", defaultSettings().freeTransformSelfAttack);
-    settings.freeTransformSelfAttackInfinite = readSetting(table, "freeTransformSelfAttackInfinite", defaultSettings().freeTransformSelfAttackInfinite);
-    settings.fixEffectiveHpFormula = readSetting(table, "fixEffectiveHpFormula", defaultSettings().fixEffectiveHpFormula);
-    settings.alchemistKeepsAttackCount = readSetting(table, "alchemistKeepsAttackCount", defaultSettings().alchemistKeepsAttackCount);
-    settings.instantBuffRemoval = readSetting(table, "instantBuffRemoval", defaultSettings().instantBuffRemoval);
-    settings.reviveAttacksUsesQtyHeal = readSetting(table, "reviveAttacksUsesQtyHeal", defaultSettings().reviveAttacksUsesQtyHeal);
-    settings.reviveItemsUsesQtyHeal = readSetting(table, "reviveItemsUsesQtyHeal", defaultSettings().reviveItemsUsesQtyHeal);
-    settings.advancedCure = readSetting(table, "advancedCure", defaultSettings().advancedCure);
+    settings.unitMaxDamage = readSetting(table, "unitMaxDamage", defaultGameSettings().unitMaxDamage);
+    settings.unitMaxArmor = readSetting(table, "unitMaxArmor", defaultGameSettings().unitMaxArmor);
+    settings.stackScoutRangeMax = readSetting(table, "stackMaxScoutRange", defaultGameSettings().stackScoutRangeMax);
+    settings.shatteredArmorMax = readSetting(table, "shatteredArmorMax", defaultGameSettings().shatteredArmorMax, 0, baseGameSettings().shatteredArmorMax);
+    settings.shatterDamageMax = readSetting(table, "shatterDamageMax", defaultGameSettings().shatterDamageMax, 0, baseGameSettings().shatterDamageMax);
+    settings.drainAttackHeal = readSetting(table, "drainAttackHeal", defaultGameSettings().drainAttackHeal);
+    settings.drainOverflowHeal = readSetting(table, "drainOverflowHeal", defaultGameSettings().drainOverflowHeal);
+    settings.criticalHitDamage = readSetting(table, "criticalHitDamage", defaultGameSettings().criticalHitDamage);
+    settings.criticalHitChance = readSetting(table, "criticalHitChance", defaultGameSettings().criticalHitChance, (uint8_t)0, (uint8_t)100);
+    settings.mageLeaderAttackPowerReduction = readSetting(table, "mageLeaderAccuracyReduction", defaultGameSettings().mageLeaderAttackPowerReduction);
+    settings.disableAllowedRoundMax = readSetting(table, "disableAllowedRoundMax", defaultGameSettings().disableAllowedRoundMax, (uint8_t)1);
+    settings.shatterDamageUpgradeRatio = readSetting(table, "shatterDamageUpgradeRatio", defaultGameSettings().shatterDamageUpgradeRatio);
+    settings.splitDamageMultiplier = readSetting(table, "splitDamageMultiplier", defaultGameSettings().splitDamageMultiplier, (uint8_t)1, (uint8_t)6);
+    settings.preserveCapitalBuildings = readSetting(table, "preserveCapitalBuildings", defaultGameSettings().preserveCapitalBuildings);
+    settings.buildTempleForWarriorLord = readSetting(table, "buildTempleForWarriorLord", defaultGameSettings().buildTempleForWarriorLord);
+    settings.allowShatterAttackToMiss = readSetting(table, "allowShatterAttackToMiss", defaultGameSettings().allowShatterAttackToMiss);
+    settings.doppelgangerRespectsEnemyImmunity = readSetting(table, "doppelgangerRespectsEnemyImmunity", defaultGameSettings().doppelgangerRespectsEnemyImmunity);
+    settings.doppelgangerRespectsAllyImmunity = readSetting(table, "doppelgangerRespectsAllyImmunity", defaultGameSettings().doppelgangerRespectsAllyImmunity);
+    settings.leveledDoppelgangerAttack = readSetting(table, "leveledDoppelgangerAttack", defaultGameSettings().leveledDoppelgangerAttack);
+    settings.leveledTransformSelfAttack = readSetting(table, "leveledTransformSelfAttack", defaultGameSettings().leveledTransformSelfAttack);
+    settings.leveledTransformOtherAttack = readSetting(table, "leveledTransformOtherAttack", defaultGameSettings().leveledTransformOtherAttack);
+    settings.leveledDrainLevelAttack = readSetting(table, "leveledDrainLevelAttack", defaultGameSettings().leveledDrainLevelAttack);
+    settings.leveledSummonAttack = readSetting(table, "leveledSummonAttack", defaultGameSettings().leveledSummonAttack);
+    settings.missChanceSingleRoll = readSetting(table, "missChanceSingleRoll", defaultGameSettings().missChanceSingleRoll);
+    settings.unrestrictedBestowWards = readSetting(table, "unrestrictedBestowWards", defaultGameSettings().unrestrictedBestowWards);
+    settings.freeTransformSelfAttack = readSetting(table, "freeTransformSelfAttack", defaultGameSettings().freeTransformSelfAttack);
+    settings.freeTransformSelfAttackInfinite = readSetting(table, "freeTransformSelfAttackInfinite", defaultGameSettings().freeTransformSelfAttackInfinite);
+    settings.fixEffectiveHpFormula = readSetting(table, "fixEffectiveHpFormula", defaultGameSettings().fixEffectiveHpFormula);
+    settings.alchemistKeepsAttackCount = readSetting(table, "alchemistKeepsAttackCount", defaultGameSettings().alchemistKeepsAttackCount);
+    settings.instantBuffRemoval = readSetting(table, "instantBuffRemoval", defaultGameSettings().instantBuffRemoval);
+    settings.reviveAttacksUsesQtyHeal = readSetting(table, "reviveAttacksUsesQtyHeal", defaultGameSettings().reviveAttacksUsesQtyHeal);
+    settings.reviveItemsUsesQtyHeal = readSetting(table, "reviveItemsUsesQtyHeal", defaultGameSettings().reviveItemsUsesQtyHeal);
+    settings.advancedCure = readSetting(table, "advancedCure", defaultGameSettings().advancedCure);
 
     auto chances = table.get<sol::optional<sol::table>>("longEffectRemoveChances");
     if (chances.has_value())
@@ -618,18 +354,14 @@ static void readSettings(const sol::table& table, Settings& settings)
 
     readAiAttackPowerSettings(table, settings.aiAttackPowerBonus);
     readAllowBattleItemsSettings(table, settings.allowBattleItems);
-    readUnitEncyclopediaSettings(table, settings.unitEncyclopedia);
     readModifierSettings(table, settings.modifiers);
     readMovementCostSettings(table, settings.movementCost);
-    readLobbySettings(table, settings.lobby);
     readDebugSettings(table, settings.debug);
     readEngineSettings(table, settings.engine);
     readBattleSettings(table, settings.battle);
     readAdditionalLordIncomeSettings(table, settings.additionalLordIncome);
     readAdditionalCityIncomeSettings(table, settings.additionalCityIncome);
     readExtandedBattleSettings(table, settings.extendedBattle);
-    readCustomSortSettings(table, settings);
-    readHotkeySettings(table, settings.hotkeys);
 }
 
 static void readDebugMode(Settings& settings)
@@ -639,7 +371,7 @@ static void readDebugMode(Settings& settings)
     return;
 #endif
 
-    settings.debugMode = defaultSettings().debugMode;
+    settings.debugMode = defaultGameSettings().debugMode;
 
     char commandLine[256];
     strncpy(commandLine, GetCommandLine(), 256);
@@ -650,7 +382,7 @@ static void readDebugMode(Settings& settings)
     }
 }
 
-const Settings& baseSettings()
+const Settings& baseGameSettings()
 {
     static Settings settings;
     static bool initialized = false;
@@ -663,7 +395,6 @@ const Settings& baseSettings()
         settings.shatterDamageMax = 100;
         settings.drainAttackHeal = 50;
         settings.drainOverflowHeal = 50;
-        settings.carryOverItemsMax = 5;
         settings.criticalHitDamage = 5;
         settings.criticalHitChance = 100;
         settings.mageLeaderAttackPowerReduction = 10;
@@ -675,9 +406,6 @@ const Settings& baseSettings()
         settings.disableAllowedRoundMax = 40;
         settings.shatterDamageUpgradeRatio = 100;
         settings.splitDamageMultiplier = 1;
-        settings.showBanners = false;
-        settings.showResources = false;
-        settings.showLandConverted = false;
         settings.preserveCapitalBuildings = false;
         settings.buildTempleForWarriorLord = false;
         settings.allowShatterAttackToMiss = false;
@@ -692,16 +420,6 @@ const Settings& baseSettings()
         settings.unrestrictedBestowWards = false;
         settings.freeTransformSelfAttack = false;
         settings.freeTransformSelfAttackInfinite = false;
-        settings.unitEncyclopedia.detailedUnitDescription = false;
-        settings.unitEncyclopedia.detailedAttackDescription = false;
-        settings.unitEncyclopedia.displayDynamicUpgradeValues = false;
-        settings.unitEncyclopedia.displayBonusHp = false;
-        settings.unitEncyclopedia.displayBonusXp = false;
-        settings.unitEncyclopedia.displayInfiniteAttackIndicator = false;
-        settings.unitEncyclopedia.displayCriticalHitTextInAttackName = false;
-        settings.unitEncyclopedia.updateOnShiftKeyPress = false;
-        settings.unitEncyclopedia.updateOnCtrlKeyPress = false;
-        settings.unitEncyclopedia.updateOnAltKeyPress = false;
         settings.fixEffectiveHpFormula = false;
         settings.modifiers.cumulativeUnitRegeneration = false;
         settings.modifiers.notifyModifiersChanged = false;
@@ -720,9 +438,6 @@ const Settings& baseSettings()
         settings.movementCost.plain.dflt = 2;
         settings.movementCost.plain.deadLeader = 4;
         settings.movementCost.plain.onRoad = 1;
-        settings.movementCost.textColor = Color{200, 200, 200};
-        settings.movementCost.show = false;
-        settings.movementCost.showMovementAfterAction = false;
         settings.battle.fallbackAction = game::BattleAction::Defend;
         settings.debugMode = false;
 
@@ -741,15 +456,6 @@ const Settings& baseSettings()
         settings.extendedBattle.boostdamageCanAffectHealer = false;
 
         settings.longEffectRemoveChances = {0, 50, 75, 100};
-        settings.hotkeys.openSelectedObject.key = 'I';
-        settings.hotkeys.openSelectedObject.ctrl = false;
-        settings.hotkeys.openSelectedObject.shift = false;
-        settings.hotkeys.openSelectedObject.alt = false;
-
-        settings.hotkeys.quickSave.key = 'Q';
-        settings.hotkeys.quickSave.ctrl = true;
-        settings.hotkeys.quickSave.shift = false;
-        settings.hotkeys.quickSave.alt = false;
 
         initialized = true;
     }
@@ -757,19 +463,14 @@ const Settings& baseSettings()
     return settings;
 }
 
-const Settings& defaultSettings()
+const Settings& defaultGameSettings()
 {
     static Settings settings;
     static bool initialized = false;
 
     if (!initialized) {
-        settings = baseSettings();
-        settings.showBanners = true;
-        settings.showResources = true;
-        settings.movementCost.show = true;
+        settings = baseGameSettings();
         settings.unrestrictedBestowWards = true;
-        settings.unitEncyclopedia.detailedUnitDescription = true;
-        settings.unitEncyclopedia.detailedAttackDescription = true;
         settings.fixEffectiveHpFormula = true;
 
         // The default value of 1024 objects provides room for average object size of 512 bytes.
@@ -781,9 +482,9 @@ const Settings& defaultSettings()
     return settings;
 }
 
-void initializeUserSettings(Settings& value)
+void initializeGameSettings(Settings& value)
 {
-    value = defaultSettings();
+    value = defaultGameSettings();
 
     const auto path{scriptsFolder() / "settings.lua"};
     try {
@@ -801,27 +502,23 @@ void initializeUserSettings(Settings& value)
     }
 }
 
-Settings& getUserSettings()
+Settings& getGameSettings()
 {
     static Settings settings;
     static bool initialized = false;
 
     if (!initialized) {
-        initializeUserSettings(settings);
+        initializeGameSettings(settings);
         initialized = true;
     }
 
     return settings;
 }
 
-const Settings& userSettings()
+const Settings& gameSettings()
 {
-    return getUserSettings();
+    return getGameSettings();
 }
 
-Settings::Lobby& lobbySettings()
-{
-    return getUserSettings().lobby;
-}
 
 } // namespace hooks

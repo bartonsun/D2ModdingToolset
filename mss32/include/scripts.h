@@ -77,6 +77,12 @@ std::optional<sol::protected_function> getProtectedScriptFunction(
     const char* name,
     bool alwaysExists = false);
 
+sol::environment executeUserSettingsScript(const std::string& source,
+                                           sol::protected_function_result& result);
+
+std::optional<sol::environment> executeUserSettingsFile(const std::filesystem::path& path,
+                                                        bool alwaysExists = false);
+
 } // namespace hooks
 
 #endif // SCRIPTS_H

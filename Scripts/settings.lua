@@ -1,30 +1,25 @@
---[[
-Settings for Disciples 2 Rise of the Elves v3.01 mss32 proxy dll
+--[[ Game settings for Disciples 2 Rise of the Elves v3.01 mss32 proxy dll
+
+This file contains gameplay settings that affect game mechanics and balance.
+
+All players in a multiplayer game must use identical game settings.
+This file participates in multiplayer file verification.
 
 Most settings correspond to features. Refer to the documentation for more information:
-https://github.com/VladimirMakeev/D2ModdingToolset#features
+https://github.com/bartonsun/D2ModdingToolset
 
 If you got this file from the GitHub repository, settings have their default values specified.
 If you omit any setting it will have its default value.
-Most settings have their default values correspond to the vanilla game,
-except for quality-of-life like showBanners / showResources and bug fixes like fixEffectiveHpFormula.
---]]
+Most settings have their default values correspond to the vanilla game.
+
+]]--
 
 settings = {
-	-- Show troops banners
-	showBanners = true,
-	-- Show resources panel
-	showResources = true,
-	-- Show percentage of land coverted
-	showLandConverted = false,
 
 	-- Allow scenarios with prebuilt capital cities
 	preserveCapitalBuildings = false,
 	-- Start with pre built temple in capital for warrior lord
 	buildTempleForWarriorLord = false,
-	-- Maximum number of items the player is allowed to transfer
-	-- between campaign scenarios [0 : INT_MAX]
-	carryOverItemsMax = 5,
 
 	-- Maximum unit damage per attack [300 : INT_MAX]
 	unitMaxDamage = 300,
@@ -53,62 +48,6 @@ settings = {
 	criticalHitDamage = 5,
 	-- Percentage chance of critical hit [0 : 100]
 	criticalHitChance = 100,
-	
-	-- Custom item category order used by:
-	-- BTN_SORT_L_CUSTOM
-	-- BTN_SORT_R_CUSTOM
-	--
-	-- Categories are sorted from top to bottom in the exact order listed here.
-	--
-	-- You may specify only the categories you want to prioritize.
-	-- Any categories omitted from this list will use the default internal order
-	-- and will be placed after the custom categories.
-	--
-	-- This section may also be omitted completely.
-	-- In that case, the built-in default sort order will be used.
-	customSortOrder = {
-		"PotionRevive",   -- Resurrection potions
-		"PotionHeal",     -- Healing potions
-
-		"Weapon",         -- Weapons and offensive artifacts
-		"Armor",          -- Armor and defensive artifacts
-
-		"Jewel",          -- Jewels and rings
-		"Banner",         -- Banners and standards
-
-		"PotionBoost",    -- Temporary stat boost potions
-		"PotionPermanent",-- Permanent stat increase potions
-
-		"Scroll",         -- Spell scrolls
-		"Wand",           -- Magic wands
-
-		"Talisman",       -- Talismans
-		"Orb",            -- Orbs
-
-		"Valuable",       -- Valuable trade items
-		"Travelitem",     -- Travel and utility items
-		"Special"         -- Special quest or unique items
-	},
-	
-	-- Configurable hotkeys for the strategic map interface. 
-	-- Defaults:
-	-- openSelectedObject = "I"	 inventory
-	-- quickSave = ctrl + "Q"	
-	hotkeys = {
-
-		openSelectedObject = {  -- inventory from selected stack or city
-			key = "I",
-			ctrl = false,
-			shift = false,
-			alt = false,
-		},
-		
-		quickSave = { -- quickSave, work in multiplayers game for host
-        key = "Q",
-        ctrl = true,
-		},
-
-	},
 
 	-- Multiplies total damage dealt by split damage (DAM_SPLIT) [1 : 6]
 	-- Split damage is introduced by "custom attack damage ratio"
@@ -147,7 +86,7 @@ settings = {
 	-- Round in battle after which paralyze and petrify attacks
 	-- starts missing targets constantly [1 : INT_MAX]
 	disableAllowedRoundMax = 40,
-	
+
 	-- Change accuracy reduction for mage leaders per each additional target
 	mageLeaderAccuracyReduction = 10,
 
@@ -163,27 +102,22 @@ settings = {
 		-- Absolute: accuracy += bonus;
 		-- Percentage: accuracy += accuracy * bonus / 100;
 		absolute = true,
+
 		-- AI accuracy bonus on easy difficulty [-127 : 127]
 		easy = -15,
+
 		-- AI accuracy bonus on average difficulty [-127 : 127]
 		average = 0,
+
 		-- AI accuracy bonus on hard difficulty [-127 : 127]
 		hard = 5,
+
 		-- AI accuracy bonus on very hard difficulty [-127 : 127]
 		veryHard = 10
 	},
 
 	movementCost = {
-		-- Show stacks movement cost
-		show = true,
-		-- Color components are all in range [0 : 255]
-		textColor = {
-			red = 200, green = 200, blue = 200
-		},
-		outlineColor = {
-			red = 0, green = 0, blue = 0
-		},
-		
+
 		-- Movement cost on water tiles
 		water = {
 			-- Default movement cost
@@ -195,17 +129,17 @@ settings = {
 			-- Movement cost for water-only stacks
 			waterOnly = 2,
 		},
-		
+
 		-- Movement cost on forest tiles
 		forest = {
 			-- Default movement cost
 			default = 4,
 			-- Movement cost for stacks with dead leader
 			withDeadLeader = 8,
-			-- Movement cost for stacks with forest movement bonus 
+			-- Movement cost for stacks with forest movement bonus
 			withBonus = 2,
 		},
-		
+
 		-- Movement cost on plain tiles
 		plain = {
 			-- Default movement cost
@@ -217,56 +151,9 @@ settings = {
 		},
 	},
 
-	lobby = {
-		-- Lobby server public IP and port
-		server = {
-			ip = "104.248.139.25",
-			port = 61111,
-		},
-
-		client = {
-			-- Lobby client port (0 means auto-assign by OS)
-			port = 0,
-		},
-	},
-
 	-- If true, switches attacks miss check to a single random value roll
 	-- instead of check against arithmetic mean of two random numbers
 	missChanceSingleRoll = false,
-
-	unitEncyclopedia = {
-		-- Additional display of some stats bonuses, regeneration, xp reward for killing, etc.
-		detailedUnitDescription = true,
-
-		-- Additional display of some stats bonuses, drain, critical hit, custom attack ratios, etc.
-		detailedAttackDescription = true,
-
-		-- Additional display of dynamic upgrade values (only for unit type encyclopedia to avoid clutter)
-		-- Enable detailedUnitDescription and/or detailedAttackDescription to show upgrade values for corresponding stats
-		displayDynamicUpgradeValues = false,
-
-		-- Additional display of bonus hit points
-		-- Requires detailedUnitDescription
-		displayBonusHp = false,
-
-		-- Additional display of experience points reduction
-		-- Requires detailedUnitDescription
-		displayBonusXp = false,
-		
-		-- Display infinite effect indicator along with attack name (alternative to effect duration)
-		-- Requires detailedUnitDescription
-		displayInfiniteAttackIndicator = false,
-
-		-- Display Critical Hit text in Attack section instead of Damage and Power sections
-		-- Requires detailedAttackDescription
-		displayCriticalHitTextInAttackName = false,
-
-		-- Allows to update encyclopedia content on the fly by pressing specified keys.
-		-- Used in combination with isShift/Ctrl/AltKeyPressed from unitEncyclopedia.lua
-		updateOnShiftKeyPress = false,
-		updateOnCtrlKeyPress = false,
-		updateOnAltKeyPress = false,
-	},
 
 	-- Fix effective unit hp computation
 	-- Original formula: (hp * armor / 100) + hp
@@ -289,9 +176,11 @@ settings = {
 		-- Allow unit regeneration modifiers to stack.
 		-- By default, the game picks single highest value, then sums it with lord, terrain and city bonuses.
 		cumulativeUnitRegeneration = false,
+
 		-- Enables 'onModifiersChanged' notification for custom modifier scripts.
 		-- Keep it disabled if you don't need it to improve general performance.
 		notifyModifiersChanged = false,
+
 		-- Validate current HP / XP of units when their group changes (units added, removed, rearranged, etc.)
 		-- to resolve issues with custom HP / XP modifiers, that depend on other units (like auras in MNS mod).
 		-- Keep it disabled if you don't need it to improve general performance.
@@ -301,22 +190,26 @@ settings = {
 	battle = {
 		-- Allows retreated units to upgrade (the behavior is bugged in vanilla causing non-constant and opaque behaviour)
 		allowRetreatedUnitsToUpgrade = false,
+
 		-- Allows to carry extra XP received over unit's upgrade (limited to value required for the next upgrade minus 1)
 		carryXpOverUpgrade = false,
+
 		-- Allows units to receive multiple upgrades per single battle
 		allowMultiUpgrade = false,
+
 		-- Shows message box when error occurs in AI battle action script.
 		-- When disabled, error messages are silently written to error log
 		debugAi = false,
+
 		-- Fallback action for AI controlled units in case of script errors
 		fallbackAction = BattleAction.Defend,
 	},
-	
+
 	alchemistKeepsAttackCount = false,
 	instantBuffRemoval = false,
 	reviveUsesQtyHeal = false,
 	advancedCure = false,
-	
+
 	extendedBattle = {
 		dotDamageCanStack = false,
 		blisterDamageID = "g202aa0001",

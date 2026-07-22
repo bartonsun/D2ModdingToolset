@@ -33,6 +33,7 @@
 #include <array>
 #include <mutex>
 #include <spdlog/spdlog.h>
+#include <usersettings.h>
 
 namespace hooks {
 
@@ -757,6 +758,10 @@ std::vector<std::filesystem::path> CNetCustomService::getGameFilesToHash() const
                 continue;
             }
 
+            if (entry.path().filename() == "userSettings.lua") {
+                continue;
+            }
+
             result.push_back(entry.path());
         }
     }
@@ -853,7 +858,7 @@ void CNetCustomService::LobbyCallback::MessageResult(
 void CNetCustomService::LobbyCallback::ExecuteDefaultResult(SLNet::Lobby2Message* msg)
 {
     // To optimize out DebugMsg call
-    if (!userSettings().debugMode) {
+    if (!gameSettings().debugMode) {
         return;
     }
 

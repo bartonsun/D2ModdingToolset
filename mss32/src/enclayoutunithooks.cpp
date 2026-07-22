@@ -53,6 +53,7 @@
 #include "unitutils.h"
 #include "usunitimpl.h"
 #include "utils.h"
+#include <usersettings.h>
 
 namespace hooks {
 

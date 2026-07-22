@@ -275,8 +275,8 @@ game::CAttackImpl* __fastcall attackImplCtorHooked(game::CAttackImpl* thisptr,
         data->critHit = false;
     }
 
-    data->critDamage = userSettings().criticalHitDamage;
-    data->critPower = userSettings().criticalHitChance;
+    data->critDamage = gameSettings().criticalHitDamage;
+    data->critPower = gameSettings().criticalHitChance;
     if (getCustomAttacks().critSettingsEnabled) {
         int critDamage;
         db.readIntWithBoundsCheck(&critDamage, dbTable, critDamageColumnName, 0, 255);
