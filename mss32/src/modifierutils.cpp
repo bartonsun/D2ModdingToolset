@@ -395,7 +395,7 @@ game::ModifiedUnitInfo* getModifiedUnits(game::UnitInfo* unitInfo, game::Modifie
     using namespace game;
 
     auto& units = unitInfo->modifiedUnits;
-    if (userSettings().unrestrictedBestowWards) {
+    if (gameSettings().unrestrictedBestowWards) {
         *end = units.patched + ModifiedUnitCountPatched;
         return units.patched;
     } else {
@@ -805,7 +805,7 @@ bool addModifier(game::CMidUnit* unit, const game::CMidgardID* modifierId, bool 
 
     unit->unitImpl = castUmModifierToUnit(modifierImpl);
 
-    if (userSettings().modifiers.notifyModifiersChanged) {
+    if (gameSettings().modifiers.notifyModifiersChanged) {
         notifyModifiersChanged(unit->unitImpl);
     }
 

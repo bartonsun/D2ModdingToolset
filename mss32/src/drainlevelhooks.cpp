@@ -106,7 +106,7 @@ void __fastcall drainLevelAttackOnHitHooked(game::CBatAttackDrainLevel* thisptr,
         targetLevel = targetSoldier->vftable->getLevel(targetSoldier);
 
     int drainLevel = targetLevel - 1;
-    if (userSettings().leveledDrainLevelAttack) {
+    if (gameSettings().leveledDrainLevelAttack) {
         const CMidUnit* unit = fn.findUnitById(objectMap, &thisptr->unitId);
         drainLevel = getDrainLevel(unit, targetUnit, objectMap, &thisptr->unitOrItemId,
                                    battleMsgData);

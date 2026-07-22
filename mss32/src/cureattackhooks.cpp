@@ -95,7 +95,7 @@ namespace hooks {
         targetInfo->blisterAppliedRound = 0;
         targetInfo->frostbiteAppliedRound = 0;
     
-        if (userSettings().advancedCure != baseSettings().advancedCure) {
+        if (gameSettings().advancedCure != baseGameSettings().advancedCure) {
             battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::LowerDamageLvl1, false);
             battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::LowerDamageLvl2, false);
             battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::LowerDamageLong, false);

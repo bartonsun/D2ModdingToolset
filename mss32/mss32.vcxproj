@@ -159,6 +159,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\bindings\globalitemsview.cpp" />
     <ClCompile Include="src\bindings\globalspellsview.cpp" />
     <ClCompile Include="src\bindings\spellview.cpp" />
+    <ClCompile Include="src\bindings\usersettingsview.cpp" />
     <ClCompile Include="src\stealmerchantiteminterf.cpp" />
     <ClCompile Include="src\stealitemhooks.cpp" />
     <ClCompile Include="src\addstealspellhooks.cpp" />
@@ -644,6 +645,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\unittypedescriptor.cpp" />
     <ClCompile Include="src\unitutils.cpp" />
     <ClCompile Include="src\untransformeffecthooks.cpp" />
+    <ClCompile Include="src\usersettings.cpp" />
     <ClCompile Include="src\ussoldierimpl.cpp" />
     <ClCompile Include="src\umattackhooks.cpp" />
     <ClCompile Include="src\usstackleader.cpp" />
@@ -708,6 +710,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\bindings\globalitemsview.h" />
     <ClInclude Include="include\bindings\globalspellsview.h" />
     <ClInclude Include="include\bindings\spellview.h" />
+    <ClInclude Include="include\bindings\usersettingsview.h" />
     <ClInclude Include="include\stealmerchantiteminterf.h" />
     <ClInclude Include="include\stealitemhooks.h" />
     <ClInclude Include="include\addstealspellhooks.h" />
@@ -1386,6 +1389,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\trainingcampinterf.h" />
     <ClInclude Include="include\turnhooks.h" />
     <ClInclude Include="include\unitsforhirehooks.h" />
+    <ClInclude Include="include\usersettings.h" />
     <ClInclude Include="include\visitorcreatesite.h" />
     <ClInclude Include="include\visitorcreatesitehooks.h" />
     <ClInclude Include="include\wavstore.h" />

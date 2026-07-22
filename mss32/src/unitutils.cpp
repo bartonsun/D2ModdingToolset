@@ -520,7 +520,7 @@ game::IUsUnitExtension* castUnitImpl(const game::IUsUnit* unitImpl,
 
 int computeUnitEffectiveHpForAi(int hp, int armor)
 {
-    if (userSettings().fixEffectiveHpFormula) {
+    if (gameSettings().fixEffectiveHpFormula) {
         return computeUnitEffectiveHp(hp, armor);
     }
 
@@ -555,7 +555,7 @@ int computeShatterDamage(const game::CMidgardID* unitId,
 
     int armor = getArmor(unitId, soldier, battleMsgData, false, false);
 
-    int limit = userSettings().shatteredArmorMax
+    int limit = gameSettings().shatteredArmorMax
                 - battle.getUnitShatteredArmor(battleMsgData, unitId);
 
     int result = attack->vftable->getQtyDamage(attack);
@@ -563,8 +563,8 @@ int computeShatterDamage(const game::CMidgardID* unitId,
         result = armor;
     if (result > limit)
         result = limit;
-    if (result > userSettings().shatterDamageMax)
-        result = userSettings().shatterDamageMax;
+    if (result > gameSettings().shatterDamageMax)
+        result = gameSettings().shatterDamageMax;
 
     return result;
 }
@@ -603,13 +603,13 @@ bool isStackLeaderAndAllowedToUseBattleItems(const game::IMidgardObjectMap* obje
         return false;
 
     if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::Transform))
-        return userSettings().allowBattleItems.onTransformOther;
+        return gameSettings().allowBattleItems.onTransformOther;
     else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::TransformSelf))
-        return userSettings().allowBattleItems.onTransformSelf;
+        return gameSettings().allowBattleItems.onTransformSelf;
     else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::TransformDrainLevel))
-        return userSettings().allowBattleItems.onDrainLevel;
+        return gameSettings().allowBattleItems.onDrainLevel;
     else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::TransformDoppelganger))
-        return userSettings().allowBattleItems.onDoppelganger;
+        return gameSettings().allowBattleItems.onDoppelganger;
 
     return true;
 }

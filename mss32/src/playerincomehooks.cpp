@@ -108,34 +108,34 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
     switch (lordId) {
     case LordId::Warrior:
         lordPrefix = "WARRIOR";
-        additionalGoldIncome = userSettings().additionalLordIncome.gold.warrior;
-        additionalManaIncome = userSettings().additionalLordIncome.mana.warrior;
+        additionalGoldIncome = gameSettings().additionalLordIncome.gold.warrior;
+        additionalManaIncome = gameSettings().additionalLordIncome.mana.warrior;
         break;
     case LordId::Mage:
         lordPrefix = "MAGE";
-        additionalGoldIncome = userSettings().additionalLordIncome.gold.mage;
-        additionalManaIncome = userSettings().additionalLordIncome.mana.mage;
+        additionalGoldIncome = gameSettings().additionalLordIncome.gold.mage;
+        additionalManaIncome = gameSettings().additionalLordIncome.mana.mage;
         break;
     case LordId::Diplomat:
         lordPrefix = "GUILDMASTER";
-        additionalGoldIncome = userSettings().additionalLordIncome.gold.guildmaster;
-        additionalManaIncome = userSettings().additionalLordIncome.mana.guildmaster;
+        additionalGoldIncome = gameSettings().additionalLordIncome.gold.guildmaster;
+        additionalManaIncome = gameSettings().additionalLordIncome.mana.guildmaster;
         break;
     }
 
-    std::array<int, 6> cityGoldIncome = {userSettings().additionalCityIncome.gold.capital,
-                                         userSettings().additionalCityIncome.gold.tier1,
-                                         userSettings().additionalCityIncome.gold.tier2,
-                                         userSettings().additionalCityIncome.gold.tier3,
-                                         userSettings().additionalCityIncome.gold.tier4,
-                                         userSettings().additionalCityIncome.gold.tier5};
+    std::array<int, 6> cityGoldIncome = {gameSettings().additionalCityIncome.gold.capital,
+                                         gameSettings().additionalCityIncome.gold.tier1,
+                                         gameSettings().additionalCityIncome.gold.tier2,
+                                         gameSettings().additionalCityIncome.gold.tier3,
+                                         gameSettings().additionalCityIncome.gold.tier4,
+                                         gameSettings().additionalCityIncome.gold.tier5};
 
-    std::array<int, 6> cityManaIncome = {userSettings().additionalCityIncome.mana.capital,
-                                         userSettings().additionalCityIncome.mana.tier1,
-                                         userSettings().additionalCityIncome.mana.tier2,
-                                         userSettings().additionalCityIncome.mana.tier3,
-                                         userSettings().additionalCityIncome.mana.tier4,
-                                         userSettings().additionalCityIncome.mana.tier5};
+    std::array<int, 6> cityManaIncome = {gameSettings().additionalCityIncome.mana.capital,
+                                         gameSettings().additionalCityIncome.mana.tier1,
+                                         gameSettings().additionalCityIncome.mana.tier2,
+                                         gameSettings().additionalCityIncome.mana.tier3,
+                                         gameSettings().additionalCityIncome.mana.tier4,
+                                         gameSettings().additionalCityIncome.mana.tier5};
 
     auto variables{getScenarioVariables(objectMap)};
 

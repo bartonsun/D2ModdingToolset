@@ -51,6 +51,7 @@
 #include "ruinview.h"
 #include "siteview.h"
 #include <gameutils.h>
+#include <usersettings.h>
 
 namespace hooks {
 
@@ -229,8 +230,8 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
     CMidgardIDApi::get().fromString(&turnStringId, "X005TA0935");
     const char* turnString{fn.getInterfaceText(&turnStringId)};
 
-    const auto& moveCostColor{userSettings().movementCost.textColor};
-    const auto& moveCostOutline{userSettings().movementCost.outlineColor};
+    const auto& moveCostColor{userSettings().movementDisplay.textColor};
+    const auto& moveCostOutline{userSettings().movementDisplay.outlineColor};
 
     bool firstNode{true};
 
@@ -367,7 +368,7 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
 
             const bool isActionFlag = endOfPath && pathLeadsToAction;
 
-            if (isActionFlag && userSettings().movementCost.showMovementAfterAction) {
+            if (isActionFlag && userSettings().movementDisplay.showMovementAfterAction) {
 
                 const int spent = node->data.moveCostTotal;
 
@@ -560,7 +561,7 @@ int __stdcall computeMovementCostHooked(const game::CMqPoint* mapPosition,
     const auto& groundTypes = GroundCategories::get();
 
     if (ground.id == groundTypes.water->id) {
-        const auto& water = userSettings().movementCost.water;
+        const auto& water = gameSettings().movementCost.water;
 
         if (!waterOnly) {
             if (leaderAlive) {
@@ -575,7 +576,7 @@ int __stdcall computeMovementCostHooked(const game::CMqPoint* mapPosition,
             return water.waterOnly;
         }
     } else if (ground.id == groundTypes.forest->id) {
-        const auto& forest = userSettings().movementCost.forest;
+        const auto& forest = gameSettings().movementCost.forest;
 
         if (!waterOnly) {
             if (leaderAlive) {
@@ -585,7 +586,7 @@ int __stdcall computeMovementCostHooked(const game::CMqPoint* mapPosition,
             return forest.deadLeader;
         }
     } else if (ground.id == groundTypes.plain->id) {
-        const auto& plain = userSettings().movementCost.plain;
+        const auto& plain = gameSettings().movementCost.plain;
 
         if (!waterOnly) {
             if (!leaderAlive) {

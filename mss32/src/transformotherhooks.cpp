@@ -236,7 +236,7 @@ void __fastcall transformOtherAttackOnHitHooked(game::CBatAttackTransformOther* 
     if (transformImplId == emptyId)
         return;
 
-    if (userSettings().leveledTransformOtherAttack) {
+    if (gameSettings().leveledTransformOtherAttack) {
         const auto& global = GlobalDataApi::get();
         auto globalData = *global.getGlobalData();
 

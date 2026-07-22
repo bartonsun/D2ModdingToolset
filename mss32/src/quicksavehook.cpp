@@ -23,6 +23,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <settings.h>
+#include <usersettings.h>
 using namespace game;
 
 namespace hooks {
@@ -32,7 +33,7 @@ KeyHandler originalKeyHandler = nullptr;
 
 constexpr const char* QuickSaveName = "QuickSave";
 
-bool isHotkeyPressed(const Settings::Hotkey& hotkey, int key)
+bool isHotkeyPressed(const Hotkey& hotkey, int key)
 {
     if (static_cast<std::uint32_t>(std::toupper(static_cast<unsigned char>(key))) != hotkey.key) {
         return false;

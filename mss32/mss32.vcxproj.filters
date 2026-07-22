@@ -1600,6 +1600,29 @@
     <ClCompile Include="src\bindings\globalspellsview.cpp">
       <Filter>bindings</Filter>
     </ClCompile>
+    <ClCompile Include="src\stealmerchantiteminterf.cpp" />
+    <ClCompile Include="src\stealitemhooks.cpp" />
+    <ClCompile Include="src\bindings\bagview.cpp" />
+    <ClCompile Include="src\magetowerview.cpp" />
+    <ClCompile Include="src\batattackblistereffect.cpp" />
+    <ClCompile Include="src\batattackfrostbiteeffect.cpp" />
+    <ClCompile Include="src\batattackpoisoneffect.cpp" />
+    <ClCompile Include="src\batattackparalyze.cpp" />
+    <ClCompile Include="src\batattackpetrify.cpp" />
+    <ClCompile Include="src\batattackdamage.cpp" />
+    <ClCompile Include="src\batattackdefend.cpp" />
+    <ClCompile Include="src\mqpointlist.cpp" />
+    <ClCompile Include="src\plandata.cpp" />
+    <ClCompile Include="src\batattackcure.cpp" />
+    <ClCompile Include="src\batattackrevive.cpp" />
+    <ClCompile Include="src\giveattackhooks.cpp" />
+    <ClCompile Include="src\cureattackhooks.cpp" />
+    <ClCompile Include="src\boostdamagehooks.cpp" />
+    <ClCompile Include="src\midtomb.cpp" />
+    <ClCompile Include="src\usersettings.cpp" />
+    <ClCompile Include="src\bindings\usersettingsview.cpp">
+      <Filter>bindings</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\aipriority.h">
@@ -3976,6 +3999,29 @@
       <Filter>bindings</Filter>
     </ClInclude>
     <ClInclude Include="include\bindings\globalitemsview.h">
+      <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\stealmerchantiteminterf.h" />
+    <ClInclude Include="include\stealitemhooks.h" />
+    <ClInclude Include="include\bindings\bagview.h" />
+    <ClInclude Include="include\magetowerview.h" />
+    <ClInclude Include="include\batattackblistereffect.h" />
+    <ClInclude Include="include\batattackfrostbiteeffect.h" />
+    <ClInclude Include="include\batattackpoisoneffect.h" />
+    <ClInclude Include="include\batattackparalyze.h" />
+    <ClInclude Include="include\batattackpetrify.h" />
+    <ClInclude Include="include\batattackdamage.h" />
+    <ClInclude Include="include\batattackdefend.h" />
+    <ClInclude Include="include\mqpointlist.h" />
+    <ClInclude Include="include\plandata.h" />
+    <ClInclude Include="include\batattackcure.h" />
+    <ClInclude Include="include\batattackrevive.h" />
+    <ClInclude Include="include\giveattackhooks.h" />
+    <ClInclude Include="include\cureattackhooks.h" />
+    <ClInclude Include="include\boostdamagehooks.h" />
+    <ClInclude Include="include\midtomb.h" />
+    <ClInclude Include="include\usersettings.h" />
+    <ClInclude Include="include\bindings\usersettingsview.h">
       <Filter>bindings</Filter>
     </ClInclude>
   </ItemGroup>

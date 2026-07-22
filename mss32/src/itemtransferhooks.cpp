@@ -57,6 +57,7 @@
 #include <spdlog/spdlog.h>
 #include <vector>
 #include <windows.h>
+#include <usersettings.h>
 
 namespace hooks {
 

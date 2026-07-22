@@ -36,6 +36,7 @@
 #include "ussoldierimpl.h"
 #include "utils.h"
 #include <fmt/format.h>
+#include <usersettings.h>
 
 namespace hooks {
 
@@ -317,7 +318,7 @@ std::string getDamageDrainAttackDamageText(const utils::AttackDescriptor& actual
                                            int maxTargets,
                                            int damageMax)
 {
-    int multiplier = actual.damageSplit() ? userSettings().splitDamageMultiplier : 1;
+    int multiplier = actual.damageSplit() ? gameSettings().splitDamageMultiplier : 1;
     auto result = getDamageText(actual.damage(), global.damage(), damageMax * multiplier);
 
     if (actual.critHit()) {
@@ -392,11 +393,11 @@ std::string getAttackDamageText(const utils::AttackDescriptor& actual,
     } else if (actual.classId() == classes.heal->id || actual.classId() == classes.bestowWards->id
                || actual.classId() == classes.revive->id) {
         if (actual.classId() == classes.revive->id
-            && userSettings().reviveAttacksUsesQtyHeal == 1) {
+            && gameSettings().reviveAttacksUsesQtyHeal == 1) {
             return getNumberText(0, false);
         }
         bool percent = actual.classId() == classes.revive->id
-                       && userSettings().reviveAttacksUsesQtyHeal == 0;
+                       && gameSettings().reviveAttacksUsesQtyHeal == 0;
         return getModifiedNumberText(actual.heal(), global.heal(), percent);
     } else if (actual.classId() == classes.poison->id || actual.classId() == classes.frostbite->id
                || actual.classId() == classes.blister->id) {
@@ -673,8 +674,8 @@ std::string getSourceField(const utils::AttackDescriptor& actual,
 
     const auto& classes = game::AttackClassCategories::get();
     if (actualAlt.classId() == classes.doppelganger->id) {
-        if (userSettings().doppelgangerRespectsEnemyImmunity
-            || userSettings().doppelgangerRespectsAllyImmunity) {
+        if (gameSettings().doppelgangerRespectsEnemyImmunity
+            || gameSettings().doppelgangerRespectsAllyImmunity) {
             result = addAltAttackText(result, getAttackSourceText(actualAlt, globalAlt));
         }
     }
