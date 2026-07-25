@@ -131,6 +131,12 @@ Reach = { All, Any, Adjacent }
 Immune = { NotImmune, Once, Always }
 ```
 
+##### Spell
+```
+Spell = { Attack, Lower, Heal, Boost, Summon, Fog, Unfog, RestoreMove,
+          Invisibility, RemoveRod, ChangeTerrain, GiveWards }
+```
+
 ##### Item
 ```
 Item = { Armor, Jewel, Weapon, Banner, PotionBoost, PotionHeal, PotionRevive,
@@ -1073,6 +1079,77 @@ merchant.temple
 
 ---
 
+#### Spell
+Represents spell
+
+Methods:
+##### id
+Returns spell [id](luaApi.md#id).
+```lua
+spell.id
+```
+##### type
+Returns type [type](luaApi.md#spell).
+```lua
+spell.type
+```
+Returns spell level. Levels are in range \[1 : 5\].
+```lua
+spell.level
+```
+Returns spell [cast cost](luaApi.md#currency).
+```lua
+spell.castingCost
+```
+Returns spell [buy cost](luaApi.md#currency).
+```lua
+spell.buyCost
+```
+Returns summoning unit [id](luaApi.md#id).
+```lua
+spell.unit
+```
+Returns the amount of maximum movement points portion that the spell will restore. Values are in range \[1 : 100\].
+```lua
+spell.restoreMove
+```
+Returns spell area. 999 is for global spells
+```lua
+spell.area
+```
+Returns spell damage.
+```lua
+spell.damage
+```
+Returns spell [damage source](luaApi.md#source).
+```lua
+spell.damageSource
+```
+Returns spell heal.
+```lua
+spell.heal
+```
+Returns [ground](luaApi.md#ground), on which the spell performs land replacement.
+```lua
+spell.ground
+```
+Returns true if spell can change [ground](luaApi.md#ground). Otherwise returns false.
+```lua
+spell.changeTerrain
+```
+Returns setting for AI. Integer value.
+```lua
+spell.aiType
+```
+Returns modifier [id](luaApi.md#id) for boost or lower spell.
+```lua
+spell.modifier
+```
+Returns arrray of modifiers' [id](luaApi.md#id) for spell that gives wards.
+```lua
+spell.wards
+---
+
 #### Mercenary unit
 Represents unit for hire in mercenary camp.
 
@@ -1087,7 +1164,32 @@ Returns true is unit can be hired only once.
 ```lua
 mercenaryUnit.unique
 ```
+---
 
+#### MageTower
+Represents Mage tower on a map.
+
+Methods:
+##### id
+Returns mage tower [id](luaApi.md#id). The value is unique for every mage tower on scenario map.
+```lua
+mage.id
+```
+##### position
+Returns mage tower position as a [point](luaApi.md#point).
+```lua
+mercenary.position
+```
+##### visitors
+Returns list of [players](luaApi.md#player) that have visited the mage tower.
+```lua
+mercenary.visitors
+```
+##### spells
+Returns list of spells [id](luaApi.md#id). To get information about [spell](luaApi.md#spell-1) use getGlobal().spells:get("g000ss0000").
+```lua
+mage.spells
+```
 ---
 
 #### Mercenary
@@ -1613,6 +1715,20 @@ if not merchant then
   return
 end
 ```
+##### getMageTower
+Searches for [mage](luaApi.md#mage) by:
+- id string
+- [id](luaApi.md#id)
+- pair of coordinates
+- [point](luaApi.md#point)
+
+Returns `nil` if not found.
+```lua
+local mage = scenario:getMageTower('S143SI0001')
+if not mage then
+  return
+end
+```
 ##### getMercenary
 Searches for [mercenary camp](luaApi.md#mercenary) by:
 - id string
@@ -1782,6 +1898,13 @@ Searches for every [merchant](luaApi.md#merchant) on a map and calls specified f
 ```lua
 scenario:forEachMerchant(function (merchant)
   log('Visit merchant ' .. tostring(merchant.id))
+end)
+```
+##### forEachMageTower
+Searches for every [mage tower](luaApi.md#mage) on a map and calls specified function on it.
+```lua
+scenario:forEachMageTower(function (mage)
+  log('Visit mage ' .. tostring(mage.id))
 end)
 ```
 ##### forEachMercenary
