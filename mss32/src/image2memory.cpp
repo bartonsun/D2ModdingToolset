@@ -64,11 +64,32 @@ static void __stdcall img2MemoryDraw(game::IMqTexture* thisptr,
         const int height = img2Mem->size.y;
         const int width = img2Mem->size.x;
 
-        const int pitch = decompressData->pitch * 2;
         char* dst = reinterpret_cast<char*>(decompressData->surfaceMemory);
+        // The legacy C4dll-R reports 16-bit masks but exposes a 32-bit backing layout.
+        // cnc-ddraw's C4dll-R exports DDReloadConfig and exposes real 16-bit memory,
+        // so the masks alone are not enough to select the write format.
+        static const bool cncDdrawSurfaceLayout = []() {
+            const HMODULE wrapper = GetModuleHandleA("C4dll-R.dll");
+            return wrapper != nullptr && GetProcAddress(wrapper, "DDReloadConfig") != nullptr;
+        }();
 
-        for (int i = 0; i < height; ++i, dst += pitch) {
-            std::memcpy(dst, &img2Mem->pixels[i * width], width * sizeof(Color));
+        const bool reported16 = decompressData->rBitMask == 0xF800
+                                || decompressData->rBitMask == 0x7C00;
+        const bool dst16 = reported16 && cncDdrawSurfaceLayout;
+
+        if (dst16) {
+            const auto& convertColor = SurfaceDecompressDataApi::get().convertColor;
+            for (int y = 0; y < height; ++y, dst += decompressData->pitch) {
+                auto* row = reinterpret_cast<std::uint16_t*>(dst);
+                for (int x = 0; x < width; x) {
+                    row[x] = convertColor(decompressData, &img2Mem->pixels[y * width + x]);
+                }
+            }
+        } else {
+            const int pitch = decompressData->pitch * 2;
+            for (int y = 0; y < height; ++y, dst += pitch) {
+                std::memcpy(dst, &img2Mem->pixels[y * width], width * sizeof(Color));
+            }
         }
     }
 
