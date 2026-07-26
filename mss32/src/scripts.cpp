@@ -45,6 +45,7 @@
 #include "itemview.h"
 #include "landmarkview.h"
 #include "locationview.h"
+#include "magetowerview.h"
 #include "merchantview.h"
 #include "mercsview.h"
 #include "midstack.h"
@@ -509,6 +510,7 @@ static void bindApi(sol::state& lua)
     bindings::SiteView::bind(lua);
     bindings::MerchantItemView::bind(lua);
     bindings::MerchantView::bind(lua);
+    bindings::MageTowerView::bind(lua);
     bindings::MercenaryUnitView::bind(lua);
     bindings::MercsView::bind(lua);
     bindings::TrainerView::bind(lua);
@@ -598,26 +600,8 @@ sol::environment executeUserSettingsScript(const std::string& source,
 {
     auto& lua = getLua();
 
-    // Completely isolated environment for user settings.
+    //  isolated (empty) environment for user settings.
     sol::environment env(lua, sol::create);
-
-    // Optional: expose only the standard Lua library if needed.
-    // env["pairs"] = lua["pairs"];
-    // env["ipairs"] = lua["ipairs"];
-    // env["next"] = lua["next"];
-    // env["type"] = lua["type"];
-    // env["math"] = lua["math"];
-    // env["table"] = lua["table"];
-    // env["string"] = lua["string"];
-
-    /*env["io"] = sol::nil;
-    env["os"] = sol::nil;
-    env["package"] = sol::nil;
-    env["require"] = sol::nil;
-    env["load"] = sol::nil;
-    env["loadfile"] = sol::nil;
-    env["dofile"] = sol::nil;
-    env["debug"] = sol::nil;*/
 
     env["assert"] = lua["assert"];
     env["error"] = lua["error"];
