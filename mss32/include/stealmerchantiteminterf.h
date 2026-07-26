@@ -17,11 +17,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 // ============================================================
 // File: stealmerchantiteminterf.h
 // ============================================================
-
 
 #ifndef STEALMERCHANTITEMINTERF_H
 #define STEALMERCHANTITEMINTERF_H
@@ -45,8 +43,11 @@ namespace StealMerchantItemInterfApi {
 
 struct Api
 {
-    using Constructor =
-        CMidDragDropInterf*(__thiscall*)(void* thisptr, int a2, int functor, int a4, void* a5);
+    using Constructor = CMidDragDropInterf*(__thiscall*)(void* thisptr,
+                                                         int a2,
+                                                         int functor,
+                                                         int a4,
+                                                         const game::CMidgardID* merchantId);
 
     Constructor constructor;
 
@@ -57,18 +58,6 @@ struct Api
     using AddStealItem = char*(__thiscall*)(void* thisptr, StealItemEntry* entry);
 
     AddStealItem addStealItem;
-
-    //
-    // helper wrappers (not work)
-    //
-
-    using GetMerchantId = game::CMidgardID*(__thiscall*)(void* thisptr);
-
-    GetMerchantId getMerchantId;
-
-    using GetItemVector = void*(__thiscall*)(void* thisptr);
-
-    GetItemVector getItemVector;
 };
 
 Api& get();
