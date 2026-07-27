@@ -81,7 +81,7 @@ static void __stdcall img2MemoryDraw(game::IMqTexture* thisptr,
             const auto& convertColor = SurfaceDecompressDataApi::get().convertColor;
             for (int y = 0; y < height; ++y, dst += decompressData->pitch) {
                 auto* row = reinterpret_cast<std::uint16_t*>(dst);
-                for (int x = 0; x < width; x) {
+                for (int x = 0; x < width; ++x) {
                     row[x] = convertColor(decompressData, &img2Mem->pixels[y * width + x]);
                 }
             }
