@@ -174,6 +174,16 @@ const rsg::UnitInfoArray& NativeGameInfo::getSoldiers() const
     return soldiers;
 }
 
+const rsg::UnitInfoArray& NativeGameInfo::getNobles() const
+{
+    return nobles;
+}
+
+const rsg::UnitInfoArray& NativeGameInfo::getGuardians() const
+{
+    return guardians;
+}
+
 int NativeGameInfo::getMinLeaderValue() const
 {
     return minLeaderValue;
@@ -192,6 +202,26 @@ int NativeGameInfo::getMinSoldierValue() const
 int NativeGameInfo::getMaxSoldierValue() const
 {
     return maxSoldierValue;
+}
+
+int NativeGameInfo::getMinNobleValue() const
+{
+    return minNobleValue;
+}
+
+int NativeGameInfo::getMaxNobleValue() const
+{
+    return maxNobleValue;
+}
+
+int NativeGameInfo::getMinGuardianValue() const
+{
+    return minGuardianValue;
+}
+
+int NativeGameInfo::getMaxGuardianValue() const
+{
+    return maxGuardianValue;
 }
 
 const rsg::ItemsInfo& NativeGameInfo::getItemsInfo() const
@@ -353,12 +383,20 @@ bool NativeGameInfo::readUnitsInfo()
     unitsInfo.clear();
     leaders.clear();
     soldiers.clear();
+    nobles.clear();
+    guardians.clear();
 
     minLeaderValue = std::numeric_limits<int>::max();
     maxLeaderValue = std::numeric_limits<int>::min();
 
     minSoldierValue = std::numeric_limits<int>::max();
     maxSoldierValue = std::numeric_limits<int>::min();
+
+    minNobleValue = std::numeric_limits<int>::max();
+    maxNobleValue = std::numeric_limits<int>::min();
+
+    minGuardianValue = std::numeric_limits<int>::max();
+    maxGuardianValue = std::numeric_limits<int>::min();
 
     using namespace game;
 
@@ -435,8 +473,8 @@ bool NativeGameInfo::readUnitsInfo()
         int move{0};
         int leadership{0};
 
-        // Get leader specifics
-        if (unitType == rsg::UnitType::Leader) {
+        // Get leader/noble specifics
+        if (unitType == rsg::UnitType::Leader || unitType == rsg::UnitType::Noble) {
             const IUsStackLeader* stackLeader{fn.castUnitImplToStackLeader(unitImpl)};
 
             move = stackLeader->vftable->getMovement(stackLeader);
@@ -470,6 +508,26 @@ bool NativeGameInfo::readUnitsInfo()
 
             if (value > maxSoldierValue) {
                 maxSoldierValue = value;
+            }
+        } else if (unitType == rsg::UnitType::Noble) {
+            nobles.push_back(unitInfo.get());
+
+            if (value < minNobleValue) {
+                minNobleValue = value;
+            }
+
+            if (value > maxNobleValue) {
+                maxNobleValue = value;
+            }
+        } else if (unitType == rsg::UnitType::Guardian) {
+            guardians.push_back(unitInfo.get());
+
+            if (value < minGuardianValue) {
+                minGuardianValue = value;
+            }
+
+            if (value > maxGuardianValue) {
+                maxGuardianValue = value;
             }
         }
 

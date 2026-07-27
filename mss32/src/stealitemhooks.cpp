@@ -28,24 +28,29 @@
 #include "button.h"
 #include "dialoginterf.h"
 
+#include "midpopupinterf.h"
+#include "draganddropinterf.h"
 #include "game.h"
 #include "gameutils.h"
 #include "globaldata.h"
 #include "globalvariables.h"
+#include "itembase.h"
+#include "itembaseview.h"
 #include "midgardobjectmap.h"
+#include "midplayer.h"
+#include "midsite.h"
 #include "midsitemerchant.h"
-#include "draganddropinterf.h"
-#include "POPUPINTERF.h"
 #include "phasegame.h"
+#include "playerview.h"
 #include "scripts.h"
-#include "utils.h"
 #include "task.h"
+#include "utils.h"
 
 #include <algorithm>
+#include <merchantview.h>
 #include <optional>
 #include <sol/sol.hpp>
 #include <spdlog/spdlog.h>
-#include <chatinterf.h>
 
 namespace hooks {
 
@@ -77,7 +82,7 @@ static int getItemTotalCost(const game::StealItemEntry* item)
 
 static const char scenItemCanStealLessCostSum[]{"ITEM_CAN_STEAL_LESS_COST_SUM"};
 
-static constexpr int noItemCostLimit{9999*6};
+static constexpr int noItemCostLimit{9999 * 6};
 
 //
 // ctor hook
@@ -139,7 +144,7 @@ static int getItemCostLimit(const game::IMidgardObjectMap* objectMap)
 // filtering
 //
 
-bool shouldDisplayStealItem(const game::CMidgardID* merchantId, game::StealItemEntry* entry)
+bool shouldDisplayStealItem(game::StealItemEntry* entry)
 {
     if (!entry) {
 
@@ -147,7 +152,6 @@ bool shouldDisplayStealItem(const game::CMidgardID* merchantId, game::StealItemE
 
         return false;
     }
-
 
     //
     // lua load
@@ -157,7 +161,8 @@ bool shouldDisplayStealItem(const game::CMidgardID* merchantId, game::StealItemE
 
         const auto path{scriptsFolder() / "theft.lua"};
 
-        theftFilterItemsMerchantLua = getScriptFunction(path, "theftFilterItemsMerchant", env, false, true);
+        theftFilterItemsMerchantLua = getScriptFunction(path, "theftFilterItemsMerchant", env,
+                                                        false, true);
 
         if (theftFilterItemsMerchantLua) {
 
@@ -169,23 +174,37 @@ bool shouldDisplayStealItem(const game::CMidgardID* merchantId, game::StealItemE
         }
     }
 
-    //
-    // lua
-    //
+    if (!g_stealItemCtx.objectMap) {
+        return false;
+    }
 
+    auto objectMap = g_stealItemCtx.objectMap;
+
+    auto playerObj = objectMap->vftable->findScenarioObjectById(objectMap,
+                                                                &g_stealItemCtx.playerId);
+
+    auto merchantObj = objectMap->vftable->findScenarioObjectById(objectMap,
+                                                                  &g_stealItemCtx.merchantId);
+
+    auto player = static_cast<game::CMidPlayer*>(playerObj);
+
+    auto merchant = static_cast<game::CMidSite*>(merchantObj);
+
+    const auto global = *game::GlobalDataApi::get().getGlobalData();
+    auto item = game::GlobalDataApi::get().findItemById(global->itemTypes, &entry->itemId);
+
+    if (!playerObj || !merchantObj || !item) {
+        return false;
+    }
 
     //
-    // Lua integration is not finished yet.
+    // Lua context
     //
-    // In the future, the item will be exposed to Lua through ItemBaseView,
-    // similar to other scripting hooks. At the moment only itemId and item
-    // value data are considered reliable.
+    // Exposed objects:
     //
-    // merchantId and playerId are currently unresolved and may contain
-    // invalid values (e.g. g00000000). This will be reworked later once
-    // proper context acquisition is implemented.
-    //
-    // For now, Lua filters should only rely on itemId and item value.
+    // player   - PlayerView
+    // merchant - MerchantView
+    // item     - ItemBaseView
     //
     if (theftFilterItemsMerchantLua) {
 
@@ -194,39 +213,32 @@ bool shouldDisplayStealItem(const game::CMidgardID* merchantId, game::StealItemE
             //
             sol::state_view lua(theftFilterItemsMerchantLua->lua_state());
 
-            sol::table ctx = lua.create_table();
+            sol::table stealItemContext = lua.create_table();
 
-            ctx["merchantId"] = merchantId ? idToString(merchantId) : "";
+            stealItemContext["player"] = bindings::PlayerView(player, objectMap);
 
-            ctx["playerId"] = idToString(&g_stealItemCtx.playerId);
+            stealItemContext["merchant"] = bindings::MerchantView(
+                static_cast<const game::CMidSiteMerchant*>(merchant), objectMap);
 
-            ctx["itemId"] = idToString(&entry->itemId);
+            stealItemContext["item"] = bindings::ItemBaseView(item);
 
-            ctx["gold"] = entry->value.gold;
+            sol::object result = (*theftFilterItemsMerchantLua)(stealItemContext);
 
-            auto result = (*theftFilterItemsMerchantLua)(ctx);
-
-            if (result.valid()) {
-
-                bool allowed = result.get<bool>();
-
-                if (allowed) {
-
-                    spdlog::info("[STEAL_ITEM] lua allow");
-
-                } else {
-
-                    spdlog::info("[STEAL_ITEM] lua deny");
-                }
-
-                return allowed;
+            if (result.is<bool>()) {
+                return result.as<bool>();
             }
 
         } catch (const std::exception& e) {
 
             spdlog::info("[STEAL_ITEM] lua exception");
-
             spdlog::info(e.what());
+
+            const auto path{scriptsFolder() / "theft.lua"};
+
+            showErrorMessageBox(fmt::format("Failed to run "
+                                            "'{:s}' script.\n"
+                                            "Reason: '{:s}'",
+                                            path.string(), e.what()));
         }
     }
 
@@ -236,13 +248,11 @@ bool shouldDisplayStealItem(const game::CMidgardID* merchantId, game::StealItemE
 
     const int limit = getItemCostLimit(g_stealItemCtx.objectMap);
 
-
     //
     // disabled
     //
 
     if (limit >= noItemCostLimit) {
-
 
         return true;
     }
@@ -275,7 +285,7 @@ char* __fastcall addStealItemHooked(void* thisptr, void*, game::StealItemEntry* 
     // filter
     //
 
-    if (!shouldDisplayStealItem(&g_stealItemCtx.merchantId, entry)) {
+    if (!shouldDisplayStealItem(entry)) {
         return reinterpret_cast<char*>(thisptr);
     }
 
@@ -284,7 +294,6 @@ char* __fastcall addStealItemHooked(void* thisptr, void*, game::StealItemEntry* 
     //
 
     ++g_stealItemCtx.insertedCount;
-
 
     //
     // original
@@ -302,73 +311,39 @@ game::CMidDragDropInterf* __fastcall stealItemCtorHooked(void* thisptr,
                                                          int a2,
                                                          int functor,
                                                          int a4,
-                                                         void* a5)
+                                                         const game::CMidgardID* merchantId)
 {
     //
     // activate
     //
 
     g_stealItemCtx.active = true;
-
     g_stealItemCtx.insertedCount = 0;
 
     //
-    // object map
+    // context
     //
 
-    auto objectMap = getObjectMap();
+    g_stealItemCtx.objectMap = getObjectMap();
 
-    g_stealItemCtx.objectMap = objectMap;
+    if (merchantId) {
+        g_stealItemCtx.merchantId = *merchantId;
+    }
+
+    auto phaseGame = reinterpret_cast<game::CPhaseGame*>(a4);
+
+    if (phaseGame) {
+
+        if (auto playerId = game::CPhaseApi::get().getCurrentPlayerId(&phaseGame->phase)) {
+            g_stealItemCtx.playerId = *playerId;
+        }
+    }
 
     //
     // original ctor
     //
 
-    auto result = stealItemCtorOrig(thisptr, a2, functor, a4, a5);
-
-    //
-    // merchant
-    //
-    // поправить аналогично заклинаний
-    auto merchantId = game::StealMerchantItemInterfApi::get().getMerchantId(result);
-
-    if (merchantId) {
-
-        g_stealItemCtx.merchantId = *merchantId;
-
-        spdlog::info("[STEAL_ITEM] merchant");
-
-    }
-
-
-    // поправить аналогично заклинаний
-    //
-    // player
-    //
-
-    try {
-
-        auto phaseGame = reinterpret_cast<game::CMidDragDropInterf*>(result)->phaseGame;
-
-        if (phaseGame) {
-
-            auto playerId = game::CPhaseApi::get().getCurrentPlayerId(&phaseGame->phase);
-
-            if (playerId) {
-
-                g_stealItemCtx.playerId = *playerId;
-
-                spdlog::info("[STEAL_ITEM] player");
-
-                spdlog::info(idToString(&g_stealItemCtx.playerId));
-            }
-        }
-
-
-    } catch (...) {
-
-        spdlog::info("[STEAL_ITEM] player failed");
-    }
+    auto result = stealItemCtorOrig(thisptr, a2, functor, a4, merchantId);
 
     //
     // final state
@@ -384,25 +359,20 @@ game::CMidDragDropInterf* __fastcall stealItemCtorHooked(void* thisptr,
 
         auto popup = reinterpret_cast<game::CMidPopupInterf*>(result);
 
-        if (!popup || !popup->popupData) {
-            return result;
-        }
+        if (popup && popup->popupData) {
 
-        auto dialog = popup->popupData->dialog;
+            auto dialog = popup->popupData->dialog;
 
-        if (dialog) {
+            if (dialog) {
 
-            const auto& dlgApi = game::CDialogInterfApi::get();
+                const auto& dlgApi = game::CDialogInterfApi::get();
 
-            auto okBtn = dlgApi.findButton(dialog, "BTN_YES");
-
-            if (okBtn) {
-                okBtn->vftable->setEnabled(okBtn, false);
+                if (auto okBtn = dlgApi.findButton(dialog, "BTN_YES")) {
+                    okBtn->vftable->setEnabled(okBtn, false);
+                }
             }
         }
     }
-
-   
 
     //
     // cleanup

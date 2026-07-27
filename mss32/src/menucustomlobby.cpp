@@ -53,6 +53,21 @@
 
 namespace hooks {
 
+    static DataStructures::Table::Cell* getPropertySafe(SLNet::RoomDescriptor* room, const char* name)
+{
+    auto row = room->roomProperties.GetRowByIndex(0, nullptr);
+    if (!row)
+        return nullptr;
+
+    auto index = room->roomProperties.ColumnIndex(name);
+
+    if (index == (unsigned)-1 || index >= row->cells.Size())
+        return nullptr;
+
+    return room->GetProperty((int)index);
+}
+
+
 CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     : CMenuCustomBase(this)
     , m_peerCallback(this)
@@ -911,14 +926,13 @@ CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* 
 
     auto passwordProperty = roomDescriptor->GetProperty(CNetCustomService::passwordColumnName);
 
-    auto filesHashProperty = roomDescriptor->GetProperty(
-        CNetCustomService::gameFilesHashColumnName);
+    auto filesHashProperty = roomDescriptor->GetProperty(CNetCustomService::gameFilesHashColumnName);
 
-    auto templateNameProperty = roomDescriptor->GetProperty(
-        CNetCustomService::templateNameColumnName);
+    auto templateNameProperty = getPropertySafe(roomDescriptor,
+                                                CNetCustomService::templateNameColumnName);
 
-    auto templateHashProperty = roomDescriptor->GetProperty(
-        CNetCustomService::templateHashColumnName);
+    auto templateHashProperty = getPropertySafe(roomDescriptor,
+                                                CNetCustomService::templateHashColumnName);
 
     auto gameVersionProperty = roomDescriptor->GetProperty(
         CNetCustomService::gameVersionColumnName);

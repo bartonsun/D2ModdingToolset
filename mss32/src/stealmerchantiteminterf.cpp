@@ -24,40 +24,8 @@
 #include "version.h"
 
 #include <array>
-#include <cstdint>
 
 namespace game::StealMerchantItemInterfApi {
-
-//
-// helper wrappers
-//
-
-static game::CMidgardID* __fastcall getMerchantIdImpl(void* thisptr, void*)
-{
-    //
-    // asm:
-    //
-    // mov edi, [esi+20h]
-    //
-
-    auto merchantId = *reinterpret_cast<void**>(reinterpret_cast<std::uint8_t*>(thisptr) + 0x20);
-
-    return reinterpret_cast<game::CMidgardID*>(merchantId);
-}
-
-static void* __fastcall getItemVectorImpl(void* thisptr, void*)
-{
-    //
-    // asm:
-    //
-    // mov ecx, [esi+20h]
-    // add ecx, 0Ch
-    //
-
-    auto interfaceData = *reinterpret_cast<void**>(reinterpret_cast<std::uint8_t*>(thisptr) + 0x20);
-
-    return reinterpret_cast<void*>(reinterpret_cast<std::uint8_t*>(interfaceData) + 0x0C);
-}
 
 // clang-format off
 
@@ -67,40 +35,28 @@ static std::array<Api, 4> functions = {{
     Api{
         (Api::Constructor)0x4A519E,
         (Api::GetListBox)0x4A56CE,
-        (Api::AddStealItem)0x4A5BCA,
-
-        (Api::GetMerchantId)getMerchantIdImpl,
-        (Api::GetItemVector)getItemVectorImpl,
+        (Api::AddStealItem)0x4A5BCA
     },
 
     // Russobit
     Api{
         (Api::Constructor)0x4A519E,
         (Api::GetListBox)0x4A56CE,
-        (Api::AddStealItem)0x4A5BCA,
-
-        (Api::GetMerchantId)getMerchantIdImpl,
-        (Api::GetItemVector)getItemVectorImpl,
+        (Api::AddStealItem)0x4A5BCA
     },
 
     // Gog
     Api{
         (Api::Constructor)0x4A4A1F,
         (Api::GetListBox)0x4A4F2F,
-        (Api::AddStealItem)0x4A542B,
-
-        (Api::GetMerchantId)getMerchantIdImpl,
-        (Api::GetItemVector)getItemVectorImpl,
+        (Api::AddStealItem)0x4A542B
     },
 
     // Scenario Editor
     Api{
         (Api::Constructor)nullptr,
         (Api::GetListBox)nullptr,
-        (Api::AddStealItem)nullptr,
-
-        (Api::GetMerchantId)nullptr,
-        (Api::GetItemVector)nullptr,
+        (Api::AddStealItem)nullptr
     }
 
 }};

@@ -31,6 +31,7 @@
 #include "ummodifier.h"
 #include "unitutils.h"
 #include "usunitimpl.h"
+#include <usersettings.h>
 
 namespace utils {
 
@@ -160,7 +161,7 @@ int computeDamage(int base,
                               ModifierElementTypeFlag::QtyDamage);
 
         if (damageSplit) {
-            result *= hooks::userSettings().splitDamageMultiplier;
+            result *= hooks::gameSettings().splitDamageMultiplier;
         }
     } else if (hooks::isModifiableDamageAttack(classId)) {
         result = computeValue(base, restrictions.attackDamage->min, damageMax, 0, modifiers,
@@ -168,8 +169,8 @@ int computeDamage(int base,
     }
 
     if (classId == AttackClassId::Shatter) {
-        if (result > hooks::userSettings().shatterDamageMax) {
-            result = hooks::userSettings().shatterDamageMax;
+        if (result > hooks::gameSettings().shatterDamageMax) {
+            result = hooks::gameSettings().shatterDamageMax;
         }
     }
 
@@ -284,7 +285,7 @@ AttackDescriptor::AttackDescriptor(game::IEncUnitDescriptor* descriptor,
         const auto& classes = AttackClassCategories::get();
 
         if (!global && data.classId == classes.revive->id
-            && hooks::userSettings().reviveAttacksUsesQtyHeal == 0) {
+            && hooks::gameSettings().reviveAttacksUsesQtyHeal == 0) {
             auto globalAttack = getAttackImpl(descriptor, type);
             data.heal = globalAttack ? globalAttack->vftable->getQtyHeal(globalAttack) : 0;
         } else {
@@ -310,10 +311,10 @@ AttackDescriptor::AttackDescriptor(game::IEncUnitDescriptor* descriptor,
 
     switch (data.classId) {
     case game::AttackClassId::Drain:
-        data.drain += data.damage * userSettings().drainAttackHeal / 100;
+        data.drain += data.damage * gameSettings().drainAttackHeal / 100;
         break;
     case game::AttackClassId::DrainOverflow:
-        data.drain += data.damage * userSettings().drainOverflowHeal / 100;
+        data.drain += data.damage * gameSettings().drainOverflowHeal / 100;
         break;
     }
 }

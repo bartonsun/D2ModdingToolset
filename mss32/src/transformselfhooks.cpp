@@ -201,7 +201,7 @@ void giveFreeTransformSelfAttack(game::IMidgardObjectMap* objectMap,
         freeTransformSelf.turnCount--;   // Not counting transform action as a turn
 
     if (freeTransformSelf.used) {
-        if (!userSettings().freeTransformSelfAttackInfinite)
+        if (!gameSettings().freeTransformSelfAttackInfinite)
             return;
 
         // Prevents AI from falling into infinite transforming in case of targeting malfunction
@@ -336,7 +336,7 @@ void __fastcall transformSelfAttackOnHitHooked(game::CBatAttackTransformSelf* th
         return;
     }
 
-    if (userSettings().leveledTransformSelfAttack) {
+    if (gameSettings().leveledTransformSelfAttack) {
         const auto& global = GlobalDataApi::get();
         auto globalData = *global.getGlobalData();
 
@@ -360,12 +360,14 @@ void __fastcall transformSelfAttackOnHitHooked(game::CBatAttackTransformSelf* th
     const auto targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
     bool prevAttackTwice = targetSoldier && targetSoldier->vftable->getAttackTwice(targetSoldier);
 
+    cacheLeaderData(targetUnit->unitImpl, transformImplId);
+
     const auto& visitors = VisitorApi::get();
     visitors.transformUnit(targetUnitId, &transformImplId, false, objectMap, 1);
 
     if (!targetSelf)
         updateAttackCountAfterTransformation(battleMsgData, targetUnit, prevAttackTwice);
-    else if (userSettings().freeTransformSelfAttack)
+    else if (gameSettings().freeTransformSelfAttack)
         giveFreeTransformSelfAttack(objectMap, battleMsgData, targetUnit, prevAttackTwice);
 
     BattleAttackUnitInfo info{};

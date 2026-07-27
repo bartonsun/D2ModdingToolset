@@ -21,6 +21,9 @@
 #define UNITUTILS_H
 
 #include "d2list.h"
+#include <string>
+#include <set>
+#include <map>
 
 namespace game {
 struct CMidgardID;
@@ -39,6 +42,17 @@ struct IUsUnitExtension;
 struct TypeDescriptor;
 struct LLeaderAbility;
 struct CMidPlayer;
+struct CachedLeaderData
+{
+    int movement = 0;
+    int scout = 0;
+    int leadership = 0;
+    int negotiate = 0;
+    bool fastRetreat = false;
+    int lowerCost = 0;
+    std::set<int> abilities;
+    std::set<int> moveBonuses;
+};
 } // namespace game
 
 namespace hooks {
@@ -123,6 +137,9 @@ game::CMidgardID getUpgradeBuildingId(const game::IUsUnit* unitImpl);
 int getGeneratedUnitImplLevelMax();
 
 int addUnitXpNoUpgrade(game::IMidgardObjectMap* objectMap, game::CMidUnit* unit, int value);
+
+const game::CachedLeaderData* getCachedLeaderData(const game::CMidgardID& implId);
+void cacheLeaderData(const game::IUsUnit* unitImpl, const game::CMidgardID& transformImplId);
 
 } // namespace hooks
 

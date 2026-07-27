@@ -32,6 +32,7 @@
 #include "textboxinterf.h"
 #include "utils.h"
 #include <spdlog/spdlog.h>
+#include <usersettings.h>
 
 namespace hooks {
     

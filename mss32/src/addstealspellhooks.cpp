@@ -23,18 +23,22 @@
 
 #include "addstealspellhooks.h"
 
-#include "DYNAMICCAST.h"
-#include "MIDGARDOBJECTMAP.h"
-#include "MIDSITEMAGE.h"
 #include "button.h"
+#include "dynamiccast.h"
 #include "game.h"
 #include "gameutils.h"
 #include "globaldata.h"
 #include "globalvariables.h"
 #include "idset.h"
+#include "itembase.h"
+#include "itembaseview.h"
 #include "listbox.h"
 #include "midgardid.h"
+#include "midgardobjectmap.h"
+#include "midplayer.h"
 #include "midpopupinterf.h"
+#include "midsite.h"
+#include "midsitemage.h"
 #include "scripts.h"
 #include "spellutils.h"
 #include "spellview.h"
@@ -47,6 +51,8 @@
 #include <string>
 
 #include <dialoginterf.h>
+#include <magetowerview.h>
+#include <merchantview.h>
 #include <sol/sol.hpp>
 #include <spdlog/spdlog.h>
 
@@ -96,23 +102,6 @@ static SortedInsert sortedInsertOrig;
 using StealSpellCtor = game::CMidDragDropInterf*(__thiscall*)(void*, int, int, int, void*);
 
 static StealSpellCtor stealSpellCtorOrig;
-
-//
-// debug
-//
-
-static std::string midgardIdToDebugString(const game::CMidgardID* id)
-{
-    if (!id) {
-        return "null";
-    }
-
-    char buffer[32]{};
-
-    game::CMidgardIDApi::get().toString(id, buffer);
-
-    return std::string(buffer);
-}
 
 //
 // helpers
@@ -189,6 +178,21 @@ bool shouldDisplayStealSpell(const game::CMidgardID* spellId)
         return false;
     }
 
+    auto objectMap = g_stealSpellCtx.objectMap;
+
+    auto playerObj = objectMap->vftable->findScenarioObjectById(objectMap,
+                                                                &g_stealSpellCtx.playerId);
+
+    auto mageObj = objectMap->vftable->findScenarioObjectById(objectMap, &g_stealSpellCtx.mageId);
+
+    if (!playerObj || !mageObj) {
+        return false;
+    }
+
+    auto player = static_cast<game::CMidPlayer*>(playerObj);
+
+    auto mageTower = static_cast<game::CMidSiteMage*>(mageObj);
+
     //
     // lua has priority
     //
@@ -221,9 +225,9 @@ bool shouldDisplayStealSpell(const game::CMidgardID* spellId)
 
             sol::table stealSpellContext = lua.create_table();
 
-            stealSpellContext["mageTowerId"] = &g_stealSpellCtx.mageId;
+            stealSpellContext["mage"] = bindings::MageTowerView(mageTower, objectMap);
 
-            stealSpellContext["playerId"] =&g_stealSpellCtx.playerId;
+            stealSpellContext["player"] = bindings::PlayerView(player, objectMap);
 
             stealSpellContext["spell"] = bindings::SpellView(spell);
 
@@ -275,15 +279,12 @@ bool __stdcall buildSpellListHooked(const game::IMidgardObjectMap* objectMap,
                                     const game::CMidgardID* playerId,
                                     void* list)
 {
-    spdlog::info("[STEAL_SPELL] build start");
 
     auto mageObj = objectMap->vftable->findScenarioObjectById(objectMap, mageId);
 
     auto playerObj = objectMap->vftable->findScenarioObjectById(objectMap, playerId);
 
     if (!mageObj || !playerObj) {
-
-        spdlog::info("[STEAL_SPELL] failed to resolve objects");
 
         return buildSpellListOrig(objectMap, mageId, playerId, list);
     }
@@ -326,9 +327,6 @@ bool __stdcall buildSpellListHooked(const game::IMidgardObjectMap* objectMap,
     //
 
     g_stealSpellCtx.active = false;
-
-    spdlog::info("[STEAL_SPELL] visible spells");
-    spdlog::info(g_stealSpellCtx.insertedCount);
 
     return result;
 }

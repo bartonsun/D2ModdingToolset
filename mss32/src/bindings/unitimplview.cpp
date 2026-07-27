@@ -289,6 +289,9 @@ int UnitImplView::getLeaderCategory() const
 
 int UnitImplView::getMovement() const
 {
+    if (auto cached = getCachedData())
+        return cached->movement;
+
     auto leader{game::gameFunctions().castUnitImplToStackLeader(impl)};
 
     return leader ? leader->vftable->getMovement(leader) : 0;
@@ -296,6 +299,9 @@ int UnitImplView::getMovement() const
 
 int UnitImplView::getScout() const
 {
+    if (auto cached = getCachedData())
+        return cached->scout;
+
     auto leader{game::gameFunctions().castUnitImplToStackLeader(impl)};
 
     return leader ? leader->vftable->getScout(leader) : 0;
@@ -303,6 +309,9 @@ int UnitImplView::getScout() const
 
 int UnitImplView::getLeadership() const
 {
+    if (auto cached = getCachedData())
+        return cached->leadership;
+
     auto leader{game::gameFunctions().castUnitImplToStackLeader(impl)};
 
     return leader ? leader->vftable->getLeadership(leader) : 0;
@@ -311,6 +320,9 @@ int UnitImplView::getLeadership() const
 bool UnitImplView::hasAbility(int abilityId) const
 {
     using namespace game;
+
+    if (auto cached = getCachedData())
+        return cached->abilities.find(abilityId) != cached->abilities.end();
 
     auto leader{gameFunctions().castUnitImplToStackLeader(impl)};
     if (!leader) {
@@ -352,6 +364,9 @@ bool UnitImplView::hasMoveBonus(int groundId) const
 {
     using namespace game;
 
+    if (auto cached = getCachedData())
+        return cached->moveBonuses.find(groundId) != cached->moveBonuses.end();
+
     auto leader{gameFunctions().castUnitImplToStackLeader(impl)};
     if (!leader) {
         return false;
@@ -376,18 +391,27 @@ bool UnitImplView::hasMoveBonus(int groundId) const
 
 int UnitImplView::getNegotiate() const
 {
+    if (auto cached = getCachedData())
+        return cached->negotiate;
+
     auto leader{game::gameFunctions().castUnitImplToStackLeader(impl)};
     return leader ? leader->vftable->getNegotiate(leader) : 0;
 }
 
 bool UnitImplView::getFastRetreat() const
 {
+    if (auto cached = getCachedData())
+        return cached->fastRetreat;
+
     auto leader{game::gameFunctions().castUnitImplToStackLeader(impl)};
     return leader ? leader->vftable->getFastRetreat(leader) : false;
 }
 
 int UnitImplView::getLowerCost() const
 {
+    if (auto cached = getCachedData())
+        return cached->lowerCost;
+
     auto leader{game::gameFunctions().castUnitImplToStackLeader(impl)};
     return leader ? leader->vftable->getLowerCost(leader) : 0;
 }
@@ -617,6 +641,11 @@ std::optional<DynUpgradeView> UnitImplView::getDynUpgrade(int upgradeNumber) con
     }
 
     return DynUpgradeView{upgrade};
+}
+
+const game::CachedLeaderData* UnitImplView::getCachedData() const
+{
+    return hooks::getCachedLeaderData(impl->id);
 }
 
 } // namespace bindings

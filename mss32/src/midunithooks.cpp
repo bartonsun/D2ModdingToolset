@@ -109,7 +109,7 @@ bool __fastcall removeModifierHooked(game::CMidUnit* thisptr,
                 prevMod->data->next = next;
             }
 
-            if (userSettings().modifiers.notifyModifiersChanged) {
+            if (gameSettings().modifiers.notifyModifiersChanged) {
                 notifyModifiersChanged(thisptr->unitImpl);
             }
 

@@ -27,6 +27,17 @@
     - Add `ZONE_BORDER` image for zones placement preview to `Interf.ff`;
     - Add translated text ids to `TApp.dbf` and into `generator` section of `Scripts/textids.lua`.
   </details>
+
+ - <details>
+    <summary>Allows to customize lobby client and server connection settings;</summary>
+
+    Configure the `lobby` category in [userSettings.lua](Scripts/userSettings.lua).
+
+    Available settings:
+    - Lobby server IP address and port;
+    - Local client port (`0` means automatic port selection by the operating system).
+     </details>
+
 - Increases maximum game turn to 9999;
 - Allows to load and create scenarios with no magic (maximum spell level set to 0);
 - Buildings up to tier 10 are supported in editor and game;
@@ -89,7 +100,7 @@
 - <details>
     <summary>Allows to set a maximum number of items the player is allowed to transfer between campaign scenarios;</summary>
 
-    Specify `carryOverItemsMax` in [settings.lua](Scripts/settings.lua).
+    Specify `carryOverItemsMax` in [userSettings.lua](Scripts/userSettings.lua).
   </details>
 - <details>
     <summary>Allows to add new music tracks for battle and capital cities;</summary>
@@ -115,12 +126,30 @@
 - <details>
     <summary>Allows banners, resources panel and converted land percentage to be displayed by default;</summary>
 
-    Use the following settings in [settings.lua](Scripts/settings.lua):
+    Use the following settings in [userSettings.lua](Scripts/userSettings.lua):
     - `showBanners`
     - `showResources`
     - `showLandConverted`
   </details>
 - <details>
+    <summary>Allows to configure strategic map hotkeys;</summary>
+
+    Configure the `hotkeys` category in [userSettings.lua](Scripts/userSettings.lua).
+
+    Available actions:
+    - `openSelectedObject` — opens inventory for the selected stack or city;
+    - `quickSave` — performs quick save (host only in multiplayer).
+  </details>
+ - <details>
+    <summary>Allows to customize inventory item sort order;</summary>
+
+    Configure `customSortOrder` in [userSettings.lua](Scripts/userSettings.lua).
+
+    Categories are sorted in the exact order specified.
+    Categories omitted from the list use the default internal order and are placed afterwards.
+  </details>
+
+ - <details>
     <summary>Buttons for bulk item transfer: transfer all items, potions, scrolls/wands or valuables between inventories with single click;</summary>
 
     Add buttons with predefined names to `DLG_CITY_STACK`, `DLG_EXCHANGE` or `DLG_PICKUP_DROP` dialogs in `Interf.dlg` file.<br />
@@ -187,11 +216,11 @@
 - <details>
     <summary>Adds missing information to unit encyclopedia;</summary>
 
-    - Enable `detailedUnitDescription` under `unitEncyclopedia` category in [settings.lua](Scripts/settings.lua) to add the following:
+    - Enable `detailedUnitDescription` under `unitEncyclopedia` category in [userSettings.lua](Scripts/userSettings.lua) to add the following:
         - Modifier values for 'HP', 'Immunities' and 'Wards';
         - Custom unit modifiers.
     - Enable or disable `displayBonusHp` and `displayBonusXp` depending on whether you want to display corresponding bonuses or just total values;
-    - Enable `detailedAttackDescription` under `unitEncyclopedia` category in [settings.lua](Scripts/settings.lua) to add the following:
+    - Enable `detailedAttackDescription` under `unitEncyclopedia` category in [userSettings.lua](Scripts/userSettings.lua) to add the following:
         - Damage of secondary attack if its not either poison, blister or frostbite;
         - Power (if applicable) and source (if it matters) of alternative attack;
         - Value of boost/lower damage if its secondary attack;
@@ -262,7 +291,7 @@
             - Capital / village bonus;
             - Rioting village penalty.    
     - (Optional) Adds dynamic upgrade values to unit encyclopedia:
-        - Enable `displayDynamicUpgradeValues` under `unitEncyclopedia` category in [settings.lua](Scripts/settings.lua);
+        - Enable `displayDynamicUpgradeValues` under `unitEncyclopedia` category in [userSettings.lua] (Scripts/userSettings.lua);
         - Enable `detailedUnitDescription` and/or `detailedAttackDescription` to show upgrade values for corresponding stats;
         - The values are only shown for unit types to avoid clutter:
             - While browsing unit buildings in capital;
@@ -313,7 +342,7 @@
 - <details>
     <summary>Allows to display movement cost for each individual step of parties;</summary>
 
-    See `movementCost` category in [settings.lua](Scripts/settings.lua):
+    See `movementCost` category in [userSettings.lua](Scripts/userSettings.lua):
     - Enable `show` to display movement cost;
     - `textColor` can be used to specify a color (RGB) of the text;
     - `outlineColor` can be used to specify a color (RGB) of the text outline.

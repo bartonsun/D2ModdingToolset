@@ -6,6 +6,7 @@ Scripts folder itself should be placed in the game folder.
 
 ### Currently used scripts and their meanings:
 - settings.lua - mss32 proxy dll settings that changes game rules
+- userSettings.lua - user-specific mss32 proxy dll settings that are excluded from multiplayer lobby hash verification and affect only the local user
 - doppelganger.lua - logic that computes level of doppelganger transform (category L\_DOPPELGANGER)
 - transformSelf.lua - computes unit level and determines free attacks to give for transform-self attacks (category L\_TRANSFORM\_SELF)
 - transformOther.lua - computes unit level for transform-other attacks (category L\_TRANSFORM\_OTHER)
@@ -24,6 +25,75 @@ Scripts folder itself should be placed in the game folder.
 - getWoundedFemaleGreenskinTargets.lua - contains targeting logic that only allows to reach wounded female greenskins
 - [Scripts/Modifiers](Scripts/Modifiers) - contains custom modifier script examples
 - unitEncyclopedia.lua - contains custom display functions for unit encyclopedia
+- theft.lua - Contains filtering logic for spells that can be stolen from Mage Towers and items that can be stolen from Merchants
+
+
+
+### theft.lua (Stealing filters)
+
+Contains filtering logic for spells that can be stolen from Mage Towers
+and items that can be stolen from Merchants.
+
+The script is optional.
+If it is absent or a function is not defined, the default game logic is used.
+
+Supported functions:
+
+```lua
+-- Called for every spell available in Mage Tower.
+function theftFilterMageTower(context)
+    return true
+end
+
+-- Called for every item available from Merchant.
+function theftFilterItemsMerchant(context)
+    return true
+end
+```
+
+
+Both functions must return:
+
+- `true` — object is shown in the steal dialog.
+- `false` — object is hidden.
+ 
+Both functions are called once for every available spell or item.
+ 
+#### theftFilterMageTower(context)
+
+Context fields:
+
+```lua
+context.player    -- PlayerView
+context.mage      -- MageTowerView
+context.spell     -- SpellView
+```
+
+Example:
+
+```lua
+function theftFilterMageTower(context)
+    return context.spell.level <= 3
+end
+```
+
+#### theftFilterItemsMerchant(context)
+
+Context fields:
+
+```lua
+context.player     -- PlayerView
+context.merchant   -- MerchantView
+context.item       -- ItemBaseView
+```
+
+Example:
+
+```lua
+function theftFilterItemsMerchant(context)
+    return context.item.value.gold <= 1000
+end
+```
 
 ### API reference
 
@@ -129,6 +199,12 @@ Reach = { All, Any, Adjacent }
 ##### Immune
 ```
 Immune = { NotImmune, Once, Always }
+```
+
+##### Spell
+```
+Spell = { Attack, Lower, Heal, Boost, Summon, Fog, Unfog, RestoreMove,
+          Invisibility, RemoveRod, ChangeTerrain, GiveWards }
 ```
 
 ##### Item
@@ -1073,6 +1149,77 @@ merchant.temple
 
 ---
 
+#### Spell
+Represents spell
+
+Methods:
+##### id
+Returns spell [id](luaApi.md#id).
+```lua
+spell.id
+```
+##### type
+Returns type [type](luaApi.md#spell).
+```lua
+spell.type
+```
+Returns spell level. Levels are in range \[1 : 5\].
+```lua
+spell.level
+```
+Returns spell [cast cost](luaApi.md#currency).
+```lua
+spell.castingCost
+```
+Returns spell [buy cost](luaApi.md#currency).
+```lua
+spell.buyCost
+```
+Returns summoning unit [id](luaApi.md#id).
+```lua
+spell.unit
+```
+Returns the amount of maximum movement points portion that the spell will restore. Values are in range \[1 : 100\].
+```lua
+spell.restoreMove
+```
+Returns spell area. 999 is for global spells
+```lua
+spell.area
+```
+Returns spell damage.
+```lua
+spell.damage
+```
+Returns spell [damage source](luaApi.md#source).
+```lua
+spell.damageSource
+```
+Returns spell heal.
+```lua
+spell.heal
+```
+Returns [ground](luaApi.md#ground), on which the spell performs land replacement.
+```lua
+spell.ground
+```
+Returns true if spell can change [ground](luaApi.md#ground). Otherwise returns false.
+```lua
+spell.changeTerrain
+```
+Returns setting for AI. Integer value.
+```lua
+spell.aiType
+```
+Returns modifier [id](luaApi.md#id) for boost or lower spell.
+```lua
+spell.modifier
+```
+Returns arrray of modifiers' [id](luaApi.md#id) for spell that gives wards.
+```lua
+spell.wards
+---
+
 #### Mercenary unit
 Represents unit for hire in mercenary camp.
 
@@ -1087,7 +1234,32 @@ Returns true is unit can be hired only once.
 ```lua
 mercenaryUnit.unique
 ```
+---
 
+#### MageTower
+Represents Mage tower on a map.
+
+Methods:
+##### id
+Returns mage tower [id](luaApi.md#id). The value is unique for every mage tower on scenario map.
+```lua
+mage.id
+```
+##### position
+Returns mage tower position as a [point](luaApi.md#point).
+```lua
+mercenary.position
+```
+##### visitors
+Returns list of [players](luaApi.md#player) that have visited the mage tower.
+```lua
+mercenary.visitors
+```
+##### spells
+Returns list of spells [id](luaApi.md#id). To get information about [spell](luaApi.md#spell-1) use getGlobal().spells:get("g000ss0000").
+```lua
+mage.spells
+```
 ---
 
 #### Mercenary
@@ -1613,6 +1785,20 @@ if not merchant then
   return
 end
 ```
+##### getMageTower
+Searches for [mage](luaApi.md#mage) by:
+- id string
+- [id](luaApi.md#id)
+- pair of coordinates
+- [point](luaApi.md#point)
+
+Returns `nil` if not found.
+```lua
+local mage = scenario:getMageTower('S143SI0001')
+if not mage then
+  return
+end
+```
 ##### getMercenary
 Searches for [mercenary camp](luaApi.md#mercenary) by:
 - id string
@@ -1782,6 +1968,13 @@ Searches for every [merchant](luaApi.md#merchant) on a map and calls specified f
 ```lua
 scenario:forEachMerchant(function (merchant)
   log('Visit merchant ' .. tostring(merchant.id))
+end)
+```
+##### forEachMageTower
+Searches for every [mage tower](luaApi.md#mage) on a map and calls specified function on it.
+```lua
+scenario:forEachMageTower(function (mage)
+  log('Visit mage ' .. tostring(mage.id))
 end)
 ```
 ##### forEachMercenary

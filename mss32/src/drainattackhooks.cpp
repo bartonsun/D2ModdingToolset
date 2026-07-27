@@ -222,7 +222,7 @@ void __fastcall drainAttackOnHitHooked(game::CBatAttackDrain* thisptr,
                                        game::BattleAttackInfo** attackInfo)
 {
     drainAttack(objectMap, battleMsgData, thisptr->attack, &thisptr->unitId, unitId, *attackInfo,
-                userSettings().drainAttackHeal);
+                gameSettings().drainAttackHeal);
 }
 
 void __fastcall drainOverflowAttackOnHitHooked(game::CBatAttackDrainOverflow* thisptr,
@@ -238,7 +238,7 @@ void __fastcall drainOverflowAttackOnHitHooked(game::CBatAttackDrainOverflow* th
 
     const auto drainOverflow = drainAttack(objectMap, battleMsgData, thisptr->attack,
                                            &thisptr->unitId, unitId, *attackInfo,
-                                           userSettings().drainOverflowHeal);
+                                           gameSettings().drainOverflowHeal);
     if (!drainOverflow) {
         return;
     }

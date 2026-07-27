@@ -40,7 +40,7 @@ int adjustUnitXpReceived(const game::BattleMsgData* battleMsgData,
         result = 1;
     }
 
-    if (!userSettings().battle.allowRetreatedUnitsToUpgrade
+    if (!gameSettings().battle.allowRetreatedUnitsToUpgrade
         && battleApi.getUnitStatus(battleMsgData, &unit->id, BattleStatus::Retreated)) {
         auto soldier = fn.castUnitImplToSoldier(unit->unitImpl);
         auto xpNext = soldier->vftable->getXpNext(soldier);

@@ -51,7 +51,7 @@ struct StealItemBuildContext
 
 extern thread_local StealItemBuildContext g_stealItemCtx;
 
-bool shouldDisplayStealItem(const game::CMidgardID* merchantId, game::StealItemEntry* entry);
+bool shouldDisplayStealItem(game::StealItemEntry* entry);
 
 void* getStealItemCtorHooked();
 

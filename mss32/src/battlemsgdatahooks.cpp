@@ -28,7 +28,6 @@
 #include "customattacks.h"
 #include "fortification.h"
 #include "gameutils.h"
-#include "groupview.h"
 #include "intset.h"
 #include "midplayer.h"
 #include "midstack.h"
@@ -537,7 +536,7 @@ void __stdcall aiChooseBattleActionHooked(const game::IMidgardObjectMap* objectM
         const auto message{fmt::format("Could not find player that owns unit {:s} in group {:s}",
                                        idToString(unitId), idToString(&allyGroupId))};
 
-        if (userSettings().battle.debugAi) {
+        if (gameSettings().battle.debugAi) {
             showErrorMessageBox(message);
         } else {
             spdlog::error(message);
@@ -554,7 +553,7 @@ void __stdcall aiChooseBattleActionHooked(const game::IMidgardObjectMap* objectM
         const auto message{fmt::format("Could not find battle action script by attitude {:d}",
                                        static_cast<int>(allyPlayer->attitude.id))};
 
-        if (userSettings().battle.debugAi) {
+        if (gameSettings().battle.debugAi) {
             showErrorMessageBox(message);
         } else {
             spdlog::error(message);
@@ -574,7 +573,7 @@ void __stdcall aiChooseBattleActionHooked(const game::IMidgardObjectMap* objectM
         const auto message{
             fmt::format("Could not find 'chooseAction' function. Script '{:s}'", path.string())};
 
-        if (userSettings().battle.debugAi) {
+        if (gameSettings().battle.debugAi) {
             showErrorMessageBox(message);
         } else {
             spdlog::error(message);
@@ -650,7 +649,7 @@ void __stdcall aiChooseBattleActionHooked(const game::IMidgardObjectMap* objectM
         const auto message{
             fmt::format("Failed to run '{:s}' script. Reason: {:s}", path.string(), e.what())};
 
-        if (userSettings().battle.debugAi) {
+        if (gameSettings().battle.debugAi) {
             showErrorMessageBox(message);
         } else {
             spdlog::error(message);
@@ -658,7 +657,7 @@ void __stdcall aiChooseBattleActionHooked(const game::IMidgardObjectMap* objectM
 
         *targetUnitId = *unitId;
         *attackerUnitId = *unitId;
-        *battleAction = userSettings().battle.fallbackAction;
+        *battleAction = gameSettings().battle.fallbackAction;
     }
 }
 

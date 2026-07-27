@@ -58,6 +58,7 @@ std::array<Api, 4> functions = {{
         (Api::ChangeSiteInfo)nullptr,
         (Api::ChangeSiteImage)nullptr,
         (Api::ChangeSiteAiPriority)nullptr,
+        (Api::EraseStack)0x5e8e11,
         (Api::ChangeStackLeader)0x5E8AC0,
     },
     // Russobit
@@ -93,6 +94,7 @@ std::array<Api, 4> functions = {{
         (Api::ChangeSiteInfo)nullptr,
         (Api::ChangeSiteImage)nullptr,
         (Api::ChangeSiteAiPriority)nullptr,
+        (Api::EraseStack)0x5e8e11,
         (Api::ChangeStackLeader)0x5E8AC0,
     },
     // Gog
@@ -128,6 +130,7 @@ std::array<Api, 4> functions = {{
         (Api::ChangeSiteInfo)nullptr,
         (Api::ChangeSiteImage)nullptr,
         (Api::ChangeSiteAiPriority)nullptr,
+        (Api::EraseStack)0x5e7b10,
         (Api::ChangeStackLeader)0x5e77bf,
     },
     // Scenario Editor
@@ -163,6 +166,7 @@ std::array<Api, 4> functions = {{
         (Api::ChangeSiteInfo)0x4eadb9,
         (Api::ChangeSiteImage)0x4eae6a,
         (Api::ChangeSiteAiPriority)0x4eaeb8,
+        (Api::EraseStack)0x4e9987,
         (Api::ChangeStackLeader)0x4eaa5c,
     },
 }};

@@ -74,12 +74,12 @@ int changeUnitXpAndUpgrade(game::IMidgardObjectMap* objectMap,
             break;
         }
 
-        if (!userSettings().battle.allowMultiUpgrade) {
+        if (!gameSettings().battle.allowMultiUpgrade) {
             break;
         }
     }
 
-    if (userSettings().battle.carryXpOverUpgrade) {
+    if (gameSettings().battle.carryXpOverUpgrade) {
         xpAdded += addUnitXpNoUpgrade(objectMap, unit, xpReceived - xpAdded);
     }
 

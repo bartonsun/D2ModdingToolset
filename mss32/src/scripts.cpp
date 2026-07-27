@@ -45,6 +45,7 @@
 #include "itemview.h"
 #include "landmarkview.h"
 #include "locationview.h"
+#include "magetowerview.h"
 #include "merchantview.h"
 #include "mercsview.h"
 #include "midstack.h"
@@ -72,6 +73,7 @@
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/spdlog.h>
 #include <thread>
+#include <usersettingsview.h>
 
 extern std::thread::id mainThreadId;
 
@@ -124,7 +126,7 @@ static std::shared_ptr<spdlog::logger> createLogger(bool client)
                                                 fileName.string(), 5u << 20, 3);
     // TODO: setting for all available trace levels (not only debug vs non-debug)
     // TODO: add log level to the pattern when different log levels are available
-    newLogger->set_level(userSettings().debugMode ? spdlog::level::trace : spdlog::level::info);
+    newLogger->set_level(gameSettings().debugMode ? spdlog::level::trace : spdlog::level::info);
     newLogger->set_pattern("%D %H:%M:%S.%e [%=8!n] %v", spdlog::pattern_time_type::utc);
     return newLogger;
 }
@@ -499,6 +501,7 @@ static void bindApi(sol::state& lua)
     //bindings::ModifierView::bind(lua);
     bindings::BattleTurnView::bind(lua);
     bindings::BattleMsgDataView::bind(lua);
+    bindings::UserSettingsView::bind(lua);
     bindings::BattleMsgDataViewMutable::bind(lua);
     bindings::DiplomacyView::bind(lua);
     bindings::FogView::bind(lua);
@@ -507,6 +510,7 @@ static void bindApi(sol::state& lua)
     bindings::SiteView::bind(lua);
     bindings::MerchantItemView::bind(lua);
     bindings::MerchantView::bind(lua);
+    bindings::MageTowerView::bind(lua);
     bindings::MercenaryUnitView::bind(lua);
     bindings::MercsView::bind(lua);
     bindings::TrainerView::bind(lua);
@@ -588,6 +592,70 @@ bindings::GlobalView getGlobal()
 bindings::GameView getGame()
 {
     return bindings::GameView();
+}
+
+
+sol::environment executeUserSettingsScript(const std::string& source,
+                                           sol::protected_function_result& result)
+{
+    auto& lua = getLua();
+
+    //  isolated (empty) environment for user settings.
+    sol::environment env(lua, sol::create);
+
+    env["assert"] = lua["assert"];
+    env["error"] = lua["error"];
+
+    env["pairs"] = lua["pairs"];
+    env["ipairs"] = lua["ipairs"];
+    env["next"] = lua["next"];
+
+    env["type"] = lua["type"];
+    env["tostring"] = lua["tostring"];
+    env["tonumber"] = lua["tonumber"];
+    env["select"] = lua["select"];
+
+    env["pcall"] = lua["pcall"];
+    env["xpcall"] = lua["xpcall"];
+
+    env["math"] = lua["math"];
+    env["string"] = lua["string"];
+    env["table"] = lua["table"];
+
+    env["utf8"] = lua["utf8"]; // если Lua 5.3+
+    env["log"] = lua["log"];
+
+    result = lua.safe_script(source, env,
+                             [](lua_State*, sol::protected_function_result pfr) { return pfr; });
+
+    return env;
+}
+
+std::optional<sol::environment> executeUserSettingsFile(const std::filesystem::path& path,
+                                                        bool alwaysExists)
+{
+    if (!alwaysExists && !std::filesystem::exists(path))
+        return std::nullopt;
+
+    const auto& source = getSource(path);
+    if (source.empty()) {
+        showErrorMessageBox(fmt::format("Failed to read '{:s}' script file.", path.string()));
+        return std::nullopt;
+    }
+
+    sol::protected_function_result result;
+
+    auto env = executeUserSettingsScript(source, result);
+
+    if (!result.valid()) {
+        const sol::error err = result;
+        showErrorMessageBox(fmt::format("Failed to execute script '{:s}'.\n"
+                                        "Reason: '{:s}'",
+                                        path.string(), err.what()));
+        return std::nullopt;
+    }
+
+    return {std::move(env)};
 }
 
 sol::environment executeScript(const std::string& source,

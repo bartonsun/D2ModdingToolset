@@ -21,9 +21,8 @@
 // File: stealspellinterf.h
 // ============================================================
 
-
-#include "MIDDRAGDROPINTERF.H"
-#include "MIDGARDOBJECTMAP.H"
+#include "middragdropinterf.h"
+#include "midgardobjectmap.h"
 
 #ifndef STEALSPELLINTERF_H
 #define STEALSPELLINTERF_H
@@ -45,12 +44,11 @@ struct Api
 
     GetListBox getListBox;
 
-   using BuildSpellList = bool(__stdcall*)(const game::IMidgardObjectMap*,
+    using BuildSpellList = bool(__stdcall*)(const game::IMidgardObjectMap*,
                                             game::CMidgardID,
                                             game::CMidgardID,
                                             void*);
     BuildSpellList buildSpellList;
-
 };
 
 Api& get();

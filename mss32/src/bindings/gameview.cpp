@@ -37,7 +37,7 @@ void GameView::bind(sol::state& lua)
 
 int GameView::getUnitMaxDamage() const
 {
-    return hooks::userSettings().unitMaxDamage;
+    return hooks::gameSettings().unitMaxDamage;
 }
 
 int GameView::getUnitMinDamage() const
@@ -52,7 +52,7 @@ int GameView::getLeaderAdditionalDamage() const
 
 int GameView::getUnitMaxArmor() const
 {
-    return hooks::userSettings().unitMaxArmor;
+    return hooks::gameSettings().unitMaxArmor;
 }
 
 bool GameView::isEditor() const

@@ -651,7 +651,7 @@ bool BattleMsgDataView::setShatteredArmor(const IdView& unitId, int value)
         return false;
     }
 
-    const int maxShatter = hooks::userSettings().shatteredArmorMax;
+    const int maxShatter = hooks::gameSettings().shatteredArmorMax;
 
     info->shatteredArmor = std::clamp(info->shatteredArmor + value, 0, maxShatter);
 
@@ -845,7 +845,7 @@ bool BattleMsgDataView::cure(const IdView& unitId)
     battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Petrify, false);
     battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::DisableLong, false);
 
-    bool settings = hooks::userSettings().advancedCure != hooks::baseSettings().advancedCure;
+    bool settings = hooks::gameSettings().advancedCure != hooks::gameSettings().advancedCure;
     if (settings)
     {
         battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::LowerDamageLvl1, false);

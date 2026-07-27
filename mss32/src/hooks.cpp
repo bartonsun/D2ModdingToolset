@@ -198,6 +198,7 @@
 #include "scenedithooks.h"
 #include "scenpropinterfhooks.h"
 #include "settings.h"
+#include "usersettings.h"
 #include "sitecategoryhooks.h"
 #include "sitemerchantinterf.h"
 #include "sitemerchantinterfhooks.h"
@@ -267,7 +268,7 @@
 #include "dotattackhooks.h"
 #include "batunitanim.h"
 #include <midbag.h>
-#include <miditem.h>
+
 #include <midruin.h>
 #include <midgardplan.h>
 #include "quicksavehook.h"
@@ -551,10 +552,6 @@ static Hooks getGameHooks()
         {CBatAttackHealApi::vftable()->onHit, healAttackOnHitHooked},
         //Hooks for status effects.
         {battle.setUnitStatus, setUnitStatusHooked, (void**)&orig.setUnitStatus},
-        //For future updates
-        {BattleViewerInterfApi::vftable()->battleEnd, battleEndHooked, (void**)&orig.battleEnd},
-        {battle.decreaseUnitAttacks, decreaseUnitAttacksHooked, (void**)&orig.decreaseUnitAttacks},
-        {CBatLogicApi::get().applyCBatAttackUntransformEffect, applyCBatAttackUntransformEffectHooked, (void**)&orig.applyCBatAttackUntransformEffect},
 
         // Allow modify leaders hire list with lua
         {LeadersForHireApi::get().getLeadersHireList, getLeadersHireListHooked},
@@ -589,8 +586,8 @@ static Hooks getGameHooks()
     // clang-format on
     
     // Extended battle options
-    if (userSettings().extendedBattle.dotDamageCanStack
-        != baseSettings().extendedBattle.dotDamageCanStack) {
+    if (gameSettings().extendedBattle.dotDamageCanStack
+        != baseGameSettings().extendedBattle.dotDamageCanStack) {
         hooks.emplace_back(HookInfo{CBatAttackBlisterApi::vftable()->canPerform, blisterCanPerformHooked});
         hooks.emplace_back(HookInfo{CBatAttackBlisterApi::vftable()->onHit, blisterOnHitHooked});
         hooks.emplace_back(HookInfo{CBatAttackFrostbiteApi::vftable()->canPerform, frostbiteCanPerformHooked});
@@ -608,64 +605,64 @@ static Hooks getGameHooks()
         hooks.emplace_back(HookInfo{CBatAttackPoisonApi::vftable()->canPerform, defaultPoisonCanPerformHooked});
     }
 
-    if (userSettings().extendedBattle.boostdamageCanAffectHealer
-        != baseSettings().extendedBattle.boostdamageCanAffectHealer) {
+    if (gameSettings().extendedBattle.boostdamageCanAffectHealer
+        != baseGameSettings().extendedBattle.boostdamageCanAffectHealer) {
         hooks.emplace_back( HookInfo{CBatAttackBoostDamageApi::vftable()->canPerform, boostDamageCanPerformHooked});
         hooks.emplace_back( HookInfo{CBatAttackBoostDamageApi::vftable()->onHit, boostDamageOnHitHooked});
     }
 
-    if (userSettings().extendedBattle.lowerdamageCanAffectHealer
-        != baseSettings().extendedBattle.lowerdamageCanAffectHealer) {
+    if (gameSettings().extendedBattle.lowerdamageCanAffectHealer
+        != baseGameSettings().extendedBattle.lowerdamageCanAffectHealer) {
         hooks.emplace_back( HookInfo{CBatAttackLowerDamageApi::vftable()->canPerform, lowerDamageCanPerformHooked});
     }
     // End extended battle options
 
     // Advanced cure
-    if (userSettings().advancedCure != baseSettings().advancedCure) {
+    if (gameSettings().advancedCure != baseGameSettings().advancedCure) {
         hooks.emplace_back(
             HookInfo{battle.unitCanBeCured, unitCanBeCuredHooked, (void**)&orig.unitCanBeCured});
     }
 
-    if (userSettings().engine.sendRefreshInfoObjectCountLimit) {
+    if (gameSettings().engine.sendRefreshInfoObjectCountLimit) {
         // Fix incomplete scenario loading when its object size exceed network message buffer size
         // of 512 KB
         hooks.emplace_back(HookInfo{CMidServerLogicApi::get().sendRefreshInfo,
                                     midServerLogicSendRefreshInfoHooked});
     }
 
-    if (userSettings().shatteredArmorMax != baseSettings().shatteredArmorMax) {
+    if (gameSettings().shatteredArmorMax != baseGameSettings().shatteredArmorMax) {
         // Allow users to customize total armor shatter damage
         hooks.emplace_back(
             HookInfo{CBatAttackShatterApi::vftable()->canPerform, shatterCanPerformHooked});
         hooks.emplace_back(HookInfo{battle.setUnitShatteredArmor, setUnitShatteredArmorHooked});
     }
 
-    if (userSettings().shatterDamageMax != baseSettings().shatterDamageMax) {
+    if (gameSettings().shatterDamageMax != baseGameSettings().shatterDamageMax) {
         // Allow users to customize maximum armor shatter damage per attack
         hooks.emplace_back(HookInfo{CBatAttackShatterApi::vftable()->onHit, shatterOnHitHooked});
     }
 
-    if (userSettings().showBanners != baseSettings().showBanners) {
+    if (userSettings().showBanners != baseUserSettings().showBanners) {
         // Allow users to show banners by default
         hooks.emplace_back(HookInfo{fn.toggleShowBannersInit, toggleShowBannersInitHooked});
     }
 
-    if (userSettings().showResources != baseSettings().showResources
-        || userSettings().showLandConverted != baseSettings().showLandConverted) {
+    if (userSettings().showResources != baseUserSettings().showResources
+        || userSettings().showLandConverted != baseUserSettings().showLandConverted) {
         // Allow users to show resources panel by default
         hooks.emplace_back(HookInfo{fn.respopupInit, respopupInitHooked});
     }
 
-    if (userSettings().carryOverItemsMax != baseSettings().carryOverItemsMax) {
+    if (userSettings().carryOverItemsMax != baseUserSettings().carryOverItemsMax) {
         // Change maximum number of items that player can carry between campaign scenarios
         hooks.emplace_back(HookInfo{CDDCarryOverItemsApi::get().constructor,
                                     carryOverItemsCtorHooked, (void**)&orig.carryOverItemsCtor});
     }
 
-    if (userSettings().doppelgangerRespectsEnemyImmunity
-            != baseSettings().doppelgangerRespectsEnemyImmunity
-        || userSettings().doppelgangerRespectsAllyImmunity
-               != baseSettings().doppelgangerRespectsAllyImmunity) {
+    if (gameSettings().doppelgangerRespectsEnemyImmunity
+            != baseGameSettings().doppelgangerRespectsEnemyImmunity
+        || gameSettings().doppelgangerRespectsAllyImmunity
+               != baseGameSettings().doppelgangerRespectsAllyImmunity) {
         // Make Doppelganger attack respect target source/class wards and immunities
         hooks.emplace_back(HookInfo{CBatAttackDoppelgangerApi::vftable()->canPerform,
                                     doppelgangerAttackCanPerformHooked});
@@ -673,24 +670,24 @@ static Hooks getGameHooks()
                                     doppelgangerAttackIsImmuneHooked});
     }
 
-    if (userSettings().leveledDoppelgangerAttack != baseSettings().leveledDoppelgangerAttack) {
+    if (gameSettings().leveledDoppelgangerAttack != baseGameSettings().leveledDoppelgangerAttack) {
         // Allow doppelganger to transform into leveled units using script logic
         hooks.emplace_back(
             HookInfo{CBatAttackDoppelgangerApi::vftable()->onHit, doppelgangerAttackOnHitHooked});
     }
 
-    if (userSettings().leveledSummonAttack != baseSettings().leveledSummonAttack) {
+    if (gameSettings().leveledSummonAttack != baseGameSettings().leveledSummonAttack) {
         // Allow summon leveled units using script logic
         hooks.emplace_back(
             HookInfo{CBatAttackSummonApi::vftable()->onHit, summonAttackOnHitHooked});
     }
 
-    if (userSettings().missChanceSingleRoll != baseSettings().missChanceSingleRoll) {
+    if (gameSettings().missChanceSingleRoll != baseGameSettings().missChanceSingleRoll) {
         // Compute attack miss chance using single random value, instead of two
         hooks.emplace_back(HookInfo{fn.attackShouldMiss, attackShouldMissHooked});
     }
 
-    if (userSettings().unrestrictedBestowWards != baseSettings().unrestrictedBestowWards) {
+    if (gameSettings().unrestrictedBestowWards != baseGameSettings().unrestrictedBestowWards) {
         // Increases total ward limit for bestow-wards attack from 8 to 48
         // clang-format off
         hooks.emplace_back(HookInfo{battle.constructor, battleMsgDataCtorHooked, (void**)&orig.battleMsgDataCtor});
@@ -709,26 +706,26 @@ static Hooks getGameHooks()
         // clang-format on
     }
 
-    if (userSettings().movementCost.show) {
+    if (userSettings().movementDisplay.show) {
         // Show movement cost
         hooks.emplace_back(HookInfo{fn.showMovementPath, showMovementPathHooked});
     }
 
     bool hookSendObjectsChanges = false;
-    if (userSettings().debugMode) {
+    if (gameSettings().debugMode) {
         // clang-format off
         // Log all net messages being sent by single player (both client and server) to netMessages<PID>.log
-        if (userSettings().debug.logSinglePlayerMessages) {
+        if (gameSettings().debug.logSinglePlayerMessages) {
             hooks.emplace_back(HookInfo{CNetSinglePlayerApi::vftable()->sendMessage, netSinglePlayerSendMessageHooked, (void**)&orig.netSinglePlayerSendMessage});
         }
         // Log added/changed/erased objects ids being sent by server to netMessages<PID>.log
-        if (userSettings().debug.sendObjectsChangesTreshold) {
+        if (gameSettings().debug.sendObjectsChangesTreshold) {
             hookSendObjectsChanges = true;
         }
         // clang-format on
     }
 
-    if (userSettings().modifiers.validateUnitsOnGroupChanged) {
+    if (gameSettings().modifiers.validateUnitsOnGroupChanged) {
         // Validate current HP / XP of units when their group changes (units added, removed,
         // rearranged, etc.) to resolve issues with custom HP / XP modifiers, that depend on other
         // units (like auras in MNS mod).
@@ -912,20 +909,20 @@ Hooks getHooks()
     hooks.emplace_back(HookInfo{CMidUnitDescriptorApi ::vftable()->isUnitLeader,
                                 midUnitDescriptorIsUnitLeaderHooked});
 
-    if (userSettings().debugMode) {
+    if (gameSettings().debugMode) {
         // Show and log game exceptions information
         hooks.emplace_back(HookInfo{os_exceptionApi::get().throwException, throwExceptionHooked,
                                     (void**)&orig.throwException});
     }
 
-    if (userSettings().shatterDamageUpgradeRatio != baseSettings().shatterDamageUpgradeRatio) {
+    if (gameSettings().shatterDamageUpgradeRatio != baseGameSettings().shatterDamageUpgradeRatio) {
         // Allow users to customize shatter damage upgrade ratio
         hooks.emplace_back(
             HookInfo{fn.applyDynUpgradeToAttackData, applyDynUpgradeToAttackDataHooked});
     }
 
     if (userSettings().unitEncyclopedia.detailedAttackDescription
-        != baseSettings().unitEncyclopedia.detailedAttackDescription) {
+        != baseUserSettings().unitEncyclopedia.detailedAttackDescription) {
         // Additional display of some stats bonuses, drain, critical hit, custom attack ratios, etc.
         hooks.emplace_back(HookInfo{fn.generateAttackDescription, generateAttackDescriptionHooked});
     }
@@ -954,7 +951,7 @@ Hooks getHooks()
     hooks.emplace_back(
         HookInfo{DisplayHandlersApi::get().villageHandler, displayHandlerVillageHooked});
 
-    if (userSettings().modifiers.cumulativeUnitRegeneration) {
+    if (gameSettings().modifiers.cumulativeUnitRegeneration) {
         // Allow unit regeneration modifiers to stack
         hooks.emplace_back(HookInfo{CUmUnitApi::get().constructor, umUnitCtorHooked});
         hooks.emplace_back(HookInfo{CUmUnitApi::get().copyConstructor, umUnitCopyCtorHooked});
@@ -1105,7 +1102,7 @@ Hooks getVftableHooks()
         hooks.emplace_back(HookInfo{&CBatAttackReviveApi::vftable()->isImmune, reviveAttackIsImmuneHooked});
     }
 
-    if (userSettings().allowShatterAttackToMiss != baseSettings().allowShatterAttackToMiss) {
+    if (gameSettings().allowShatterAttackToMiss != baseGameSettings().allowShatterAttackToMiss) {
         if (CBatAttackShatterApi::vftable())
             // Fix an issue where shatter attack always hits regardless of its power value
             hooks.emplace_back(
@@ -1416,7 +1413,7 @@ bool __fastcall shatterCanPerformHooked(game::CBatAttackShatter* thisptr,
     }
 
     const int shatteredArmor = battle.getUnitShatteredArmor(battleMsgData, unitId);
-    if (shatteredArmor >= userSettings().shatteredArmorMax) {
+    if (shatteredArmor >= gameSettings().shatteredArmorMax) {
         return false;
     }
 
@@ -1449,7 +1446,7 @@ void __fastcall setUnitShatteredArmorHooked(game::BattleMsgData* thisptr,
     }
 
     info->shatteredArmor = std::clamp(info->shatteredArmor + armor, 0,
-                                      userSettings().shatteredArmorMax);
+                                      gameSettings().shatteredArmorMax);
 }
 
 void __fastcall shatterOnHitHooked(game::CBatAttackShatter* thisptr,
@@ -1463,7 +1460,7 @@ void __fastcall shatterOnHitHooked(game::CBatAttackShatter* thisptr,
 
     auto attackVftable = (const IAttackVftable*)thisptr->attack->vftable;
 
-    const auto damageMax{userSettings().shatterDamageMax};
+    const auto damageMax{gameSettings().shatterDamageMax};
     int shatterDamage = attackVftable->getQtyDamage(thisptr->attack);
     if (shatterDamage > damageMax) {
         shatterDamage = damageMax;
@@ -1504,7 +1501,7 @@ bool __stdcall buildLordSpecificBuildingsHooked(game::IMidgardObjectMap* objectM
                                                  rtti.CMidPlayerType, 0);
 
     auto& fn = gameFunctions();
-    if (!userSettings().preserveCapitalBuildings) {
+    if (!gameSettings().preserveCapitalBuildings) {
         fn.deletePlayerBuildings(objectMap, player);
     }
 
@@ -1522,7 +1519,8 @@ bool __stdcall buildLordSpecificBuildingsHooked(game::IMidgardObjectMap* objectM
         return fn.addCapitalBuilding(objectMap, player, buildingCategories.magic);
     }
 
-    if (userSettings().buildTempleForWarriorLord && playerInfo->controlledByHuman && lordCategoryId == lordCategories.warrior->id) {
+    if (gameSettings().buildTempleForWarriorLord && playerInfo->controlledByHuman
+        && lordCategoryId == lordCategories.warrior->id) {
         return fn.addCapitalBuilding(objectMap, player, buildingCategories.heal);
     }
 
@@ -1675,7 +1673,7 @@ void __stdcall getAttackPowerHooked(int* power,
         const auto& difficulties = DifficultyLevelCategories::get();
         const auto difficultyId = getScenarioInfo(objectMap)->gameDifficulty.id;
 
-        const auto& aiAttackPower = userSettings().aiAttackPowerBonus;
+        const auto& aiAttackPower = gameSettings().aiAttackPowerBonus;
         const std::int8_t* bonus = &aiAttackPower.easy;
 
         if (difficultyId == difficulties.easy->id) {
@@ -1699,7 +1697,7 @@ void __stdcall getAttackPowerHooked(int* power,
     }
 
     const auto& attacks = AttackClassCategories::get();
-    if (battleMsgData->currentRound > userSettings().disableAllowedRoundMax
+    if (battleMsgData->currentRound > gameSettings().disableAllowedRoundMax
         && (attackClass->id == attacks.paralyze->id || attackClass->id == attacks.petrify->id)) {
         tmpPower = 0;
     }
@@ -1797,14 +1795,15 @@ void __stdcall afterBattleTurnHooked(game::BattleMsgData* battleMsgData,
             CMidUnit* cMidUnitNext = fn.findUnitById(objMap, nextUnitId);
 
             const bindings::BattleMsgDataView battleView{battleMsgData, objMap};
-            const bindings::UnitView unitNextView{cMidUnitNext};
+            std::optional<bindings::UnitView> unitView;
+            std::optional<bindings::UnitView> unitNextView;
+            if (cMidUnit)
+                unitView.emplace(cMidUnit);
+            if (cMidUnitNext)
+                unitNextView.emplace(cMidUnitNext);
 
-            if (cMidUnit) {
-                const bindings::UnitView unitView{cMidUnit};
-                (*f)(battleView, unitView, unitNextView);
-            } else {
-                (*f)(battleView, nullptr, unitNextView);
-            }
+            (*f)(battleView, unitView ? unitView : nullptr,
+                 unitNextView ? unitNextView : nullptr);
         } catch (const std::exception& e) {
             showErrorMessageBox(fmt::format("Lua Error in 'OnAfterBattleTurn':\n{:s}", e.what()));
         }
@@ -1956,7 +1955,7 @@ void __stdcall applyDynUpgradeToAttackDataHooked(const game::CMidgardID* unitImp
     if (attackData->qtyDamage > 0) {
         float ratio = 1.0;
         if (attackData->attackClass->id == AttackClassCategories::get().shatter->id)
-            ratio = (float)userSettings().shatterDamageUpgradeRatio / 100;
+            ratio = (float)gameSettings().shatterDamageUpgradeRatio / 100;
 
         if (upgrade1)
             attackData->qtyDamage += lround(upgrade1->damage * upgrade1Count * ratio);
@@ -2804,7 +2803,7 @@ void __fastcall setUnitStatusHooked(const game::BattleMsgData* battleMsgData,
     switch (bStatus) {
     case BattleStatus::Dead: {
         if (enable) {
-            if (userSettings().instantBuffRemoval != baseSettings().instantBuffRemoval) {
+            if (gameSettings().instantBuffRemoval != baseGameSettings().instantBuffRemoval) {
                 auto* unitInfo = battleApi.getUnitInfoById(battle, unitId);
                 if (unitInfo) {
                     for (const auto& modId : getModifiedUnitIds(unitInfo)) {
@@ -2820,7 +2819,7 @@ void __fastcall setUnitStatusHooked(const game::BattleMsgData* battleMsgData,
         break;
     }
     case BattleStatus::Cured: {
-        if (enable && userSettings().advancedCure != baseSettings().advancedCure) {
+        if (enable && gameSettings().advancedCure != baseGameSettings().advancedCure) {
             battleApi.setUnitStatus(battle, unitId, BattleStatus::LowerDamageLvl1, false);
             battleApi.setUnitStatus(battle, unitId, BattleStatus::LowerDamageLvl2, false);
             battleApi.setUnitStatus(battle, unitId, BattleStatus::LowerDamageLong, false);
@@ -2975,7 +2974,7 @@ void __fastcall reviveAttackOnHitHooked(game::CBatAttackRevive* thisptr,
     static const auto& globalApi = GlobalDataApi::get();
     auto* globalData = *globalApi.getGlobalData();
 
-    const auto& settings = userSettings();
+    const auto& settings = gameSettings();
 
     CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
     if (!targetUnit)
@@ -3057,14 +3056,6 @@ bool __fastcall reviveAttackIsImmuneHooked(game::CBatAttackRevive* thisptr,
         return false;
     }
 
-void __fastcall showAttackEffectHooked(game::IBatViewer* thisptr,
-    int /*%edx*/,
-    const game::BattleMsgData* battleMsgData,
-    const game::BattleAttackInfo** attackInfo,
-    const game::LAttackClass* attackClass)
-{
-    using namespace game;
-
     const IUsSoldier* targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
     const LAttackClass* attackClass = attack->vftable->getAttackClass(attack);
     const LImmuneCat* immuneCat = targetSoldier->vftable->getImmuneByAttackClass(targetSoldier,
@@ -3086,8 +3077,8 @@ bool __stdcall checkLongEffectDurationHooked(int roundsPassed)
     if (roundsPassed == 0)
         return false;
 
-    const auto& chances = userSettings().longEffectRemoveChances;
-    const auto& baseChances = baseSettings().longEffectRemoveChances;
+    const auto& chances = gameSettings().longEffectRemoveChances;
+    const auto& baseChances = baseGameSettings().longEffectRemoveChances;
     const auto& actual = chances.empty() ? baseChances : chances;
 
     int index = roundsPassed - 1;

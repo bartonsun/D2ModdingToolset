@@ -236,7 +236,7 @@ void __fastcall transformOtherAttackOnHitHooked(game::CBatAttackTransformOther* 
     if (transformImplId == emptyId)
         return;
 
-    if (userSettings().leveledTransformOtherAttack) {
+    if (gameSettings().leveledTransformOtherAttack) {
         const auto& global = GlobalDataApi::get();
         auto globalData = *global.getGlobalData();
 
@@ -261,6 +261,8 @@ void __fastcall transformOtherAttackOnHitHooked(game::CBatAttackTransformOther* 
 
     const auto targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
     bool prevAttackTwice = targetSoldier && targetSoldier->vftable->getAttackTwice(targetSoldier);
+
+    cacheLeaderData(targetUnit->unitImpl, transformImplId);
 
     const auto& visitors = VisitorApi::get();
     visitors.transformUnit(targetUnitId, &transformImplId, true, objectMap, 1);

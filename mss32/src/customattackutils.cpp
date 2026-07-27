@@ -628,7 +628,7 @@ std::vector<double> computeAttackDamageRatio(const CustomAttackData& customData,
 
     if (customData.damageSplit) {
         for (auto& value : result) {
-            value /= totalRatio * userSettings().splitDamageMultiplier;
+            value /= totalRatio * gameSettings().splitDamageMultiplier;
         }
     }
 
@@ -642,7 +642,7 @@ double computeTotalDamageRatio(const game::IAttack* attack, int targetCount)
 
     auto customData = getCustomAttackData(attack);
     if (customData.damageSplit) {
-        return 1.0 * userSettings().splitDamageMultiplier;
+        return 1.0 * gameSettings().splitDamageMultiplier;
     } else if (customData.damageRatio != 100) {
         double ratio = (double)customData.damageRatio / 100;
 
