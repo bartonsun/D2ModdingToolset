@@ -199,6 +199,8 @@ struct Settings
     } extendedBattle;
 
     std::vector<int> longEffectRemoveChances;
+
+    bool cacheLeaderDataOnTransform{false};
 };
 
 const Settings& baseGameSettings();

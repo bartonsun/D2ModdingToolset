@@ -21,6 +21,7 @@
 #define UNITIMPLVIEW_H
 
 #include "idview.h"
+#include "unitutils.h"
 #include <optional>
 #include <vector>
 
@@ -120,6 +121,8 @@ protected:
 
 private:
     const game::IUsUnit* impl;
+
+    const game::CachedLeaderData* getCachedData() const;
 };
 
 } // namespace bindings

@@ -33,6 +33,7 @@
 #include "settings.h"
 #include "unitgenerator.h"
 #include "unitview.h"
+#include "unitutils.h"
 #include "ussoldier.h"
 #include "usunitimpl.h"
 #include "utils.h"
@@ -238,6 +239,8 @@ void __fastcall doppelgangerAttackOnHitHooked(game::CBatAttackDoppelganger* this
                                                &targetUnit->unitImpl->id, transformLevel);
 
     unitGenerator->vftable->generateUnitImpl(unitGenerator, &transformUnitImplId);
+
+    cacheLeaderData(targetUnit->unitImpl, transformUnitImplId);
 
     const auto& visitors = VisitorApi::get();
     visitors.transformUnit(&thisptr->unitId, &transformUnitImplId, false, objectMap, 1);

@@ -338,6 +338,7 @@ static void readSettings(const sol::table& table, Settings& settings)
     settings.reviveAttacksUsesQtyHeal = readSetting(table, "reviveAttacksUsesQtyHeal", defaultGameSettings().reviveAttacksUsesQtyHeal);
     settings.reviveItemsUsesQtyHeal = readSetting(table, "reviveItemsUsesQtyHeal", defaultGameSettings().reviveItemsUsesQtyHeal);
     settings.advancedCure = readSetting(table, "advancedCure", defaultGameSettings().advancedCure);
+    settings.cacheLeaderDataOnTransform = readSetting(table, "cacheLeaderDataOnTransform", defaultGameSettings().cacheLeaderDataOnTransform);
 
     auto chances = table.get<sol::optional<sol::table>>("longEffectRemoveChances");
     if (chances.has_value())
@@ -456,6 +457,8 @@ const Settings& baseGameSettings()
         settings.extendedBattle.boostdamageCanAffectHealer = false;
 
         settings.longEffectRemoveChances = {0, 50, 75, 100};
+
+        settings.cacheLeaderDataOnTransform = false;
 
         initialized = true;
     }

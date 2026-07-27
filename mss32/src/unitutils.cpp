@@ -31,6 +31,7 @@
 #include "gameutils.h"
 #include "globaldata.h"
 #include "globalvariables.h"
+#include "groundcat.h"
 #include "immunecat.h"
 #include "leaderabilitycat.h"
 #include "lordtype.h"
@@ -823,6 +824,78 @@ int addUnitXpNoUpgrade(game::IMidgardObjectMap* objectMap, game::CMidUnit* unit,
     }
 
     return xpAmount;
+}
+
+static std::map<game::CMidgardID, game::CachedLeaderData> leaderCache;
+static std::mutex cacheMutex;
+
+const game::CachedLeaderData* hooks::getCachedLeaderData(const game::CMidgardID& implId)
+{
+    std::lock_guard<std::mutex> lock(cacheMutex);
+    auto it = leaderCache.find(implId);
+    return it != leaderCache.end() ? &it->second : nullptr;
+}
+
+void hooks::cacheLeaderData(const game::IUsUnit* unitImpl, const game::CMidgardID& transformImplId)
+{
+    if (!gameSettings().cacheLeaderDataOnTransform) {
+        return;
+    }
+
+    game::CachedLeaderData cachedData{};
+
+    if (auto leader = game::gameFunctions().castUnitImplToStackLeader(unitImpl)) {
+        cachedData.movement = leader->vftable->getMovement(leader);
+        cachedData.scout = leader->vftable->getScout(leader);
+        cachedData.leadership = leader->vftable->getLeadership(leader);
+        cachedData.negotiate = leader->vftable->getNegotiate(leader);
+        cachedData.fastRetreat = leader->vftable->getFastRetreat(leader);
+        cachedData.lowerCost = leader->vftable->getLowerCost(leader);
+
+        const auto& abilities = game::LeaderAbilityCategories::get();
+        if (leader->vftable->hasAbility(leader, abilities.incorruptible))
+            cachedData.abilities.insert((int)game::LeaderAbilityId::Incorruptible);
+        if (leader->vftable->hasAbility(leader, abilities.weaponMaster))
+            cachedData.abilities.insert((int)game::LeaderAbilityId::WeaponMaster);
+        if (leader->vftable->hasAbility(leader, abilities.wandScrollUse))
+            cachedData.abilities.insert((int)game::LeaderAbilityId::WandScrollUse);
+        if (leader->vftable->hasAbility(leader, abilities.weaponArmorUse))
+            cachedData.abilities.insert((int)game::LeaderAbilityId::WeaponArmorUse);
+        if (leader->vftable->hasAbility(leader, abilities.bannerUse))
+            cachedData.abilities.insert((int)game::LeaderAbilityId::BannerUse);
+        if (leader->vftable->hasAbility(leader, abilities.jewelryUse))
+            cachedData.abilities.insert((int)game::LeaderAbilityId::JewelryUse);
+        if (leader->vftable->hasAbility(leader, abilities.rod))
+            cachedData.abilities.insert((int)game::LeaderAbilityId::Rod);
+        if (leader->vftable->hasAbility(leader, abilities.orbUse))
+            cachedData.abilities.insert((int)game::LeaderAbilityId::OrbUse);
+        if (leader->vftable->hasAbility(leader, abilities.talismanUse))
+            cachedData.abilities.insert((int)game::LeaderAbilityId::TalismanUse);
+        if (leader->vftable->hasAbility(leader, abilities.travelItemUse))
+            cachedData.abilities.insert((int)game::LeaderAbilityId::TravelItemUse);
+        if (leader->vftable->hasAbility(leader, abilities.criticalHit))
+            cachedData.abilities.insert((int)game::LeaderAbilityId::CriticalHit);
+
+        const auto& grounds = game::GroundCategories::get();
+        if (leader->vftable->hasMovementBonus(leader, grounds.plain))
+            cachedData.moveBonuses.insert((int)game::GroundId::Plain);
+        if (leader->vftable->hasMovementBonus(leader, grounds.forest))
+            cachedData.moveBonuses.insert((int)game::GroundId::Forest);
+        if (leader->vftable->hasMovementBonus(leader, grounds.water))
+            cachedData.moveBonuses.insert((int)game::GroundId::Water);
+        if (leader->vftable->hasMovementBonus(leader, grounds.mountain))
+            cachedData.moveBonuses.insert((int)game::GroundId::Mountain);
+
+    } else {
+        auto oldCached = hooks::getCachedLeaderData(unitImpl->id);
+        if (oldCached) {
+            cachedData = *oldCached;
+        }
+    }
+
+    std::lock_guard<std::mutex> lock(cacheMutex);
+    leaderCache[unitImpl->id] = cachedData;
+    leaderCache[transformImplId] = cachedData;
 }
 
 } // namespace hooks

@@ -262,6 +262,8 @@ void __fastcall transformOtherAttackOnHitHooked(game::CBatAttackTransformOther* 
     const auto targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
     bool prevAttackTwice = targetSoldier && targetSoldier->vftable->getAttackTwice(targetSoldier);
 
+    cacheLeaderData(targetUnit->unitImpl, transformImplId);
+
     const auto& visitors = VisitorApi::get();
     visitors.transformUnit(targetUnitId, &transformImplId, true, objectMap, 1);
 
