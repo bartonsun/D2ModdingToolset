@@ -201,6 +201,7 @@ struct Settings
     std::vector<int> longEffectRemoveChances;
 
     bool cacheLeaderDataOnTransform{false};
+    bool fogSpellHideEnemyVision{false};
 };
 
 const Settings& baseGameSettings();

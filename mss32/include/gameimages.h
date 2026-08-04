@@ -153,6 +153,10 @@ struct Api
     /** Returns unit portrait from Events.ff. */
     using GetUnitIcon = IMqImage2*(__stdcall*)(const CMidgardID* unitImplId);
     GetUnitIcon getUnitIcon;
+
+    /** Returns spell area fog from IsoCmon.ff. */
+    using GetSpellAreaFogImage = IMqImage2*(__stdcall*)(bool spellAllowed);
+    GetSpellAreaFogImage getSpellAreaFogImage;
 };
 
 Api& get();

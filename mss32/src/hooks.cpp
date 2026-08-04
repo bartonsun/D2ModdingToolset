@@ -571,12 +571,15 @@ static Hooks getGameHooks()
         {CBatAttackPoisonEffectApi::vftable()->onHit, poisonEffectOnHitHooked},
 
         //Fix random for lon effects
-        {fn.checkLongEffectDuration, checkLongEffectDurationHooked, (void**)&orig.checkLongEffectDuration},       
+        {fn.checkLongEffectDuration, checkLongEffectDurationHooked, (void**)&orig.checkLongEffectDuration},
         //Cure attack always work
         {CBatAttackCureApi::vftable()->canPerform, cureAttackCanPerformHooked},
         {CBatAttackCureApi::vftable()->onHit, cureAttackOnHitHooked},
 
         {CBatAttackDamageApi::vftable()->onHit, damageAttackOnHitHooked},
+
+        // Get fog spell area image
+        {GameImagesApi::get().getSpellAreaFogImage, getSpellAreaFogImageHooked, (void**)&orig.getSpellAreaFogImage},
 
         //Not used
         {BattleViewerInterfApi::vftable()->battleEnd, battleEndHooked, (void**)&orig.battleEnd},
@@ -3154,6 +3157,14 @@ void __stdcall applyCBatAttackUntransformEffectHooked(game::IMidgardObjectMap* o
 {
     getOriginalFunctions().applyCBatAttackUntransformEffect(objectMap, unitId, battleMsgData,
                                                             resultSender, sendResult);
+}
+
+game::IMqImage2* __stdcall getSpellAreaFogImageHooked(bool spellAllowed)
+{
+    if (gameSettings().fogSpellHideEnemyVision) {
+        spellAllowed = true;
+    }
+    return getOriginalFunctions().getSpellAreaFogImage(spellAllowed);
 }
 
 } // namespace hooks

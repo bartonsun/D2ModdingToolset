@@ -136,6 +136,7 @@ struct OriginalFunctions
 
     game::GameImagesApi::Api::GetCityPreviewLargeImageNames getCityPreviewLargeImageNames;
     game::GameImagesApi::Api::GetCityIconImageNames getCityIconImageNames;
+    game::GameImagesApi::Api::GetSpellAreaFogImage getSpellAreaFogImage;
 
     game::CEncLayoutUnitApi::Api::Initialize encLayoutUnitInitialize;
     game::CEncLayoutUnitApi::Api::Update encLayoutUnitUpdate;
