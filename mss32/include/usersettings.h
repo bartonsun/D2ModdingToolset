@@ -73,6 +73,13 @@ struct MovementDisplay
 
     bool show{};
     bool showMovementAfterAction{};
+
+    /**
+     * Allows building a read-only movement path while the client is waiting for
+     * another player in the classic exclusive-turn mode. This affects only the
+     * local interface.
+     */
+    bool previewWhileWaiting{};
 };
 
 struct Lobby

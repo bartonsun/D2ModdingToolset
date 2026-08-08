@@ -88,6 +88,16 @@ struct Api
     using SetMapGraphics = void(__thiscall*)(MapGraphicsPtr* thisptr, MapGraphics** data);
     SetMapGraphics setMapGraphics;
 
+    /**
+     * Converts a screen position to a strategic-map tile position.
+     * Returns false when the point is outside the map or cannot be converted.
+     */
+    using ConvertMouseToMap = bool(__thiscall*)(MapGraphics** thisptr,
+                                                const CMqPoint* screenPosition,
+                                                CMqPoint* mapPosition,
+                                                CMqPoint* pixelDelta);
+    ConvertMouseToMap convertMouseToMap;
+
     using GetTileIndex = TileArrayIndex(__thiscall*)(MapGraphics** thisptr, bool waterTile);
     GetTileIndex getTileIndex;
 

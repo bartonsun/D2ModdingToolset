@@ -96,6 +96,14 @@ settings = {
 		-- Show remaining movement points after an action on the first red flag
 		showMovementAfterAction = true,
 
+		-- While waiting for another player, left-clicking a visible map cell builds a
+		-- local, read-only terrain path preview. It never sends a movement command;
+		-- dynamic blockers are intentionally ignored to avoid exposing them.
+		-- The stack selected immediately before ending the local turn is used.
+		-- Disabled automatically outside the classic exclusive-turn wait state.
+		-- Currently supported by Akella and Russobit game executables.
+		previewWhileWaiting = true,
+
 		-- Color components are all in range [0 : 255]
 		textColor = {
 			red = 200,

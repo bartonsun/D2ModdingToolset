@@ -52,6 +52,7 @@
 #include "siteview.h"
 #include <gameutils.h>
 #include <usersettings.h>
+#include <waitingmovepathhooks.h>
 
 namespace hooks {
 
@@ -184,9 +185,10 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
     const CMqPoint* positionPtr{};
     bool pathLeadsToAction{};
     const game::CMidgardID* targetStackId = nullptr;
+    const bool terrainOnlyPreview{isWaitingMovementPathPreview()};
     if (!a6) {
         positionPtr = lastReachablePoint;
-    } else {
+    } else if (!terrainOnlyPreview) {
         positionPtr = lastReachablePoint;
 
         targetStackId = fn.getBlockingPathNearbyStackId(objectMap, plan, stack, lastReachablePoint,
@@ -202,6 +204,10 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
                 pathLeadsToAction = true;
             }
         }
+    } else {
+        // During another player's turn, do not resolve a hidden stack or an
+        // interactive-object action at the target tile.
+        positionPtr = lastReachablePoint;
     }
 
     const auto& pathApi = PathInfoListApi::get();
@@ -261,15 +267,22 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
          node = node->next, firstNode = false, ++index) {
         const auto& currentPosition = node->data.position;
 
-        if (!fn.stackCanMoveToPosition(objectMap, &currentPosition, stack, plan)) {
+        if (!terrainOnlyPreview
+            && !fn.stackCanMoveToPosition(objectMap, &currentPosition, stack, plan)) {
             continue;
         }
 
         pathAllowed = !waterOnlyToLand;
 
-        if (waterOnly && !fn.isWaterTileSurroundedByWater(&currentPosition, objectMap)) {
-            pathAllowed = false;
-            waterOnlyToLand = true;
+        if (waterOnly) {
+            if (terrainOnlyPreview
+                && !isWaitingMovementPathPreviewAreaVisible(objectMap, &currentPosition)) {
+                pathAllowed = false;
+                waterOnlyToLand = true;
+            } else if (!fn.isWaterTileSurroundedByWater(&currentPosition, objectMap)) {
+                pathAllowed = false;
+                waterOnlyToLand = true;
+            }
         }
 
         // Blue flag
@@ -515,43 +528,61 @@ int __stdcall computeMovementCostHooked(const game::CMqPoint* mapPosition,
         return movementForbidden;
     }
 
-    // clang-format off
-    static const std::array<IdType, 6> interactiveObjectTypes{{
-        IdType::Fortification,
-        IdType::Landmark,
-        IdType::Site,
-        IdType::Ruin,
-        IdType::Rod,
-        IdType::Crystal
-    }};
-    // clang-format on
-
-    const auto& planApi = CMidgardPlanApi::get();
-
-    if (planApi.isPositionContainsObjects(plan, mapPosition, interactiveObjectTypes.data(),
-                                          std::size(interactiveObjectTypes))) {
-        // Interactive object is in the way
+    const bool terrainOnlyPreview{isWaitingMovementPathPreview()};
+    if (terrainOnlyPreview
+        && !isWaitingMovementPathPreviewTileVisible(objectMap, mapPosition)) {
+        // The base path finder passes no visibility mask here. Do not query
+        // ground or plan data for a tile hidden by the selected player's fog.
         return movementForbidden;
     }
 
-    const IdType bagType = IdType::Bag;
-    const CMidgardID* bagId = planApi.getObjectId(plan, mapPosition, &bagType);
+    bool road{};
 
-    const bool pred2 = a7 && ((1 << (x & 7)) & a7[18 * y + (x >> 3)]);
+    if (terrainOnlyPreview) {
+        // A visible road is already represented on the local map and affects
+        // movement cost, unlike dynamic blockers that are deliberately hidden
+        // from the waiting-turn preview below.
+        const IdType roadType = IdType::Road;
+        road = CMidgardPlanApi::get().getObjectId(plan, mapPosition, &roadType) != nullptr;
+    } else {
+        // clang-format off
+        static const std::array<IdType, 6> interactiveObjectTypes{{
+            IdType::Fortification,
+            IdType::Landmark,
+            IdType::Site,
+            IdType::Ruin,
+            IdType::Rod,
+            IdType::Crystal
+        }};
+        // clang-format on
 
-    if (!(!bagId || pred2)) {
-        return movementForbidden;
+        const auto& planApi = CMidgardPlanApi::get();
+
+        if (planApi.isPositionContainsObjects(plan, mapPosition, interactiveObjectTypes.data(),
+                                              std::size(interactiveObjectTypes))) {
+            // Interactive object is in the way
+            return movementForbidden;
+        }
+
+        const IdType bagType = IdType::Bag;
+        const CMidgardID* bagId = planApi.getObjectId(plan, mapPosition, &bagType);
+
+        const bool pred2 = a7 && ((1 << (x & 7)) & a7[18 * y + (x >> 3)]);
+
+        if (!(!bagId || pred2)) {
+            return movementForbidden;
+        }
+
+        const IdType stackType = IdType::Stack;
+        const CMidgardID* stackAtPosition = planApi.getObjectId(plan, mapPosition, &stackType);
+
+        if (!(!stackAtPosition || isIdsEqualOrBothNull(stackAtPosition, stackId) || pred2)) {
+            return movementForbidden;
+        }
+
+        const IdType roadType = IdType::Road;
+        road = planApi.getObjectId(plan, mapPosition, &roadType) != nullptr;
     }
-
-    const IdType stackType = IdType::Stack;
-    const CMidgardID* stackAtPosition = planApi.getObjectId(plan, mapPosition, &stackType);
-
-    if (!(!stackAtPosition || isIdsEqualOrBothNull(stackAtPosition, stackId) || pred2)) {
-        return movementForbidden;
-    }
-
-    const IdType roadType = IdType::Road;
-    const bool road = planApi.getObjectId(plan, mapPosition, &roadType) != nullptr;
 
     LGroundCategory ground{};
     if (!CMidgardMapApi::get().getGround(midgardMap, &ground, mapPosition, objectMap)) {
@@ -572,6 +603,11 @@ int __stdcall computeMovementCostHooked(const game::CMqPoint* mapPosition,
         }
 
         // Check deep waters
+        if (terrainOnlyPreview
+            && !isWaitingMovementPathPreviewAreaVisible(objectMap, mapPosition)) {
+            return movementForbidden;
+        }
+
         if (gameFunctions().isWaterTileSurroundedByWater(mapPosition, objectMap)) {
             return water.waterOnly;
         }
