@@ -49,7 +49,7 @@ static std::array<Api, 4> functions = {{
     Api{
         (Api::GetMapGraphics)0x5404d9,
         (Api::SetMapGraphics)0x407be5,
-        nullptr,
+        (Api::ConvertMouseToMap)0x540f6a,
         (Api::GetTileIndex)0x5414c5,
         (Api::SetOutOfBordersTileIndex)0x541515,
         (Api::ShowImageOnMap)0x5ad1ee,
@@ -59,7 +59,7 @@ static std::array<Api, 4> functions = {{
     Api{
         (Api::GetMapGraphics)0x49aac3,
         (Api::SetMapGraphics)0x4044be,
-        nullptr,
+        (Api::ConvertMouseToMap)0x4b94e4,
         (Api::GetTileIndex)0x49ba3f,
         (Api::SetOutOfBordersTileIndex)0x49ba8f,
         (Api::ShowImageOnMap)0x554042,
