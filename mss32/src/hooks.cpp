@@ -242,6 +242,7 @@
 #include "visitorcreatesite.h"
 #include "visitorcreatesitehooks.h"
 #include "visitors.h"
+#include "waitingmovepathhooks.h"
 #include <algorithm>
 #include <cstring>
 #include <fstream>
@@ -712,6 +713,10 @@ static Hooks getGameHooks()
     if (userSettings().movementDisplay.show) {
         // Show movement cost
         hooks.emplace_back(HookInfo{fn.showMovementPath, showMovementPathHooked});
+
+        if (userSettings().movementDisplay.previewWhileWaiting) {
+            addWaitingMovementPathHooks(hooks);
+        }
     }
 
     bool hookSendObjectsChanges = false;
@@ -1117,6 +1122,11 @@ Hooks getVftableHooks()
         hooks.emplace_back(HookInfo{&CEncLayoutUnitApi::vftable()->handleKeyboard,
                                     encLayoutUnitHandleKeyboardHooked,
                                     (void**)&orig.encLayoutUnitHandleKeyboard});
+    }
+
+    if (userSettings().movementDisplay.show
+        && userSettings().movementDisplay.previewWhileWaiting) {
+        addWaitingMovementPathVftableHooks(hooks);
     }
 
     return hooks;

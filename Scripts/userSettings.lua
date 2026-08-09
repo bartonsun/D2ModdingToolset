@@ -96,6 +96,8 @@ settings = {
 		-- Show remaining movement points after an action on the first red flag
 		showMovementAfterAction = true,
 
+		previewWhileWaiting = true,
+
 		-- Color components are all in range [0 : 255]
 		textColor = {
 			red = 200,

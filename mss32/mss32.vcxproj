@@ -575,6 +575,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\siteresourcemarketinterf.cpp" />
     <ClCompile Include="src\smartptr.cpp" />
     <ClCompile Include="src\movepathhooks.cpp" />
+    <ClCompile Include="src\waitingmovepathhooks.cpp" />
     <ClCompile Include="src\capitalraceset.cpp" />
     <ClCompile Include="src\pointset.cpp" />
     <ClCompile Include="src\raceset.cpp" />
@@ -1355,6 +1356,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\capitalraceset.h" />
     <ClInclude Include="include\d2set.h" />
     <ClInclude Include="include\movepathhooks.h" />
+    <ClInclude Include="include\waitingmovepathhooks.h" />
     <ClInclude Include="include\pointset.h" />
     <ClInclude Include="include\raceset.h" />
     <ClInclude Include="include\sounds.h" />

@@ -29,6 +29,7 @@ static std::array<Api, 4> functions = {{
     Api{
         (Api::GetMapGraphics)0x540e28,
         (Api::SetMapGraphics)0x407f37,
+        (Api::ConvertMouseToMap)0x5418ba,
         (Api::GetTileIndex)0x541e15,
         (Api::SetOutOfBordersTileIndex)0x541e65,
         (Api::ShowImageOnMap)0x5adf66,
@@ -38,6 +39,7 @@ static std::array<Api, 4> functions = {{
     Api{
         (Api::GetMapGraphics)0x540e28,
         (Api::SetMapGraphics)0x407f37,
+        (Api::ConvertMouseToMap)0x5418ba,
         (Api::GetTileIndex)0x541e15,
         (Api::SetOutOfBordersTileIndex)0x541e65,
         (Api::ShowImageOnMap)0x5adf66,
@@ -47,6 +49,7 @@ static std::array<Api, 4> functions = {{
     Api{
         (Api::GetMapGraphics)0x5404d9,
         (Api::SetMapGraphics)0x407be5,
+        nullptr,
         (Api::GetTileIndex)0x5414c5,
         (Api::SetOutOfBordersTileIndex)0x541515,
         (Api::ShowImageOnMap)0x5ad1ee,
@@ -56,6 +59,7 @@ static std::array<Api, 4> functions = {{
     Api{
         (Api::GetMapGraphics)0x49aac3,
         (Api::SetMapGraphics)0x4044be,
+        nullptr,
         (Api::GetTileIndex)0x49ba3f,
         (Api::SetOutOfBordersTileIndex)0x49ba8f,
         (Api::ShowImageOnMap)0x554042,

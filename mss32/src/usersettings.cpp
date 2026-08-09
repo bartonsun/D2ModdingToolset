@@ -282,6 +282,9 @@ static void readMovementDisplaySettings(const sol::table& table, MovementDisplay
     value.showMovementAfterAction = readSetting(movement.value(), "showMovementAfterAction",
                                                 def.showMovementAfterAction);
 
+    value.previewWhileWaiting = readSetting(movement.value(), "previewWhileWaiting",
+                                            def.previewWhileWaiting);
+
     auto textColor = movement.value().get<sol::optional<sol::table>>("textColor");
 
     if (textColor.has_value())
@@ -364,6 +367,7 @@ const UserSettings& baseUserSettings()
 
         settings.movementDisplay.show = false;
         settings.movementDisplay.showMovementAfterAction = false;
+        settings.movementDisplay.previewWhileWaiting = false;
         settings.movementDisplay.textColor = {200, 200, 200};
         settings.movementDisplay.outlineColor = {0, 0, 0};
 
@@ -401,6 +405,7 @@ const UserSettings& defaultUserSettings()
         settings.unitEncyclopedia.detailedAttackDescription = true;
 
         settings.movementDisplay.show = true;
+        settings.movementDisplay.previewWhileWaiting = true;
 
         initialized = true;
     }
