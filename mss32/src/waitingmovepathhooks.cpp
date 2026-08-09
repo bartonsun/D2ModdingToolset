@@ -241,8 +241,7 @@ void savePathForWaitingTask(CTaskSelectUnit* task, game::ITask* waitTask)
     const auto* objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
     const auto* stack = objectMap ? getStack(objectMap, &stackId) : nullptr;
     const auto* localPlayerId = getLocalPlayerId();
-    if (!stack || !stack->leaderAlive || !isStandardSequentialTurnWait(phaseGame, localPlayerId)
-        || stack->ownerId != *localPlayerId) {
+    if (!stack || !stack->leaderAlive || !localPlayerId || stack->ownerId != *localPlayerId) {
         return;
     }
 
