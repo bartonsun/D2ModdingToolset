@@ -20,6 +20,8 @@ static const std::array<Api, 4> functions = {{
     Api{
         (ITaskVftable*)0x6dca1c,
         (ITaskVftable*)0x6dcbec,
+        (ITaskVftable*)0x6efadc,
+        (ITaskVftable*)0x6dce54,
         (ITaskVftable::Destructor)0x4d59dc,
         (Api::PathConstructor)0x4cccc0,
         (Api::PathDestructor)0x4cceee,
@@ -28,6 +30,8 @@ static const std::array<Api, 4> functions = {{
     Api{
         (ITaskVftable*)0x6dca1c,
         (ITaskVftable*)0x6dcbec,
+        (ITaskVftable*)0x6efadc,
+        (ITaskVftable*)0x6dce54,
         (ITaskVftable::Destructor)0x4d59dc,
         (Api::PathConstructor)0x4cccc0,
         (Api::PathDestructor)0x4cceee,
@@ -36,6 +40,8 @@ static const std::array<Api, 4> functions = {{
     Api{
         (ITaskVftable*)0x6da9bc,
         (ITaskVftable*)0x6dab8c,
+        (ITaskVftable*)0x6eda7c,
+        (ITaskVftable*)0x6dadf4,
         (ITaskVftable::Destructor)0x4d5019,
         (Api::PathConstructor)0x4cc3b3,
         (Api::PathDestructor)0x4cc5e1,

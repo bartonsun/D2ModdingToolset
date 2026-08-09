@@ -51,6 +51,8 @@ struct Api
 
     ITaskVftable* taskSelectUnitVftable;
     ITaskVftable* taskWaitVftable;
+    ITaskVftable* taskMsgBoxVftable;
+    ITaskVftable* midNullTaskVftable;
     ITaskVftable::Destructor taskWaitDestructor;
     PathConstructor pathConstructor;
     PathDestructor pathDestructor;
