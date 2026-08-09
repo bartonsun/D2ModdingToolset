@@ -25,6 +25,7 @@
 #include "menurandomscenariosingle.h"
 #include "midgard.h"
 #include "originalfunctions.h"
+#include "roomservercreation.h"
 #include "scenariotemplates.h"
 #include <fmt/format.h>
 
@@ -375,10 +376,30 @@ void __fastcall menuPhaseSetTransitionHooked(game::CMenuPhase* thisptr,
             logDebug("transitions.log", "current is 11");
             menuPhase.switchToSession(thisptr);
             break;
-        case 15:
+        case 15: {
+            // Transition 15 is shared between hosting a brand new skirmish
+            // (case 6 -> switchTo15Or28) and finishing loading a saved game
+            // through the custom lobby (case 33 -> switchToLoadSkirmish ->
+            // CMenuLoadSkirmishMulti, which sets transition to 15 as well).
+            // Without this check, a loaded save falls through into the same
+            // interactive lord/race selection screen as a brand new skirmish,
+            // letting the race be changed after the fact.
+            if (isLoadingScenario()) {
+                logDebug("transitions.log", "current is 15 (loaded scenario)");
+                // TODO: verify in-game whether the race/lord selection is
+                // actually still changeable here. If so, this is the place to
+                // either call a non-interactive equivalent instead of
+                // switchToLobbyHostJoin, or to lock the race controls right
+                // after the screen is created. Left unchanged for now so
+                // behavior does not silently change until confirmed.
+                menuPhase.switchToLobbyHostJoin(thisptr);
+                break;
+            }
+
             logDebug("transitions.log", "current is 15");
             menuPhase.switchToLobbyHostJoin(thisptr);
             break;
+        }
         case 16:
             // Creates CMidClient, deletes CMenuPhase
             logDebug("transitions.log", "current is 16");

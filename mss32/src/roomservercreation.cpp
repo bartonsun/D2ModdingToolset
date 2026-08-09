@@ -284,4 +284,9 @@ void startRoomAndServerCreation(game::CMenuBase* menu, bool loadScenario)
     createSessionAndServer(editGame->data->editBoxData.inputString.string);
 }
 
+bool isLoadingScenario()
+{
+    return loadingScenario;
+}
+
 } // namespace hooks

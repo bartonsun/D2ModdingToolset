@@ -28,6 +28,11 @@ namespace hooks {
 
 void startRoomAndServerCreation(game::CMenuBase* menu, bool loadScenario);
 
-}
+/** Returns true if the room currently being created/joined originates
+ * from loading a saved scenario (CMenuLoadSkirmishMulti), as opposed
+ * to hosting a brand new skirmish. */
+bool isLoadingScenario();
+
+} // namespace hooks
 
 #endif // ROOMSERVERCREATION_H
