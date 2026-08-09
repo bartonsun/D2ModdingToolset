@@ -45,11 +45,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>$(DISCIPLES2_PATH)</OutDir>
+    <OutDir>$(DISCIPLES2_PATH)\</OutDir><OutputPath>$(DISCIPLES2_PATH)\</OutputPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(DISCIPLES2_PATH)</OutDir>
+    <OutDir>$(DISCIPLES2_PATH)\</OutDir><OutputPath>$(DISCIPLES2_PATH)\</OutputPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
