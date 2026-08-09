@@ -457,6 +457,9 @@
     <ClCompile Include="src\movepathhooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\waitingmovepath.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
     <ClCompile Include="src\waitingmovepathhooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
@@ -2364,6 +2367,9 @@
     </ClInclude>
     <ClInclude Include="include\movepathhooks.h">
       <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\waitingmovepath.h">
+      <Filter>game</Filter>
     </ClInclude>
     <ClInclude Include="include\waitingmovepathhooks.h">
       <Filter>hooks</Filter>

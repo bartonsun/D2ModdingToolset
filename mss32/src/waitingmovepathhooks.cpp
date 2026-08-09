@@ -23,9 +23,8 @@
 #include "phasegame.h"
 #include "task.h"
 #include "taskmanager.h"
-#include "version.h"
+#include "waitingmovepath.h"
 
-#include <array>
 #include <cstdint>
 
 #include <spdlog/spdlog.h>
@@ -52,21 +51,6 @@ struct CTaskSelectUnit : public game::ITask
 assert_size(CTaskSelectUnit, 36);
 assert_offset(CTaskSelectUnit, data, 32);
 
-struct CPathData
-{
-    game::CPhaseGame* phaseGame;
-    game::CMidgardID stackId;
-};
-
-assert_size(CPathData, 8);
-
-struct CPath
-{
-    CPathData* data;
-};
-
-assert_size(CPath, 4);
-
 struct CTaskWaitData
 {
     char unknown[12];
@@ -85,60 +69,9 @@ struct CTaskWait : public game::ITask
 assert_size(CTaskWait, 36);
 assert_offset(CTaskWait, data, 32);
 
-using CPathConstructor = void(__thiscall*)(void* thisptr,
-                                           game::CPhaseGame* phaseGame,
-                                           const game::CMidgardID* stackId);
-using CPathDestructor = void(__thiscall*)(void* thisptr);
-using CPathUpdate = bool(__thiscall*)(void* thisptr,
-                                      const game::CMqPoint* mapPosition,
-                                      int a3,
-                                      bool a4);
-
-struct Functions
-{
-    game::ITaskVftable* taskSelectUnitVftable;
-    game::ITaskVftable* taskWaitVftable;
-    game::ITaskVftable::Destructor taskWaitDestructor;
-    CPathConstructor pathConstructor;
-    CPathDestructor pathDestructor;
-    CPathUpdate pathUpdate;
-};
-
-const std::array<Functions, 4> functions = {{
-    Functions{
-        (game::ITaskVftable*)0x6dca1c,
-        (game::ITaskVftable*)0x6dcbec,
-        (game::ITaskVftable::Destructor)0x4d59dc,
-        (CPathConstructor)0x4cccc0,
-        (CPathDestructor)0x4cceee,
-        (CPathUpdate)0x4cd406,
-    },
-    Functions{
-        (game::ITaskVftable*)0x6dca1c,
-        (game::ITaskVftable*)0x6dcbec,
-        (game::ITaskVftable::Destructor)0x4d59dc,
-        (CPathConstructor)0x4cccc0,
-        (CPathDestructor)0x4cceee,
-        (CPathUpdate)0x4cd406,
-    },
-    Functions{},
-    Functions{},
-}};
-
-const Functions* getFunctions()
-{
-    const auto version = gameVersion();
-    if (version == GameVersion::Unknown) {
-        return nullptr;
-    }
-
-    const auto& value = functions[static_cast<int>(version)];
-    return value.taskSelectUnitVftable ? &value : nullptr;
-}
-
 struct WaitingPath
 {
-    CPath* path;
+    game::CPath* path;
     game::CPhaseGame* phaseGame;
     game::ITask* task;
     game::CMidgardID stackId;
@@ -193,9 +126,9 @@ void clearMovementPathImages()
     mapGraphics.hideLayerImages(&alternateLayer);
 }
 
-void destroyWaitingPath(const Functions& fn)
+void destroyWaitingPath(const game::WaitingMovementPathApi::Api& fn)
 {
-    CPath* path = waitingPath.path;
+    game::CPath* path = waitingPath.path;
     waitingPath = {};
 
     if (path) {
@@ -289,7 +222,7 @@ void savePathForWaitingTask(CTaskSelectUnit* task, game::ITask* waitTask)
 {
     using namespace game;
 
-    const auto* fn = getFunctions();
+    const auto* fn = game::WaitingMovementPathApi::get();
     const auto* waitTaskData = getTaskWaitData(waitTask);
     if (!fn || !task || !task->data || !waitTaskData) {
         return;
@@ -298,7 +231,7 @@ void savePathForWaitingTask(CTaskSelectUnit* task, game::ITask* waitTask)
     const auto* data = task->data;
     auto* phaseGame = data->phaseGame;
 
-    const auto* sourcePath = static_cast<const CPath*>(data->path);
+    const auto* sourcePath = static_cast<const game::CPath*>(data->path);
     if (!phaseGame || !sourcePath || !sourcePath->data
         || sourcePath->data->phaseGame != phaseGame || waitTaskData->phaseGame != phaseGame) {
         return;
@@ -321,7 +254,7 @@ void savePathForWaitingTask(CTaskSelectUnit* task, game::ITask* waitTask)
 
     destroyWaitingPath(*fn);
 
-    auto* path = static_cast<CPath*>(Memory::get().allocate(sizeof(CPath)));
+    auto* path = static_cast<game::CPath*>(Memory::get().allocate(sizeof(game::CPath)));
     if (!path) {
         spdlog::warn("Could not allocate a movement path preview while waiting");
         return;
@@ -342,7 +275,7 @@ void __fastcall taskManagerSetCurrentTaskHooked(game::CTaskManager* thisptr,
                                                  int,
                                                  game::ITask* nextTask)
 {
-    const auto* fn = getFunctions();
+    const auto* fn = game::WaitingMovementPathApi::get();
     auto* currentTask = thisptr && thisptr->data ? thisptr->data->currentTask : nullptr;
 
     if (fn && currentTask && nextTask && currentTask->vftable == fn->taskSelectUnitVftable
@@ -359,7 +292,7 @@ void __fastcall taskManagerSetCurrentTaskHooked(game::CTaskManager* thisptr,
 void __fastcall taskWaitDestructorHooked(game::ITask* thisptr, int, char flags)
 {
     if (waitingPath.task == thisptr) {
-        const auto* fn = getFunctions();
+        const auto* fn = game::WaitingMovementPathApi::get();
         if (fn) {
             destroyWaitingPath(*fn);
         } else {
@@ -375,7 +308,7 @@ bool __fastcall taskWaitHandleMouseHooked(game::ITask* thisptr,
                                            std::uint32_t mouseButton,
                                           const game::CMqPoint* mousePosition)
 {
-    const auto* fn = getFunctions();
+    const auto* fn = game::WaitingMovementPathApi::get();
 
     if (fn && mouseButton == leftMouseButtonDown && mousePosition && getLivePreviewStack(thisptr)) {
         game::CMqPoint mapPosition{};
@@ -396,7 +329,7 @@ bool __fastcall taskWaitHandleMouseHooked(game::ITask* thisptr,
 
 void addWaitingMovementPathHooks(Hooks& hooks)
 {
-    const auto* fn = getFunctions();
+    const auto* fn = game::WaitingMovementPathApi::get();
     if (!fn) {
         return;
     }
@@ -410,7 +343,7 @@ void addWaitingMovementPathHooks(Hooks& hooks)
 
 void addWaitingMovementPathVftableHooks(Hooks& hooks)
 {
-    const auto* fn = getFunctions();
+    const auto* fn = game::WaitingMovementPathApi::get();
     if (!fn) {
         return;
     }

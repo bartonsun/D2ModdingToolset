@@ -1124,7 +1124,7 @@ Hooks getVftableHooks()
                                     (void**)&orig.encLayoutUnitHandleKeyboard});
     }
 
-    if (userSettings().movementDisplay.show
+    if (executableIsGame() && userSettings().movementDisplay.show
         && userSettings().movementDisplay.previewWhileWaiting) {
         addWaitingMovementPathVftableHooks(hooks);
     }
