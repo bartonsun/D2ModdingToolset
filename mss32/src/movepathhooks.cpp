@@ -19,6 +19,7 @@
 
 #include "movepathhooks.h"
 #include "dynamiccast.h"
+#include "fortification.h"
 #include "game.h"
 #include "gameimages.h"
 #include "gamesettings.h"
@@ -39,20 +40,23 @@
 #include "ussoldier.h"
 #include "usstackleader.h"
 #include "utils.h"
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <spdlog/spdlog.h>
 
-#include "scripts.h"
-#include <optional>
-#include <sol/sol.hpp>
-#include "stackview.h"
 #include "fortview.h"
 #include "ruinview.h"
+#include "scripts.h"
 #include "siteview.h"
+#include "stackview.h"
 #include <gameutils.h>
+#include <optional>
+#include <sol/sol.hpp>
 #include <usersettings.h>
+#include <waitingmovepathflag.h>
 #include <waitingmovepathhooks.h>
+#include <waitingmovepathplanner.h>
 
 namespace hooks {
 
@@ -176,27 +180,40 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
     if (stackLeader)
         maxMovement = stackLeader->vftable->getMovement(stackLeader);
 
-
     const bool noble = fn.castUnitImplToNoble(unitImpl) != nullptr;
 
     auto soldier = fn.castUnitImplToSoldier(unitImpl);
     const bool waterOnly = soldier->vftable->getWaterOnly(soldier);
 
     const CMqPoint* positionPtr{};
+    CMqPoint correctedLastReachablePoint{};
     bool pathLeadsToAction{};
     const game::CMidgardID* targetStackId = nullptr;
     const bool terrainOnlyPreview{isWaitingMovementPathPreview()};
     if (!a6) {
         positionPtr = lastReachablePoint;
-    } else if (!terrainOnlyPreview) {
+    } else {
         positionPtr = lastReachablePoint;
 
-        targetStackId = fn.getBlockingPathNearbyStackId(objectMap, plan, stack, lastReachablePoint,
-                                                        pathEnd, 0);
+        const bool targetTileVisible = !terrainOnlyPreview
+                                       || isWaitingMovementPathPreviewTileVisible(objectMap,
+                                                                                  pathEnd);
+        if (targetTileVisible) {
+            targetStackId = fn.getBlockingPathNearbyStackId(objectMap, plan, stack,
+                                                            lastReachablePoint, pathEnd, 0);
+        }
+
+        if (terrainOnlyPreview && targetStackId) {
+            const auto* targetStack = getStack(objectMap, targetStackId);
+            if (!targetStack || targetStack->invisible
+                || !isWaitingMovementPathPreviewTileVisible(objectMap, &targetStack->position)) {
+                targetStackId = nullptr;
+            }
+        }
 
         pathLeadsToAction = targetStackId != nullptr;
 
-        if (!pathLeadsToAction) {
+        if (!terrainOnlyPreview && !pathLeadsToAction) {
             CMqPoint entrance{};
             if (fn.getFortOrRuinEntrance(objectMap, plan, stack, pathEnd, &entrance)
                 && std::abs(lastReachablePoint->x - entrance.x) <= 1
@@ -204,8 +221,6 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
                 pathLeadsToAction = true;
             }
         }
-    } else {
-        positionPtr = lastReachablePoint;
     }
 
     const auto& pathApi = PathInfoListApi::get();
@@ -218,6 +233,114 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
         point.x = positionPtr->x;
         point.y = positionPtr->y;
         pathApi.populateFromPath(objectMap, stack, path, &point, waterOnly, &pathInfo);
+    }
+
+    const bool secondSegmentPreview = isWaitingMovementPathSecondSegmentPreview();
+    const auto stackPosition = fn.getStackPositionById(objectMap, stackId);
+    if (terrainOnlyPreview && !secondSegmentPreview) {
+        clearWaitingMovementPathBattleContext();
+    }
+
+    if (terrainOnlyPreview && !secondSegmentPreview && stack->insideId == emptyId && plan) {
+        const IdType fortType = IdType::Fortification;
+        const auto* fortId = CMidgardPlanApi::get().getObjectId(plan, pathEnd, &fortType);
+        const auto* fort = fortId ? getFort(objectMap, fortId) : nullptr;
+        CMqPoint entrance{};
+        if (fort && canEnterWaitingMovementPathFort(objectMap, stack, fort)
+            && isWaitingMovementPathPreviewTileVisible(objectMap, pathEnd)
+            && fn.getFortOrRuinEntrance(objectMap, plan, stack, pathEnd, &entrance)
+            && isWaitingMovementPathPreviewTileVisible(objectMap, &entrance)) {
+            auto* tail = pathInfo.head->prev;
+            if (tail != pathInfo.head && tail->data.position == entrance) {
+                tail->data.moveCostTotal = tail->prev == pathInfo.head
+                                               ? 0
+                                               : tail->prev->data.moveCostTotal;
+            }
+        }
+    }
+
+    if (terrainOnlyPreview && !secondSegmentPreview
+        && CMidgardIDApi::get().getType(&stack->insideId) == IdType::Fortification) {
+        const auto* fort = getFort(objectMap, &stack->insideId);
+        if (canExitWaitingMovementPathFort(stack, fort)) {
+            const auto entrance = getObjectEntrance(fort->mapElement.position,
+                                                    fort->mapElement.sizeX, fort->mapElement.sizeY);
+            PathInfoListNode* firstExitNode{};
+            int entranceCost{};
+            if (stackPosition == entrance) {
+                for (auto* node = pathInfo.head->next; node != pathInfo.head; node = node->next) {
+                    if (node->data.position == entrance) {
+                        entranceCost = node->data.moveCostTotal;
+                        continue;
+                    }
+
+                    firstExitNode = node;
+                    break;
+                }
+            }
+
+            if (firstExitNode && std::abs(firstExitNode->data.position.x - entrance.x) <= 1
+                && std::abs(firstExitNode->data.position.y - entrance.y) <= 1) {
+                const int freeExitCost = std::max(0,
+                                                  firstExitNode->data.moveCostTotal - entranceCost);
+                for (auto* node = firstExitNode; node != pathInfo.head; node = node->next) {
+                    node->data.moveCostTotal = std::max(0, node->data.moveCostTotal - freeExitCost);
+                }
+            }
+        }
+    }
+
+    if (terrainOnlyPreview && !secondSegmentPreview) {
+        correctedLastReachablePoint = stackPosition;
+        for (auto* node = pathInfo.head->next; node != pathInfo.head; node = node->next) {
+            if (node->data.moveCostTotal <= maxMovement) {
+                correctedLastReachablePoint = node->data.position;
+            }
+        }
+        positionPtr = &correctedLastReachablePoint;
+
+        if (a6 && plan) {
+            targetStackId = nullptr;
+            if (isWaitingMovementPathPreviewTileVisible(objectMap, pathEnd)) {
+                targetStackId = fn.getBlockingPathNearbyStackId(objectMap, plan, stack, positionPtr,
+                                                                pathEnd, 0);
+            }
+
+            if (targetStackId) {
+                const auto* targetStack = getStack(objectMap, targetStackId);
+                if (!targetStack || targetStack->invisible
+                    || !isWaitingMovementPathPreviewTileVisible(objectMap,
+                                                                &targetStack->position)) {
+                    targetStackId = nullptr;
+                }
+            }
+            pathLeadsToAction = targetStackId != nullptr;
+        }
+    }
+
+    if (terrainOnlyPreview) {
+        const int budget = secondSegmentPreview ? getWaitingMovementPathSecondSegmentBudget()
+                                                : maxMovement;
+        for (auto node = pathInfo.head->next; node != pathInfo.head; node = node->next) {
+            if (secondSegmentPreview) {
+                int cost{};
+                if (!getWaitingMovementPathSecondSegmentCost(&node->data.position, &cost)) {
+                    continue;
+                }
+
+                node->data.moveCostTotal = cost;
+            }
+
+            const int cost = node->data.moveCostTotal;
+            node->data.turnsToReach = cost <= budget || maxMovement <= 0
+                                          ? 0
+                                          : 1 + (cost - budget - 1) / maxMovement;
+        }
+    }
+
+    if (terrainOnlyPreview) {
+        spdlog::debug("Waiting movement path preview render prepared: path={}, display={}",
+                      path->length, pathInfo.length);
     }
 
     const auto& imagesApi = GameImagesApi::get();
@@ -242,7 +365,6 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
     bool pathAllowed{};
     bool waterOnlyToLand{};
 
-    const auto stackPosition = fn.getStackPositionById(objectMap, stackId);
     bool v61 = *positionPtr != stackPosition;
 
     int turnNumber{};
@@ -253,13 +375,26 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
 
     CIsoLayer customLayer = *isoLayers().symMovePath;
     customLayer.value *= 3;
+    CIsoLayer secondSegmentLayer = *isoLayers().symMovePath;
+    secondSegmentLayer.value *= 4;
 
-   // Always clear previous path images, even if alt is pressed, because we need to hide previous
-    // path images from the default layer.
+    const bool waitingPreviewActive = isWaitingMovementPathPreviewActive();
     MapGraphicsApi::get().hideLayerImages(isoLayers().symMovePath);
-    MapGraphicsApi::get().hideLayerImages(&customLayer);
+    if (secondSegmentPreview) {
+        MapGraphicsApi::get().hideLayerImages(&secondSegmentLayer);
+    } else if (terrainOnlyPreview) {
+        MapGraphicsApi::get().hideLayerImages(&customLayer);
+    } else if (!waitingPreviewActive) {
+        MapGraphicsApi::get().hideLayerImages(&customLayer);
+        MapGraphicsApi::get().hideLayerImages(&secondSegmentLayer);
+    }
 
-    const CIsoLayer* drawLayer = altPressed ? &customLayer : isoLayers().symMovePath;
+    const CIsoLayer* drawLayer = secondSegmentPreview ? &secondSegmentLayer
+                                 : terrainOnlyPreview || (altPressed && !waitingPreviewActive)
+                                     ? &customLayer
+                                     : isoLayers().symMovePath;
+
+    std::uint32_t imagesShown{};
 
     for (auto node = pathInfo.head->next; node != pathInfo.head;
          node = node->next, firstNode = false, ++index) {
@@ -283,21 +418,34 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
             }
         }
 
-        // Blue flag
+        const bool endOfPath{currentPosition == *positionPtr};
+        const int secondSegmentBudget = secondSegmentPreview
+                                            ? getWaitingMovementPathSecondSegmentBudget()
+                                            : 0;
+        const int waitingBudget = secondSegmentPreview ? secondSegmentBudget : maxMovement;
+        const int nodeCost = node->data.moveCostTotal;
+        const bool waitingNodeReachable = !terrainOnlyPreview || nodeCost <= waitingBudget;
+        const bool waitingActionReachable = terrainOnlyPreview && endOfPath && pathLeadsToAction
+                                            && nodeCost < waitingBudget;
+
         const char* imageName = "MOVENORMAL";
-        if (!v61) {
-            // Red flag
-            imageName = "MOVEOUT";
-            if (!pathLeadsToAction) {
-                // White flag
+        bool useGrayWaitingFlag{};
+        if (terrainOnlyPreview) {
+            if (!waitingNodeReachable
+                || (endOfPath && pathLeadsToAction && !waitingActionReachable)) {
                 imageName = "MOVEACTION";
+            } else if (waitingActionReachable) {
+                imageName = noble ? "MOVENEGO" : "MOVEBATTLE";
+            } else {
+                useGrayWaitingFlag = true;
             }
+        } else if (!v61) {
+            imageName = pathLeadsToAction ? "MOVEOUT" : "MOVEACTION";
         }
 
-        const bool endOfPath{currentPosition == *positionPtr};
         if (endOfPath) {
             v61 = false;
-            if (pathLeadsToAction) {
+            if (!terrainOnlyPreview && pathLeadsToAction) {
                 // Red flag with a scroll, noble actions
                 imageName = "MOVENEGO";
 
@@ -311,15 +459,24 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
         if (!pathAllowed) {
             // Crossed out white flag, when path of water only stack leads to the land
             imageName = "MOVEINCMP";
+            useGrayWaitingFlag = false;
         }
 
-        auto flagImage = imagesApi.getImage(images->isoCmon, imageName, 0, true, images->log);
+        game::IMqImage2* flagImage{};
+        if (useGrayWaitingFlag) {
+            flagImage = createWaitingMovementPathGrayFlag();
+        }
+        if (!flagImage) {
+            flagImage = imagesApi.getImage(images->isoCmon, imageName, 0, true, images->log);
+        }
         if (!flagImage) {
             continue;
         }
 
         const auto imagesCount{flagImage->vftable->getImagesCount(flagImage)};
-        flagImage->vftable->setImageIndex(flagImage, index % imagesCount);
+        if (imagesCount > 0) {
+            flagImage->vftable->setImageIndex(flagImage, index % imagesCount);
+        }
 
         CImage2Text* turnNumberImage{};
 
@@ -375,15 +532,23 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
             moveCostImage = static_cast<CImage2Text*>(memAlloc(sizeof(CImage2Text)));
             CImage2TextApi::get().constructor(moveCostImage, 64, 64);
 
-            std::string moveText = fmt::format("{}", node->data.moveCostTotal);
+            const int spent = node->data.moveCostTotal;
+            std::string moveText = secondSegmentPreview
+                                       ? fmt::format("{}", std::max(0, secondSegmentBudget - spent))
+                                       : fmt::format("{}", spent);
 
-            const bool isActionFlag = endOfPath && pathLeadsToAction;
+            const bool isActionFlag = terrainOnlyPreview ? waitingActionReachable
+                                                         : endOfPath && pathLeadsToAction;
 
-            if (isActionFlag && userSettings().movementDisplay.showMovementAfterAction) {
-
-                const int spent = node->data.moveCostTotal;
-
-                const int remaining = std::max(0, static_cast<int>(stack->movement) - spent);
+            if (isActionFlag) {
+                int currentMovement = static_cast<int>(stack->movement);
+                if (terrainOnlyPreview) {
+                    currentMovement = maxMovement;
+                }
+                if (secondSegmentPreview) {
+                    currentMovement = getWaitingMovementPathSecondSegmentBudget();
+                }
+                const int remaining = std::max(0, currentMovement - spent);
 
                 //
                 // Default formula
@@ -391,74 +556,97 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
 
                 int movementAfterAction = std::max(0, remaining - (maxMovement + 1) / 2);
 
-                //
-                // Lazy load
-                //
-
-                if (!movementActionPenaltyLua) {
-
-                    const auto path{scriptsFolder() / "movement.lua"};
-
-                    movementActionPenaltyLua = getScriptFunction(path, "movementAfterAction", env,
-                                                                 false, true);
+                if (terrainOnlyPreview && !secondSegmentPreview && targetStackId) {
+                    setWaitingMovementPathBattleContext(&currentPosition, targetStackId,
+                                                        movementAfterAction, maxMovement);
                 }
 
-                //
-                // Lua override
-                //
+                if (terrainOnlyPreview || userSettings().movementDisplay.showMovementAfterAction) {
+                    //
+                    // Lazy load
+                    //
 
-                if (movementActionPenaltyLua) {
+                    if (!movementActionPenaltyLua) {
 
-                    try {
+                        const auto path{scriptsFolder() / "movement.lua"};
 
-                        sol::state_view lua(movementActionPenaltyLua->lua_state());
+                        movementActionPenaltyLua = getScriptFunction(path, "movementAfterAction",
+                                                                     env, false, true);
+                    }
 
-                        sol::table movementContext = lua.create_table();
+                    //
+                    // Lua override
+                    //
 
-                        movementContext["stack"] = bindings::StackView(stack, objectMap);
+                    if (movementActionPenaltyLua) {
 
-                        movementContext["maxMovement"] = maxMovement;
+                        try {
 
-                        movementContext["currentMovement"] = static_cast<int>(stack->movement);
+                            sol::state_view lua(movementActionPenaltyLua->lua_state());
 
-                        movementContext["spentMovement"] = static_cast<int>(spent);
+                            sol::table movementContext = lua.create_table();
 
-                        movementContext["remainingMovement"] = static_cast<int> (remaining);
+                            movementContext["stack"] = bindings::StackView(stack, objectMap);
 
-                        movementContext["afterActionMovement"] = static_cast<int>(movementAfterAction);
+                            movementContext["maxMovement"] = maxMovement;
 
-                        fillMovementTargetContext(movementContext, objectMap, plan, pathEnd,
-                                                  targetStackId);
+                            movementContext["currentMovement"] = currentMovement;
 
-                        sol::object result = (*movementActionPenaltyLua)(movementContext);
+                            movementContext["spentMovement"] = static_cast<int>(spent);
 
-                        if (result.is<std::int32_t>()) {
-                            movementAfterAction = result.as<std::int32_t>();
-                        }
+                            movementContext["remainingMovement"] = static_cast<int>(remaining);
 
-                    } catch (const std::exception& e) {
+                            movementContext["afterActionMovement"] = static_cast<int>(
+                                movementAfterAction);
 
-                        // Force reload on next call.
-                        movementActionPenaltyLua.reset();
-                        env.reset();
+                            fillMovementTargetContext(movementContext, objectMap, plan, pathEnd,
+                                                      targetStackId);
 
-                        spdlog::error("[MOVEMENT] movement.lua: {}", e.what());
+                            sol::object result = (*movementActionPenaltyLua)(movementContext);
 
-                        if (!movementActionPenaltyLuaErrorShown) {
+                            if (result.is<std::int32_t>()) {
+                                movementAfterAction = result.as<std::int32_t>();
+                            }
 
-                            movementActionPenaltyLuaErrorShown = true;
+                        } catch (const std::exception& e) {
 
-                            const auto path{scriptsFolder() / "movement.lua"};
+                            // Force reload on next call.
+                            movementActionPenaltyLua.reset();
+                            env.reset();
 
-                            showErrorMessageBox(fmt::format("Failed to run "
-                                                            "'{:s}' script.\n"
-                                                            "Reason: '{:s}'",
-                                                            path.string(), e.what()));
+                            spdlog::error("[MOVEMENT] movement.lua: {}", e.what());
+
+                            if (!movementActionPenaltyLuaErrorShown) {
+
+                                movementActionPenaltyLuaErrorShown = true;
+
+                                const auto path{scriptsFolder() / "movement.lua"};
+
+                                showErrorMessageBox(fmt::format("Failed to run "
+                                                                "'{:s}' script.\n"
+                                                                "Reason: '{:s}'",
+                                                                path.string(), e.what()));
+                            }
                         }
                     }
+
+                    if (terrainOnlyPreview && !secondSegmentPreview && targetStackId) {
+                        setWaitingMovementPathBattleContext(&currentPosition, targetStackId,
+                                                            movementAfterAction, maxMovement);
+                    }
+
+                    moveText = secondSegmentPreview
+                                   ? fmt::format("{} ({})", remaining, movementAfterAction)
+                                   : fmt::format("{} ({})", spent, movementAfterAction);
                 }
 
-                moveText = fmt::format("{} ({})", spent, movementAfterAction);
+                if (terrainOnlyPreview) {
+                    spdlog::debug(
+                        "Waiting movement path preview battle budget: segment={}, current={}, "
+                        "spent={}, penalty={}, after={}",
+                        secondSegmentPreview ? 2 : 1, currentMovement, spent, (maxMovement + 1) / 2,
+                        movementAfterAction);
+                }
             }
 
             const auto moveCostString = fmt::format(
@@ -487,6 +675,11 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
         pos.y = currentPosition.y;
 
         MapGraphicsApi::get().showImageOnMap(&pos, drawLayer, multilayerImg, 0, 0);
+        ++imagesShown;
+    }
+
+    if (terrainOnlyPreview) {
+        spdlog::debug("Waiting movement path preview rendered: images={}", imagesShown);
     }
 
     imagesApi.createOrFreeGameImages(&imagesPtr, nullptr);
@@ -521,15 +714,42 @@ int __stdcall computeMovementCostHooked(const game::CMqPoint* mapPosition,
         return movementForbidden;
     }
 
-    const bool pred1 = !a6 || !((1 << (x & 7)) & a6[18 * y + (x >> 3)]);
-    if (!pred1) {
+    const bool terrainOnlyPreview{isWaitingMovementPathPreview()};
+    if (terrainOnlyPreview && !isWaitingMovementPathPreviewTileVisible(objectMap, mapPosition)) {
         return movementForbidden;
     }
 
-    const bool terrainOnlyPreview{isWaitingMovementPathPreview()};
-    if (terrainOnlyPreview
-        && !isWaitingMovementPathPreviewTileVisible(objectMap, mapPosition)) {
-        return movementForbidden;
+    const bool pred1 = !a6 || !((1 << (x & 7)) & a6[18 * y + (x >> 3)]);
+    if (!pred1) {
+        const IdType bagType = IdType::Bag;
+        const IdType stackType = IdType::Stack;
+        static const std::array<IdType, 7> blockingObjectTypes{{
+            IdType::Fortification,
+            IdType::Landmark,
+            IdType::Site,
+            IdType::Ruin,
+            IdType::Tomb,
+            IdType::Rod,
+            IdType::Crystal,
+        }};
+        const auto& planApi = CMidgardPlanApi::get();
+        const auto* stackAtPosition = planApi.getObjectId(plan, mapPosition, &stackType);
+        const auto* blockingStack = stackAtPosition ? getStack(objectMap, stackAtPosition)
+                                                    : nullptr;
+        const auto* previewStack = getStack(objectMap, stackId);
+        const bool sameStack = stackAtPosition && isIdsEqualOrBothNull(stackAtPosition, stackId);
+        const bool hiddenForeignStack = blockingStack && previewStack && blockingStack->invisible
+                                        && blockingStack->ownerId != previewStack->ownerId;
+        const bool stackPassable = !stackAtPosition || sameStack || hiddenForeignStack;
+        const bool bypassReason = planApi.getObjectId(plan, mapPosition, &bagType) || sameStack
+                                  || hiddenForeignStack;
+        const bool passablePreviewTile = terrainOnlyPreview && stackPassable && bypassReason
+                                         && !planApi.isPositionContainsObjects(
+                                             plan, mapPosition, blockingObjectTypes.data(),
+                                             std::size(blockingObjectTypes));
+        if (!passablePreviewTile) {
+            return movementForbidden;
+        }
     }
 
     bool road{};

@@ -15,6 +15,7 @@
 #include "hooks.h"
 
 namespace game {
+struct CMidgardID;
 struct CMqPoint;
 struct IMidgardObjectMap;
 } // namespace game
@@ -23,9 +24,24 @@ namespace hooks {
 
 void addWaitingMovementPathHooks(Hooks& hooks);
 
-void addWaitingMovementPathVftableHooks(Hooks& hooks);
+void stopWaitingMovementPathPreview();
+
+bool isWaitingMovementPathPreviewActive();
 
 bool isWaitingMovementPathPreview();
+
+bool isWaitingMovementPathSecondSegmentPreview();
+
+int getWaitingMovementPathSecondSegmentBudget();
+
+bool getWaitingMovementPathSecondSegmentCost(const game::CMqPoint* mapPosition, int* cost);
+
+void setWaitingMovementPathBattleContext(const game::CMqPoint* anchor,
+                                         const game::CMidgardID* targetStackId,
+                                         int remainingMovement,
+                                         int maxMovement);
+
+void clearWaitingMovementPathBattleContext();
 
 bool isWaitingMovementPathPreviewTileVisible(const game::IMidgardObjectMap* objectMap,
                                              const game::CMqPoint* mapPosition);

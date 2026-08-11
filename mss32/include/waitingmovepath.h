@@ -50,10 +50,10 @@ struct Api
                                          bool a4);
 
     ITaskVftable* taskSelectUnitVftable;
+    ITaskVftable* taskSelectCityVftable;
     ITaskVftable* taskWaitVftable;
     ITaskVftable* taskMsgBoxVftable;
     ITaskVftable* midNullTaskVftable;
-    ITaskVftable::Destructor taskWaitDestructor;
     PathConstructor pathConstructor;
     PathDestructor pathDestructor;
     PathUpdate pathUpdate;
