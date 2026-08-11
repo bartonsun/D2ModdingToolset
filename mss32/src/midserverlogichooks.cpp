@@ -21,15 +21,19 @@
 #include "cmdmovestackendmsg.h"
 #include "dynamiccast.h"
 #include "exchangeresourcesmsg.h"
+#include "game.h"
 #include "gameutils.h"
 #include "idset.h"
 #include "logutils.h"
+#include "midgardplan.h"
 #include "midgardscenariomap.h"
 #include "midplayer.h"
+#include "midruin.h"
 #include "midserver.h"
 #include "midserverlogic.h"
 #include "midsiteresourcemarket.h"
 #include "midstack.h"
+#include "visitors.h"
 #include "netmsgcallbacks.h"
 #include "netmsgmapentryexchangeresourcesmsg.h"
 #include "netplayerinfo.h"
@@ -231,15 +235,49 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
     const ScopedTimer timer{std::string_view{message, result.size}, eventsPerformanceLog};
 #endif
 
+    auto objectMap = CMidServerLogicApi::get().getObjectMap(*thisptr);
+    const CMidStack* stackBefore = getStack(objectMap, stackId);
+    const int movementBefore = stackBefore ? static_cast<int>(stackBefore->movement) : -1;
+
+    bool lootedRuinBeforeMove = false;
+    if (endPoint) {
+        if (auto plan = getMidgardPlan(objectMap)) {
+            const IdType ruinType = IdType::Ruin;
+            if (const auto* ruinId = CMidgardPlanApi::get().getObjectId(plan, endPoint,
+                                                                         &ruinType)) {
+                if (const auto* ruin = getRuin(objectMap, ruinId)) {
+                    lootedRuinBeforeMove = ruin->looterId != emptyId;
+                }
+            }
+        }
+    }
+
     auto result = getOriginalFunctions().stackMove(thisptr, playerId, movementPath, stackId,
                                                    startingPoint, endPoint);
 
-    // We can actually fall into battle message loop while processing stack move. This means that we
-    // will be holding player's CMidObjectLock until battle ends. Should not be a problem since the
-    // player will be switched to the battlefield and won't be able to interract with mid objects
-    // anyway (but if turned out that this is a problem, we can send CCmdMoveStackEndMsg right after
-    // CCmdBattleStartMsg and alike).
-    // The same applies to other effects like event triggers.
+    if (result && lootedRuinBeforeMove && movementBefore >= 0) {
+        const CMidStack* stackAfter = getStack(objectMap, stackId);
+        if (stackAfter) {
+            const int spent = movementBefore - static_cast<int>(stackAfter->movement);
+            if (spent > 0) {
+                auto leaderUnit = gameFunctions().findUnitById(objectMap, &stackAfter->leaderId);
+                int maxMovement = 0;
+                if (leaderUnit) {
+                    auto leader = gameFunctions().castUnitImplToStackLeader(leaderUnit->unitImpl);
+                    if (leader) {
+                        maxMovement = leader->vftable->getMovement(leader);
+                    }
+                }
+                const int half = maxMovement > 0 ? (maxMovement + 1) / 2 : 0;
+                const int refund = half < spent ? half : spent;
+                if (refund > 0) {
+                    VisitorApi::get().changeStackMoveAllowance(
+                        stackId, -refund, const_cast<IMidgardObjectMap*>(objectMap), 1);
+                }
+            }
+        }
+    }
+
     IMidMsgSender* sender = *thisptr;
     CCmdMoveStackEndMsg message;
     if (!sender->vftable->sendMessage(sender, &message, true)) {
