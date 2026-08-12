@@ -33,6 +33,7 @@
 #include "midserverlogic.h"
 #include "midsiteresourcemarket.h"
 #include "midstack.h"
+#include "usstackleader.h"
 #include "visitors.h"
 #include "netmsgcallbacks.h"
 #include "netmsgmapentryexchangeresourcesmsg.h"
@@ -272,7 +273,7 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
                 const int refund = half < spent ? half : spent;
                 if (refund > 0) {
                     VisitorApi::get().changeStackMoveAllowance(
-                        stackId, -refund, const_cast<IMidgardObjectMap*>(objectMap), 1);
+                        stackId, -refund, static_cast<IMidgardObjectMap*>(objectMap), 1);
                 }
             }
         }
