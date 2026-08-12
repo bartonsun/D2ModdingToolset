@@ -37,7 +37,8 @@ int getWaitingMovementPathSecondSegmentBudget();
 bool getWaitingMovementPathSecondSegmentCost(const game::CMqPoint* mapPosition, int* cost);
 
 void setWaitingMovementPathBattleContext(const game::CMqPoint* anchor,
-                                         const game::CMidgardID* targetStackId,
+                                         const game::CMidgardID* targetId,
+                                         const game::CMqPoint* targetPosition,
                                          int remainingMovement,
                                          int maxMovement);
 

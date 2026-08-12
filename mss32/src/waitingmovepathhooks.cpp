@@ -125,7 +125,8 @@ struct WaitingPath
 struct BattlePreviewContext
 {
     game::CMqPoint anchor;
-    game::CMidgardID targetStackId;
+    game::CMidgardID targetId;
+    game::CMqPoint targetPosition;
     int remainingMovement;
     int maxMovement;
     bool valid;
@@ -381,21 +382,25 @@ void savePendingWaitingPath(game::CTaskManager* taskManager, CTaskSelectUnit* ta
 
     auto* phaseGame = task->data->phaseGame;
     const auto* objectMap = CPhaseApi::get().getDataCache(&phaseGame->phase);
-    const auto* stack = getSelectedStack(task->data, objectMap);
     const auto* localPlayerId = getLocalPlayerId();
-    if (!stack || !stack->leaderAlive || !localPlayerId || stack->ownerId != *localPlayerId
-        || CMidgardIDApi::get().getType(&stack->id) != IdType::Stack) {
-        return;
-    }
-
-    if (!objectMap->vftable->findScenarioObjectById(objectMap, &stack->leaderId)) {
+    if (!objectMap || !localPlayerId) {
         return;
     }
 
     pendingWaitingPath.taskManager = taskManager;
     pendingWaitingPath.phaseGame = phaseGame;
+    pendingWaitingPath.stackId = emptyId;
+    pendingWaitingPath.ownerId = *localPlayerId;
+    pendingWaitingPath.leaderId = emptyId;
+
+    const auto* stack = getSelectedStack(task->data, objectMap);
+    if (!stack || !stack->leaderAlive || stack->ownerId != *localPlayerId
+        || CMidgardIDApi::get().getType(&stack->id) != IdType::Stack
+        || !objectMap->vftable->findScenarioObjectById(objectMap, &stack->leaderId)) {
+        return;
+    }
+
     pendingWaitingPath.stackId = stack->id;
-    pendingWaitingPath.ownerId = stack->ownerId;
     pendingWaitingPath.leaderId = stack->leaderId;
     spdlog::debug("Waiting movement path preview selection captured");
 }
@@ -404,6 +409,7 @@ void savePendingFortifiedStack(game::CTaskManager* taskManager, game::CPhaseGame
 {
     using namespace game;
 
+    pendingWaitingPath = {};
     if (!taskManager || !phaseGame) {
         return;
     }
@@ -413,6 +419,12 @@ void savePendingFortifiedStack(game::CTaskManager* taskManager, game::CPhaseGame
     if (!objectMap || !localPlayerId) {
         return;
     }
+
+    pendingWaitingPath.taskManager = taskManager;
+    pendingWaitingPath.phaseGame = phaseGame;
+    pendingWaitingPath.stackId = emptyId;
+    pendingWaitingPath.ownerId = *localPlayerId;
+    pendingWaitingPath.leaderId = emptyId;
 
     CMidgardID playerId{*localPlayerId};
     const auto* capital = gameFunctions().findCapitalByPlayerId(&playerId,
@@ -449,10 +461,7 @@ void savePendingFortifiedStack(game::CTaskManager* taskManager, game::CPhaseGame
         return;
     }
 
-    pendingWaitingPath.taskManager = taskManager;
-    pendingWaitingPath.phaseGame = phaseGame;
     pendingWaitingPath.stackId = selectedStack->id;
-    pendingWaitingPath.ownerId = selectedStack->ownerId;
     pendingWaitingPath.leaderId = selectedStack->leaderId;
     spdlog::debug("Waiting movement path preview fortified stack captured");
 }
@@ -511,13 +520,20 @@ void activateWaitingPath(game::CTaskManager* taskManager, game::ITask* waitTask)
         return;
     }
 
-    const auto* objectMap = CPhaseApi::get().getDataCache(&pending.phaseGame->phase);
-    const auto* stack = objectMap ? getStack(objectMap, &pending.stackId) : nullptr;
     const auto* localPlayerId = getLocalPlayerId();
-    if (!stack || !stack->leaderAlive || !localPlayerId || stack->ownerId != *localPlayerId
-        || stack->ownerId != pending.ownerId || stack->leaderId != pending.leaderId
-        || !objectMap->vftable->findScenarioObjectById(objectMap, &stack->leaderId)) {
+    if (!localPlayerId || *localPlayerId != pending.ownerId) {
         return;
+    }
+
+    const auto* objectMap = CPhaseApi::get().getDataCache(&pending.phaseGame->phase);
+    const bool stackSelected = CMidgardIDApi::get().getType(&pending.stackId) == IdType::Stack;
+    if (stackSelected) {
+        const auto* stack = objectMap ? getStack(objectMap, &pending.stackId) : nullptr;
+        if (!stack || !stack->leaderAlive || stack->ownerId != *localPlayerId
+            || stack->ownerId != pending.ownerId || stack->leaderId != pending.leaderId
+            || !objectMap->vftable->findScenarioObjectById(objectMap, &stack->leaderId)) {
+            return;
+        }
     }
 
     destroyWaitingPath(*fn, "replaced");
@@ -535,6 +551,79 @@ void activateWaitingPath(game::CTaskManager* taskManager, game::ITask* waitTask)
         spdlog::warn("Could not start movement path preview updates while waiting");
         destroyWaitingPath(*fn, "update event failed");
     }
+}
+
+bool trySelectWaitingPreviewStack(const game::CMqPoint* screenPosition, bool* visualChanged)
+{
+    using namespace game;
+
+    if (visualChanged) {
+        *visualChanged = false;
+    }
+
+    if (!screenPosition || !waitingPath.phase || !waitingPath.phaseGame
+        || !waitingPath.phaseGame->data || waitingPath.phaseGame->data->clientTakesTurn
+        || !isWaitingPathPhaseCurrent()) {
+        return false;
+    }
+
+    const auto* localPlayerId = getLocalPlayerId();
+    const auto* objectMap = CPhaseApi::get().getDataCache(&waitingPath.phaseGame->phase);
+    const auto* plan = objectMap ? gameFunctions().getMidgardPlan(objectMap) : nullptr;
+    if (!localPlayerId || !objectMap || !plan || waitingPath.ownerId != *localPlayerId) {
+        return false;
+    }
+
+    CMqPoint mapPosition{};
+    if (!convertScreenPositionToMap(screenPosition, &mapPosition)) {
+        return false;
+    }
+
+    ScopedWaitingMovementPathPreview preview{localPlayerId};
+    if (!isWaitingMovementPathPreviewTileVisible(objectMap, &mapPosition)) {
+        return false;
+    }
+
+    const IdType stackType = IdType::Stack;
+    const auto* stackId = CMidgardPlanApi::get().getObjectId(plan, &mapPosition, &stackType);
+    const auto* stack = stackId ? getStack(objectMap, stackId) : nullptr;
+    if (!stack || stack->ownerId != *localPlayerId || !stack->leaderAlive
+        || CMidgardIDApi::get().getType(&stack->id) != IdType::Stack
+        || !objectMap->vftable->findScenarioObjectById(objectMap, &stack->leaderId)) {
+        return false;
+    }
+    if (stack->id == waitingPath.stackId) {
+        return true;
+    }
+
+    const bool hadVisiblePath = waitingPath.lastUpdateSucceeded || !secondSegmentPath.empty();
+    if (waitingPath.path) {
+        const auto* fn = WaitingMovementPathApi::get();
+        if (!fn) {
+            return false;
+        }
+
+        fn->pathDestructor(waitingPath.path);
+        Memory::get().freeNonZero(waitingPath.path);
+        waitingPath.path = nullptr;
+    }
+
+    resetBattlePreview();
+    clearMovementPathImages();
+    waitingPath.stackId = stack->id;
+    waitingPath.ownerId = stack->ownerId;
+    waitingPath.leaderId = stack->leaderId;
+    waitingPath.lastMapPositionValid = false;
+    waitingPath.lastPathModeValid = false;
+    waitingPath.liveStackValidated = false;
+    waitingPath.lastUpdateSucceeded = false;
+    waitingPath.pathUpdateSucceededLogged = false;
+    waitingPath.pathUpdateFailedLogged = false;
+    waitingPath.liveStateClearLogged = false;
+    if (visualChanged) {
+        *visualChanged = hadVisiblePath;
+    }
+    return true;
 }
 
 bool ensureWaitingPathCreated()
@@ -665,6 +754,15 @@ bool updateWaitingPathPreview(const game::CMqPoint* screenPosition)
             && isWaitingMovementPathPreviewTileVisible(objectMap, &target->position)) {
             pathMode = 0;
         }
+
+        const game::IdType ruinType = game::IdType::Ruin;
+        const auto* ruinId = plan ? game::CMidgardPlanApi::get().getObjectId(
+                                       plan, &mapPosition, &ruinType)
+                                  : nullptr;
+        if (ruinId && getRuin(objectMap, ruinId)
+            && isWaitingMovementPathPreviewTileVisible(objectMap, &mapPosition)) {
+            pathMode = 0;
+        }
     }
 
     if (samePosition && waitingPath.lastUpdateSucceeded && waitingPath.lastPathModeValid
@@ -701,20 +799,47 @@ bool updateSecondSegmentPreview(const game::CMqPoint* screenPosition)
         return false;
     }
 
-    const auto* firstTarget = getStack(objectMap, &battlePreviewContext.targetStackId);
-    if (!firstTarget || firstTarget->invisible
-        || !isWaitingMovementPathPreviewTileVisible(objectMap, &firstTarget->position)
-        || std::abs(firstTarget->position.x - battlePreviewContext.anchor.x) > 1
-        || std::abs(firstTarget->position.y - battlePreviewContext.anchor.y) > 1) {
-        battlePreviewContext = {};
-        return clearSecondSegmentPreview();
-    }
-
     const auto& fn = gameFunctions();
     const auto* plan = fn.getMidgardPlan(objectMap);
     if (!plan) {
         return false;
     }
+
+    const auto targetType = CMidgardIDApi::get().getType(&battlePreviewContext.targetId);
+    if (targetType == IdType::Stack) {
+        const auto* firstTarget = getStack(objectMap, &battlePreviewContext.targetId);
+        if (!firstTarget || firstTarget->invisible
+            || !isWaitingMovementPathPreviewTileVisible(objectMap, &firstTarget->position)
+            || std::abs(firstTarget->position.x - battlePreviewContext.anchor.x) > 1
+            || std::abs(firstTarget->position.y - battlePreviewContext.anchor.y) > 1) {
+            battlePreviewContext = {};
+            return clearSecondSegmentPreview();
+        }
+    } else if (targetType == IdType::Ruin) {
+        const auto* ruin = getRuin(objectMap, &battlePreviewContext.targetId);
+        const IdType ruinType = IdType::Ruin;
+        const auto* ruinId = CMidgardPlanApi::get().getObjectId(
+            plan, &battlePreviewContext.targetPosition, &ruinType);
+        CMqPoint entrance{};
+        if (!ruin || !ruinId || *ruinId != battlePreviewContext.targetId
+            || !isWaitingMovementPathPreviewTileVisible(objectMap,
+                                                        &battlePreviewContext.targetPosition)
+            || !fn.getFortOrRuinEntrance(objectMap, plan, stack,
+                                          &battlePreviewContext.targetPosition, &entrance)
+            || !isWaitingMovementPathPreviewTileVisible(objectMap, &entrance)
+            || std::abs(entrance.x - battlePreviewContext.anchor.x) > 1
+            || std::abs(entrance.y - battlePreviewContext.anchor.y) > 1) {
+            battlePreviewContext = {};
+            return clearSecondSegmentPreview();
+        }
+    } else {
+        battlePreviewContext = {};
+        return clearSecondSegmentPreview();
+    }
+
+    const auto* ignoredStackId = targetType == IdType::Stack
+                                     ? &battlePreviewContext.targetId
+                                     : nullptr;
 
     const IdType stackType = IdType::Stack;
     const auto* clickedStackId = CMidgardPlanApi::get().getObjectId(plan, &destination, &stackType);
@@ -731,7 +856,7 @@ bool updateSecondSegmentPreview(const game::CMqPoint* screenPosition)
                                           &clickedPlayer->raceType->data->raceType);
     const bool visibleActionTarget = clickedStack && !clickedStack->invisible
                                      && clickedStack->ownerId != stack->ownerId
-                                     && clickedStack->id != battlePreviewContext.targetStackId
+                                     && clickedStack->id != battlePreviewContext.targetId
                                      && !allied;
 
     WaitingMovementPath planned;
@@ -752,7 +877,7 @@ bool updateSecondSegmentPreview(const game::CMqPoint* screenPosition)
         for (const auto& offset : offsets) {
             const CMqPoint endpoint = destination + offset;
             auto candidate = planWaitingMovementPath(objectMap, stack, battlePreviewContext.anchor,
-                                                     endpoint, &battlePreviewContext.targetStackId);
+                                                     endpoint, ignoredStackId);
             if (candidate.empty()) {
                 continue;
             }
@@ -762,7 +887,8 @@ bool updateSecondSegmentPreview(const game::CMqPoint* screenPosition)
                                                                        &destination, 0);
             if (!actionTarget
                 || (*actionTarget != clickedStack->id
-                    && *actionTarget != battlePreviewContext.targetStackId)
+                    && (targetType != IdType::Stack
+                        || *actionTarget != battlePreviewContext.targetId))
                 || candidate.back().cumulativeCost >= bestCost) {
                 continue;
             }
@@ -773,7 +899,7 @@ bool updateSecondSegmentPreview(const game::CMqPoint* screenPosition)
         pathLeadsToAction = !planned.empty();
     } else {
         planned = planWaitingMovementPath(objectMap, stack, battlePreviewContext.anchor,
-                                          destination, &battlePreviewContext.targetStackId);
+                                          destination, ignoredStackId);
     }
 
     if (planned.empty()) {
@@ -895,9 +1021,16 @@ bool __fastcall waitingPathUpdateEventCallback(void*, int)
 
     game::CMqPoint mousePosition{};
     if (game::CUIManagerApi::get().getMousePosition(uiManager, &mousePosition)) {
-        const bool visualChanged = leftMouseButtonPressed
-                                       ? updateWaitingPathPreview(&mousePosition)
-                                       : updateSecondSegmentPreview(&mousePosition);
+        bool visualChanged{};
+        const bool stackSelected = leftMouseButtonPressed
+                                   && trySelectWaitingPreviewStack(&mousePosition, &visualChanged);
+        if (!stackSelected) {
+            if (leftMouseButtonPressed) {
+                visualChanged = updateWaitingPathPreview(&mousePosition);
+            } else {
+                visualChanged = updateSecondSegmentPreview(&mousePosition);
+            }
+        }
         if (visualChanged && uiManager->data && uiManager->data->uiKernel) {
             auto* kernel = uiManager->data->uiKernel;
             kernel->vftable->invalidateAndUpdate(kernel);
@@ -1055,17 +1188,19 @@ bool getWaitingMovementPathSecondSegmentCost(const game::CMqPoint* mapPosition, 
 }
 
 void setWaitingMovementPathBattleContext(const game::CMqPoint* anchor,
-                                         const game::CMidgardID* targetStackId,
+                                         const game::CMidgardID* targetId,
+                                         const game::CMqPoint* targetPosition,
                                          int remainingMovement,
                                          int maxMovement)
 {
-    if (!waitingPath.phase || !anchor || !targetStackId) {
+    if (!waitingPath.phase || !anchor || !targetId || !targetPosition) {
         battlePreviewContext = {};
         return;
     }
 
     battlePreviewContext.anchor = *anchor;
-    battlePreviewContext.targetStackId = *targetStackId;
+    battlePreviewContext.targetId = *targetId;
+    battlePreviewContext.targetPosition = *targetPosition;
     battlePreviewContext.remainingMovement = std::max(0, remainingMovement);
     battlePreviewContext.maxMovement = std::max(0, maxMovement);
     battlePreviewContext.valid = true;

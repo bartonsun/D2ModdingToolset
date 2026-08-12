@@ -189,6 +189,9 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
     CMqPoint correctedLastReachablePoint{};
     bool pathLeadsToAction{};
     const game::CMidgardID* targetStackId = nullptr;
+    const game::CMidgardID* actionTargetId = nullptr;
+    CMqPoint actionTargetPosition{};
+    bool actionTargetPositionValid{};
     const bool terrainOnlyPreview{isWaitingMovementPathPreview()};
     if (!a6) {
         positionPtr = lastReachablePoint;
@@ -312,9 +315,30 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
                     || !isWaitingMovementPathPreviewTileVisible(objectMap,
                                                                 &targetStack->position)) {
                     targetStackId = nullptr;
+                } else {
+                    actionTargetId = targetStackId;
+                    actionTargetPosition = targetStack->position;
+                    actionTargetPositionValid = true;
                 }
             }
             pathLeadsToAction = targetStackId != nullptr;
+
+            if (!pathLeadsToAction
+                && isWaitingMovementPathPreviewTileVisible(objectMap, pathEnd)) {
+                const IdType ruinType = IdType::Ruin;
+                const auto* ruinId = CMidgardPlanApi::get().getObjectId(plan, pathEnd, &ruinType);
+                CMqPoint entrance{};
+                if (ruinId && getRuin(objectMap, ruinId)
+                    && fn.getFortOrRuinEntrance(objectMap, plan, stack, pathEnd, &entrance)
+                    && isWaitingMovementPathPreviewTileVisible(objectMap, &entrance)
+                    && std::abs(positionPtr->x - entrance.x) <= 1
+                    && std::abs(positionPtr->y - entrance.y) <= 1) {
+                    pathLeadsToAction = true;
+                    actionTargetId = ruinId;
+                    actionTargetPosition = *pathEnd;
+                    actionTargetPositionValid = true;
+                }
+            }
         }
     }
 
@@ -556,9 +580,11 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
 
                 int movementAfterAction = std::max(0, remaining - (maxMovement + 1) / 2);
 
-                if (terrainOnlyPreview && !secondSegmentPreview && targetStackId) {
-                    setWaitingMovementPathBattleContext(&currentPosition, targetStackId,
-                                                        movementAfterAction, maxMovement);
+                if (terrainOnlyPreview && !secondSegmentPreview && actionTargetId
+                    && actionTargetPositionValid) {
+                    setWaitingMovementPathBattleContext(&currentPosition, actionTargetId,
+                                                        &actionTargetPosition, movementAfterAction,
+                                                        maxMovement);
                 }
 
                 if (terrainOnlyPreview || userSettings().movementDisplay.showMovementAfterAction) {
@@ -630,8 +656,10 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
                         }
                     }
 
-                    if (terrainOnlyPreview && !secondSegmentPreview && targetStackId) {
-                        setWaitingMovementPathBattleContext(&currentPosition, targetStackId,
+                    if (terrainOnlyPreview && !secondSegmentPreview && actionTargetId
+                        && actionTargetPositionValid) {
+                        setWaitingMovementPathBattleContext(&currentPosition, actionTargetId,
+                                                            &actionTargetPosition,
                                                             movementAfterAction, maxMovement);
                     }
 
@@ -719,6 +747,22 @@ int __stdcall computeMovementCostHooked(const game::CMqPoint* mapPosition,
         return movementForbidden;
     }
 
+    static const std::array<IdType, 7> previewBlockingObjectTypes{{
+        IdType::Fortification,
+        IdType::Landmark,
+        IdType::Site,
+        IdType::Ruin,
+        IdType::Tomb,
+        IdType::Rod,
+        IdType::Crystal,
+    }};
+    const auto& planApi = CMidgardPlanApi::get();
+    if (terrainOnlyPreview
+        && planApi.isPositionContainsObjects(plan, mapPosition, previewBlockingObjectTypes.data(),
+                                             std::size(previewBlockingObjectTypes))) {
+        return movementForbidden;
+    }
+
     const bool pred1 = !a6 || !((1 << (x & 7)) & a6[18 * y + (x >> 3)]);
     if (!pred1) {
         const IdType bagType = IdType::Bag;
@@ -732,7 +776,6 @@ int __stdcall computeMovementCostHooked(const game::CMqPoint* mapPosition,
             IdType::Rod,
             IdType::Crystal,
         }};
-        const auto& planApi = CMidgardPlanApi::get();
         const auto* stackAtPosition = planApi.getObjectId(plan, mapPosition, &stackType);
         const auto* blockingStack = stackAtPosition ? getStack(objectMap, stackAtPosition)
                                                     : nullptr;
