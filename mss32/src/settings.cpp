@@ -315,6 +315,7 @@ static void readSettings(const sol::table& table, Settings& settings)
     settings.unitMaxDamage = readSetting(table, "unitMaxDamage", defaultGameSettings().unitMaxDamage);
     settings.unitMaxArmor = readSetting(table, "unitMaxArmor", defaultGameSettings().unitMaxArmor);
     settings.stackScoutRangeMax = readSetting(table, "stackMaxScoutRange", defaultGameSettings().stackScoutRangeMax);
+    settings.capitalScoutRange = readSetting(table, "capitalScoutRange", defaultGameSettings().capitalScoutRange, 0, 100);
     settings.shatteredArmorMax = readSetting(table, "shatteredArmorMax", defaultGameSettings().shatteredArmorMax, 0, baseGameSettings().shatteredArmorMax);
     settings.shatterDamageMax = readSetting(table, "shatterDamageMax", defaultGameSettings().shatterDamageMax, 0, baseGameSettings().shatterDamageMax);
     settings.drainAttackHeal = readSetting(table, "drainAttackHeal", defaultGameSettings().drainAttackHeal);
@@ -399,6 +400,7 @@ const Settings& baseGameSettings()
         settings.unitMaxDamage = 300;
         settings.unitMaxArmor = 90;
         settings.stackScoutRangeMax = 8;
+        settings.capitalScoutRange = 0;
         settings.shatteredArmorMax = 100;
         settings.shatterDamageMax = 100;
         settings.drainAttackHeal = 50;
@@ -472,6 +474,7 @@ const Settings& baseGameSettings()
 
         settings.cacheLeaderDataOnTransform = false;
         settings.fogSpellHideEnemyVision = false;
+        settings.capitalScoutRange = 0;
 
         initialized = true;
     }

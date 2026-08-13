@@ -173,6 +173,8 @@
 #include "midscenvariables.h"
 #include "midserverlogic.h"
 #include "midserverlogichooks.h"
+#include "capitalscoutapi.h"
+#include "capitalscouthooks.h"
 #include "midsite.h"
 #include "midstack.h"
 #include "midunitdescriptor.h"
@@ -650,6 +652,15 @@ static Hooks getGameHooks()
         {CBatLogicApi::get().applyCBatAttackUntransformEffect, applyCBatAttackUntransformEffectHooked, (void**)&orig.applyCBatAttackUntransformEffect},
     };
     // clang-format on
+
+    {
+        const auto& capitalScout = capitalScoutApi();
+        if (capitalScout.capitalGetScout) {
+            hooks.emplace_back(HookInfo{(void*)capitalScout.capitalGetScout,
+                                        capitalGetScoutHooked,
+                                        (void**)&originalCapitalGetScout});
+        }
+    }
 
     if (gameSettings().extendedBattle.boostdamageCanAffectHealer
         != baseGameSettings().extendedBattle.boostdamageCanAffectHealer) {

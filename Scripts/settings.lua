@@ -35,6 +35,8 @@ settings = {
 	-- For example: not less than 7 because of Centaur Lancer (g000uu5111) in original game
 	stackMaxScoutRange = 8,
 
+	capitalScoutRange = 0,
+
 	-- Total armor shatter damage [0 : 100]
 	shatteredArmorMax = 100,
 	-- Maximum armor shatter damage per attack [0 : 100]
