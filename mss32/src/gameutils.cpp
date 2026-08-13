@@ -605,6 +605,37 @@ const game::CMidRuin* getRuinAtOrAdjacent(const game::IMidgardObjectMap* objectM
     return nullptr;
 }
 
+bool isLootedRuinInteraction(const game::IMidgardObjectMap* objectMap,
+                             const game::CMidgardPlan* plan,
+                             const game::CMidStack* stack,
+                             const game::CMqPoint* endPoint)
+{
+    using namespace game;
+
+    if (!objectMap || !plan || !stack || !endPoint) {
+        return false;
+    }
+
+    const auto* ruin = getRuinAtOrAdjacent(objectMap, plan, endPoint);
+    if (!ruin || ruin->looterId == emptyId) {
+        return false;
+    }
+
+    const auto& element = ruin->mapElement;
+    if (endPoint->x >= element.position.x && endPoint->x < element.position.x + element.sizeX
+        && endPoint->y >= element.position.y && endPoint->y < element.position.y + element.sizeY) {
+        return true;
+    }
+
+    CMqPoint entrance{};
+    if (!gameFunctions().getFortOrRuinEntrance(objectMap, plan, stack, &element.position,
+                                               &entrance)) {
+        return false;
+    }
+
+    return endPoint->x == entrance.x && endPoint->y == entrance.y;
+}
+
 game::CMidRod* getRod(const game::IMidgardObjectMap* objectMap, const game::CMidgardID* rodId)
 {
     using namespace game;

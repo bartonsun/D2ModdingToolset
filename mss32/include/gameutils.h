@@ -202,6 +202,11 @@ const game::CMidRuin* getRuinAtOrAdjacent(const game::IMidgardObjectMap* objectM
                                           const game::CMidgardPlan* plan,
                                           const game::CMqPoint* point);
 
+bool isLootedRuinInteraction(const game::IMidgardObjectMap* objectMap,
+                             const game::CMidgardPlan* plan,
+                             const game::CMidStack* stack,
+                             const game::CMqPoint* endPoint);
+
 game::CMidRod* getRod(const game::IMidgardObjectMap* objectMap, const game::CMidgardID* rodId);
 
 int getGroupXpKilled(const game::IMidgardObjectMap* objectMap, const game::CMidUnitGroup* group);
