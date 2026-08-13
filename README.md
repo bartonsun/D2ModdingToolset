@@ -9,23 +9,25 @@
     <summary>Adds ranked-match lifecycle support to the custom lobby;</summary>
 
     - Ranked hosting is currently enabled only for the verified Russobit executable. Other game builds continue to create casual rooms;
-    - The lobby server requests independent host and joiner saves, then acknowledges durable storage. The client deletes only the exact generated local save after that acknowledgement;
+    - Lobby-requested saves always use the original host's native save builder. Ranked saves are uploaded and the exact local file is deleted only after durable-storage acknowledgement; casual saves remain only in the host's save folder;
     - Save-transfer COMMIT carries no client digest. The server computes the stored artifact SHA-256 while receiving the chunks;
     - Loaded games are always casual. This prevents a ranked setting from a previous room being reused for an unrelated save;
     - Custom protocol ids are append-only: the existing lobby/game ids `+1` through `+7` and relay id `255` are unchanged. Rooms created by older clients have no `Ranked` column and remain casual;
-    - Ranked lifecycle adds only the previously unused `+8` through `+13` range:
+    - Ranked lifecycle uses the append-only `+8` through `+14` range:
 
       | Id | Direction | Purpose |
       | --- | --- | --- |
-      | `+8 SAVE_REQUEST` | core → participant | Requests one bounded native save capture for the assigned host/joiner role. |
+      | `+8 SAVE_REQUEST` | core → host | V2 requests an uploaded native host save. V3 additionally supplies `Upload`/`LocalOnly` mode and a safe ASCII file stem. |
       | `+9 SAVE_UPLOAD` | participant → core | Carries the ordered V2 `BEGIN`, `CHUNK`, header-only `COMMIT`, or `FAIL` operations. |
       | `+10 MATCH_ENDED` | core → participant | Returns a finalized ranked participant from the game UI to the custom lobby. |
       | `+11 PLAYER_SETUP` | host → core | Reports authenticated setup data that the stock local-host path does not relay; V1 carries the lord choice. |
       | `+12 SYSTEM_NOTICE` | core → participant | Carries current-client modal notices only; ordinary system chat stays on legacy chat/game packets. |
       | `+13 SAVE_STORED_ACK` | core → participant | Confirms durable server storage so the exact generated local save may be deleted; it is not a RakNet ACK. |
+      | `+14 SAVE_NATIVE_RESULT` | host → core | Reports result `0` plus the actual collision-safe filename for either V3 mode, or a V2 failure code `1..13` with no filename. It is terminal only for `LocalOnly`; Upload still completes through `+9`. |
 
     - System chat uses the existing lobby chat or native in-game chat packet. The optional modal packet is understood only by current clients and is safely ignored by older clients;
-    - Client and lobby server must be updated together because SaveTransfer V2 uses a header-only COMMIT.
+    - V2 Host requests remain wire-compatible. V3 Upload deliberately reuses the existing SaveTransfer V2 `+9`/`+13` exchange. The Joiner value remains reserved for wire compatibility, but is rejected: there is no active reconstructed joiner-save path;
+    - Every filename handed to the asynchronous native writer remains reserved for the client-process lifetime, so a late callback after timeout cannot attach to a newer request. The client first claims the basename with an atomic `CREATE_NEW` placeholder and keeps a no-delete handle while the verified Russobit writer uses `CREATE_ALWAYS` on that same file object. The callback and durable-storage ACK both verify its Win32 identity, and an ACK deletes that exact unchanged object through an exclusive handle.
   </details>
 - <details>
     <summary>Adds random scenario map generator;</summary>

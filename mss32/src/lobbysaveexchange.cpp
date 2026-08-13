@@ -9,37 +9,22 @@
  */
 
 #include "lobbysaveexchange.h"
-#include "game.h"
 #include "gamesettings.h"
 #include "gameutils.h"
 #include "midclient.h"
-#include "midclientcore.h"
-#include "middatacache.h"
 #include "midgard.h"
-#include "midgardid.h"
-#include "midgardscenariomap.h"
-#ifdef small
-#undef small
-#endif
-#include "midplayer.h"
-#include "midstreamenvfile.h"
 #include "netcustomsession.h"
 #include "phase.h"
 #include "phasegame.h"
-#include "racetype.h"
-#include "scenarioheader.h"
-#include "scenarioinfo.h"
 #include "utils.h"
 #include "version.h"
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
-#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
-#include <iterator>
 #include <limits>
 #include <optional>
 #include <sstream>
@@ -58,14 +43,67 @@ namespace {
 
 using namespace LobbyProtocol;
 
-static constexpr std::size_t saveRolesTotal{2};
 static constexpr auto storedAckGrace{std::chrono::seconds(10)};
+static constexpr unsigned int collisionSuffixLimit{9999};
+
+struct StableFileIdentity
+{
+    DWORD volumeSerialNumber{};
+    DWORD fileIndexHigh{};
+    DWORD fileIndexLow{};
+    DWORD fileSizeHigh{};
+    DWORD fileSizeLow{};
+    FILETIME lastWriteTime{};
+};
+
+class NativeSavePathClaim
+{
+public:
+    NativeSavePathClaim() = default;
+    explicit NativeSavePathClaim(HANDLE handle)
+        : handle{handle}
+    { }
+    ~NativeSavePathClaim()
+    {
+        reset();
+    }
+
+    NativeSavePathClaim(const NativeSavePathClaim&) = delete;
+    NativeSavePathClaim& operator=(const NativeSavePathClaim&) = delete;
+    NativeSavePathClaim(NativeSavePathClaim&& other) noexcept
+        : handle{other.handle}
+    {
+        other.handle = INVALID_HANDLE_VALUE;
+    }
+    NativeSavePathClaim& operator=(NativeSavePathClaim&& other) noexcept
+    {
+        if (this != &other) {
+            reset();
+            handle = other.handle;
+            other.handle = INVALID_HANDLE_VALUE;
+        }
+        return *this;
+    }
+
+    void reset(HANDLE newHandle = INVALID_HANDLE_VALUE)
+    {
+        if (handle != INVALID_HANDLE_VALUE) {
+            CloseHandle(handle);
+        }
+        handle = newHandle;
+    }
+
+private:
+    HANDLE handle{INVALID_HANDLE_VALUE};
+};
 
 struct SaveTransferSession
 {
-    SaveRequestV2 request;
+    SaveRequestV3 request;
     std::string saveName;
     std::filesystem::path savePath;
+    StableFileIdentity reservedFileIdentity;
+    NativeSavePathClaim pathClaim;
     std::chrono::steady_clock::time_point deadline;
 };
 
@@ -73,23 +111,32 @@ struct PendingStoredAck
 {
     std::uint64_t saveId{};
     std::filesystem::path savePath;
+    std::optional<StableFileIdentity> fileIdentity;
     std::chrono::steady_clock::time_point deadline;
 };
 
-std::array<std::optional<SaveTransferSession>, saveRolesTotal> activeTransfers;
-std::array<std::optional<PendingStoredAck>, saveRolesTotal> pendingStoredAcks;
-// Both the network callback and save handling run on the game/UI thread.
-int clientExpansionContent{-1};
-int clientExpansionScenarioId{std::numeric_limits<int>::min()};
+std::optional<SaveTransferSession> activeTransfer;
+std::optional<PendingStoredAck> pendingStoredAck;
+/** A native save request cannot be cancelled. Keep every path handed to it reserved for this DLL
+ * lifetime so a late GameSaved callback can never match a later request after timeout/teardown. */
+std::vector<std::filesystem::path> nativeSavePathTombstones;
 
-std::size_t roleIndex(SaveRoleV2 role)
-{
-    return static_cast<std::size_t>(role);
-}
+std::optional<StableFileIdentity> readStableFileIdentity(HANDLE handle);
+std::optional<StableFileIdentity> captureStableFileIdentity(const std::filesystem::path& path);
+bool sameFileObjectIdentity(const StableFileIdentity& first, const StableFileIdentity& second);
+bool sameStableFileIdentity(const StableFileIdentity& first, const StableFileIdentity& second);
+bool deleteFileWithMatchingIdentity(const std::filesystem::path& path,
+                                    const StableFileIdentity& expected);
+bool deleteEmptyFileWithMatchingObjectIdentity(const std::filesystem::path& path,
+                                               const StableFileIdentity& expected);
 
-bool isKnownRole(SaveRoleV2 role)
+bool markOpenFileForDeletion(HANDLE handle)
 {
-    return role == SaveRoleV2::Host || role == SaveRoleV2::Joiner;
+    FILE_DISPOSITION_INFO disposition{};
+    disposition.DeleteFile = TRUE;
+    return handle != INVALID_HANDLE_VALUE
+           && SetFileInformationByHandle(handle, FileDispositionInfo, &disposition,
+                                         sizeof(disposition));
 }
 
 bool isMainThread()
@@ -102,26 +149,10 @@ bool isDeadlineExpired(const SaveTransferSession& transfer)
     return std::chrono::steady_clock::now() >= transfer.deadline;
 }
 
-void finishTransfer(SaveRoleV2 role)
+bool isLocalOnly(const SaveRequestV3& request)
 {
-    activeTransfers[roleIndex(role)].reset();
-}
-
-void awaitStoredAck(SaveRoleV2 role)
-{
-    auto& active{activeTransfers[roleIndex(role)]};
-    if (!active) {
-        return;
-    }
-
-    PendingStoredAck pending{};
-    pending.saveId = active->request.saveId;
-    pending.savePath = std::move(active->savePath);
-    // The authoritative request deadline governs capture/upload. Preserve a bounded grace beyond
-    // it for the server to drain a large reliable transfer and return its Stored ACK.
-    pending.deadline = active->deadline + storedAckGrace;
-    pendingStoredAcks[roleIndex(role)] = std::move(pending);
-    active.reset();
+    return request.wireVersion == saveRequestVersionV3
+           && request.mode == SaveModeV3::LocalOnly;
 }
 
 std::filesystem::path getSaveFolder(const game::CMidgard* midgard)
@@ -138,19 +169,113 @@ std::filesystem::path getSaveFolder(const game::CMidgard* midgard)
     return folder;
 }
 
-std::string makeSaveName(SaveRoleV2 role, std::uint64_t saveId)
+bool sameWindowsPath(const std::filesystem::path& first,
+                     const std::filesystem::path& second)
 {
-    const char* origin{role == SaveRoleV2::Host ? "Host" : "Joiner"};
+    try {
+        auto firstNormalized{first.lexically_normal()};
+        auto secondNormalized{second.lexically_normal()};
+        firstNormalized.make_preferred();
+        secondNormalized.make_preferred();
+        const auto firstNative{firstNormalized.native()};
+        const auto secondNative{secondNormalized.native()};
+        if (firstNative.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())
+            || secondNative.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+            return false;
+        }
+
+        return CompareStringOrdinal(firstNative.data(), static_cast<int>(firstNative.size()),
+                                    secondNative.data(), static_cast<int>(secondNative.size()), TRUE)
+            == CSTR_EQUAL;
+    } catch (...) {
+        return false;
+    }
+}
+
+bool nativeSavePathIsReserved(const std::filesystem::path& path)
+{
+    return std::any_of(nativeSavePathTombstones.begin(), nativeSavePathTombstones.end(),
+                       [&](const auto& reserved) { return sameWindowsPath(path, reserved); });
+}
+
+void reserveNativeSavePath(std::filesystem::path path)
+{
+    path = path.lexically_normal();
+    path.make_preferred();
+    nativeSavePathTombstones.push_back(std::move(path));
+}
+
+std::string makeLegacySaveName(std::uint64_t saveId)
+{
     std::ostringstream result;
-    result << "LobbyMatch" << origin << '_' << std::hex << std::setw(16) << std::setfill('0')
-           << saveId;
+    result << "LobbyMatchHost_" << std::hex << std::setw(16) << std::setfill('0') << saveId;
     return result.str();
 }
 
-std::filesystem::path makeSavePath(const game::CMidgard* midgard,
-                                   const std::string& saveName)
+bool chooseUnusedSavePath(const game::CMidgard* midgard, SaveTransferSession& transfer)
 {
-    return getSaveFolder(midgard) / (saveName + ".sg");
+    const auto baseName{transfer.request.saveStem.empty()
+                            ? makeLegacySaveName(transfer.request.saveId)
+                            : transfer.request.saveStem};
+    const auto folder{getSaveFolder(midgard)};
+
+    for (unsigned int index = 1; index <= collisionSuffixLimit; ++index) {
+        const auto suffix{index == 1 ? std::string{} : '_' + std::to_string(index)};
+        const auto saveName{baseName + suffix};
+        const auto fileName{saveName + ".sg"};
+        if (fileName.size() > saveResultFileNameMax) {
+            return false;
+        }
+
+        const auto savePath{folder / fileName};
+        if (nativeSavePathIsReserved(savePath)) {
+            continue;
+        }
+
+        // The verified Russobit writer opens this path with CREATE_ALWAYS. Claim it atomically
+        // first, then let that writer truncate the same file object. This closes the exists/create
+        // race without holding a handle that could conflict with the native open.
+        const HANDLE placeholder{CreateFileW(savePath.c_str(), 0,
+                                             FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                                             CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr)};
+        if (placeholder == INVALID_HANDLE_VALUE) {
+            const auto createError{GetLastError()};
+            if (createError == ERROR_FILE_EXISTS || createError == ERROR_ALREADY_EXISTS
+                || GetFileAttributesW(savePath.c_str()) != INVALID_FILE_ATTRIBUTES) {
+                continue;
+            }
+            spdlog::warn(__FUNCTION__ ": cannot reserve save path '{:s}', error {:d}",
+                         savePath.string(), static_cast<int>(createError));
+            return false;
+        }
+
+        const auto identity{readStableFileIdentity(placeholder)};
+        if (!identity) {
+            CloseHandle(placeholder);
+            reserveNativeSavePath(savePath);
+            spdlog::warn(__FUNCTION__
+                         ": cannot identify reserved save path '{:s}'; retaining placeholder",
+                         savePath.string());
+            return false;
+        }
+
+        try {
+            reserveNativeSavePath(savePath);
+            transfer.saveName = saveName;
+            transfer.savePath = savePath;
+            transfer.reservedFileIdentity = *identity;
+            transfer.pathClaim.reset(placeholder);
+        } catch (...) {
+            CloseHandle(placeholder);
+            deleteEmptyFileWithMatchingObjectIdentity(savePath, *identity);
+            spdlog::warn(__FUNCTION__ ": could not retain reserved save path state");
+            return false;
+        }
+
+        return true;
+    }
+
+    return false;
 }
 
 bool sendSaveDataPrefix(SLNet::BitStream& stream,
@@ -169,17 +294,61 @@ bool sendSaveDataPrefix(SLNet::BitStream& stream,
     return true;
 }
 
-bool sendSaveData(SLNet::BitStream& stream)
+bool sendLobbyPayload(SLNet::BitStream& stream)
 {
     auto service{CNetCustomService::get()};
     return service
         && service->send(stream, service->getLobbyGuid(), PacketPriority::MEDIUM_PRIORITY);
 }
 
-bool validateSaveSignature(const std::filesystem::path& path);
-
-bool uploadSave(SaveTransferSession& transfer, SaveFailureV2& failure)
+bool sendNativeSaveResult(std::uint64_t saveId,
+                          std::uint8_t resultCode,
+                          const std::string& fileName = {})
 {
+    const bool succeeded{resultCode == nativeSaveResultSuccess};
+    if (saveId == 0 || fileName.size() > saveResultFileNameMax
+        || succeeded == fileName.empty()) {
+        return false;
+    }
+
+    SLNet::BitStream stream;
+    stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_SAVE_NATIVE_RESULT));
+    stream.Write(saveRequestVersionV3);
+    stream.Write(saveId);
+    stream.Write(resultCode);
+    const auto length{static_cast<std::uint16_t>(fileName.size())};
+    stream.Write(length);
+    if (length != 0) {
+        stream.WriteAlignedBytes(reinterpret_cast<const unsigned char*>(fileName.data()), length);
+    }
+    return sendLobbyPayload(stream);
+}
+
+bool validateSaveSignature(const std::filesystem::path& path)
+{
+    static constexpr char signature[]{"D2EESFISIG"};
+    std::array<char, sizeof(signature) - 1> actual{};
+    std::ifstream file{path, std::ios::binary};
+    return file && file.read(actual.data(), actual.size())
+        && std::equal(actual.begin(), actual.end(), std::begin(signature));
+}
+
+bool validateCapturedSave(const SaveTransferSession& transfer,
+                          std::uint32_t& totalSize,
+                          SaveFailureV2& failure)
+{
+    const auto identity{captureStableFileIdentity(transfer.savePath)};
+    if (!identity) {
+        failure = SaveFailureV2::FileIo;
+        return false;
+    }
+    if (!sameFileObjectIdentity(*identity, transfer.reservedFileIdentity)) {
+        spdlog::warn(__FUNCTION__ ": native save path identity changed for '{:s}'",
+                     transfer.savePath.string());
+        failure = SaveFailureV2::CaptureFailed;
+        return false;
+    }
+
     std::error_code error;
     const auto fileSize64{std::filesystem::file_size(transfer.savePath, error)};
     if (error || fileSize64 == 0) {
@@ -200,14 +369,24 @@ bool uploadSave(SaveTransferSession& transfer, SaveFailureV2& failure)
         return false;
     }
 
-    const auto totalSize{static_cast<std::uint32_t>(fileSize64)};
+    totalSize = static_cast<std::uint32_t>(fileSize64);
+    return true;
+}
+
+bool uploadSave(SaveTransferSession& transfer, SaveFailureV2& failure)
+{
+    std::uint32_t totalSize{};
+    if (!validateCapturedSave(transfer, totalSize, failure)) {
+        return false;
+    }
+
     SLNet::BitStream begin;
     if (!sendSaveDataPrefix(begin, transfer.request.saveId, SaveDataOperationV2::Begin)) {
         failure = SaveFailureV2::SendFailed;
         return false;
     }
     begin.Write(totalSize);
-    if (!sendSaveData(begin)) {
+    if (!sendLobbyPayload(begin)) {
         failure = SaveFailureV2::SendFailed;
         return false;
     }
@@ -241,7 +420,7 @@ bool uploadSave(SaveTransferSession& transfer, SaveFailureV2& failure)
         chunk.Write(offset);
         chunk.Write(chunkSize);
         chunk.WriteAlignedBytes(buffer.data(), chunkSize);
-        if (!sendSaveData(chunk)) {
+        if (!sendLobbyPayload(chunk)) {
             failure = SaveFailureV2::SendFailed;
             return false;
         }
@@ -258,77 +437,15 @@ bool uploadSave(SaveTransferSession& transfer, SaveFailureV2& failure)
         failure = SaveFailureV2::SendFailed;
         return false;
     }
-    if (!sendSaveData(commit)) {
+    if (!sendLobbyPayload(commit)) {
         failure = SaveFailureV2::SendFailed;
         return false;
     }
 
     spdlog::info(__FUNCTION__
-                 ": sent local save id {:016x}, role {:d}, {:d} bytes; awaiting stored ACK",
-                 transfer.request.saveId, static_cast<int>(transfer.request.role), totalSize);
+                 ": uploaded native host save id {:016x}, {:d} bytes; awaiting stored ACK",
+                 transfer.request.saveId, totalSize);
     return true;
-}
-
-template <std::size_t size>
-void copyHeaderString(char (&destination)[size], const char* source)
-{
-    if (!source || !*source) {
-        return;
-    }
-
-    const auto length{std::min<std::size_t>(std::strlen(source), size - 1)};
-    std::memcpy(destination, source, length);
-    destination[length] = '\0';
-}
-
-void buildJoinerHeader(game::ScenarioFileHeader& header,
-                       const game::IMidgardObjectMap* objectMap,
-                       const game::CMidClient* client,
-                       const game::CMidgard* midgard)
-{
-    const auto scenarioInfo{getScenarioInfo(objectMap)};
-    copyHeaderString(header.description, scenarioInfo->description);
-    copyHeaderString(header.author, scenarioInfo->creator);
-    copyHeaderString(header.name, scenarioInfo->name);
-    header.official = scenarioInfo->official != 0;
-    header.mapSize = scenarioInfo->mapSize;
-    header.difficulty = scenarioInfo->gameDifficulty.id;
-    header.turnNumber = scenarioInfo->currentTurn;
-    header.unknown2 = scenarioInfo->suggestedLevel;
-
-    if (scenarioInfo->campaignId != game::invalidId) {
-        const auto campaignId{idToString(&scenarioInfo->campaignId)};
-        copyHeaderString(header.campaignId, campaignId.c_str());
-    }
-
-    auto settings{midgard->data->settings};
-    if (settings && *settings && (*settings)->defaultPlayerName.string) {
-        copyHeaderString(header.defaultPlayerName, (*settings)->defaultPlayerName.string);
-    }
-
-    if (client->data && client->data->phase) {
-        const auto playerId{game::CPhaseApi::get().getCurrentPlayerId(client->data->phase)};
-        const auto player{playerId ? getPlayer(objectMap, playerId) : nullptr};
-        if (player && player->raceType && player->raceType->data) {
-            header.race = player->raceType->data->raceType.id;
-        }
-    }
-
-    const auto racesTotal{std::min<std::uint32_t>(scenarioInfo->races.length,
-                                                  static_cast<std::uint32_t>(
-                                                      std::size(header.races)))};
-    header.racesTotal = static_cast<int>(racesTotal);
-    if (scenarioInfo->races.head) {
-        auto race{scenarioInfo->races.begin()};
-        const auto end{scenarioInfo->races.end()};
-        for (std::uint32_t index = 0; index < racesTotal && race != end; ++index, ++race) {
-            header.races[index].race = race->id;
-        }
-    }
-
-    // The joiner has no CMidServerLogic::aiLogic payload. Unused player records, PRNG state and
-    // optional-data size remain zero, matching the captured joiner header.
-    header.paddingSize = 0;
 }
 
 game::CPhaseGame* getHostPhaseGame(const game::CMidgard* midgard)
@@ -349,19 +466,102 @@ game::CPhaseGame* getHostPhaseGame(const game::CMidgard* midgard)
     return phaseGame->data && phaseGame->data->midClient == client ? phaseGame : nullptr;
 }
 
-bool sameWindowsPath(const std::filesystem::path& first,
-                     const std::filesystem::path& second)
+std::optional<StableFileIdentity> readStableFileIdentity(HANDLE handle)
 {
-    const auto firstNative{first.native()};
-    const auto secondNative{second.native()};
-    if (firstNative.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())
-        || secondNative.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    BY_HANDLE_FILE_INFORMATION information{};
+    if (handle == INVALID_HANDLE_VALUE || !GetFileInformationByHandle(handle, &information)
+        || (information.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+        return std::nullopt;
+    }
+
+    StableFileIdentity identity{};
+    identity.volumeSerialNumber = information.dwVolumeSerialNumber;
+    identity.fileIndexHigh = information.nFileIndexHigh;
+    identity.fileIndexLow = information.nFileIndexLow;
+    identity.fileSizeHigh = information.nFileSizeHigh;
+    identity.fileSizeLow = information.nFileSizeLow;
+    identity.lastWriteTime = information.ftLastWriteTime;
+    return identity;
+}
+
+std::optional<StableFileIdentity> captureStableFileIdentity(const std::filesystem::path& path)
+{
+    const HANDLE handle{CreateFileW(path.c_str(), FILE_READ_ATTRIBUTES,
+                                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+                                    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr)};
+    if (handle == INVALID_HANDLE_VALUE) {
+        return std::nullopt;
+    }
+
+    const auto identity{readStableFileIdentity(handle)};
+    CloseHandle(handle);
+    return identity;
+}
+
+bool sameStableFileIdentity(const StableFileIdentity& first,
+                            const StableFileIdentity& second)
+{
+    return sameFileObjectIdentity(first, second)
+           && first.fileSizeHigh == second.fileSizeHigh
+           && first.fileSizeLow == second.fileSizeLow
+           && CompareFileTime(&first.lastWriteTime, &second.lastWriteTime) == 0;
+}
+
+bool sameFileObjectIdentity(const StableFileIdentity& first,
+                            const StableFileIdentity& second)
+{
+    return first.volumeSerialNumber == second.volumeSerialNumber
+           && first.fileIndexHigh == second.fileIndexHigh
+           && first.fileIndexLow == second.fileIndexLow;
+}
+
+bool deleteFileWithMatchingIdentity(const std::filesystem::path& path,
+                                    const StableFileIdentity& expected)
+{
+    // No sharing prevents replacement after the identity check. Marking this same open object for
+    // deletion avoids the check-then-DeleteFile path race entirely.
+    const HANDLE handle{CreateFileW(path.c_str(), FILE_READ_ATTRIBUTES | DELETE, 0, nullptr,
+                                    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr)};
+    if (handle == INVALID_HANDLE_VALUE) {
+        spdlog::warn(__FUNCTION__ ": cannot open save '{:s}' exclusively, error {:d}; retaining file",
+                     path.string(), static_cast<int>(GetLastError()));
         return false;
     }
 
-    return CompareStringOrdinal(firstNative.data(), static_cast<int>(firstNative.size()),
-                                secondNative.data(), static_cast<int>(secondNative.size()), TRUE)
-        == CSTR_EQUAL;
+    const auto actual{readStableFileIdentity(handle)};
+    if (!actual || !sameStableFileIdentity(*actual, expected)) {
+        spdlog::warn(__FUNCTION__ ": save identity changed for '{:s}'; retaining file",
+                     path.string());
+        CloseHandle(handle);
+        return false;
+    }
+
+    if (!markOpenFileForDeletion(handle)) {
+        spdlog::warn(__FUNCTION__ ": cannot mark save '{:s}' for deletion, error {:d}; retaining file",
+                     path.string(), static_cast<int>(GetLastError()));
+        CloseHandle(handle);
+        return false;
+    }
+
+    CloseHandle(handle);
+    return true;
+}
+
+bool deleteEmptyFileWithMatchingObjectIdentity(const std::filesystem::path& path,
+                                               const StableFileIdentity& expected)
+{
+    const HANDLE handle{CreateFileW(path.c_str(), FILE_READ_ATTRIBUTES | DELETE, 0, nullptr,
+                                    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr)};
+    if (handle == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    const auto actual{readStableFileIdentity(handle)};
+    const bool unchangedPlaceholder{actual && sameFileObjectIdentity(*actual, expected)
+                                    && actual->fileSizeHigh == 0 && actual->fileSizeLow == 0};
+    const bool removed{unchangedPlaceholder && markOpenFileForDeletion(handle)};
+    CloseHandle(handle);
+    return removed;
 }
 
 bool isExpectedHostSaveResultPath(const std::string& observed,
@@ -391,339 +591,45 @@ bool isExpectedHostSaveResultPath(const std::string& observed,
     }
 }
 
-const game::IMidgardObjectMapVftable* expectedDataCacheVftable()
+bool clientIsNativeHost(const CNetCustomSession* session, const game::CMidgard* midgard)
 {
-    switch (gameVersion()) {
-    case GameVersion::Akella:
-    case GameVersion::Russobit:
-        return reinterpret_cast<const game::IMidgardObjectMapVftable*>(0x6cf8cc);
-    default:
-        return nullptr;
-    }
-}
-
-const game::IMidgardStreamEnvVftable* expectedWriteStreamEnvVftable()
-{
-    switch (gameVersion()) {
-    case GameVersion::Akella:
-    case GameVersion::Russobit:
-        return reinterpret_cast<const game::IMidgardStreamEnvVftable*>(0x6f010c);
-    default:
-        return nullptr;
-    }
-}
-
-game::CMidgardScenarioMap* getVerifiedClientScenarioMap(game::CMidDataCache2* cache)
-{
-    const auto expectedCacheVftable{expectedDataCacheVftable()};
-    if (!cache || !expectedCacheVftable || cache->vftable != expectedCacheVftable) {
-        spdlog::warn(__FUNCTION__ ": unexpected CMidDataCache2/vtable");
-        return nullptr;
-    }
-
-    auto scenarioMap{cache->scenarioMap};
-    if (!scenarioMap || scenarioMap->vftable != game::CMidgardScenarioMapApi::vftable()) {
-        spdlog::warn(__FUNCTION__ ": client-cache backing map pointer/vtable mismatch");
-        return nullptr;
-    }
-
-    const auto objectsTotal{scenarioMap->vftable->getObjectsTotal(scenarioMap)};
-    if (objectsTotal <= 0 || objectsTotal > 1000000
-        || !getScenarioInfo(scenarioMap)) {
-        spdlog::warn(__FUNCTION__ ": invalid local scenario map, objects = {:d}", objectsTotal);
-        return nullptr;
-    }
-
-    return scenarioMap;
-}
-
-bool tryGetClientExpansionContent(const game::CMidClient*,
-                                  const game::CMidgardID& scenarioId,
-                                  bool& result)
-{
-    const auto observed{clientExpansionContent};
-    const auto observedScenarioId{clientExpansionScenarioId};
-    if (observed < 0 || observedScenarioId != scenarioId.value) {
-        spdlog::warn(__FUNCTION__
-                     ": expansion stream is not bound to scenario {:08x} (observed {:08x})",
-                     static_cast<unsigned int>(scenarioId.value),
-                     static_cast<unsigned int>(observedScenarioId));
-        return false;
-    }
-    result = observed != 0;
-    return true;
-}
-
-bool validateSaveSignature(const std::filesystem::path& path)
-{
-    static constexpr char signature[]{"D2EESFISIG"};
-    std::array<char, sizeof(signature) - 1> actual{};
-    std::ifstream file{path, std::ios::binary};
-    return file && file.read(actual.data(), actual.size())
-        && std::equal(actual.begin(), actual.end(), std::begin(signature));
-}
-
-bool validateNativeSaveHeader(const std::filesystem::path& path,
-                              const game::CMidgardID& expectedScenarioId)
-{
-    game::CMidgardID parsedScenarioId{game::invalidId};
-    game::ScenarioFileHeader parsedHeader{};
-    bool valid{false};
-    try {
-        valid = game::ScenarioFileHeaderApi::readAndValidateFileHeader(
-            path.string().c_str(), &parsedScenarioId, &parsedHeader);
-    } catch (...) {
-        spdlog::warn(__FUNCTION__ ": native header reader raised a C++ exception");
+    if (!session || !midgard || !midgard->data) {
         return false;
     }
 
-    if (!valid || parsedScenarioId != expectedScenarioId || parsedHeader.racesTotal <= 0
-        || parsedHeader.racesTotal > static_cast<int>(std::size(parsedHeader.races))) {
-        spdlog::warn(__FUNCTION__
-                     ": invalid native header, ok = {:d}, scenario = {:08x}/{:08x}, races = {:d}",
-                     static_cast<int>(valid),
-                     static_cast<unsigned int>(parsedScenarioId.value),
-                     static_cast<unsigned int>(expectedScenarioId.value),
-                     parsedHeader.racesTotal);
-        return false;
-    }
-
-    return true;
-}
-
-bool captureJoinerSave(SaveTransferSession& transfer, SaveFailureV2& failure)
-{
-    if (!isMainThread()) {
-        failure = SaveFailureV2::UnsafePhase;
-        return false;
-    }
-
-    auto midgard{game::CMidgardApi::get().instance()};
-    if (!midgard || !midgard->data || !midgard->data->client) {
-        failure = SaveFailureV2::NoActiveGame;
-        return false;
-    }
-
-    auto client{midgard->data->client};
-    if (!midgard->data->gameIsRunning || !client->data || !client->data->scenarioStarted
-        || !client->data->phase) {
-        failure = SaveFailureV2::UnsafePhase;
-        return false;
-    }
-
-    const auto& envApi{game::CMidStreamEnvFileApi::get()};
-    if (!envApi.writeConstructor) {
-        failure = SaveFailureV2::UnsupportedGameBuild;
-        return false;
-    }
-
-    auto cache{game::CMidClientCoreApi::get().getObjectMap(&client->core)};
-    auto scenarioMap{getVerifiedClientScenarioMap(cache)};
-    if (!scenarioMap) {
-        failure = SaveFailureV2::CaptureFailed;
-        return false;
-    }
-
-    const auto getIdType{game::CMidgardIDApi::get().getType};
-    if (!getIdType || getIdType(&scenarioMap->scenarioFileId) != game::IdType::ScenarioFile) {
-        spdlog::warn(__FUNCTION__ ": invalid client scenario id {:08x}",
-                     static_cast<unsigned int>(scenarioMap->scenarioFileId.value));
-        failure = SaveFailureV2::CaptureFailed;
-        return false;
-    }
-
-    game::ScenarioFileHeader header{};
-    buildJoinerHeader(header, scenarioMap, client, midgard);
-    if (header.racesTotal <= 0
-        || header.racesTotal > static_cast<int>(std::size(header.races))) {
-        spdlog::warn(__FUNCTION__ ": invalid header race count {:d}", header.racesTotal);
-        failure = SaveFailureV2::CaptureFailed;
-        return false;
-    }
-
-    bool isExpansionContent{};
-    if (!tryGetClientExpansionContent(client, scenarioMap->scenarioFileId,
-                                      isExpansionContent)) {
-        failure = SaveFailureV2::SerializerUnvalidated;
-        return false;
-    }
-
-    const auto expectedEnvVftable{expectedWriteStreamEnvVftable()};
-    if (!expectedEnvVftable) {
-        failure = SaveFailureV2::UnsupportedGameBuild;
-        return false;
-    }
-
-    spdlog::info(__FUNCTION__
-                 ": begin lobby-requested joiner capture id {:016x}, scenario {:08x}, "
-                 "objects {:d}, turn {:d}, races {:d}, expansion {:d}, path '{:s}'",
-                 transfer.request.saveId,
-                 static_cast<unsigned int>(scenarioMap->scenarioFileId.value),
-                 scenarioMap->vftable->getObjectsTotal(scenarioMap), header.turnNumber,
-                 header.racesTotal, static_cast<int>(isExpansionContent),
-                 transfer.savePath.string());
-
-    std::error_code error;
-    std::filesystem::create_directories(transfer.savePath.parent_path(), error);
-    if (error) {
-        failure = SaveFailureV2::FileIo;
-        return false;
-    }
-
-    auto partPath{transfer.savePath};
-    partPath += ".part";
-    std::filesystem::remove(partPath, error);
-    error.clear();
-
-    game::CMidStreamEnvFile streamEnv{};
-    bool constructed{false};
-    bool streamed{false};
-    bool destroyed{false};
-    std::string streamError;
-    try {
-        auto result{envApi.writeConstructor(&streamEnv, partPath.string().c_str(),
-                                             &scenarioMap->scenarioFileId, isExpansionContent,
-                                             &header, nullptr)};
-        constructed = result == &streamEnv && streamEnv.vftable == expectedEnvVftable;
-        if (constructed) {
-            if (streamEnv.vftable->getError) {
-                const auto text{streamEnv.vftable->getError(&streamEnv)};
-                if (text) {
-                    streamError = text;
-                }
-            }
-            const bool modesValid{streamEnv.vftable->writeMode
-                                  && streamEnv.vftable->writeMode(&streamEnv)
-                                  && streamEnv.vftable->readMode
-                                  && !streamEnv.vftable->readMode(&streamEnv)
-                                  && streamEnv.vftable->isExpansionContent
-                                  && streamEnv.vftable->isExpansionContent(&streamEnv)
-                                      == isExpansionContent};
-            if (streamError.empty() && modesValid) {
-                streamed = game::CMidgardScenarioMapApi::get().stream(scenarioMap, &streamEnv);
-                if (streamEnv.vftable->getError) {
-                    const auto text{streamEnv.vftable->getError(&streamEnv)};
-                    if (text) {
-                        streamError = text;
-                    }
-                }
-            } else if (!modesValid) {
-                streamError = "unexpected native stream mode";
-            }
-        }
-    } catch (...) {
-        spdlog::warn(__FUNCTION__ ": native constructor/stream raised a C++ exception");
-        streamed = false;
-    }
-
-    if (constructed) {
-        // flags == 0 destroys the stack object and flushes/closes files without freeing `this`.
-        try {
-            streamEnv.vftable->destructor(&streamEnv, 0);
-            destroyed = true;
-        } catch (...) {
-            spdlog::warn(__FUNCTION__ ": native stream destructor raised a C++ exception");
-        }
-    }
-
-    if (!constructed || !streamed || !destroyed || !streamError.empty()
-        || !validateSaveSignature(partPath)
-        || !validateNativeSaveHeader(partPath, scenarioMap->scenarioFileId)) {
-        spdlog::warn(__FUNCTION__
-                     ": local map stream failed, constructed = {:d}, streamed = {:d}, "
-                     "destroyed = {:d}, error = '{:s}'",
-                     static_cast<int>(constructed), static_cast<int>(streamed),
-                     static_cast<int>(destroyed), streamError);
-        std::filesystem::remove(partPath, error);
-        failure = SaveFailureV2::CaptureFailed;
-        return false;
-    }
-
-    const auto fileSize{std::filesystem::file_size(partPath, error)};
-    const bool sizeReadFailed{static_cast<bool>(error)};
-    if (sizeReadFailed || fileSize == 0 || fileSize > transfer.request.maxBytes
-        || fileSize > saveFileHardLimit) {
-        std::error_code cleanupError;
-        std::filesystem::remove(partPath, cleanupError);
-        failure = sizeReadFailed ? SaveFailureV2::FileIo : SaveFailureV2::TooLarge;
-        return false;
-    }
-
-    std::filesystem::remove(transfer.savePath, error);
-    error.clear();
-    std::filesystem::rename(partPath, transfer.savePath, error);
-    if (error) {
-        std::filesystem::remove(partPath, error);
-        failure = SaveFailureV2::FileIo;
-        return false;
-    }
-
-    return true;
-}
-
-bool roleMatchesClient(SaveRoleV2 role,
-                       const CNetCustomSession* session,
-                       const game::CMidgard* midgard)
-{
     const bool sessionHost{session->isHost()};
     const bool midgardHost{midgard->data->host};
     if (sessionHost != midgardHost) {
         spdlog::warn(__FUNCTION__ ": refusing save request while host state is inconsistent");
         return false;
     }
-    return role == (sessionHost ? SaveRoleV2::Host : SaveRoleV2::Joiner);
+    return sessionHost;
+}
+
+void awaitStoredAck()
+{
+    if (!activeTransfer) {
+        return;
+    }
+
+    PendingStoredAck pending{};
+    pending.saveId = activeTransfer->request.saveId;
+    pending.savePath = std::move(activeTransfer->savePath);
+    const auto identity{captureStableFileIdentity(pending.savePath)};
+    if (identity && sameFileObjectIdentity(*identity, activeTransfer->reservedFileIdentity)) {
+        pending.fileIdentity = identity;
+    }
+    pending.deadline = activeTransfer->deadline + storedAckGrace;
+    if (!pending.fileIdentity) {
+        spdlog::warn(__FUNCTION__
+                     ": could not capture uploaded save identity '{:s}'; ACK will retain it",
+                     pending.savePath.string());
+    }
+    pendingStoredAck.emplace(std::move(pending));
+    activeTransfer.reset();
 }
 
 } // namespace
-
-void observeLobbySaveGameMessage(const game::NetMessageHeader* message,
-                                 std::size_t availableBytes)
-{
-    static constexpr char refreshInfoClass[]{".?AVCRefreshInfo@@"};
-    if (!message || availableBytes < sizeof(game::NetMessageHeader) + sizeof(std::uint32_t)
-        || availableBytes >= game::netMessageMaxLength
-        || message->length < sizeof(game::NetMessageHeader) + sizeof(std::uint32_t)
-        || message->length > availableBytes || message->length >= game::netMessageMaxLength
-        || std::memchr(message->messageClassName, '\0', sizeof(message->messageClassName)) == nullptr
-        || std::strcmp(message->messageClassName, refreshInfoClass) != 0) {
-        return;
-    }
-
-    game::CMidgardID expansionMarker{};
-    const auto fromString{game::CMidgardIDApi::get().fromString};
-    if (!fromString) {
-        return;
-    }
-    fromString(&expansionMarker, "G25500FFFF");
-
-    std::uint32_t firstId{};
-    std::memcpy(&firstId,
-                reinterpret_cast<const std::uint8_t*>(message)
-                    + sizeof(game::NetMessageHeader),
-                sizeof(firstId));
-    const bool observed{firstId == static_cast<std::uint32_t>(expansionMarker.value)};
-    const auto scenarioOffset{sizeof(game::NetMessageHeader)
-                              + (observed ? 2u : 1u) * sizeof(std::uint32_t)};
-    if (availableBytes < scenarioOffset || message->length < scenarioOffset) {
-        return;
-    }
-
-    std::uint32_t scenarioId{firstId};
-    if (observed) {
-        std::memcpy(&scenarioId,
-                    reinterpret_cast<const std::uint8_t*>(message)
-                        + sizeof(game::NetMessageHeader) + sizeof(std::uint32_t),
-                    sizeof(scenarioId));
-    }
-    game::CMidgardID typedScenarioId{static_cast<int>(scenarioId)};
-    const auto getIdType{game::CMidgardIDApi::get().getType};
-    if (!getIdType || getIdType(&typedScenarioId) != game::IdType::ScenarioFile) {
-        return;
-    }
-
-    clientExpansionScenarioId = typedScenarioId.value;
-    clientExpansionContent = observed ? 1 : 0;
-}
 
 void sendLobbySaveFailure(std::uint64_t saveId, LobbyProtocol::SaveFailureV2 failure)
 {
@@ -732,7 +638,17 @@ void sendLobbySaveFailure(std::uint64_t saveId, LobbyProtocol::SaveFailureV2 fai
         return;
     }
     stream.Write(static_cast<std::uint8_t>(failure));
-    sendSaveData(stream);
+    sendLobbyPayload(stream);
+}
+
+void sendLobbySaveFailure(const LobbyProtocol::SaveRequestV3& request,
+                          LobbyProtocol::SaveFailureV2 failure)
+{
+    if (isLocalOnly(request)) {
+        sendNativeSaveResult(request.saveId, static_cast<std::uint8_t>(failure));
+    } else {
+        sendLobbySaveFailure(request.saveId, failure);
+    }
 }
 
 void handleLobbySaveStoredAck(std::uint64_t saveId)
@@ -741,66 +657,58 @@ void handleLobbySaveStoredAck(std::uint64_t saveId)
         spdlog::warn(__FUNCTION__ ": refusing stored ACK outside the main/UI thread or with zero id");
         return;
     }
-
-    for (std::size_t index = 0; index < pendingStoredAcks.size(); ++index) {
-        auto& pending{pendingStoredAcks[index]};
-        if (!pending || pending->saveId != saveId) {
-            continue;
-        }
-
-        std::error_code error;
-        const bool removed{std::filesystem::remove(pending->savePath, error)};
-        if (error) {
-            spdlog::warn(__FUNCTION__
-                         ": could not remove acknowledged local save '{:s}', error {:d}; "
-                         "retaining file",
-                         pending->savePath.string(), error.value());
-        } else if (removed) {
-            spdlog::info(__FUNCTION__
-                         ": removed acknowledged local save '{:s}', id {:016x}",
-                         pending->savePath.string(), saveId);
-        }
-
-        pending.reset();
+    if (!pendingStoredAck || pendingStoredAck->saveId != saveId) {
         return;
     }
 
+    if (!pendingStoredAck->fileIdentity) {
+        spdlog::warn(__FUNCTION__
+                     ": acknowledged local save '{:s}' has no captured identity; retaining file",
+                     pendingStoredAck->savePath.string());
+    } else if (deleteFileWithMatchingIdentity(pendingStoredAck->savePath,
+                                               *pendingStoredAck->fileIdentity)) {
+        spdlog::info(__FUNCTION__ ": removed acknowledged local save '{:s}', id {:016x}",
+                     pendingStoredAck->savePath.string(), saveId);
+    }
+
+    pendingStoredAck.reset();
 }
 
-void handleLobbySaveRequest(const LobbyProtocol::SaveRequestV2& request)
+void handleLobbySaveRequest(const LobbyProtocol::SaveRequestV3& request)
 {
     using namespace LobbyProtocol;
 
     if (!isMainThread()) {
         spdlog::warn(__FUNCTION__ ": refusing capture outside the main/UI thread");
-        sendLobbySaveFailure(request.saveId, SaveFailureV2::UnsafePhase);
+        sendLobbySaveFailure(request, SaveFailureV2::UnsafePhase);
         return;
     }
     if (gameVersion() != GameVersion::Russobit) {
-        sendLobbySaveFailure(request.saveId, SaveFailureV2::UnsupportedGameBuild);
+        sendLobbySaveFailure(request, SaveFailureV2::UnsupportedGameBuild);
         return;
     }
     expireLobbySaveTransfers();
-    if (!isKnownRole(request.role) || request.saveId == 0 || request.maxBytes == 0
-        || request.maxBytes > saveFileHardLimit || request.timeoutMs == 0) {
-        sendLobbySaveFailure(request.saveId, SaveFailureV2::MalformedRequest);
+    if (request.role != SaveRoleV2::Host || request.saveId == 0 || request.maxBytes == 0
+        || request.maxBytes > saveFileHardLimit || request.timeoutMs == 0
+        || (request.wireVersion == saveTransferVersion
+            && request.mode != SaveModeV3::Upload)) {
+        sendLobbySaveFailure(request,
+                             request.role == SaveRoleV2::Joiner ? SaveFailureV2::WrongRole
+                                                                : SaveFailureV2::MalformedRequest);
         return;
     }
-    auto& pendingAck{pendingStoredAcks[roleIndex(request.role)]};
-    if (pendingAck) {
-        if (pendingAck->saveId == request.saveId) {
+    if (pendingStoredAck) {
+        if (pendingStoredAck->saveId == request.saveId) {
             return;
         }
-        sendLobbySaveFailure(request.saveId, SaveFailureV2::Busy);
+        sendLobbySaveFailure(request, SaveFailureV2::Busy);
         return;
     }
-
-    auto& active{activeTransfers[roleIndex(request.role)]};
-    if (active) {
-        if (active->request.saveId == request.saveId) {
+    if (activeTransfer) {
+        if (activeTransfer->request.saveId == request.saveId) {
             return;
         }
-        sendLobbySaveFailure(request.saveId, SaveFailureV2::Busy);
+        sendLobbySaveFailure(request, SaveFailureV2::Busy);
         return;
     }
 
@@ -809,75 +717,66 @@ void handleLobbySaveRequest(const LobbyProtocol::SaveRequestV2& request)
     auto session{service ? service->getSession() : nullptr};
     if (!service || !session || !midgard || !midgard->data || !midgard->data->multiplayerGame
         || !midgard->data->client) {
-        sendLobbySaveFailure(request.saveId, SaveFailureV2::NoActiveGame);
+        sendLobbySaveFailure(request, SaveFailureV2::NoActiveGame);
         return;
     }
-    if (!roleMatchesClient(request.role, session, midgard)) {
-        sendLobbySaveFailure(request.saveId, SaveFailureV2::WrongRole);
+    if (!clientIsNativeHost(session, midgard)) {
+        sendLobbySaveFailure(request, SaveFailureV2::WrongRole);
+        return;
+    }
+
+    const auto sendSaveGameMsg{game::CPhaseGameApi::get().sendSaveGameMsg};
+    if (!sendSaveGameMsg) {
+        sendLobbySaveFailure(request, SaveFailureV2::UnsupportedGameBuild);
+        return;
+    }
+    const auto phaseGame{getHostPhaseGame(midgard)};
+    if (!phaseGame) {
+        sendLobbySaveFailure(request, SaveFailureV2::UnsafePhase);
         return;
     }
 
     SaveTransferSession transfer{};
     transfer.request = request;
-    transfer.saveName = makeSaveName(request.role, request.saveId);
-    transfer.savePath = makeSavePath(midgard, transfer.saveName);
     transfer.deadline = std::chrono::steady_clock::now()
         + std::chrono::milliseconds(request.timeoutMs);
-
-    if (request.role == SaveRoleV2::Host) {
-        const auto sendSaveGameMsg{game::CPhaseGameApi::get().sendSaveGameMsg};
-        if (!sendSaveGameMsg) {
-            sendLobbySaveFailure(request.saveId, SaveFailureV2::UnsupportedGameBuild);
-            return;
-        }
-        const auto phaseGame{getHostPhaseGame(midgard)};
-        if (!phaseGame) {
-            sendLobbySaveFailure(request.saveId, SaveFailureV2::UnsafePhase);
-            return;
-        }
-
-        active.emplace(std::move(transfer));
-        spdlog::info(__FUNCTION__ ": requesting independent host save '{:s}', id {:016x}",
-                     active->saveName, request.saveId);
-        try {
-            // false is the native non-UI/autosave form. The wrapper's true form owns an
-            // additional UI-lock increment which a direct CPhaseGame call must not request.
-            sendSaveGameMsg(phaseGame, active->saveName.c_str(), false);
-        } catch (...) {
-            spdlog::warn(__FUNCTION__ ": native host save builder raised a C++ exception");
-            const auto saveId{request.saveId};
-            finishTransfer(request.role);
-            sendLobbySaveFailure(saveId, SaveFailureV2::CaptureFailed);
-        }
+    if (!chooseUnusedSavePath(midgard, transfer)) {
+        sendLobbySaveFailure(request, SaveFailureV2::FileIo);
         return;
     }
 
-    active.emplace(std::move(transfer));
-    SaveFailureV2 failure{SaveFailureV2::CaptureFailed};
-    const bool captured{captureJoinerSave(*active, failure)};
-    const bool uploaded{captured && uploadSave(*active, failure)};
-    if (uploaded) {
-        awaitStoredAck(request.role);
-    } else {
-        finishTransfer(request.role);
-        sendLobbySaveFailure(request.saveId, failure);
+    activeTransfer.emplace(std::move(transfer));
+    spdlog::info(__FUNCTION__ ": requesting native host save '{:s}', id {:016x}, mode {:d}",
+                 activeTransfer->saveName, request.saveId, static_cast<int>(request.mode));
+    try {
+        // false is the native non-UI/autosave form. The wrapper's true form owns an additional
+        // UI-lock increment which a direct CPhaseGame call must not request.
+        sendSaveGameMsg(phaseGame, activeTransfer->saveName.c_str(), false);
+    } catch (...) {
+        spdlog::warn(__FUNCTION__ ": native host save builder raised a C++ exception");
+        const auto placeholderPath{activeTransfer->savePath};
+        const auto placeholderIdentity{activeTransfer->reservedFileIdentity};
+        activeTransfer.reset();
+        if (!deleteEmptyFileWithMatchingObjectIdentity(placeholderPath, placeholderIdentity)) {
+            spdlog::warn(__FUNCTION__
+                         ": could not remove unchanged native-save placeholder '{:s}'",
+                         placeholderPath.string());
+        }
+        sendLobbySaveFailure(request, SaveFailureV2::CaptureFailed);
     }
 }
 
 bool hasActiveLobbyHostSaveTransfer()
 {
-    return isMainThread() && activeTransfers[roleIndex(SaveRoleV2::Host)].has_value();
+    return isMainThread() && activeTransfer.has_value();
 }
 
 void handleGameSavedForLobby(bool success, const std::string& savePath)
 {
     using namespace LobbyProtocol;
 
-    auto& active{activeTransfers[roleIndex(SaveRoleV2::Host)]};
-    if (!active) {
-        return;
-    }
-    if (!isExpectedHostSaveResultPath(savePath, active->savePath)) {
+    if (!activeTransfer
+        || !isExpectedHostSaveResultPath(savePath, activeTransfer->savePath)) {
         return;
     }
 
@@ -885,21 +784,39 @@ void handleGameSavedForLobby(bool success, const std::string& savePath)
     auto midgard{game::CMidgardApi::get().instance()};
     auto session{service ? service->getSession() : nullptr};
     SaveFailureV2 failure{SaveFailureV2::CaptureFailed};
-    if (!service || !session || !midgard || !midgard->data || !session->isHost()
-        || !midgard->data->host) {
+    if (!clientIsNativeHost(session, midgard)) {
         failure = SaveFailureV2::WrongRole;
-    } else if (isDeadlineExpired(*active)) {
+    } else if (isDeadlineExpired(*activeTransfer)) {
         failure = SaveFailureV2::TimedOut;
     } else if (!success) {
         failure = SaveFailureV2::CaptureFailed;
-    } else if (uploadSave(*active, failure)) {
-        awaitStoredAck(SaveRoleV2::Host);
-        return;
+    } else {
+        std::uint32_t ignoredSize{};
+        if (validateCapturedSave(*activeTransfer, ignoredSize, failure)) {
+            const auto isV3{activeTransfer->request.wireVersion == saveRequestVersionV3};
+            const auto fileName{activeTransfer->savePath.filename().string()};
+            if (isV3
+                && !sendNativeSaveResult(activeTransfer->request.saveId,
+                                         nativeSaveResultSuccess, fileName)) {
+                spdlog::warn(__FUNCTION__ ": failed to report native save filename {:016x}",
+                             activeTransfer->request.saveId);
+                failure = SaveFailureV2::SendFailed;
+            } else if (isLocalOnly(activeTransfer->request)) {
+                spdlog::info(__FUNCTION__ ": retained local-only save '{:s}', id {:016x}",
+                             activeTransfer->savePath.string(),
+                             activeTransfer->request.saveId);
+                activeTransfer.reset();
+                return;
+            } else if (uploadSave(*activeTransfer, failure)) {
+                awaitStoredAck();
+                return;
+            }
+        }
     }
 
-    const auto saveId{active->request.saveId};
-    finishTransfer(SaveRoleV2::Host);
-    sendLobbySaveFailure(saveId, failure);
+    const auto request{activeTransfer->request};
+    activeTransfer.reset();
+    sendLobbySaveFailure(request, failure);
 }
 
 void expireLobbySaveTransfers()
@@ -908,75 +825,42 @@ void expireLobbySaveTransfers()
         return;
     }
 
-    for (std::size_t index = 0; index < activeTransfers.size(); ++index) {
-        auto& active{activeTransfers[index]};
-        if (!active || !isDeadlineExpired(*active)) {
-            continue;
-        }
-
-        const auto role{static_cast<SaveRoleV2>(index)};
-        const auto saveId{active->request.saveId};
-        spdlog::warn(__FUNCTION__ ": lobby save {:016x}, role {:d}, timed out",
-                     saveId, static_cast<int>(role));
-        finishTransfer(role);
-        sendLobbySaveFailure(saveId, SaveFailureV2::TimedOut);
+    if (activeTransfer && isDeadlineExpired(*activeTransfer)) {
+        const auto request{activeTransfer->request};
+        spdlog::warn(__FUNCTION__ ": lobby host save {:016x}, mode {:d}, timed out",
+                     request.saveId, static_cast<int>(request.mode));
+        activeTransfer.reset();
+        sendLobbySaveFailure(request, SaveFailureV2::TimedOut);
     }
 
-    for (std::size_t index = 0; index < pendingStoredAcks.size(); ++index) {
-        auto& pending{pendingStoredAcks[index]};
-        if (!pending || std::chrono::steady_clock::now() < pending->deadline) {
-            continue;
-        }
-
-        const auto role{static_cast<SaveRoleV2>(index)};
+    if (pendingStoredAck && std::chrono::steady_clock::now() >= pendingStoredAck->deadline) {
         spdlog::warn(__FUNCTION__
-                     ": stored ACK for local save {:016x}, role {:d}, timed out; retaining file",
-                     pending->saveId, static_cast<int>(role));
-        pending.reset();
+                     ": stored ACK for local save {:016x} timed out; retaining file",
+                     pendingStoredAck->saveId);
+        pendingStoredAck.reset();
     }
 }
 
 void terminateLobbySaveTransfers()
 {
-    for (std::size_t index = 0; index < activeTransfers.size(); ++index) {
-        auto& active{activeTransfers[index]};
-        if (!active) {
-            continue;
-        }
-
-        const auto role{static_cast<SaveRoleV2>(index)};
-        const auto saveId{active->request.saveId};
-        // MATCH_ENDED is sent after the server's authoritative 30-second window. The client's
-        // local deadline starts later (on packet receipt), so comparing it here could defer the
-        // transition forever. Terminally fail any remaining transfer and trust the server.
-        finishTransfer(role);
-        sendLobbySaveFailure(saveId, SaveFailureV2::TimedOut);
+    if (activeTransfer) {
+        const auto request{activeTransfer->request};
+        activeTransfer.reset();
+        sendLobbySaveFailure(request, SaveFailureV2::TimedOut);
     }
 
-    for (std::size_t index = 0; index < pendingStoredAcks.size(); ++index) {
-        auto& pending{pendingStoredAcks[index]};
-        if (!pending) {
-            continue;
-        }
-
-        const auto role{static_cast<SaveRoleV2>(index)};
+    if (pendingStoredAck) {
         spdlog::info(__FUNCTION__
-                     ": forgetting stored ACK wait for {:016x}, role {:d}; retaining local file",
-                     pending->saveId, static_cast<int>(role));
-        pending.reset();
+                     ": forgetting stored ACK wait for {:016x}; retaining local file",
+                     pendingStoredAck->saveId);
+        pendingStoredAck.reset();
     }
 }
 
 void resetLobbySaveTransferState()
 {
-    for (auto& active : activeTransfers) {
-        active.reset();
-    }
-    for (auto& pending : pendingStoredAcks) {
-        pending.reset();
-    }
-    clientExpansionContent = -1;
-    clientExpansionScenarioId = std::numeric_limits<int>::min();
+    activeTransfer.reset();
+    pendingStoredAck.reset();
 }
 
 } // namespace hooks

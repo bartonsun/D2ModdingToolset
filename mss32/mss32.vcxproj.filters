@@ -1064,9 +1064,6 @@
     <ClCompile Include="src\midgardscenariomap.cpp">
       <Filter>game</Filter>
     </ClCompile>
-    <ClCompile Include="src\midstreamenvfile.cpp">
-      <Filter>game</Filter>
-    </ClCompile>
     <ClCompile Include="src\bindings\rodview.cpp">
       <Filter>bindings</Filter>
     </ClCompile>
@@ -3033,9 +3030,6 @@
       <Filter>game</Filter>
     </ClInclude>
     <ClInclude Include="include\midgardstreamenv.h">
-      <Filter>game</Filter>
-    </ClInclude>
-    <ClInclude Include="include\midstreamenvfile.h">
       <Filter>game</Filter>
     </ClInclude>
     <ClInclude Include="include\midstreamfile.h">

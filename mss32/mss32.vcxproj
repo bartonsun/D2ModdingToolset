@@ -407,7 +407,6 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\midgardhooks.cpp" />
     <ClCompile Include="src\midgardmapfog.cpp" />
     <ClCompile Include="src\midgardscenariomap.cpp" />
-    <ClCompile Include="src\midstreamenvfile.cpp" />
     <ClCompile Include="src\midobjectlock.cpp" />
     <ClCompile Include="src\midobjectlockhooks.cpp" />
     <ClCompile Include="src\midserver.cpp" />
@@ -1275,7 +1274,6 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\midsite.h" />
     <ClInclude Include="include\midstack.h" />
     <ClInclude Include="include\midstacktemplate.h" />
-    <ClInclude Include="include\midstreamenvfile.h" />
     <ClInclude Include="include\midstreamfile.h" />
     <ClInclude Include="include\midsubrace.h" />
     <ClInclude Include="include\midtask.h" />

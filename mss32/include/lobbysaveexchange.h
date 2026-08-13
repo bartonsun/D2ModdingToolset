@@ -20,35 +20,30 @@
 #define LOBBYSAVEEXCHANGE_H
 
 #include "netcustomservice.h"
-#include <cstddef>
 #include <string>
-
-namespace game {
-struct NetMessageHeader;
-}
 
 namespace hooks {
 
-/** Lobby-server driven V2 save exchange for ranked matches.
- * Request after the message id: version, saveId, role, maxBytes, timeoutMs.
- * Every response starts with version, saveId and operation, followed by one of:
+/** Lobby-server driven native host-save exchange.
+ * A V2 request carries version, saveId, role, maxBytes and timeoutMs. V3 additionally carries
+ * mode and a bounded ASCII save stem. Upload responses remain SaveTransferV2 and start with
+ * version, saveId and operation, followed by one of:
  * BEGIN(totalSize), CHUNK(offset, size, bytes), COMMIT, or FAIL(code).
  * All fields are written individually through SLNet::BitStream; this is not a packed ABI. */
 
-/** Handles a validated V2 save request on the main/UI thread. Host and joiner requests use
- * independent capture paths and never copy or alias one another's files. */
-void handleLobbySaveRequest(const LobbyProtocol::SaveRequestV2& request);
+/** Handles a validated V2/V3 request on the main/UI thread. Only the native host path is valid;
+ * the Joiner wire value remains reserved and is rejected. */
+void handleLobbySaveRequest(const LobbyProtocol::SaveRequestV3& request);
 
 /** Sends a V2 FAIL operation when a request can be correlated but cannot be accepted. */
 void sendLobbySaveFailure(std::uint64_t saveId, LobbyProtocol::SaveFailureV2 failure);
 
+/** Sends the failure on the response channel selected by the request mode. */
+void sendLobbySaveFailure(const LobbyProtocol::SaveRequestV3& request,
+                          LobbyProtocol::SaveFailureV2 failure);
+
 /** Deletes the exact lobby-owned local save only after a matching authenticated server ACK. */
 void handleLobbySaveStoredAck(std::uint64_t saveId);
-
-/** Observes the standard CRefreshInfo stream before the game consumes it. Its optional
- * expansion marker is the authoritative client-side source for the serializer layout. */
-void observeLobbySaveGameMessage(const game::NetMessageHeader* message,
-                                 std::size_t availableBytes);
 
 /** Handles a copied CommandMsgId::GameSaved result. Only the exact lobby-owned host path can
  * complete the active transfer; unrelated quicksave/autosave results are ignored. */

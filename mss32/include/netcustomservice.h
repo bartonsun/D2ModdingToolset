@@ -57,7 +57,7 @@ enum LobbyMessageId
     ID_LOBBY_GET_CHAT_MESSAGES_RESPONSE = ID_USER_PACKET_ENUM + 5,
     ID_GAME_MESSAGE_TO_HOST_SERVER = ID_USER_PACKET_ENUM + 6,
     ID_GAME_MESSAGE_TO_HOST_CLIENT = ID_USER_PACKET_ENUM + 7,
-    /** Core -> participant: start one bounded SaveTransferV2 capture for the requested role. */
+    /** Core -> participant: start one bounded native host save (V2 or V3 request). */
     ID_LOBBY_SAVE_REQUEST = ID_USER_PACKET_ENUM + 8,
     /** Participant -> core: one SaveTransferV2 BEGIN, CHUNK, COMMIT, or FAIL operation. */
     ID_LOBBY_SAVE_UPLOAD = ID_USER_PACKET_ENUM + 9,
@@ -69,6 +69,8 @@ enum LobbyMessageId
     ID_LOBBY_SYSTEM_NOTICE = ID_USER_PACKET_ENUM + 12,
     /** Core -> participant: durable-storage confirmation, not a RakNet delivery ACK. */
     ID_LOBBY_SAVE_STORED_ACK = ID_USER_PACKET_ENUM + 13,
+    /** Host -> core: V3 native-save result and actual collision-safe basename. */
+    ID_LOBBY_SAVE_NATIVE_RESULT = ID_USER_PACKET_ENUM + 14,
     ID_GAME_MESSAGE = game::netMessageNormalType & 0xff,
 };
 
@@ -85,8 +87,9 @@ static_assert(ID_LOBBY_MATCH_ENDED == ID_USER_PACKET_ENUM + 10);
 static_assert(ID_LOBBY_PLAYER_SETUP == ID_USER_PACKET_ENUM + 11);
 static_assert(ID_LOBBY_SYSTEM_NOTICE == ID_USER_PACKET_ENUM + 12);
 static_assert(ID_LOBBY_SAVE_STORED_ACK == ID_USER_PACKET_ENUM + 13);
+static_assert(ID_LOBBY_SAVE_NATIVE_RESULT == ID_USER_PACKET_ENUM + 14);
 static_assert(ID_GAME_MESSAGE == 255);
-static_assert(ID_LOBBY_SAVE_STORED_ACK < ID_GAME_MESSAGE);
+static_assert(ID_LOBBY_SAVE_NATIVE_RESULT < ID_GAME_MESSAGE);
 
 /** Lobby-specific wire protocol. Values are serialized field-by-field with SLNet::BitStream;
  * these structures are logical payloads, not packed wire images. Keep in sync with the lobby
@@ -95,9 +98,19 @@ namespace LobbyProtocol {
 
 static constexpr std::uint8_t systemNoticeVersion{1};
 static constexpr std::uint8_t saveTransferVersion{2};
+static constexpr std::uint8_t saveRequestVersionV3{3};
 static constexpr std::size_t systemNoticeTextMax{1024};
 static constexpr std::uint32_t saveFileHardLimit{32u * 1024u * 1024u};
 static constexpr std::uint16_t saveChunkSizeMax{16u * 1024u};
+static constexpr std::uint16_t saveStemMax{180};
+static constexpr std::uint16_t saveResultFileNameMax{220};
+/** ID_LOBBY_SAVE_NATIVE_RESULT uses 0 for success and SaveFailureV2 values 1..13 for failure. */
+static constexpr std::uint8_t nativeSaveResultSuccess{0};
+
+static_assert(systemNoticeVersion == 1);
+static_assert(saveTransferVersion == 2);
+static_assert(saveRequestVersionV3 == 3);
+static_assert(nativeSaveResultSuccess == 0);
 
 enum class SystemNoticePresentation : std::uint8_t
 {
@@ -124,6 +137,25 @@ struct SaveRequestV2
     SaveRoleV2 role{SaveRoleV2::Host};
     std::uint32_t maxBytes{};
     std::uint32_t timeoutMs{};
+};
+
+enum class SaveModeV3 : std::uint8_t
+{
+    Upload = 0,
+    LocalOnly = 1,
+};
+
+/** Logical V3 request. A validated V2 Host request is translated into this form with
+ * wireVersion == saveTransferVersion, mode == Upload and an empty saveStem. */
+struct SaveRequestV3
+{
+    std::uint8_t wireVersion{saveRequestVersionV3};
+    std::uint64_t saveId{};
+    SaveRoleV2 role{SaveRoleV2::Host};
+    SaveModeV3 mode{SaveModeV3::Upload};
+    std::uint32_t maxBytes{};
+    std::uint32_t timeoutMs{};
+    std::string saveStem;
 };
 
 enum class SaveDataOperationV2 : std::uint8_t
@@ -154,8 +186,26 @@ enum class SaveFailureV2 : std::uint8_t
 
 static_assert(static_cast<std::uint8_t>(SaveRoleV2::Host) == 0);
 static_assert(static_cast<std::uint8_t>(SaveRoleV2::Joiner) == 1);
+static_assert(static_cast<std::uint8_t>(SaveModeV3::Upload) == 0);
+static_assert(static_cast<std::uint8_t>(SaveModeV3::LocalOnly) == 1);
 static_assert(static_cast<std::uint8_t>(SaveDataOperationV2::Begin) == 0);
+static_assert(static_cast<std::uint8_t>(SaveDataOperationV2::Chunk) == 1);
+static_assert(static_cast<std::uint8_t>(SaveDataOperationV2::Commit) == 2);
 static_assert(static_cast<std::uint8_t>(SaveDataOperationV2::Fail) == 3);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::Unspecified) == 0);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::MalformedRequest) == 1);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::UnsupportedVersion) == 2);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::WrongRole) == 3);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::Busy) == 4);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::NoActiveGame) == 5);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::UnsupportedGameBuild) == 6);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::SerializerUnvalidated) == 7);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::UnsafePhase) == 8);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::CaptureFailed) == 9);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::FileIo) == 10);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::TooLarge) == 11);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::TimedOut) == 12);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::SendFailed) == 13);
 
 } // namespace LobbyProtocol
 
@@ -421,7 +471,7 @@ private:
     std::vector<NetPeerCallback*> getPeerCallbacks() const;
 
     bool readSaveRequest(const SLNet::Packet* packet,
-                         LobbyProtocol::SaveRequestV2& request) const;
+                         LobbyProtocol::SaveRequestV3& request) const;
     bool readSaveStoredAck(const SLNet::Packet* packet, std::uint64_t& saveId) const;
     bool readSystemNotice(const SLNet::Packet* packet,
                           LobbyProtocol::SystemNoticeV1& notice) const;

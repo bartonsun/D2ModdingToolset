@@ -19,7 +19,6 @@
 
 #include "netcustomplayerclient.h"
 #include "mempool.h"
-#include "lobbysaveexchange.h"
 #include "mqnetreception.h"
 #include "mqnetsystem.h"
 #include "netcustomplayer.h"
@@ -173,7 +172,6 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
                         message->messageClassName, getClientId(sender));
             break;
         }
-        observeLobbySaveGameMessage(message, availableBytes);
         m_player->postMessageToReceive(message, availableBytes, game::serverNetPlayerId);
         break;
     }
@@ -186,7 +184,6 @@ void CNetCustomPlayerClient::PeerCallback::onPacketReceived(DefaultMessageIDType
             break;
         }
         message->messageType = game::netMessageNormalType; // TODO: any better way to do this?
-        observeLobbySaveGameMessage(message, availableBytes);
         m_player->postMessageToReceive(message, availableBytes, game::serverNetPlayerId);
         break;
     }
