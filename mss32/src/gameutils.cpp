@@ -576,6 +576,35 @@ const game::CMidRuin* getRuinByUnitId(const game::IMidgardObjectMap* objectMap,
     return ruinId ? getRuin(objectMap, ruinId) : nullptr;
 }
 
+const game::CMidRuin* getRuinAtOrAdjacent(const game::IMidgardObjectMap* objectMap,
+                                          const game::CMidgardPlan* plan,
+                                          const game::CMqPoint* point)
+{
+    using namespace game;
+
+    if (!objectMap || !plan || !point) {
+        return nullptr;
+    }
+
+    const auto& planApi = CMidgardPlanApi::get();
+    const IdType ruinType = IdType::Ruin;
+
+    for (int dy = -1; dy <= 1; ++dy) {
+        for (int dx = -1; dx <= 1; ++dx) {
+            CMqPoint tile{};
+            tile.x = point->x + dx;
+            tile.y = point->y + dy;
+            if (const auto* ruinId = planApi.getObjectId(plan, &tile, &ruinType)) {
+                if (const auto* ruin = getRuin(objectMap, ruinId)) {
+                    return ruin;
+                }
+            }
+        }
+    }
+
+    return nullptr;
+}
+
 game::CMidRod* getRod(const game::IMidgardObjectMap* objectMap, const game::CMidgardID* rodId)
 {
     using namespace game;

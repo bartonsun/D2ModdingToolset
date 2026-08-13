@@ -43,6 +43,7 @@
 #include "refreshinfo.h"
 #include "scenarioinfo.h"
 #include "settings.h"
+#include <cstdlib>
 #include "timer.h"
 #include "unitstovalidate.h"
 #include "unitutils.h"
@@ -243,12 +244,8 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
     bool lootedRuinBeforeMove = false;
     if (endPoint) {
         if (auto plan = getMidgardPlan(objectMap)) {
-            const IdType ruinType = IdType::Ruin;
-            if (const auto* ruinId = CMidgardPlanApi::get().getObjectId(plan, endPoint,
-                                                                         &ruinType)) {
-                if (const auto* ruin = getRuin(objectMap, ruinId)) {
-                    lootedRuinBeforeMove = ruin->looterId != emptyId;
-                }
+            if (const auto* ruin = getRuinAtOrAdjacent(objectMap, plan, endPoint)) {
+                lootedRuinBeforeMove = ruin->looterId != emptyId;
             }
         }
     }
@@ -270,10 +267,13 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
                     }
                 }
                 const int half = maxMovement > 0 ? (maxMovement + 1) / 2 : 0;
-                const int refund = half < spent ? half : spent;
+                const bool nearClick = startingPoint && endPoint
+                    && std::abs(startingPoint->x - endPoint->x) <= 1
+                    && std::abs(startingPoint->y - endPoint->y) <= 1;
+                const int refund = nearClick ? spent : (half < spent ? half : spent);
                 if (refund > 0) {
                     VisitorApi::get().changeStackMoveAllowance(
-                        stackId, -refund, static_cast<IMidgardObjectMap*>(objectMap), 1);
+                        stackId, -refund, objectMap, 1);
                 }
             }
         }
