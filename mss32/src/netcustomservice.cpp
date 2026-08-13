@@ -153,6 +153,61 @@ bool isAuthenticatedLobbyPacket(const CNetCustomService* service, const SLNet::P
            && packet->guid == service->getLobbyGuid();
 }
 
+constexpr char upperAscii(char character)
+{
+    return character >= 'a' && character <= 'z'
+        ? static_cast<char>(character - ('a' - 'A'))
+        : character;
+}
+
+constexpr bool equalsAsciiCaseInsensitive(std::string_view value, std::string_view expected)
+{
+    if (value.size() != expected.size()) {
+        return false;
+    }
+    for (std::size_t index = 0; index < value.size(); ++index) {
+        if (upperAscii(value[index]) != upperAscii(expected[index])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+constexpr bool isReservedWindowsDeviceStem(std::string_view stem)
+{
+    if (equalsAsciiCaseInsensitive(stem, "CON") || equalsAsciiCaseInsensitive(stem, "PRN")
+        || equalsAsciiCaseInsensitive(stem, "AUX") || equalsAsciiCaseInsensitive(stem, "NUL")) {
+        return true;
+    }
+    if (stem.size() != 4 || stem[3] < '1' || stem[3] > '9') {
+        return false;
+    }
+    return equalsAsciiCaseInsensitive(stem.substr(0, 3), "COM")
+           || equalsAsciiCaseInsensitive(stem.substr(0, 3), "LPT");
+}
+
+static_assert(isReservedWindowsDeviceStem("CON"));
+static_assert(isReservedWindowsDeviceStem("nul"));
+static_assert(isReservedWindowsDeviceStem("Com1"));
+static_assert(isReservedWindowsDeviceStem("LPT9"));
+static_assert(!isReservedWindowsDeviceStem("CON-save"));
+static_assert(!isReservedWindowsDeviceStem("COM10"));
+
+bool isSafeSaveStem(std::string_view stem)
+{
+    if (stem.empty() || stem.size() > LobbyProtocol::saveStemMax) {
+        return false;
+    }
+
+    return !isReservedWindowsDeviceStem(stem)
+           && std::all_of(stem.begin(), stem.end(), [](unsigned char character) {
+                  return (character >= 'A' && character <= 'Z')
+                         || (character >= 'a' && character <= 'z')
+                         || (character >= '0' && character <= '9') || character == '_'
+                         || character == '-';
+              });
+}
+
 } // namespace
 
 game::IMqNetServiceVftable CNetCustomService::g_vftable = {
@@ -939,7 +994,7 @@ void CNetCustomService::processPeerMessages() const
 }
 
 bool CNetCustomService::readSaveRequest(const SLNet::Packet* packet,
-                                        LobbyProtocol::SaveRequestV2& request) const
+                                        LobbyProtocol::SaveRequestV3& request) const
 {
     using namespace LobbyProtocol;
 
@@ -955,37 +1010,64 @@ bool CNetCustomService::readSaveRequest(const SLNet::Packet* packet,
     SLNet::BitStream stream{packet->data, packet->length, false};
     stream.IgnoreBytes(sizeof(SLNet::MessageID));
 
-    std::uint8_t version{};
     std::uint8_t role{};
-    if (!stream.Read(version) || !stream.Read(request.saveId) || !stream.Read(role)
-        || !stream.Read(request.maxBytes) || !stream.Read(request.timeoutMs)) {
-        spdlog::warn(__FUNCTION__ ": malformed save request");
+    if (!stream.Read(request.wireVersion) || !stream.Read(request.saveId)
+        || !stream.Read(role)) {
+        spdlog::warn(__FUNCTION__ ": malformed save request header");
         if (request.saveId) {
             sendLobbySaveFailure(request.saveId, SaveFailureV2::MalformedRequest);
         }
-        return false;
-    }
-
-    if (stream.GetNumberOfUnreadBits() != 0) {
-        spdlog::warn(__FUNCTION__ ": save request has trailing data");
-        if (request.saveId) {
-            sendLobbySaveFailure(request.saveId, SaveFailureV2::MalformedRequest);
-        }
-        return false;
-    }
-
-    if (version != saveTransferVersion) {
-        spdlog::warn(__FUNCTION__ ": unsupported save protocol version {:d}",
-                     static_cast<int>(version));
-        sendLobbySaveFailure(request.saveId, SaveFailureV2::UnsupportedVersion);
-        return false;
-    }
-    if (role > static_cast<std::uint8_t>(SaveRoleV2::Joiner)) {
-        sendLobbySaveFailure(request.saveId, SaveFailureV2::MalformedRequest);
         return false;
     }
 
     request.role = static_cast<SaveRoleV2>(role);
+    if (request.wireVersion == saveTransferVersion) {
+        request.mode = SaveModeV3::Upload;
+        if (!stream.Read(request.maxBytes) || !stream.Read(request.timeoutMs)
+            || stream.GetNumberOfUnreadBits() != 0) {
+            spdlog::warn(__FUNCTION__ ": malformed V2 save request");
+            sendLobbySaveFailure(request, SaveFailureV2::MalformedRequest);
+            return false;
+        }
+    } else if (request.wireVersion == saveRequestVersionV3) {
+        std::uint8_t mode{};
+        std::uint16_t stemLength{};
+        if (!stream.Read(mode) || !stream.Read(request.maxBytes)
+            || !stream.Read(request.timeoutMs) || !stream.Read(stemLength)) {
+            spdlog::warn(__FUNCTION__ ": malformed V3 save request header");
+            sendLobbySaveFailure(request, SaveFailureV2::MalformedRequest);
+            return false;
+        }
+        request.mode = static_cast<SaveModeV3>(mode);
+        if (mode > static_cast<std::uint8_t>(SaveModeV3::LocalOnly)
+            || stemLength == 0 || stemLength > saveStemMax
+            || stream.GetNumberOfUnreadBits()
+                   < static_cast<SLNet::BitSize_t>(stemLength) * 8) {
+            spdlog::warn(__FUNCTION__ ": invalid V3 save request metadata");
+            sendLobbySaveFailure(request, SaveFailureV2::MalformedRequest);
+            return false;
+        }
+
+        request.saveStem.resize(stemLength);
+        if (!stream.ReadAlignedBytes(
+                reinterpret_cast<unsigned char*>(request.saveStem.data()), stemLength)
+            || stream.GetNumberOfUnreadBits() != 0 || !isSafeSaveStem(request.saveStem)) {
+            spdlog::warn(__FUNCTION__ ": invalid V3 save stem");
+            sendLobbySaveFailure(request, SaveFailureV2::MalformedRequest);
+            return false;
+        }
+    } else {
+        spdlog::warn(__FUNCTION__ ": unsupported save protocol version {:d}",
+                     static_cast<int>(request.wireVersion));
+        sendLobbySaveFailure(request.saveId, SaveFailureV2::UnsupportedVersion);
+        return false;
+    }
+
+    if (role > static_cast<std::uint8_t>(SaveRoleV2::Joiner)) {
+        sendLobbySaveFailure(request, SaveFailureV2::MalformedRequest);
+        return false;
+    }
+
     return true;
 }
 
@@ -1257,7 +1339,7 @@ void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes typ
         spdlog::debug(__FUNCTION__ ": room function executed");
         break;
     case ID_LOBBY_SAVE_REQUEST: {
-        LobbyProtocol::SaveRequestV2 request{};
+        LobbyProtocol::SaveRequestV3 request{};
         if (m_service->readSaveRequest(packet, request)) {
             handleLobbySaveRequest(request);
         }
