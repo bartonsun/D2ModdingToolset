@@ -333,6 +333,8 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\campaignstream.cpp" />
     <ClCompile Include="src\capitaldata.cpp" />
     <ClCompile Include="src\capitaldatlist.cpp" />
+    <ClCompile Include="src\capitalscoutapi.cpp" />
+    <ClCompile Include="src\capitalscouthooks.cpp" />
     <ClCompile Include="src\categorylist.cpp" />
     <ClCompile Include="src\citystackinterf.cpp" />
     <ClCompile Include="src\cmdbattlechooseactionmsg.cpp" />
@@ -963,6 +965,8 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\capital.h" />
     <ClInclude Include="include\capitaldata.h" />
     <ClInclude Include="include\capitaldatlist.h" />
+    <ClInclude Include="include\capitalscoutapi.h" />
+    <ClInclude Include="include\capitalscouthooks.h" />
     <ClInclude Include="include\catalogvalidate.h" />
     <ClInclude Include="include\categories.h" />
     <ClInclude Include="include\categoryids.h" />

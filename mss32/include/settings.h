@@ -36,6 +36,7 @@ struct Settings
     int unitMaxDamage;
     int unitMaxArmor;
     int stackScoutRangeMax;
+    int capitalScoutRange;
     int shatteredArmorMax;
     int shatterDamageMax;
     int drainAttackHeal;
