@@ -466,9 +466,6 @@
     <ClCompile Include="src\waitingmovepathplanner.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
-    <ClCompile Include="src\waitingmovepathflag.cpp">
-      <Filter>hooks</Filter>
-    </ClCompile>
     <ClCompile Include="src\originalfunctions.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
@@ -2381,9 +2378,6 @@
       <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\waitingmovepathplanner.h">
-      <Filter>hooks</Filter>
-    </ClInclude>
-    <ClInclude Include="include\waitingmovepathflag.h">
       <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\originalfunctions.h">

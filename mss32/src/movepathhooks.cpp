@@ -54,7 +54,6 @@
 #include <optional>
 #include <sol/sol.hpp>
 #include <usersettings.h>
-#include <waitingmovepathflag.h>
 #include <waitingmovepathhooks.h>
 #include <waitingmovepathplanner.h>
 
@@ -453,15 +452,12 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
                                             && nodeCost < waitingBudget;
 
         const char* imageName = "MOVENORMAL";
-        bool useGrayWaitingFlag{};
         if (terrainOnlyPreview) {
             if (!waitingNodeReachable
                 || (endOfPath && pathLeadsToAction && !waitingActionReachable)) {
                 imageName = "MOVEACTION";
             } else if (waitingActionReachable) {
                 imageName = noble ? "MOVENEGO" : "MOVEBATTLE";
-            } else {
-                useGrayWaitingFlag = true;
             }
         } else if (!v61) {
             imageName = pathLeadsToAction ? "MOVEOUT" : "MOVEACTION";
@@ -483,16 +479,9 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
         if (!pathAllowed) {
             // Crossed out white flag, when path of water only stack leads to the land
             imageName = "MOVEINCMP";
-            useGrayWaitingFlag = false;
         }
 
-        game::IMqImage2* flagImage{};
-        if (useGrayWaitingFlag) {
-            flagImage = createWaitingMovementPathGrayFlag();
-        }
-        if (!flagImage) {
-            flagImage = imagesApi.getImage(images->isoCmon, imageName, 0, true, images->log);
-        }
+        auto* flagImage = imagesApi.getImage(images->isoCmon, imageName, 0, true, images->log);
         if (!flagImage) {
             continue;
         }
