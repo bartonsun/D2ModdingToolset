@@ -605,7 +605,7 @@ static bool adjacentToFootprint(const game::CMqPoint* point, const game::IMapEle
     }
     int maxX = element->position.x + element->sizeX - 1;
     int maxY = element->position.y + element->sizeY - 1;
-    CMqPoint clamp{};
+    game::CMqPoint clamp{};
     clamp.x = point->x;
     clamp.y = point->y;
     if (clamp.x < element->position.x) {
