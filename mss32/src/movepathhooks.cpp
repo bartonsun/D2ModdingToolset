@@ -78,7 +78,8 @@ static void fillMovementTargetContext(sol::table& movementContext,
                                       const game::IMidgardObjectMap* objectMap,
                                       const game::CMidgardPlan* plan,
                                       const game::CMqPoint* pathEnd,
-                                      const game::CMidgardID* targetStackId)
+                                      const game::CMidgardID* targetStackId,
+                                      const game::CMidStack* stack)
 {
     using namespace game;
 
@@ -138,7 +139,7 @@ static void fillMovementTargetContext(sol::table& movementContext,
             }
         }
 
-        if (const auto* ruin = hooks::getRuinAtOrAdjacent(objectMap, plan, pathEnd)) {
+        if (const auto* ruin = hooks::getRuinAtOrAdjacent(objectMap, plan, pathEnd, stack)) {
             movementContext["targetId"] = bindings::IdView(ruin->id);
             return;
         }
@@ -423,7 +424,7 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
                         movementContext["afterActionMovement"] = static_cast<int>(movementAfterAction);
 
                         fillMovementTargetContext(movementContext, objectMap, plan, pathEnd,
-                                                  targetStackId);
+                                                  targetStackId, stack);
 
                         sol::object result = (*movementActionPenaltyLua)(movementContext);
 
