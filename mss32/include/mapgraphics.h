@@ -88,6 +88,12 @@ struct Api
     using SetMapGraphics = void(__thiscall*)(MapGraphicsPtr* thisptr, MapGraphics** data);
     SetMapGraphics setMapGraphics;
 
+    using ConvertMouseToMap = bool(__thiscall*)(MapGraphics** thisptr,
+                                                const CMqPoint* screenPosition,
+                                                CMqPoint* mapPosition,
+                                                CMqPoint* pixelDelta);
+    ConvertMouseToMap convertMouseToMap;
+
     using GetTileIndex = TileArrayIndex(__thiscall*)(MapGraphics** thisptr, bool waterTile);
     GetTileIndex getTileIndex;
 

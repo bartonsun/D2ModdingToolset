@@ -29,8 +29,8 @@ struct ITask;
 
 struct CTaskManagerData
 {
-    void* unknown;
     ITaskManagerHolder* taskManagerHolder;
+    ITask* currentTask;
 };
 
 assert_size(CTaskManagerData, 8);
