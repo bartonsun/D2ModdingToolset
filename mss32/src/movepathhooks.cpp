@@ -20,6 +20,7 @@
 #include "movepathhooks.h"
 #include "dynamiccast.h"
 #include "game.h"
+#include "gameutils.h"
 #include "gameimages.h"
 #include "gamesettings.h"
 #include "groundcat.h"
@@ -135,6 +136,11 @@ static void fillMovementTargetContext(sol::table& movementContext,
                 movementContext["targetId"] = bindings::IdView(*id);
                 return;
             }
+        }
+
+        if (const auto* ruin = hooks::getRuinAtOrAdjacent(objectMap, plan, pathEnd)) {
+            movementContext["targetId"] = bindings::IdView(ruin->id);
+            return;
         }
     }
 
