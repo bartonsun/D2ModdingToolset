@@ -31,7 +31,7 @@ jobs:
         shell: bash # ubuntu-slim has no pwsh
         run: |
           set -e
-          n=$(git submodule status | wc -l)
+          n=$(grep -c '^\[submodule' .gitmodules || true)
           echo "submodules wired: $n"
           [ "$n" -ge 7 ] || { echo "::error::expected >=7 submodules, found $n"; exit 1; }
 
@@ -53,8 +53,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $rid = (gh run list --workflow deps.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId').Trim()
-          if (-not $rid) { Write-Error "No successful 'deps' run found; run the 'deps' workflow once."; exit 1 }
-          gh run download $rid -n deps-libs -D mss32/Lib
+          if (-not $rid) {
+            $rid = (gh run list --repo bartonsun/D2ModdingToolset --workflow deps.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId').Trim()
+            if (-not $rid) { Write-Error "No successful 'deps' run found; run the 'deps' workflow once."; exit 1 }
+            gh run download $rid -n deps-libs -D mss32/Lib --repo bartonsun/D2ModdingToolset
+          } else {
+            gh run download $rid -n deps-libs -D mss32/Lib
+          }
           Get-ChildItem mss32/Lib
 
       - name: Build mss32.dll
