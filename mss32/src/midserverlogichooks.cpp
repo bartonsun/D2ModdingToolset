@@ -266,13 +266,17 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
                     }
                 }
                 const int half = maxMovement > 0 ? (maxMovement + 1) / 2 : 0;
-                const bool nearClick = startingPoint && endPoint
-                    && std::abs(startingPoint->x - endPoint->x) <= 1
-                    && std::abs(startingPoint->y - endPoint->y) <= 1;
-                const int refund = nearClick ? spent : (half < spent ? half : spent);
-                if (refund > 0) {
-                    VisitorApi::get().changeStackMoveAllowance(
-                        stackId, -refund, objectMap, 1);
+                const bool stayClick = startingPoint && endPoint
+                    && startingPoint->x == endPoint->x && startingPoint->y == endPoint->y;
+                if (stayClick || spent >= half) {
+                    const bool nearClick = startingPoint && endPoint
+                        && std::abs(startingPoint->x - endPoint->x) <= 1
+                        && std::abs(startingPoint->y - endPoint->y) <= 1;
+                    const int refund = nearClick ? spent : (half < spent ? half : spent);
+                    if (refund > 0) {
+                        VisitorApi::get().changeStackMoveAllowance(
+                            stackId, -refund, objectMap, 1);
+                    }
                 }
             }
         }
