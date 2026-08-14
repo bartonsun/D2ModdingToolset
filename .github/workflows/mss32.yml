@@ -21,7 +21,7 @@ concurrency:
 jobs:
   prepare:
     name: Pre-checks (submodules)
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
@@ -38,7 +38,7 @@ jobs:
   build:
     name: Build mss32.dll (MSVC x86)
     needs: prepare
-    runs-on: windows-2025-vs2026
+    runs-on: windows-latest
     defaults:
       run:
         shell: pwsh
