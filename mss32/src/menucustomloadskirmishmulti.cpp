@@ -21,6 +21,7 @@
 #include "mempool.h"
 #include "originalfunctions.h"
 #include "textids.h"
+#include "turnhooks.h"
 #include "utils.h"
 #include <spdlog/spdlog.h>
 
@@ -97,6 +98,7 @@ void CMenuCustomLoadSkirmishMulti::RoomsCallback::CreateRoom_Callback(
 
     switch (auto resultCode = callResult->resultCode) {
     case SLNet::REC_SUCCESS: {
+        armRestoredGameDailyIncomeSuppression();
         getOriginalFunctions().menuLoadCreateServer(m_menu);
         break;
     }

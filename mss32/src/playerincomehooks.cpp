@@ -36,20 +36,43 @@
 #include "racetype.h"
 #include "scripts.h"
 #include "settings.h"
+#include "turnhooks.h"
 #include "utils.h"
+#include "version.h"
 #include <algorithm>
 #include <array>
+#include <cstdint>
+#include <intrin.h>
 #include <spdlog/spdlog.h>
 
 extern std::thread::id mainThreadId;
 
 namespace hooks {
 
+static bool isDailyIncomeCreditCall(std::uintptr_t returnAddress)
+{
+    switch (gameVersion()) {
+    case GameVersion::Akella:
+    case GameVersion::Russobit:
+        return returnAddress == 0x43b0e1;
+    case GameVersion::Gog:
+        return returnAddress == 0x43aba7;
+    default:
+        return false;
+    }
+}
+
 game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
                                                      game::IMidgardObjectMap* objectMap,
                                                      const game::CMidgardID* playerId)
 {
     using namespace game;
+
+    if (isRestoredGameDailyIncomeSuppressed() &&
+        isDailyIncomeCreditCall(reinterpret_cast<std::uintptr_t>(_ReturnAddress()))) {
+        BankApi::get().setZero(income);
+        return income;
+    }
 
     getOriginalFunctions().computePlayerDailyIncome(income, objectMap, playerId);
 

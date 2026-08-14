@@ -13,6 +13,7 @@
 #include "scripts.h"
 #include "midserverlogic.h"
 
+#include <atomic>
 #include <sol/sol.hpp>
 #include <spdlog/spdlog.h>
 
@@ -25,12 +26,38 @@ static BeginTurnFunc beginTurnOrig;
 
 static std::optional<sol::environment> env;
 static std::optional<sol::function> processTurnStart;
+static std::atomic_bool restoredGameDailyIncomePending{false};
+static thread_local bool restoredGameDailyIncomeSuppressed;
+
+class ScopedRestoredGameDailyIncomeSuppression
+{
+public:
+    ScopedRestoredGameDailyIncomeSuppression()
+        : previous{restoredGameDailyIncomeSuppressed}
+    {
+        restoredGameDailyIncomeSuppressed = true;
+    }
+
+    ~ScopedRestoredGameDailyIncomeSuppression()
+    {
+        restoredGameDailyIncomeSuppressed = previous;
+    }
+
+private:
+    bool previous;
+};
 
 void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
                                 int /*%edx*/,
                                 game::CMidgardID* playerId)
 {
     using namespace game;
+
+    if (restoredGameDailyIncomePending.exchange(false)) {
+        ScopedRestoredGameDailyIncomeSuppression suppression;
+        beginTurnOrig(thisptr, playerId);
+        return;
+    }
 
     beginTurnOrig(thisptr, playerId);
 
@@ -92,6 +119,21 @@ void* getBeginTurnHooked()
 void** getBeginTurnOrig()
 {
     return (void**)&beginTurnOrig;
+}
+
+void armRestoredGameDailyIncomeSuppression()
+{
+    restoredGameDailyIncomePending = true;
+}
+
+void clearRestoredGameDailyIncomeSuppression()
+{
+    restoredGameDailyIncomePending = false;
+}
+
+bool isRestoredGameDailyIncomeSuppressed()
+{
+    return restoredGameDailyIncomeSuppressed;
 }
 
 } // namespace hooks
