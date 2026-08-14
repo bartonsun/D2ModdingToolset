@@ -595,17 +595,30 @@ static bool pointsChebyshevAtMostOne(const game::CMqPoint* a, const game::CMqPoi
     return dx <= 1 && dy <= 1;
 }
 
-static bool ruinEntranceAt(const game::IMidgardObjectMap* objectMap,
-                           const game::CMidgardPlan* plan,
-                           const game::CMidStack* stack,
-                           const game::CMidRuin* ruin,
-                           game::CMqPoint* entrance)
+static bool adjacentToFootprint(const game::CMqPoint* point, const game::IMapElement* element)
 {
-    if (!stack || !ruin || !entrance) {
+    if (!point || !element) {
         return false;
     }
-    return game::gameFunctions().getFortOrRuinEntrance(objectMap, plan, stack,
-                                                       &ruin->mapElement.position, entrance);
+    if (pointOnMapElement(point, element)) {
+        return false;
+    }
+    int maxX = element->position.x + element->sizeX - 1;
+    int maxY = element->position.y + element->sizeY - 1;
+    CMqPoint clamp{};
+    clamp.x = point->x;
+    clamp.y = point->y;
+    if (clamp.x < element->position.x) {
+        clamp.x = element->position.x;
+    } else if (clamp.x > maxX) {
+        clamp.x = maxX;
+    }
+    if (clamp.y < element->position.y) {
+        clamp.y = element->position.y;
+    } else if (clamp.y > maxY) {
+        clamp.y = maxY;
+    }
+    return pointsChebyshevAtMostOne(point, &clamp);
 }
 
 static bool ruinMatchesInteraction(const game::IMidgardObjectMap* objectMap,
@@ -623,15 +636,12 @@ static bool ruinMatchesInteraction(const game::IMidgardObjectMap* objectMap,
     if (pointOnMapElement(endPoint, &ruin->mapElement)) {
         return true;
     }
-    CMqPoint entrance{};
-    if (ruinEntranceAt(objectMap, plan, stack, ruin, &entrance)) {
-        if (endPoint->x == entrance.x && endPoint->y == entrance.y) {
-            return true;
-        }
-        if (startPoint && startPoint->x == endPoint->x && startPoint->y == endPoint->y
-            && pointsChebyshevAtMostOne(startPoint, &entrance)) {
-            return true;
-        }
+    if (adjacentToFootprint(endPoint, &ruin->mapElement)) {
+        return true;
+    }
+    if (startPoint && startPoint->x == endPoint->x && startPoint->y == endPoint->y
+        && adjacentToFootprint(startPoint, &ruin->mapElement)) {
+        return true;
     }
     return false;
 }
@@ -669,13 +679,8 @@ const game::CMidRuin* getRuinAtOrAdjacent(const game::IMidgardObjectMap* objectM
             return;
         }
         const auto* ruin = static_cast<const CMidRuin*>(obj);
-        if (pointOnMapElement(point, &ruin->mapElement)) {
-            found = ruin;
-            return;
-        }
-        CMqPoint entrance{};
-        if (ruinEntranceAt(objectMap, plan, stack, ruin, &entrance) && point->x == entrance.x
-            && point->y == entrance.y) {
+        if (pointOnMapElement(point, &ruin->mapElement)
+            || adjacentToFootprint(point, &ruin->mapElement)) {
             found = ruin;
         }
     });
