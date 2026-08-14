@@ -200,7 +200,8 @@ const game::CMidRuin* getRuinByUnitId(const game::IMidgardObjectMap* objectMap,
 
 const game::CMidRuin* getRuinAtOrAdjacent(const game::IMidgardObjectMap* objectMap,
                                           const game::CMidgardPlan* plan,
-                                          const game::CMqPoint* point);
+                                          const game::CMqPoint* point,
+                                          const game::CMidStack* stack = nullptr);
 
 bool isLootedRuinInteraction(const game::IMidgardObjectMap* objectMap,
                              const game::CMidgardPlan* plan,
