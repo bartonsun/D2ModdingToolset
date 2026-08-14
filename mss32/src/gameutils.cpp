@@ -608,7 +608,8 @@ const game::CMidRuin* getRuinAtOrAdjacent(const game::IMidgardObjectMap* objectM
 bool isLootedRuinInteraction(const game::IMidgardObjectMap* objectMap,
                              const game::CMidgardPlan* plan,
                              const game::CMidStack* stack,
-                             const game::CMqPoint* endPoint)
+                             const game::CMqPoint* endPoint,
+                             const game::CMqPoint* startPoint)
 {
     using namespace game;
 
@@ -628,12 +629,18 @@ bool isLootedRuinInteraction(const game::IMidgardObjectMap* objectMap,
     }
 
     CMqPoint entrance{};
-    if (!gameFunctions().getFortOrRuinEntrance(objectMap, plan, stack, &element.position,
-                                               &entrance)) {
-        return false;
+    if (gameFunctions().getFortOrRuinEntrance(objectMap, plan, stack, &element.position,
+                                              &entrance)) {
+        if (endPoint->x == entrance.x && endPoint->y == entrance.y) {
+            return true;
+        }
     }
 
-    return endPoint->x == entrance.x && endPoint->y == entrance.y;
+    if (startPoint && startPoint->x == endPoint->x && startPoint->y == endPoint->y) {
+        return true;
+    }
+
+    return false;
 }
 
 game::CMidRod* getRod(const game::IMidgardObjectMap* objectMap, const game::CMidgardID* rodId)

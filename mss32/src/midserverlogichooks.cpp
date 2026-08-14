@@ -244,7 +244,8 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
     bool lootedRuinBeforeMove = false;
     if (endPoint && stackBefore) {
         if (auto plan = getMidgardPlan(objectMap)) {
-            lootedRuinBeforeMove = isLootedRuinInteraction(objectMap, plan, stackBefore, endPoint);
+            lootedRuinBeforeMove = isLootedRuinInteraction(objectMap, plan, stackBefore, endPoint,
+                                                           startingPoint);
         }
     }
 
