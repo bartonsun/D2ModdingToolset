@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/VladimirMakeev/D2ModdingToolset)
  * Copyright (C) 2021 Stanislav Egorov.
@@ -47,6 +47,7 @@
 #include "mainview2.h"
 #include "menubase.h"
 #include "menuload.h"
+#include "menulord.h"
 #include "menunewskirmishhotseat.h"
 #include "menunewskirmishmulti.h"
 #include "menunewskirmishsingle.h"
@@ -168,6 +169,12 @@ struct OriginalFunctions
 
     game::CMenuLoadApi::Api::CreateServer menuLoadCreateServer;
 
+    game::CMenuLordApi::Api::FaceButtonClick menuLordFaceButtonClick;
+    void (__thiscall *hotseatLobbyRaceLordButtonClick)(void* thisptr);
+    void (__thiscall *lobbyLordButtonClick)(void* thisptr);
+
+    game::CMenuLordApi::Api::Constructor menuLordCtor;
+
     game::AutoDialogApi::Api::LoadAndParseScriptFile autoDialogLoadAndParseScriptFile;
 
     game::editor::CScenPropInterfApi::Api::Constructor scenPropInterfCtor;
@@ -254,3 +261,5 @@ OriginalFunctions& getOriginalFunctions();
 } // namespace hooks
 
 #endif // ORIGINALFUNCTIONS_H
+
+

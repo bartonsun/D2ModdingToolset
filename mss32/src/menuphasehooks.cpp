@@ -18,6 +18,7 @@
  */
 
 #include "menuphasehooks.h"
+#include "menulordhooks.h"
 #include "mempool.h"
 #include "menucustomloadskirmishmulti.h"
 #include "menucustomlobby.h"
@@ -343,7 +344,8 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
                 reinterpret_cast<CMenuBase*>(data->currentMenu));
             if (loadedGame) {
                 spdlog::debug("Current is LoadSkirmishMulti (loaded game), locking race selection");
-                menuPhase.switchToWaitAndCreateClient(thisptr);
+                lockLordFaceButton = true;
+                menuPhase.switchToLobbyHostJoin(thisptr);
                 break;
             }
 
