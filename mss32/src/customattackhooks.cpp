@@ -245,6 +245,13 @@ game::CAttackImpl* __fastcall attackImplCtorHooked(game::CAttackImpl* thisptr,
         data->level = -1;
     }
 
+    if (id == categories.paralyze->id || id == categories.petrify->id || id == categories.blister->id || id == categories.frostbite->id || id == categories.poison->id || id == categories.transformOther->id)
+    {
+        int level;
+        db.readIntWithBoundsCheck(&level, dbTable, "LEVEL", 0, 100);
+        data->level = level;
+    }
+
     if (attackHasInfinite(thisptr->data->attackClass.id)) {
         db.readInfinite(&data->infinite, dbTable, "INFINITE");
     } else {

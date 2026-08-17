@@ -31,6 +31,15 @@
 #include "battleattackinfo.h"
 #include "immunecat.h"
 
+#include <fmt/format.h>
+#include <fstream>
+#include <unitview.h>
+#include <battlemsgdataview.h>
+#include "scripts.h"
+#include <sol/sol.hpp>
+#include <attackparams.h>
+#include <hooks.h>
+
 namespace hooks {
 
 static bool canPerformSecondaryAttack(game::CBatAttackHeal* thisptr,
@@ -138,19 +147,34 @@ void __fastcall healAttackOnHitHooked(game::CBatAttackHeal* thisptr,
     int qtyHealed = 0;
     if (battleApi.unitCanBeHealed(objectMap, battleMsgData, targetUnitId)) {
         const auto attack = thisptr->attackImpl;
-        const int qtyHeal = computeBoostedHeal(&thisptr->unitId, battleMsgData,
-                                               attack->vftable->getQtyHeal(attack));
+        int qtyHeal = computeBoostedHeal(&thisptr->unitId, battleMsgData,
+                                         attack->vftable->getQtyHeal(attack));
+
+        CMidUnit* unitAttacker = game::gameFunctions().findUnitById(objectMap, &thisptr->unitId);
+
+        bindings::AttackHitParamsView params;
+        params.attacker = unitAttacker;
+        params.target = targetUnit;
+        params.attack = attack;
+        params.attackClass = "Heal";
+        params.heal = qtyHeal;
+        params.miss = false;
+
+        callLuaAttackHook(objectMap, battleMsgData, params);
+
+        if (params.miss) {
+            addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+            return;
+        }
+
+        qtyHeal = params.heal;
 
         if (qtyHeal > 0) {
             qtyHealed = heal(objectMap, battleMsgData, targetUnit, qtyHeal);
         }
     }
 
-    BattleAttackUnitInfo info{};
-    info.unitId = targetUnit->id;
-    info.unitImplId = targetUnit->unitImpl->id;
-    info.damage = qtyHealed;
-    attackInfoApi.addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+    addToBattleAttackInfo(*attackInfo, targetUnit, qtyHealed);
 }
 
 bool __fastcall healAttackIsImmuneHooked(game::CBatAttackHeal* thisptr,
@@ -176,25 +200,7 @@ bool __fastcall healAttackIsImmuneHooked(game::CBatAttackHeal* thisptr,
         return false;
     }
 
-    const CMidUnit* targetUnit = fn.findUnitById(objectMap, unitId);
-    if (!targetUnit) {
-        return false;
-    }
-
-    const IUsSoldier* targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
-    const LAttackClass* attackClass = attack->vftable->getAttackClass(attack);
-    const LImmuneCat* immuneCat = targetSoldier->vftable->getImmuneByAttackClass(targetSoldier,
-                                                                                 attackClass);
-    if (immuneCat->id == immuneCategories.once->id) {
-        bool hasWard = battleApi.isUnitAttackClassWardRemoved(battleMsgData, unitId, attackClass);
-        if (!hasWard) {
-            battleApi.removeUnitAttackClassWard(battleMsgData, unitId, attackClass);
-            return true;
-        }
-        return false;
-    }
-
-    return immuneCat->id == immuneCategories.always->id;
+    return IsImmuneToAttack(battleMsgData, objectMap, unitId, attack);
 }
 
 } // namespace hooks

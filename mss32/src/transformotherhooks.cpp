@@ -43,6 +43,10 @@
 #include "visitors.h"
 #include <spdlog/spdlog.h>
 
+#include "attackparams.h"
+#include "hooks.h"
+#include <batattackutils.h>
+
 namespace hooks {
 
 static sol::table idListToTable(lua_State* L, const game::IdList* list)
@@ -165,6 +169,22 @@ void __fastcall transformOtherAttackOnHitHooked(game::CBatAttackTransformOther* 
     const CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
     const CMidgardID targetUnitImplId{targetUnit->unitImpl->id};
     bool targetIsSmall = isUnitSmall(targetUnit);
+
+    CMidUnit* unitAttacker = game::gameFunctions().findUnitById(objectMap, &thisptr->unitId);
+
+    bindings::AttackHitParamsView params;
+    params.attacker = unitAttacker;
+    params.target = const_cast<CMidUnit*>(targetUnit);
+    params.attack = thisptr->attack;
+    params.attackClass = "TransformOther";
+    params.miss = false;
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss) {
+        addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+        return;
+    }
 
     auto attackId = &thisptr->attack->id;
 

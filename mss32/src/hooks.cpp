@@ -38,12 +38,17 @@
 #include "batattackgiveattack.h"
 #include "batattackgroupupgrade.h"
 #include "batattackheal.h"
+#include "batattackparalyze.h"
+#include "batattackretreat.h"
+#include "batattackpetrify.h"
 #include "batattackhealhooks.h"
 #include "batattackshatter.h"
 #include "batattacksummon.h"
 #include "batattacktransformother.h"
 #include "batattacktransformself.h"
 #include "batattackuntransformeffect.h"
+#include "batattackusepotion.h"
+#include "batattackwait.h"
 #include "batattackutils.h"
 #include "batbigface.h"
 #include "batlogic.h"
@@ -242,6 +247,7 @@
 #include "visitorcreatesite.h"
 #include "visitorcreatesitehooks.h"
 #include "visitors.h"
+#include "reviveattackhooks.h"
 #include <algorithm>
 #include <cstring>
 #include <fstream>
@@ -263,6 +269,7 @@
 #include "batattackpoison.h"
 #include "batattackpoisoneffect.h"
 #include "batattacklowerdamage.h"
+#include "batattacklowerinitiative.h"
 #include "batattackboostdamage.h"
 #include "batattackcure.h"
 #include "dotattackhooks.h"
@@ -274,6 +281,15 @@
 #include "quicksavehook.h"
 #include "stealspellinterf.h"
 #include "addstealspellhooks.h"
+#include <attackview.h>
+#include <attackparams.h>
+#include <batattackfear.h>
+
+#include "itempotionhooks.h"
+#include "itempotionheal.h"
+#include "idvector.h"
+#include <batattackusetalisman.h>
+#include <batattackuseorb.h>
 
 
 struct PendingBattleEffect
@@ -300,10 +316,6 @@ static Hooks getGameHooks()
 
     // clang-format off
     Hooks hooks{
-
-          // Quick save hotkey for host in multiplayer 
-         {(void*)fn.stratInterfKeyHandler, hookedKeyHandler, (void**)&originalKeyHandler},
-
         // Fix game crash in battles with summoners
         {CMidUnitApi::get().removeModifier, removeModifierHooked},
         // Fix unit transformation to include hp mods into current hp recalculation
@@ -565,18 +577,58 @@ static Hooks getGameHooks()
         //Fixed an issue where a unit with an attack of 3 or more would incorrectly reset the attackCount after using a block.
         {CBatAttackDefendApi::vftable()->onHit, defendOnHitHooked},
         {CBatAttackReviveApi::vftable()->onHit, reviveAttackOnHitHooked},
+
         //onHit dot effects
         {CBatAttackBlisterEffectApi::vftable()->onHit, blisterEffectOnHitHooked},
         {CBatAttackFrostbiteEffectApi::vftable()->onHit, frostbiteEffectOnHitHooked},
         {CBatAttackPoisonEffectApi::vftable()->onHit, poisonEffectOnHitHooked},
 
-        //Fix random for lon effects
-        {fn.checkLongEffectDuration, checkLongEffectDurationHooked, (void**)&orig.checkLongEffectDuration},       
+        // Controlable random for long effects
+        {battle.checkLongEffectDuration, checkLongEffectDurationHooked, (void**)&orig.checkLongEffectDuration},  
+
         //Cure attack always work
         {CBatAttackCureApi::vftable()->canPerform, cureAttackCanPerformHooked},
         {CBatAttackCureApi::vftable()->onHit, cureAttackOnHitHooked},
 
         {CBatAttackDamageApi::vftable()->onHit, damageAttackOnHitHooked},
+        {CBatAttackLowerDamageApi::vftable()->onHit, lowerDamageOnHitHooked},
+        {CBatAttackLowerInitiativeApi::vftable()->onHit, lowerInitiativeOnHitHooked},
+
+        {CBatAttackParalyzeApi::vftable()->onHit, paralyzeOnHitHooked},
+        {CBatAttackPetrifyApi::vftable()->onHit, petrifyOnHitHooked},
+
+        {CBatAttackFearApi::vftable()->onHit, fearAttackOnHitHooked},
+
+        {CBatAttackWaitApi::vftable()->onHit, waitAttackOnHitHooked},
+        {CBatAttackRetreatApi::vftable()->onHit, retreatAttackOnHitHooked},
+
+        {battle.setUnitFlag5, setUnitFlag5Hooked},
+
+        // DOT-damages
+        {CBatAttackBlisterApi::vftable()->canPerform, blisterAttackCanPerformHooked},
+        {CBatAttackBlisterApi::vftable()->onHit, blisterAttackOnHitHooked},
+        {CBatAttackFrostbiteApi::vftable()->canPerform, frostbiteAttackCanPerformHooked},
+        {CBatAttackFrostbiteApi::vftable()->onHit, frostbiteAttackOnHitHooked},
+        {CBatAttackPoisonApi::vftable()->canPerform, poisonAttackCanPerformHooked},
+        {CBatAttackPoisonApi::vftable()->onHit, poisonAttackOnHitHooked},
+
+        // WIP
+        {battle.updateParalyzePetrifyEffects, updateParalyzePetrifyEffectsHooked},
+        {battle.updatePoisonLongEffect, shouldDisablePoisonHooked},
+        {battle.updateFrostbiteLongEffect, shouldDisableFrostbiteHooked},
+        {battle.updateBlisterLongEffect, shouldDisableBlisterHooked},
+        {battle.updateTransformLongEffect, shouldDisableTransformOtherHooked},
+
+        // WIP
+        {CItemPotionReviveApi::get().constructor, itemPotionReviveCtorHooked, (void**)&orig.itemPotionReviveCtor},
+        {CItemPotionBoostPermApi::get().constructor, itemPotionBoostPermCtorHooked, (void**)&orig.itemPotionBoostPermCtor},
+        {CItemPotionBoostTempApi::get().constructor, itemPotionBoostTempCtorHooked, (void**)&orig.itemPotionBoostTempCtor},
+        {CItemPotionHealApi::get().constructor, itemPotionHealCtorHooked, (void**)&orig.itemPotionHealCtor},
+        //{CItemBaseApi::get().constructor, itemBaseCtorHooked, (void**)&orig.itemBaseCtor},
+
+        {CBatAttackUsePotionApi::vftable()->onHit, usePotionAttackOnHitHooked},
+        {CBatAttackUseTalismanApi::vftable()->onHit, useTalismanAttackOnHitHooked},
+        {CBatAttackUseOrbApi::vftable()->onHit, useOrbAttackOnHitHooked},
 
         //Not used
         {BattleViewerInterfApi::vftable()->battleEnd, battleEndHooked, (void**)&orig.battleEnd},
@@ -584,29 +636,10 @@ static Hooks getGameHooks()
         {CBatLogicApi::get().applyCBatAttackUntransformEffect, applyCBatAttackUntransformEffectHooked, (void**)&orig.applyCBatAttackUntransformEffect},
     };
     // clang-format on
-    
-    // Extended battle options
-    if (gameSettings().extendedBattle.dotDamageCanStack
-        != baseGameSettings().extendedBattle.dotDamageCanStack) {
-        hooks.emplace_back(HookInfo{CBatAttackBlisterApi::vftable()->canPerform, blisterCanPerformHooked});
-        hooks.emplace_back(HookInfo{CBatAttackBlisterApi::vftable()->onHit, blisterOnHitHooked});
-        hooks.emplace_back(HookInfo{CBatAttackFrostbiteApi::vftable()->canPerform, frostbiteCanPerformHooked});
-        hooks.emplace_back(HookInfo{CBatAttackFrostbiteApi::vftable()->onHit, frostbiteOnHitHooked});
-        hooks.emplace_back(HookInfo{CBatAttackPoisonApi::vftable()->canPerform, poisonCanPerformHooked});
-        hooks.emplace_back(HookInfo{CBatAttackPoisonApi::vftable()->onHit, poisonOnHitHooked});
-    }
-    else
-    {
-        hooks.emplace_back(HookInfo{CBatAttackBlisterApi::vftable()->onHit, defaultBlisterOnHitHooked});
-        hooks.emplace_back(HookInfo{CBatAttackBlisterApi::vftable()->canPerform, defaultBlisterCanPerformHooked});
-        hooks.emplace_back(HookInfo{CBatAttackFrostbiteApi::vftable()->onHit, defaultFrostbiteOnHitHooked});
-        hooks.emplace_back(HookInfo{CBatAttackFrostbiteApi::vftable()->canPerform, defaultFrostbiteCanPerformHooked});
-        hooks.emplace_back(HookInfo{CBatAttackPoisonApi::vftable()->onHit, defaultPoisonOnHitHooked});
-        hooks.emplace_back(HookInfo{CBatAttackPoisonApi::vftable()->canPerform, defaultPoisonCanPerformHooked});
-    }
 
     if (gameSettings().extendedBattle.boostdamageCanAffectHealer
         != baseGameSettings().extendedBattle.boostdamageCanAffectHealer) {
+        // BoostDamage attack can target healers
         hooks.emplace_back( HookInfo{CBatAttackBoostDamageApi::vftable()->canPerform, boostDamageCanPerformHooked});
         hooks.emplace_back( HookInfo{CBatAttackBoostDamageApi::vftable()->onHit, boostDamageOnHitHooked});
     }
@@ -1089,7 +1122,7 @@ Hooks getVftableHooks()
         // Extra immune
         hooks.emplace_back(HookInfo{&CBatAttackCureApi::vftable()->isImmune, cureAttackIsImmuneHooked});
         // Test
-        hooks.emplace_back(HookInfo{&CBatAttackCureApi::vftable()->method15, cureAttackMethod15Hooked});
+        //hooks.emplace_back(HookInfo{&CBatAttackCureApi::vftable()->method15, cureAttackMethod15Hooked});
     }
 
     if (CBatAttackBoostDamageApi::vftable()) {
@@ -1458,6 +1491,13 @@ void __fastcall shatterOnHitHooked(game::CBatAttackShatter* thisptr,
 {
     using namespace game;
 
+    static const auto& battleApi = BattleMsgDataApi::get();
+
+    CMidUnit* targetUnit = gameFunctions().findUnitById(objectMap, unitId);
+
+    if (!targetUnit)
+        return;
+
     auto attackVftable = (const IAttackVftable*)thisptr->attack->vftable;
 
     const auto damageMax{gameSettings().shatterDamageMax};
@@ -1466,18 +1506,34 @@ void __fastcall shatterOnHitHooked(game::CBatAttackShatter* thisptr,
         shatterDamage = damageMax;
     }
 
+    CMidUnit* unitAttacker = game::gameFunctions().findUnitById(objectMap, &thisptr->unitId1);
+
+    UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, unitId);
+
+    bindings::AttackHitParamsView params;
+    params.attacker = unitAttacker;
+    params.target = targetUnit;
+    params.damage = shatterDamage;
+    params.attack = thisptr->attack;
+    params.attackClass = "Shatter";
+    params.miss = false;
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss) {
+        addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+        return;
+    }
+
+    shatterDamage = params.damage;
+
     setUnitShatteredArmorHooked(battleMsgData, 0, unitId, shatterDamage);
 
     const auto unit = gameFunctions().findUnitById(objectMap, unitId);
 
-    BattleAttackUnitInfo info{};
-    info.unitId = *unitId;
-    info.unitImplId = unit->unitImpl->id;
-    info.attackMissed = false;
-    info.damage = 0;
-
-    BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+    addToBattleAttackInfo(*attackInfo, unit, 0, 0, false);
 }
+
 
 bool __fastcall shatterCanMissHooked(game::CBatAttackShatter* thisptr,
                                      int /*%edx*/,
@@ -1749,7 +1805,7 @@ int __stdcall getAttackQtyDamageOrHealHooked(const game::IAttack* attack, int da
 }
 
 static game::CMidgardID currUnitId = game::emptyId;
-static bool prevWasSameUnit = false;
+bool isItemUsed = false;
 void __stdcall afterBattleTurnHooked(game::BattleMsgData* battleMsgData,
                                      const game::CMidgardID* unitId,
                                      const game::CMidgardID* nextUnitId)
@@ -1765,20 +1821,16 @@ void __stdcall afterBattleTurnHooked(game::BattleMsgData* battleMsgData,
     auto* unitInfo = battle.getUnitInfoById(battleMsgData, nextUnitId);
 
     if (!isSameUnit) {
-        if (unitInfo && unitInfo->unitFlags.parts.waited) {
-            unitInfo->unitFlags.parts.attackedOnceOfTwice = false;
-        }
-
         battleMsgData->battleStateFlags2.parts.shouldUpdateUnitEffects = true;
         battle.removeFiniteBoostLowerDamage(battleMsgData, unitId);
-    } else {
-        if (unitInfo && !battle.getUnitStatus(battleMsgData, nextUnitId, BattleStatus::Defend)) {
-            if (!unitInfo->unitFlags.parts.waited && currUnitId == *unitId && !prevWasSameUnit)
-                unitInfo->unitFlags.parts.attackedOnceOfTwice = true;
-        }
+        UnitInfo* unitInfo = battle.getUnitInfoById(battleMsgData, nextUnitId);
+        if (unitInfo)
+            unitInfo->unitFlags.parts.attackedOnceOfTwice = false;
     }
 
-    prevWasSameUnit = isSameUnit;
+    if (isItemUsed)
+        isItemUsed = false;
+
     currUnitId = *unitId;
 
     static const auto scriptPath = scriptsFolder() / "hooks/hooks.lua";
@@ -2911,6 +2963,270 @@ bool __fastcall lowerDamageCanPerformHooked(game::CBatAttackLowerDamage* thisptr
     return curLvl <= attack->vftable->getLevel(attack);
 }
 
+void __fastcall lowerDamageOnHitHooked(game::CBatAttackLowerDamage* thisptr,
+                                       int /*%edx*/,
+                                       game::IMidgardObjectMap* objectMap,
+                                       game::BattleMsgData* battleMsgData,
+                                       game::CMidgardID* targetUnitId,
+                                       game::BattleAttackInfo** attackInfo)
+{
+    using namespace game;
+
+    static const BattleMsgDataApi::Api& battleApi = BattleMsgDataApi::get();
+
+    const auto attack = thisptr->attack;
+
+    CMidUnit* targetUnit = gameFunctions().findUnitById(objectMap, targetUnitId);
+
+    int level = thisptr->attack->vftable->getLevel(thisptr->attack);
+    bool isLong = attack->vftable->getInfinite(attack);
+    CMidUnit* unitAttacker = game::gameFunctions().findUnitById(objectMap, &thisptr->unitId);
+
+    bindings::AttackHitParamsView params;
+    params.attacker = unitAttacker;
+    params.target = targetUnit;
+    params.attack = attack;
+    params.attackClass = "LowerDamage";
+    params.attackLevel = level;
+    params.isLong = isLong;
+    params.miss = false;
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss) {
+        addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+        return;
+    }
+
+    level = params.attackLevel;
+    isLong = params.isLong;
+
+    battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::LowerDamageLvl1, false);
+    battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::LowerDamageLvl2, false);
+    battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::LowerDamageLong, false);
+
+    auto status = static_cast<BattleStatus>((int)BattleStatus::LowerDamageLvl1 + (level - 1));
+
+    battleApi.setUnitStatus(battleMsgData, targetUnitId, status, true);
+
+    if (isLong)
+        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::LowerDamageLong, true);
+
+    addToBattleAttackInfo(*attackInfo, targetUnit);
+}
+
+void __fastcall lowerInitiativeOnHitHooked(game::CBatAttackLowerInitiative* thisptr,
+                                           int /*%edx*/,
+                                           game::IMidgardObjectMap* objectMap,
+                                           game::BattleMsgData* battleMsgData,
+                                           game::CMidgardID* targetUnitId,
+                                           game::BattleAttackInfo** attackInfo)
+{
+    using namespace game;
+
+    static const BattleMsgDataApi::Api& battleApi = BattleMsgDataApi::get();
+
+    const auto attack = thisptr->attack;
+
+    CMidUnit* targetUnit = gameFunctions().findUnitById(objectMap, targetUnitId);
+
+    bool isLong = attack->vftable->getInfinite(attack);
+    CMidUnit* unitAttacker = game::gameFunctions().findUnitById(objectMap, &thisptr->unitId);
+
+    bindings::AttackHitParamsView params;
+    params.attacker = unitAttacker;
+    params.target = targetUnit;
+    params.attack = attack;
+    params.attackClass = "LowerInitiative";
+    params.isLong = isLong;
+    params.miss = false;
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss) {
+        addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+        return;
+    }
+
+    isLong = params.isLong;
+
+    battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::LowerInitiative, false);
+    battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::LowerInitiativeLong, false);
+
+    battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::LowerInitiative, true);
+
+    if(isLong)
+        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::LowerInitiativeLong,
+                                true);
+
+    addToBattleAttackInfo(*attackInfo, targetUnit);
+}
+
+void __fastcall paralyzeOnHitHooked(game::CBatAttackParalyze* thisptr,
+                                    int /*%edx*/,
+                                    game::IMidgardObjectMap* objectMap,
+                                    game::BattleMsgData* battleMsgData,
+                                    game::CMidgardID* targetUnitId,
+                                    game::BattleAttackInfo** attackInfo)
+{
+    using namespace game;
+
+    static const BattleMsgDataApi::Api& battleApi = BattleMsgDataApi::get();
+    static const auto& globalApi = GlobalDataApi::get();
+    auto* globalData = *globalApi.getGlobalData();
+
+    const auto attack = thisptr->attack;
+
+    CMidUnit* targetUnit = gameFunctions().findUnitById(objectMap, targetUnitId);
+
+    UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
+
+    bool isLong = attack->vftable->getInfinite(attack);
+    CMidUnit* unitAttacker = game::gameFunctions().findUnitById(objectMap, &thisptr->unitId);
+
+    bindings::AttackHitParamsView params;
+    params.attacker = unitAttacker;
+    params.target = targetUnit;
+    params.attack = attack;
+    params.attackClass = "Paralyze";
+    params.isLong = isLong;
+    params.miss = false;
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss) {
+        addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+        return;
+    }
+
+    isLong = params.isLong;
+
+    targetInfo->disableAppliedRound = battleMsgData->currentRound;
+
+    battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Paralyze, true);
+    if (isLong)
+        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::DisableLong, true);
+
+    if (gameSettings().extendedBattle.longEffectsUsesPower != baseGameSettings().extendedBattle.longEffectsUsesPower) {
+        int level = thisptr->attack->vftable->getLevel(thisptr->attack);
+        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::DisableLong, true);
+        targetInfo->disableAppliedRound = level > 0 ? level : 1;
+    }
+
+    addToBattleAttackInfo(*attackInfo, targetUnit);
+}
+
+void __fastcall petrifyOnHitHooked(game::CBatAttackPetrify* thisptr,
+                                    int /*%edx*/,
+                                    game::IMidgardObjectMap* objectMap,
+                                    game::BattleMsgData* battleMsgData,
+                                    game::CMidgardID* targetUnitId,
+                                    game::BattleAttackInfo** attackInfo)
+{
+    using namespace game;
+
+    static const BattleMsgDataApi::Api& battleApi = BattleMsgDataApi::get();
+    static const auto& globalApi = GlobalDataApi::get();
+    auto* globalData = *globalApi.getGlobalData();
+
+    const auto attack = thisptr->attack;
+
+    CMidUnit* targetUnit = gameFunctions().findUnitById(objectMap, targetUnitId);
+
+    UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
+
+    bool isLong = attack->vftable->getInfinite(attack);
+    CMidUnit* unitAttacker = game::gameFunctions().findUnitById(objectMap, &thisptr->unitId);
+
+    bindings::AttackHitParamsView params;
+    params.attacker = unitAttacker;
+    params.target = targetUnit;
+    params.attack = attack;
+    params.attackClass = "Petrify";
+    params.isLong = isLong;
+    params.miss = false;
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss) {
+        addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+        return;
+    }
+
+    isLong = params.isLong;
+
+    targetInfo->disableAppliedRound = battleMsgData->currentRound;
+    battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Petrify, true);
+    if (isLong)
+        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::DisableLong, true);
+
+    if (gameSettings().extendedBattle.longEffectsUsesPower
+        != baseGameSettings().extendedBattle.longEffectsUsesPower) {
+        int level = thisptr->attack->vftable->getLevel(thisptr->attack);
+        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::DisableLong, true);
+        targetInfo->disableAppliedRound = level > 0 ? level : 1;
+    }
+
+    addToBattleAttackInfo(*attackInfo, targetUnit);
+}
+
+void __fastcall fearAttackOnHitHooked(game::CBatAttackFear* thisptr,
+                                    int /*%edx*/,
+                                    game::IMidgardObjectMap* objectMap,
+                                    game::BattleMsgData* battleMsgData,
+                                    game::CMidgardID* targetUnitId,
+                                    game::BattleAttackInfo** attackInfo)
+{
+    using namespace game;
+
+    static const auto& battleApi = BattleMsgDataApi::get();
+
+    const auto attack = thisptr->attack;
+
+    CMidUnit* targetUnit = gameFunctions().findUnitById(objectMap, targetUnitId);
+    if (!targetUnit)
+        return;
+
+    bool canRetreat = false;
+    const CMidStack* stack = getStackByUnitId(objectMap, targetUnitId);
+
+    if (stack && stack->insideId == emptyId)
+    {
+        canRetreat = true;
+    }
+
+    CMidUnit* unitAttacker = game::gameFunctions().findUnitById(objectMap, &thisptr->unitId);
+
+    bindings::AttackHitParamsView params;
+    params.attacker = unitAttacker;
+    params.target = targetUnit;
+    params.attack = attack;
+    params.attackClass = "Fear";
+    params.miss = false;
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss) {
+        addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+        return;
+    }
+
+    targetUnitId = &params.target->id;
+
+    if (canRetreat)
+    {
+        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Retreat, true);
+    }
+    else
+    {
+        UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
+        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Paralyze, true);
+        targetInfo->disableAppliedRound = battleMsgData->currentRound;
+    }
+
+    addToBattleAttackInfo(*attackInfo, targetUnit);
+}
+
 void __fastcall showAttackEffectHooked(game::IBatViewer* thisptr,
     int /*%edx*/,
     const game::BattleMsgData* battleMsgData,
@@ -2943,11 +3259,39 @@ void __fastcall defendOnHitHooked(game::CBatAttackDefend* thisptr,
 
     static const BattleMsgDataApi::Api& battleApi = BattleMsgDataApi::get();
 
-    battleMsgData->turnsOrder[0].attackCount = 1;
+    CMidUnit* unit = gameFunctions().findUnitById(objectMap, targetUnitId);
+
+    bindings::AttackHitParamsView params;
+    params.attacker = unit;
+    params.target = unit;
+    params.attack = nullptr;
+    params.attackClass = "Defend";
+    params.miss = false;
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss)
+    {
+        auto newAttackInfo = *attackInfo;
+        newAttackInfo->effect = AttackEffect::Effect18;
+        return;
+    }
+    
+    IUsSoldier* soldier = gameFunctions().castUnitImplToSoldier(unit->unitImpl);
+    bool hasDoubleAttack = soldier->vftable->getAttackTwice(soldier);
+
+    for (int i = 0; i < 13; i++) {
+        if (battleMsgData->turnsOrder[i].unitId == thisptr->unitId
+            && battleMsgData->turnsOrder[i].attackCount > 0) {
+            battleMsgData->turnsOrder[i].attackCount = hasDoubleAttack ? 2 : 1;
+            break;
+        }
+    }
+
+    UnitInfo* unitInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
+    unitInfo->unitFlags.parts.attackedOnceOfTwice = false;
 
     battleApi.setUnitStatus(battleMsgData, &thisptr->unitId, BattleStatus::Defend, true);
-
-    const CMidUnit* unit = gameFunctions().findUnitById(objectMap, targetUnitId);
 
     BattleAttackUnitInfo info{};
     info.unitId = *targetUnitId;
@@ -2958,118 +3302,99 @@ void __fastcall defendOnHitHooked(game::CBatAttackDefend* thisptr,
     BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
 }
 
-void __fastcall reviveAttackOnHitHooked(game::CBatAttackRevive* thisptr,
-                                        int /*%edx*/,
-                                        game::IMidgardObjectMap* objectMap,
-                                        game::BattleMsgData* battleMsgData,
-                                        game::CMidgardID* targetUnitId,
-                                        game::BattleAttackInfo** attackInfo)
+void __fastcall retreatAttackOnHitHooked(game::CBatAttackRetreat* thisptr,
+                                         int /*%edx*/,
+                                         game::IMidgardObjectMap* objectMap,
+                                         game::BattleMsgData* battleMsgData,
+                                         game::CMidgardID* targetUnitId,
+                                         game::BattleAttackInfo** attackInfo)
 {
     using namespace game;
 
-    static const auto& idApi = CMidgardIDApi::get();
-    static const auto& battleApi = BattleMsgDataApi::get();
-    static const auto& visitor = VisitorApi::get();
-    static const auto& fn = gameFunctions();
-    static const auto& globalApi = GlobalDataApi::get();
-    auto* globalData = *globalApi.getGlobalData();
+    static const BattleMsgDataApi::Api& battleApi = BattleMsgDataApi::get();
 
     const auto& settings = gameSettings();
+    UnitInfo* unitInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
 
-    CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
-    if (!targetUnit)
-        return;
-
-    UnitInfo* targetUnitInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
-
-    visitor.reviveUnit(&targetUnit->id, objectMap, 1);
-    targetUnitInfo->unitFlags.parts.revived = true;
-
-    int qtyHealed = 1;
-    const bool isItem = idApi.getType(&thisptr->attackImplUnitId) == IdType::Item;
-
-    if (!isItem && settings.reviveAttacksUsesQtyHeal == 1) {
-        const CMidUnit* reviveUnit = fn.findUnitById(objectMap, &thisptr->unitId);
-        const IAttack* attack = getAttack(reviveUnit->unitImpl, true, false);
-        const int qtyHeal = attack->vftable->getQtyHeal(attack);
-        if (qtyHeal)
-            qtyHealed = computeBoostedHeal(&thisptr->unitId, battleMsgData, qtyHeal);
-    } else {
-
-        const IAttack* reviveAttack = thisptr->attackImpl;
-        if (!isItem && settings.reviveAttacksUsesQtyHeal == 0)
-            reviveAttack = (IAttack*)globalApi.findById(globalData->attacks,&thisptr->attackImpl->id);
-
-
-        const int reviveQtyHeal = reviveAttack->vftable->getQtyHeal(reviveAttack);
-        const IUsSoldier* soldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
-        const int maxHp = soldier->vftable->getHitPoints(soldier);
-        int targetHp = reviveQtyHeal * maxHp / 100;
-
-        if (!isItem && settings.reviveAttacksUsesQtyHeal == 2)
-            targetHp = computeBoostedHeal(&thisptr->unitId, battleMsgData, reviveQtyHeal);
-
-        if (isItem && settings.reviveItemsUsesQtyHeal)
-            targetHp = reviveQtyHeal;
-
-        qtyHealed = targetHp;
+    if (unitInfo) {
+        if (unitInfo->unitFlags.parts.waited)
+            unitInfo->unitFlags.parts.retreatingAfterWait;
     }
 
-    visitor.changeUnitHp(targetUnitId, qtyHealed - 1, objectMap, 1);
+    bool fastRetreat = false;
+    CMidUnit* midUnit = gameFunctions().findUnitById(objectMap, targetUnitId);
+    IUsUnit* unitImpl = midUnit->unitImpl;
 
-    battleApi.setUnitStatus(battleMsgData, &targetUnit->id, BattleStatus::Dead, false);
-    battleApi.setUnitStatus(battleMsgData, &targetUnit->id, BattleStatus::XpCounted, false);
+    IUsStackLeader* leader = gameFunctions().castUnitImplToStackLeader(unitImpl);
+    if (leader)
+        fastRetreat = leader->vftable->getFastRetreat(leader);
 
-    battleApi.setUnitHp(battleMsgData, targetUnitId, targetUnit->currentHp);
+    bindings::AttackHitParamsView params;
+    params.attacker = midUnit;
+    params.target = midUnit;
+    params.attack = nullptr;
+    params.attackClass = "Retreat";
+    params.fastRetreat = fastRetreat;
+    params.miss = false;
 
-    BattleAttackUnitInfo info{};
-    info.unitId = targetUnit->id;
-    info.unitImplId = targetUnit->unitImpl->id;
-    BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss) {
+        (*attackInfo)->effect = AttackEffect::Effect18;
+        return;
+    }
+
+    fastRetreat = params.fastRetreat;
+
+    if (fastRetreat)
+    {
+        battleApi.setUnitStatus(battleMsgData, &thisptr->unitId, BattleStatus::Retreated, true);
+        (*attackInfo)->effect = AttackEffect::Retreated;
+    }
+    else
+    {
+        battleApi.setUnitStatus(battleMsgData, &thisptr->unitId, BattleStatus::Retreat, true);
+    }
 }
 
-bool __fastcall reviveAttackIsImmuneHooked(game::CBatAttackRevive* thisptr,
-                                          int /*%edx*/,
-                                          game::IMidgardObjectMap* objectMap,
-                                          game::BattleMsgData* battleMsgData,
-                                          game::CMidgardID* unitId)
+void __fastcall waitAttackOnHitHooked(game::CBatAttackWait* thisptr,
+                                      int /*%edx*/,
+                                      game::IMidgardObjectMap* objectMap,
+                                      game::BattleMsgData* battleMsgData,
+                                      game::CMidgardID* targetUnitId,
+                                      game::BattleAttackInfo** attackInfo)
 {
     using namespace game;
 
-    static const auto& battleApi = BattleMsgDataApi::get();
-    static const auto& immuneCategories = ImmuneCategories::get();
-    static const auto& fn = gameFunctions();
+    static const BattleMsgDataApi::Api& battleApi = BattleMsgDataApi::get();
+    
+    int curAttackCount = battleMsgData->turnsOrder[0].attackCount;
 
-    if (*unitId == emptyId || *unitId == invalidId) {
-        return false;
-    }
+    CMidUnit* unitAttacker = game::gameFunctions().findUnitById(objectMap, &thisptr->unitId);
 
-    IAttack* attack = fn.getAttackById(objectMap, &thisptr->attackImplUnitId, thisptr->attackNumber,
-                                       false);
+    bindings::AttackHitParamsView params;
+    params.attacker = unitAttacker;
+    params.target = unitAttacker;
+    params.attack = nullptr;
+    params.attackCount = curAttackCount;
+    params.attackClass = "Wait";
 
-    if (!attack) {
-        return false;
-    }
+    callLuaAttackHook(objectMap, battleMsgData, params);
 
-    const CMidUnit* targetUnit = fn.findUnitById(objectMap, unitId);
-    if (!targetUnit) {
-        return false;
-    }
+    curAttackCount = params.attackCount;
 
-    const IUsSoldier* targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
-    const LAttackClass* attackClass = attack->vftable->getAttackClass(attack);
-    const LImmuneCat* immuneCat = targetSoldier->vftable->getImmuneByAttackClass(targetSoldier,
-                                                                                 attackClass);
-    if (immuneCat->id == immuneCategories.once->id) {
-        bool hasWard = battleApi.isUnitAttackClassWardRemoved(battleMsgData, unitId, attackClass);
-        if (!hasWard) {
-            battleApi.removeUnitAttackClassWard(battleMsgData, unitId, attackClass);
-            return true;
+    for (int i = 0; i < 13; i++)
+    {
+        if (battleMsgData->turnsOrder[i].unitId == invalidId)
+        {
+            battleMsgData->turnsOrder[i].unitId = thisptr->unitId;
+            battleMsgData->turnsOrder[i].attackCount = curAttackCount;
+            break;
         }
-        return false;
     }
 
-    return immuneCat->id == immuneCategories.always->id;
+    UnitInfo* unit = battleApi.getUnitInfoById(battleMsgData, &thisptr->unitId);
+    unit->unitFlags.parts.waited = true;
 }
 
 bool __stdcall checkLongEffectDurationHooked(int roundsPassed)
@@ -3110,32 +3435,427 @@ void __fastcall damageAttackOnHitHooked(game::CBatAttackDamage* thisptr,
     if (!targetUnit)
         return;
 
+    auto* unitAttacker = game::gameFunctions().findUnitById(objectMap, &thisptr->unitId);
+
     int normalDamage = 0;
     int critDamage = 0;
     int totalDamage = fn.computeDamage(objectMap, battleMsgData, thisptr->attack, &thisptr->unitId,
                                        targetUnitId, true, &normalDamage, &critDamage);
 
+    int drainAmount = thisptr->attack->vftable->getDrain(thisptr->attack, totalDamage);
+
+    bindings::AttackHitParamsView params;
+    params.attacker = unitAttacker;
+    params.target = targetUnit;
+    params.attack = thisptr->attack;
+    params.attackClass = "Damage";
+    params.damage = normalDamage;
+    params.critDamage = critDamage;
+    params.drain = drainAmount;
+    params.miss = false;
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss)
+    {
+        addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+        return;
+    }
+
+    normalDamage = params.damage;
+    critDamage = params.critDamage;
+    drainAmount = params.drain;
+    totalDamage = normalDamage + critDamage;
+
     int hpBefore = targetUnit->currentHp;
-    visitor.changeUnitHp(targetUnitId, -totalDamage, objectMap, 1);   
+    visitor.changeUnitHp(targetUnitId, -totalDamage, objectMap, 1);
     battleApi.checkUnitDeath(objectMap, battleMsgData, targetUnitId);
     battleApi.setUnitHp(battleMsgData, targetUnitId, targetUnit->currentHp);
 
-    int drainAmount = thisptr->attack->vftable->getDrain(thisptr->attack, hpBefore - targetUnit->currentHp);
-
-    if (drainAmount > 0)
-    {
+    if (drainAmount > 0) {
         CMidUnit* attackerUnit = fn.findUnitById(objectMap, &thisptr->unitId);
 
-        visitor.changeUnitHp(&thisptr->unitId, drainAmount, objectMap, 1);
-        battleApi.setUnitHp(battleMsgData, &thisptr->unitId, attackerUnit->currentHp);
+        if (attackerUnit) {
+            int actualDrain = std::min(drainAmount, hpBefore - targetUnit->currentHp);
+            if (actualDrain > 0) {
+                visitor.changeUnitHp(&thisptr->unitId, actualDrain, objectMap, 1);
+                battleApi.setUnitHp(battleMsgData, &thisptr->unitId, attackerUnit->currentHp);
+            }
+        }
     }
 
-    BattleAttackUnitInfo info{};
-    info.unitId = targetUnit->id;
-    info.unitImplId = targetUnit->unitImpl->id;
-    info.damage = normalDamage;
-    info.criticalDamage = critDamage;
-    BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+    addToBattleAttackInfo(*attackInfo, targetUnit, normalDamage, critDamage);
+
+}
+
+//void __fastcall usePotionAttackOnHitHooked(game::CBatAttackUsePotion* thisptr,
+//    int /*%edx*/,
+//    game::IMidgardObjectMap* objectMap,
+//    game::BattleMsgData* battleMsgData,
+//    game::CMidgardID* targetUnitId,
+//    game::BattleAttackInfo** attackInfo)
+//{
+//    using namespace game;
+//
+//    const auto& fn = gameFunctions();
+//    const auto& battleApi = BattleMsgDataApi::get();
+//    const auto& itemCategories = ItemCategories::get();
+//    const auto& visitor = VisitorApi::get();
+//
+//    CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
+//
+//    UnitInfo* unitInfo = battleApi.getUnitInfoById(battleMsgData, &thisptr->unitId);
+//
+//    auto groupId = unitInfo->unitFlags.parts.attacker ? &battleMsgData->attackerGroupId
+//                                                      : &battleMsgData->defenderGroupId;
+//
+//    if (CMidgardIDApi::get().getType(groupId) != IdType::Stack)
+//        return;
+//
+//    auto stack = getStack(objectMap, groupId);
+//    if (!stack)
+//        return;
+//
+//    int itemIndex = battleApi.getLeaderEquippedBattleItemIndex(objectMap, &thisptr->unitId, battleMsgData, &thisptr->itemId);
+//
+//    visitor.unEquipItem(&stack->id, itemIndex, objectMap, 1);
+//
+//    CMidItem* item = static_cast<CMidItem*>(objectMap->vftable->findScenarioObjectById(objectMap, &thisptr->itemId));
+//
+//    const auto& global = GlobalDataApi::get();
+//    auto globalData = *global.getGlobalData();
+//
+//    const CItemBase* globalItem = global.findItemById(globalData->itemTypes, &item->globalItemId);
+//    const LItemCategory* itemCategory = globalItem->vftable->getCategory(globalItem);
+//
+//    int totalHeal = 0;
+//
+//    if (itemCategory == itemCategories.potionHeal)
+//    {
+//        const CItemPotionHeal* potion = static_cast<const CItemPotionHeal*>(globalItem);
+//        visitor.changeUnitHp(targetUnitId, potion->quantityHp, objectMap, 1);
+//        totalHeal = potion->quantityHp;
+//    }
+//    else if (itemCategory == itemCategories.potionRevive)
+//    {
+//        visitor.reviveUnit(targetUnitId, objectMap, 1);
+//    } else if (itemCategory == itemCategories.potionBoost) {
+//        auto potionBoost = castItemToPotionBoost(globalItem);
+//        const CMidgardID* effectId = potionBoost->vftable->getModifierId(potionBoost);
+//
+//        auto* info = getScenarioInfo(objectMap);
+//        visitor.addSpellEffect(targetUnitId, &item->globalItemId, &stack->ownerId, effectId,
+//                               &info->currentTurn, objectMap, 1);
+//    }
+//    else if (itemCategory == itemCategories.potionPermanent)
+//    {
+//        auto potionBoost = castItemToPotionBoost(globalItem);
+//        const CMidgardID* effect = potionBoost->vftable->getModifierId(potionBoost);
+//        hooks::addModifier(targetUnit, effect, true);
+//    }
+//
+//    visitor.equipItem(&stack->id, &thisptr->itemId, itemIndex, objectMap, 1);
+//
+//    for (int i = 0; i < 4; i++) {
+//        if (battleMsgData->usedItemIds[i] == thisptr->itemId)
+//            break;
+//        if (battleMsgData->usedItemIds[i] == invalidId) {
+//            battleMsgData->usedItemIds[i] = thisptr->itemId;
+//            break;
+//        }
+//    }
+//
+//    addToBattleAttackInfo(*attackInfo, targetUnit, totalHeal, 0);
+//
+//    battleApi.setUnitHp(battleMsgData, targetUnitId, targetUnit->currentHp);
+//}
+
+void __fastcall usePotionAttackOnHitHooked(game::CBatAttackUsePotion* thisptr,
+                                           int /*%edx*/,
+                                           game::IMidgardObjectMap* objectMap,
+                                           game::BattleMsgData* battleMsgData,
+                                           game::CMidgardID* targetUnitId,
+                                           game::BattleAttackInfo** attackInfo)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+    const auto& battleApi = BattleMsgDataApi::get();
+    const auto& itemCategories = ItemCategories::get();
+    const auto& visitor = VisitorApi::get();
+    const auto& midgardIdApi = CMidgardIDApi::get();
+
+    CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
+    CMidUnit* unitAttacker = fn.findUnitById(objectMap, &thisptr->unitId);
+
+    UnitInfo* unitInfo = battleApi.getUnitInfoById(battleMsgData, &thisptr->unitId);
+
+    auto* groupId = unitInfo->unitFlags.parts.attacker ? &battleMsgData->attackerGroupId
+                                                       : &battleMsgData->defenderGroupId;
+
+    if (midgardIdApi.getType(groupId) != IdType::Stack)
+        return;
+
+    auto* stack = getStack(objectMap, groupId);
+    if (!stack)
+        return;
+
+    int itemIndex = battleApi.getLeaderEquippedBattleItemIndex(objectMap, &thisptr->unitId,
+                                                               battleMsgData, &thisptr->itemId);
+
+    visitor.unEquipItem(&stack->id, itemIndex, objectMap, 1);
+
+    auto* item = static_cast<CMidItem*>(
+        objectMap->vftable->findScenarioObjectById(objectMap, &thisptr->itemId));
+
+    const auto& global = GlobalDataApi::get();
+    const GlobalData* globalData = *global.getGlobalData();
+    const CItemBase* globalItem = global.findItemById(globalData->itemTypes, &item->globalItemId);
+    const LItemCategory* itemCategory = globalItem->vftable->getCategory(globalItem);
+
+    bool isRevive = false;
+    bool isTemp = false;
+    int hpPotion = 0;
+    CMidgardID modPotion = invalidId;
+
+    if (itemCategory == itemCategories.potionHeal) {
+        const auto* potion = static_cast<const CItemPotionHealPatched*>(globalItem);
+        hpPotion = potion->hpPotion;
+        modPotion = potion->modPotion;
+    } else if (itemCategory == itemCategories.potionRevive) {
+        const auto* potion = static_cast<const CItemPotionRevivePatched*>(globalItem);
+        hpPotion = potion->hpPotion;
+        modPotion = potion->modPotion;
+        isRevive = true;
+    } else if (itemCategory == itemCategories.potionBoost) {
+        const auto* potion = static_cast<const CItemPotionBoostTempPatched*>(globalItem);
+        hpPotion = potion->hpPotion;
+        modPotion = potion->modPotion;
+        isTemp = true;
+    } else if (itemCategory == itemCategories.potionPermanent) {
+        const auto* potion = static_cast<const CItemPotionBoostPermPatched*>(globalItem);
+        hpPotion = potion->hpPotion;
+        modPotion = potion->modPotion;
+    }
+
+    bindings::AttackHitParamsView params;
+    params.attacker = unitAttacker;
+    params.target = targetUnit;
+    params.itemId = &thisptr->itemId;
+    params.attack = nullptr;
+    params.attackClass = "UsePotion";
+    params.heal = hpPotion;
+    params.isRevive = isRevive;
+    params.isTemp = isTemp;
+    params.miss = false;
+    params.modifierIds.push_back(&modPotion);
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss) {
+        addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+        return;
+    }
+
+    if (params.isRevive)
+        visitor.reviveUnit(targetUnitId, objectMap, 1);
+
+    visitor.changeUnitHp(targetUnitId, params.heal, objectMap, 1);
+
+    if (params.isTemp) {
+        auto* info = getScenarioInfo(objectMap);
+        for (const CMidgardID* modifierId : params.modifierIds) {
+            visitor.addSpellEffect(targetUnitId, &item->globalItemId, &stack->ownerId, modifierId,
+                                   &info->currentTurn, objectMap, 1);
+        }
+    } else {
+        for (const CMidgardID* modifierId : params.modifierIds) {
+            hooks::addModifier(targetUnit, modifierId, true);
+        }
+    }
+
+    battleApi.checkUnitDeath(objectMap, battleMsgData, targetUnitId);
+
+    visitor.equipItem(&stack->id, &thisptr->itemId, itemIndex, objectMap, 1);
+
+    for (int i = 0; i < 4; ++i) {
+        if (battleMsgData->usedItemIds[i] == thisptr->itemId)
+            break;
+        if (battleMsgData->usedItemIds[i] == invalidId) {
+            battleMsgData->usedItemIds[i] = thisptr->itemId;
+            break;
+        }
+    }
+
+    addToBattleAttackInfo(*attackInfo, targetUnit, params.heal, 0);
+    battleApi.setUnitHp(battleMsgData, targetUnitId, targetUnit->currentHp);
+
+    bool freeTurn = gameSettings().extendedBattle.itemExtraTurn != baseGameSettings().extendedBattle.itemExtraTurn;
+    if (freeTurn && !isItemUsed) {
+        battleMsgData->turnsOrder[0].attackCount++;
+        isItemUsed = true;
+    }
+}
+
+void callLuaAttackHook(game::IMidgardObjectMap* objectMap,
+                       game::BattleMsgData* battleMsgData,
+                       bindings::AttackHitParamsView& params)
+{
+    static const auto scriptPath = scriptsFolder() / "hooks/hooks.lua";
+    std::optional<sol::environment> env;
+
+    auto f = getScriptFunction(scriptPath, "OnAttackHit", env, false, true);
+
+    if (f) {
+        try {
+            bindings::BattleMsgDataView battle{battleMsgData, objectMap};
+
+            (*f)(battle, params);
+
+        } catch (const std::exception& e) {
+            showErrorMessageBox(fmt::format("Lua Error in {}: {}", "OnAttackHit", e.what()));
+        }
+    }
+}
+
+void __fastcall useTalismanAttackOnHitHooked(game::CBatAttackUseTalisman* thisptr,
+                                             int /*%edx*/,
+                                             game::IMidgardObjectMap* objectMap,
+                                             game::BattleMsgData* battleMsgData,
+                                             game::CMidgardID* targetUnitId,
+                                             game::BattleAttackInfo** attackInfo)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+    const auto& battleApi = BattleMsgDataApi::get();
+    const auto& midgardIdApi = CMidgardIDApi::get();
+
+    CMidUnit* targetUnit = nullptr;
+
+    CMidgardID summonId;
+    midgardIdApi.isSummonUnitId(&summonId, targetUnitId);
+    bool isNotSummon = summonId == emptyId;
+
+    if(isNotSummon)
+        targetUnit = fn.findUnitById(objectMap, targetUnitId);
+
+    const CMidgardID* attacker = &battleMsgData->turnsOrder[0].unitId;
+    CMidUnit* unitAttacker = fn.findUnitById(objectMap, &thisptr->unitId);
+
+    bindings::AttackHitParamsView params;
+    params.attacker = unitAttacker;
+    params.target = targetUnit;
+    params.itemId = &thisptr->itemId;
+    params.attack = nullptr;
+    params.attackClass = "UseTalisman";
+    params.miss = false;
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss) {
+        addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+        return;
+    }
+
+    IBatAttack* attack = *(IBatAttack**)&thisptr->batAttack;
+
+    attack->vftable->onHit(attack, objectMap, battleMsgData, targetUnitId, attackInfo);
+
+    (*attackInfo)->id = thisptr->itemId;
+
+    for (int i = 0; i < 4; ++i) {
+        if (battleMsgData->usedItemIds[i] == thisptr->itemId)
+            break;
+        if (battleMsgData->usedItemIds[i] == invalidId) {
+            battleMsgData->usedItemIds[i] = thisptr->itemId;
+            break;
+        }
+    }
+
+    if (targetUnit)
+    {
+        battleApi.checkUnitDeath(objectMap, battleMsgData, targetUnitId);
+        battleApi.setUnitHp(battleMsgData, targetUnitId, targetUnit->currentHp);
+    }
+
+    if (battleApi.isAutoBattle(battleMsgData)) {
+        return;
+    }
+
+    bool freeTurn = gameSettings().extendedBattle.itemExtraTurn != baseGameSettings().extendedBattle.itemExtraTurn;
+    if (freeTurn && !isItemUsed)
+    {
+        battleMsgData->turnsOrder[0].attackCount++;
+        isItemUsed = true;
+    }
+}
+
+void __fastcall useOrbAttackOnHitHooked(game::CBatAttackUseOrb* thisptr,
+                                        int /*%edx*/,
+                                        game::IMidgardObjectMap* objectMap,
+                                        game::BattleMsgData* battleMsgData,
+                                        game::CMidgardID* targetUnitId,
+                                        game::BattleAttackInfo** attackInfo)
+{
+    using namespace game;
+
+    const auto& fn = gameFunctions();
+    const auto& battleApi = BattleMsgDataApi::get();
+    const auto& midgardIdApi = CMidgardIDApi::get();
+
+    CMidUnit* targetUnit = nullptr;
+
+    CMidgardID summonId;
+    midgardIdApi.isSummonUnitId(&summonId, targetUnitId);
+    bool isNotSummon = summonId == emptyId;
+
+    if (isNotSummon)
+        targetUnit = fn.findUnitById(objectMap, targetUnitId);
+
+    const CMidgardID* attacker = &battleMsgData->turnsOrder[0].unitId;
+    CMidUnit* unitAttacker = fn.findUnitById(objectMap, &thisptr->unitId);
+
+    bindings::AttackHitParamsView params;
+    params.attacker = unitAttacker;
+    params.target = targetUnit;
+    params.itemId = &thisptr->itemId;
+    params.attack = nullptr;
+    params.attackClass = "UseOrb";
+    params.miss = false;
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss) {
+        addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+        return;
+    }
+
+    IBatAttack* attack = *(IBatAttack**)&thisptr->batAttack;
+
+    attack->vftable->onHit(attack, objectMap, battleMsgData, targetUnitId, attackInfo);
+
+    (*attackInfo)->id = thisptr->itemId;
+
+    for (int i = 0; i < 4; ++i) {
+        if (battleMsgData->usedItemIds[i] == thisptr->itemId)
+            break;
+        if (battleMsgData->usedItemIds[i] == invalidId) {
+            battleMsgData->usedItemIds[i] = thisptr->itemId;
+            break;
+        }
+    }
+
+    if (targetUnit) {
+        battleApi.checkUnitDeath(objectMap, battleMsgData, targetUnitId);
+        battleApi.setUnitHp(battleMsgData, targetUnitId, targetUnit->currentHp);
+    }
+
+    bool freeTurn = gameSettings().extendedBattle.itemExtraTurn != baseGameSettings().extendedBattle.itemExtraTurn;
+    if (freeTurn && !isItemUsed) {
+        battleMsgData->turnsOrder[0].attackCount++;
+        isItemUsed = true;
+    }
 }
 
 //Not used
@@ -3143,7 +3863,38 @@ bool __fastcall decreaseUnitAttacksHooked(game::BattleMsgData* battleMsgData,
                                           int /*%edx*/,
                                           const game::CMidgardID* unitId)
 {
-    return getOriginalFunctions().decreaseUnitAttacks(battleMsgData, unitId);
+    using namespace game;
+
+    if (!unitId || *unitId == game::emptyId || *unitId == game::invalidId)
+        return false;
+
+    int index = -1;
+    for (int i = 0; i < 13; i++) {
+        if (battleMsgData->turnsOrder[i].unitId == *unitId) {
+            index = i;
+            break;
+        }
+    }
+
+    // Important fix
+    if (index <= -1)
+        return false;
+
+    battleMsgData->turnsOrder[index].attackCount--;
+
+    if (battleMsgData->turnsOrder[index].attackCount <= 0) {
+        while (index < 12) {
+            battleMsgData->turnsOrder[index] = battleMsgData->turnsOrder[index + 1];
+            index++;
+        }
+        battleMsgData->turnsOrder[12].unitId = game::emptyId;
+        battleMsgData->turnsOrder[12].attackCount = 0;
+    }
+
+    battleMsgData->turnsOrder[12].unitId = game::invalidId;
+    battleMsgData->turnsOrder[12].attackCount = 0;
+
+    return true;
 }
 
 void __stdcall applyCBatAttackUntransformEffectHooked(game::IMidgardObjectMap* objectMap,

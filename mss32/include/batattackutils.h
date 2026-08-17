@@ -22,6 +22,7 @@
 
 #include "attack.h"
 #include "battlemsgdata.h"
+#include "battleattackinfo.h"
 #include "midunit.h"
 
 namespace game {
@@ -47,6 +48,18 @@ int heal(game::IMidgardObjectMap* objectMap,
 const game::CMidgardID* getUnitId(const game::IBatAttack* batAttack);
 
 const game::CMidgardID* getItemId(const game::IBatAttack* batAttack);
+
+bool IsImmuneToAttack(game::BattleMsgData* battleMsgData,
+                      game::IMidgardObjectMap* objectMap,
+                      game::CMidgardID* targetId,
+                      game::IAttack* attack);
+
+void addToBattleAttackInfo(game::BattleAttackInfo* attackInfo,
+                           const game::CMidUnit* unit,
+                           int damage = 0,
+                           int criticalHitDamage = 0,
+                           bool attackMissed = false,
+                           bool defend = false);
 
 } // namespace hooks
 

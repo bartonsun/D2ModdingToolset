@@ -29,6 +29,7 @@
 #include "battleattackinfo.h"
 #include "game.h"
 #include "idvector.h"
+#include "hooks.h"
 #include "midgardobjectmap.h"
 #include "modifierutils.h"
 #include "ussoldier.h"
@@ -42,6 +43,11 @@
 #include "attackimpl.h"
 #include "visitors.h"
 
+#include <fmt/format.h>
+#include <fstream>
+#include "scripts.h"
+#include <sol/sol.hpp>
+
 namespace hooks {
 
     static int computeDotDamage(game::CMidgardID* unitId,
@@ -52,24 +58,30 @@ namespace hooks {
         using namespace game;
         BattleMsgDataApi::Api& battleApi = BattleMsgDataApi::get();
 
+        const auto boostCanAffectDot = gameSettings().extendedBattle.boostCanAffectDot != baseGameSettings().extendedBattle.boostCanAffectDot; 
+        const auto lowerCanAffectDot = gameSettings().extendedBattle.lowerCanAffectDot != baseGameSettings().extendedBattle.lowerCanAffectDot; 
+
         int boost = 0;
         int lower = 0;
         double damage = baseDamage;
 
-        if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::BoostDamageLvl1))
-            boost = 1;
-        else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::BoostDamageLvl2))
-            boost = 2;
-        else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::BoostDamageLvl3))
-            boost = 3;
-        else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::BoostDamageLvl4))
-            boost = 4;
+        if (boostCanAffectDot) {
+            if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::BoostDamageLvl1))
+                boost = 1;
+            else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::BoostDamageLvl2))
+                boost = 2;
+            else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::BoostDamageLvl3))
+                boost = 3;
+            else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::BoostDamageLvl4))
+                boost = 4;
+        }
 
-        if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::LowerDamageLvl1))
-            lower = 1;
-        else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::LowerDamageLvl2))
-            lower = 2;
-
+        if (lowerCanAffectDot) {
+            if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::LowerDamageLvl1))
+                lower = 1;
+            else if (battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::LowerDamageLvl2))
+                lower = 2;
+        }
         int sumBoost = hooks::getBoostDamage(boost) - hooks::getLowerDamage(lower);
 
         int result = int(damage + damage * sumBoost / 100);
@@ -77,41 +89,19 @@ namespace hooks {
         return result;
     }
 
-    bool __fastcall blisterCanPerformHooked(game::CBatAttackBlister* thisptr,
+    bool __fastcall blisterAttackCanPerformHooked(game::CBatAttackBlister* thisptr,
                                             int /*%edx*/,
                                             game::IMidgardObjectMap* objectMap,
                                             game::BattleMsgData* battleMsgData,
                                             game::CMidgardID* targetUnitId)
     {
         using namespace game;
-        auto& fn = gameFunctions();
 
-        CMidgardID targetGroupId{};
-        thisptr->vftable->getTargetGroupId(thisptr, &targetGroupId, battleMsgData);
+        static const auto& fn = gameFunctions();
+        static const auto& battleApi = BattleMsgDataApi::get();
 
-        CMidgardID unitGroupId{};
-        fn.getAllyOrEnemyGroupId(&unitGroupId, battleMsgData, targetUnitId, true);
-    
-        if (targetGroupId != unitGroupId) {
-            // Can't target allies
-            return false;
-        }
-
-        if (BattleMsgDataApi::get().getUnitStatus(battleMsgData, targetUnitId,
-                                                  BattleStatus::Retreat))
-            return false;
-
-        return true;
-    }
-
-    bool __fastcall frostbiteCanPerformHooked(game::CBatAttackFrostbite* thisptr,
-                                            int /*%edx*/,
-                                            game::IMidgardObjectMap* objectMap,
-                                            game::BattleMsgData* battleMsgData,
-                                            game::CMidgardID* targetUnitId)
-    {
-        using namespace game;
-        auto& fn = gameFunctions();
+        static const bool canStack = gameSettings().extendedBattle.dotDamageCanStack
+                                     != baseGameSettings().extendedBattle.dotDamageCanStack;
 
         CMidgardID targetGroupId{};
         thisptr->vftable->getTargetGroupId(thisptr, &targetGroupId, battleMsgData);
@@ -124,21 +114,41 @@ namespace hooks {
             return false;
         }
 
+        if (BattleMsgDataApi::get().getUnitStatus(battleMsgData, targetUnitId, BattleStatus::Retreat))
+            return false;
+
+        if (canStack)
+            return true;
+
         if (BattleMsgDataApi::get().getUnitStatus(battleMsgData, targetUnitId,
                                                   BattleStatus::Retreat))
+            return false;
+
+        UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
+
+        int curDamage = targetInfo->blisterAppliedDamage;
+        int attackDamage = thisptr->attack->vftable->getQtyDamage(thisptr->attack);
+        int computeDamage = computeDotDamage(&thisptr->unitId, battleMsgData, attackDamage);
+
+        if (curDamage > computeDamage)
             return false;
 
         return true;
     }
 
-    bool __fastcall poisonCanPerformHooked(game::CBatAttackPoison* thisptr,
-                                            int /*%edx*/,
-                                            game::IMidgardObjectMap* objectMap,
-                                            game::BattleMsgData* battleMsgData,
-                                            game::CMidgardID* targetUnitId)
+    bool __fastcall frostbiteAttackCanPerformHooked(game::CBatAttackFrostbite* thisptr,
+                                                    int /*%edx*/,
+                                                    game::IMidgardObjectMap* objectMap,
+                                                    game::BattleMsgData* battleMsgData,
+                                                    game::CMidgardID* targetUnitId)
     {
         using namespace game;
-        auto& fn = gameFunctions();
+
+        static const auto& fn = gameFunctions();
+        static const auto& battleApi = BattleMsgDataApi::get();
+
+        static const bool canStack = gameSettings().extendedBattle.dotDamageCanStack
+                                     != baseGameSettings().extendedBattle.dotDamageCanStack;
 
         CMidgardID targetGroupId{};
         thisptr->vftable->getTargetGroupId(thisptr, &targetGroupId, battleMsgData);
@@ -155,143 +165,320 @@ namespace hooks {
                                                   BattleStatus::Retreat))
             return false;
 
+        if (canStack)
+            return true;
+
+        if (BattleMsgDataApi::get().getUnitStatus(battleMsgData, targetUnitId,
+                                                  BattleStatus::Retreat))
+            return false;
+
+        UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
+
+        int curDamage = targetInfo->frostbiteAppliedDamage;
+        int attackDamage = thisptr->attack->vftable->getQtyDamage(thisptr->attack);
+        int computeDamage = computeDotDamage(&thisptr->unitId, battleMsgData, attackDamage);
+
+        if (curDamage > computeDamage)
+            return false;
+
         return true;
     }
 
-    //HIT
-    void __fastcall blisterOnHitHooked(game::CBatAttackBlister* thisptr,
-                                       int /*%edx*/,
-                                       game::IMidgardObjectMap* objectMap,
-                                       game::BattleMsgData* battleMsgData,
-                                       game::CMidgardID* targetUnitId,
-                                       game::BattleAttackInfo** attackInfo)
+    bool __fastcall poisonAttackCanPerformHooked(game::CBatAttackPoison* thisptr,
+                                                 int /*%edx*/,
+                                                 game::IMidgardObjectMap* objectMap,
+                                                 game::BattleMsgData* battleMsgData,
+                                                 game::CMidgardID* targetUnitId)
+    {
+        using namespace game;
+
+        static const auto& fn = gameFunctions();
+        static const auto& battleApi = BattleMsgDataApi::get();
+
+        static const bool canStack = gameSettings().extendedBattle.dotDamageCanStack
+                                     != baseGameSettings().extendedBattle.dotDamageCanStack;
+
+        CMidgardID targetGroupId{};
+        thisptr->vftable->getTargetGroupId(thisptr, &targetGroupId, battleMsgData);
+
+        CMidgardID unitGroupId{};
+        fn.getAllyOrEnemyGroupId(&unitGroupId, battleMsgData, targetUnitId, true);
+
+        if (targetGroupId != unitGroupId) {
+            // Can't target allies
+            return false;
+        }
+
+        if (BattleMsgDataApi::get().getUnitStatus(battleMsgData, targetUnitId,
+                                                  BattleStatus::Retreat))
+            return false;
+
+        if (canStack)
+            return true;
+
+        if (BattleMsgDataApi::get().getUnitStatus(battleMsgData, targetUnitId,
+                                                  BattleStatus::Retreat))
+            return false;
+
+        UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
+
+        int curDamage = targetInfo->poisonAppliedDamage;
+        int attackDamage = thisptr->attack->vftable->getQtyDamage(thisptr->attack);
+        int computeDamage = computeDotDamage(&thisptr->unitId, battleMsgData, attackDamage);
+
+        if (curDamage > computeDamage)
+            return false;
+
+        return true;
+    }
+
+    void __fastcall blisterAttackOnHitHooked(game::CBatAttackBlister* thisptr,
+                                               int /*%edx*/,
+                                               game::IMidgardObjectMap* objectMap,
+                                               game::BattleMsgData* battleMsgData,
+                                               game::CMidgardID* targetUnitId,
+                                               game::BattleAttackInfo** attackInfo)
     {
         using namespace game;
 
         static const auto& battleApi = BattleMsgDataApi::get();
         static const auto& fn = gameFunctions();
         static const auto& idApi = CMidgardIDApi::get();
+        static const auto& settings = gameSettings();
+
+        static const bool canStack = gameSettings().extendedBattle.dotDamageCanStack != baseGameSettings().extendedBattle.dotDamageCanStack;
+        static const int maxDotDamage = gameSettings().extendedBattle.maxDotDamage;
+        static const bool usePower = gameSettings().extendedBattle.longEffectsUsesPower != baseGameSettings().extendedBattle.longEffectsUsesPower;
 
         UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
         CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
 
+        if (!targetUnit)
+            return;
+
         const auto attack = thisptr->attack;
 
-        const bool isItem = idApi.getType(&thisptr->id2) == IdType::Item;
-
         int damage = attack->vftable->getQtyDamage(attack);
-
-        if (!isItem) {
+        if (idApi.getType(&thisptr->id2) != IdType::Item) {
             damage = computeDotDamage(&thisptr->unitId, battleMsgData, damage);
+        }
+
+        bool isLong = attack->vftable->getInfinite(attack);
+
+        CMidUnit* unitAttacker = fn.findUnitById(objectMap, &thisptr->unitId);
+
+        bindings::AttackHitParamsView params;
+        params.attacker = unitAttacker;
+        params.target = targetUnit;
+        params.attack = attack;
+        params.attackClass = "Blister";
+        params.damage = damage;
+        params.isLong = isLong;
+        params.miss = false;
+
+        callLuaAttackHook(objectMap, battleMsgData, params);
+
+        if (params.miss) {
+            addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+            return;
         }
 
         int curDamage = targetInfo->blisterAppliedDamage;
 
-        targetInfo->blisterAppliedDamage = std::clamp(curDamage + damage, 0,
-                                                      gameSettings().extendedBattle.maxDotDamage);
+        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Blister, false);
+        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::BlisterLong, false);
+
+        if (canStack) {
+            targetInfo->blisterAppliedDamage = std::clamp(curDamage + params.damage, 0,
+                                                          maxDotDamage);
+        }
+        else
+        {
+            targetInfo->blisterAppliedDamage = std::clamp(params.damage, 0, maxDotDamage);
+        }
 
         battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Blister, true);
 
-        if (thisptr->attack->vftable->getInfinite(thisptr->attack)) {
-            battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::BlisterLong,
-                                    true);
+        if (usePower)
+        {
+            int level = thisptr->attack->vftable->getLevel(thisptr->attack);
+            targetInfo->blisterAppliedRound = level > 0 ? level : 1;
+            battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::BlisterLong, true);
         }
-        targetInfo->blisterAppliedRound = battleMsgData->currentRound;
+        else
+        {
+            battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::BlisterLong,
+                                    params.isLong ? true : false);
+            targetInfo->blisterAppliedRound = battleMsgData->currentRound;
+        }
 
-        BattleAttackUnitInfo info{};
-        info.unitId = targetUnit->id;
-        info.unitImplId = targetUnit->unitImpl->id;
-        BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+        battleApi.checkUnitDeath(objectMap, battleMsgData, targetUnitId);
+
+        addToBattleAttackInfo(*attackInfo, targetUnit);
     }
-
-    void __fastcall frostbiteOnHitHooked(game::CBatAttackFrostbite* thisptr,
-                                         int /*%edx*/,
-                                         game::IMidgardObjectMap* objectMap,
-                                         game::BattleMsgData* battleMsgData,
-                                         game::CMidgardID* targetUnitId,
-                                         game::BattleAttackInfo** attackInfo)
+    
+    void __fastcall frostbiteAttackOnHitHooked(game::CBatAttackFrostbite* thisptr,
+                                               int /*%edx*/,
+                                               game::IMidgardObjectMap* objectMap,
+                                               game::BattleMsgData* battleMsgData,
+                                               game::CMidgardID* targetUnitId,
+                                               game::BattleAttackInfo** attackInfo)
     {
         using namespace game;
 
         static const auto& battleApi = BattleMsgDataApi::get();
         static const auto& fn = gameFunctions();
         static const auto& idApi = CMidgardIDApi::get();
+        static const auto& settings = gameSettings();
+
+        static const bool canStack = gameSettings().extendedBattle.dotDamageCanStack
+                                     != baseGameSettings().extendedBattle.dotDamageCanStack;
+        static const int maxDotDamage = gameSettings().extendedBattle.maxDotDamage;
+        static const bool usePower = gameSettings().extendedBattle.longEffectsUsesPower
+                                     != baseGameSettings().extendedBattle.longEffectsUsesPower;
 
         UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
         CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
 
+        if (!targetUnit)
+            return;
+
         const auto attack = thisptr->attack;
 
-        const bool isItem = idApi.getType(&thisptr->id2) == IdType::Item;
-
         int damage = attack->vftable->getQtyDamage(attack);
-
-        if (!isItem) {
+        if (idApi.getType(&thisptr->id2) != IdType::Item) {
             damage = computeDotDamage(&thisptr->unitId, battleMsgData, damage);
+        }
+
+        bool isLong = attack->vftable->getInfinite(attack);
+
+        CMidUnit* unitAttacker = fn.findUnitById(objectMap, &thisptr->unitId);
+
+        bindings::AttackHitParamsView params;
+        params.attacker = unitAttacker;
+        params.target = targetUnit;
+        params.attack = attack;
+        params.attackClass = "Frostbite";
+        params.damage = damage;
+        params.isLong = isLong;
+        params.miss = false;
+
+        callLuaAttackHook(objectMap, battleMsgData, params);
+
+        if (params.miss) {
+            addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+            return;
         }
 
         int curDamage = targetInfo->frostbiteAppliedDamage;
 
-        targetInfo->frostbiteAppliedDamage = std::clamp(curDamage + damage, 0,
-                                                        gameSettings().extendedBattle.maxDotDamage);
+        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Frostbite, false);
+        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::FrostbiteLong, false);
+
+        if (canStack) {
+            targetInfo->frostbiteAppliedDamage = std::clamp(curDamage + params.damage, 0,
+                                                            maxDotDamage);
+        } else {
+            targetInfo->frostbiteAppliedDamage = std::clamp(params.damage, 0, maxDotDamage);
+        }
 
         battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Frostbite, true);
 
-        if (thisptr->attack->vftable->getInfinite(thisptr->attack)) {
+        if (usePower) {
+            int level = thisptr->attack->vftable->getLevel(thisptr->attack);
+            targetInfo->frostbiteAppliedRound = level > 0 ? level : 1;
+            battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::FrostbiteLong, true);
+        } else {
             battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::FrostbiteLong,
-                                    true);
+                                    params.isLong ? true : false);
+            targetInfo->frostbiteAppliedRound = battleMsgData->currentRound;
         }
-        targetInfo->frostbiteAppliedRound = battleMsgData->currentRound;
 
-        BattleAttackUnitInfo info{};
-        info.unitId = targetUnit->id;
-        info.unitImplId = targetUnit->unitImpl->id;
-        BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+        battleApi.checkUnitDeath(objectMap, battleMsgData, targetUnitId);
+
+        addToBattleAttackInfo(*attackInfo, targetUnit);
     }
 
-    void __fastcall poisonOnHitHooked(game::CBatAttackPoison* thisptr,
-                                       int /*%edx*/,
-                                       game::IMidgardObjectMap* objectMap,
-                                       game::BattleMsgData* battleMsgData,
-                                       game::CMidgardID* targetUnitId,
-                                       game::BattleAttackInfo** attackInfo)
+    void __fastcall poisonAttackOnHitHooked(game::CBatAttackPoison* thisptr,
+                                            int /*%edx*/,
+                                            game::IMidgardObjectMap* objectMap,
+                                            game::BattleMsgData* battleMsgData,
+                                            game::CMidgardID* targetUnitId,
+                                            game::BattleAttackInfo** attackInfo)
     {
         using namespace game;
 
         static const auto& battleApi = BattleMsgDataApi::get();
         static const auto& fn = gameFunctions();
         static const auto& idApi = CMidgardIDApi::get();
+        static const auto& settings = gameSettings();
+
+        static const bool canStack = gameSettings().extendedBattle.dotDamageCanStack
+                                     != baseGameSettings().extendedBattle.dotDamageCanStack;
+        static const int maxDotDamage = gameSettings().extendedBattle.maxDotDamage;
+        static const bool usePower = gameSettings().extendedBattle.longEffectsUsesPower
+                                     != baseGameSettings().extendedBattle.longEffectsUsesPower;
 
         UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
         CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
 
+        if (!targetUnit)
+            return;
+
         const auto attack = thisptr->attack;
 
-        const bool isItem = idApi.getType(&thisptr->id2) == IdType::Item;
-
         int damage = attack->vftable->getQtyDamage(attack);
-
-        if (!isItem)
-        {
+        if (idApi.getType(&thisptr->id2) != IdType::Item) {
             damage = computeDotDamage(&thisptr->unitId, battleMsgData, damage);
+        }
+
+        bool isLong = attack->vftable->getInfinite(attack);
+
+        CMidUnit* unitAttacker = fn.findUnitById(objectMap, &thisptr->unitId);
+
+        bindings::AttackHitParamsView params;
+        params.attacker = unitAttacker;
+        params.target = targetUnit;
+        params.attack = attack;
+        params.attackClass = "Poison";
+        params.damage = damage;
+        params.isLong = isLong;
+        params.miss = false;
+
+        callLuaAttackHook(objectMap, battleMsgData, params);
+
+        if (params.miss) {
+            addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+            return;
         }
 
         int curDamage = targetInfo->poisonAppliedDamage;
 
-        targetInfo->poisonAppliedDamage = std::clamp(curDamage + damage, 0,
-                                                     gameSettings().extendedBattle.maxDotDamage);
+        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Poison, false);
+        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::PoisonLong, false);
+
+        if (canStack) {
+            targetInfo->poisonAppliedDamage = std::clamp(curDamage + params.damage, 0,
+                                                         maxDotDamage);
+        } else {
+            targetInfo->poisonAppliedDamage = std::clamp(params.damage, 0, maxDotDamage);
+        }
 
         battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Poison, true);
 
-        if (thisptr->attack->vftable->getInfinite(thisptr->attack)) {
+        if (usePower) {
+            int level = thisptr->attack->vftable->getLevel(thisptr->attack);
+            targetInfo->poisonAppliedRound = level > 0 ? level : 1;
             battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::PoisonLong, true);
+        } else {
+            battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::PoisonLong,
+                                    params.isLong ? true : false);
+            targetInfo->poisonAppliedRound = battleMsgData->currentRound;
         }
-        targetInfo->poisonAppliedRound = battleMsgData->currentRound;
 
-        BattleAttackUnitInfo info{};
-        info.unitId = targetUnit->id;
-        info.unitImplId = targetUnit->unitImpl->id;
-        BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+        battleApi.checkUnitDeath(objectMap, battleMsgData, targetUnitId);
+
+        addToBattleAttackInfo(*attackInfo, targetUnit);
     }
 
     //EFFECT
@@ -308,31 +495,46 @@ namespace hooks {
         static const auto& fn = gameFunctions();
         static const auto& visitorApi = VisitorApi::get();
 
+        static const bool canStack = gameSettings().extendedBattle.dotDamageCanStack
+                                     != baseGameSettings().extendedBattle.dotDamageCanStack;
+        static const int maxDotDamage = gameSettings().extendedBattle.maxDotDamage;
+
         UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
         CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
 
-        int damage = std::clamp(targetInfo->blisterAppliedDamage, 0,
-                                gameSettings().extendedBattle.maxDotDamage);
+        int damage = std::clamp(targetInfo->blisterAppliedDamage, 0, maxDotDamage);
 
-        visitorApi.changeUnitHp(targetUnitId, -damage, objectMap, 1);
+        CMidUnit* unitAttacker = fn.findUnitById(objectMap, &thisptr->unitId);
+
+        bindings::AttackHitParamsView params;
+        params.attacker = unitAttacker;
+        params.target = targetUnit;
+        params.attack = nullptr;
+        params.attackClass = "BlisterEffect";
+        params.damage = damage;
+
+        callLuaAttackHook(objectMap, battleMsgData, params);
+
+        visitorApi.changeUnitHp(targetUnitId, -params.damage, objectMap, 1);
 
         battleApi.checkUnitDeath(objectMap, battleMsgData, targetUnitId);
 
         battleApi.setUnitHp(battleMsgData, targetUnitId, targetUnit->currentHp);
 
-        BattleAttackUnitInfo info{};
-        info.unitId = targetUnit->id;
-        info.unitImplId = targetUnit->unitImpl->id;
-        info.damage = damage;
-        BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+        if (canStack)
+        {
+            targetInfo->blisterAppliedDamage -= params.damage / 3;
+        }
+
+        addToBattleAttackInfo(*attackInfo, targetUnit, params.damage);
     }
 
     void __fastcall frostbiteEffectOnHitHooked(game::CBatAttackFrostbiteEffect* thisptr,
-                                             int /*%edx*/,
-                                             game::IMidgardObjectMap* objectMap,
-                                             game::BattleMsgData* battleMsgData,
-                                             game::CMidgardID* targetUnitId,
-                                             game::BattleAttackInfo** attackInfo)
+                                               int /*%edx*/,
+                                               game::IMidgardObjectMap* objectMap,
+                                               game::BattleMsgData* battleMsgData,
+                                               game::CMidgardID* targetUnitId,
+                                               game::BattleAttackInfo** attackInfo)
     {
         using namespace game;
 
@@ -340,31 +542,45 @@ namespace hooks {
         static const auto& fn = gameFunctions();
         static const auto& visitorApi = VisitorApi::get();
 
+        static const bool canStack = gameSettings().extendedBattle.dotDamageCanStack
+                                     != baseGameSettings().extendedBattle.dotDamageCanStack;
+        static const int maxDotDamage = gameSettings().extendedBattle.maxDotDamage;
+
         UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
         CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
 
-        int damage = std::clamp(targetInfo->frostbiteAppliedDamage, 0,
-                                gameSettings().extendedBattle.maxDotDamage);
+        int damage = std::clamp(targetInfo->frostbiteAppliedDamage, 0, maxDotDamage);
 
-        visitorApi.changeUnitHp(targetUnitId, -damage, objectMap, 1);
+        CMidUnit* unitAttacker = fn.findUnitById(objectMap, &thisptr->unitId);
+
+        bindings::AttackHitParamsView params;
+        params.attacker = unitAttacker;
+        params.target = targetUnit;
+        params.attack = nullptr;
+        params.attackClass = "FrostbiteEffect";
+        params.damage = damage;
+
+        callLuaAttackHook(objectMap, battleMsgData, params);
+
+        visitorApi.changeUnitHp(targetUnitId, -params.damage, objectMap, 1);
 
         battleApi.checkUnitDeath(objectMap, battleMsgData, targetUnitId);
 
         battleApi.setUnitHp(battleMsgData, targetUnitId, targetUnit->currentHp);
 
-        BattleAttackUnitInfo info{};
-        info.unitId = targetUnit->id;
-        info.unitImplId = targetUnit->unitImpl->id;
-        info.damage = damage;
-        BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+        if (canStack) {
+            targetInfo->frostbiteAppliedDamage -= params.damage / 3;
+        }
+
+        addToBattleAttackInfo(*attackInfo, targetUnit, params.damage);
     }
 
     void __fastcall poisonEffectOnHitHooked(game::CBatAttackPoisonEffect* thisptr,
-                                             int /*%edx*/,
-                                             game::IMidgardObjectMap* objectMap,
-                                             game::BattleMsgData* battleMsgData,
-                                             game::CMidgardID* targetUnitId,
-                                             game::BattleAttackInfo** attackInfo)
+                                            int /*%edx*/,
+                                            game::IMidgardObjectMap* objectMap,
+                                            game::BattleMsgData* battleMsgData,
+                                            game::CMidgardID* targetUnitId,
+                                            game::BattleAttackInfo** attackInfo)
     {
         using namespace game;
 
@@ -372,261 +588,37 @@ namespace hooks {
         static const auto& fn = gameFunctions();
         static const auto& visitorApi = VisitorApi::get();
 
+        static const bool canStack = gameSettings().extendedBattle.dotDamageCanStack
+                                     != baseGameSettings().extendedBattle.dotDamageCanStack;
+        static const int maxDotDamage = gameSettings().extendedBattle.maxDotDamage;
+
         UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
         CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
 
-        int damage = std::clamp(targetInfo->poisonAppliedDamage, 0,
-                                gameSettings().extendedBattle.maxDotDamage);
+        int damage = std::clamp(targetInfo->poisonAppliedDamage, 0, maxDotDamage);
 
-        visitorApi.changeUnitHp(targetUnitId, -damage, objectMap, 1);
+        CMidUnit* unitAttacker = fn.findUnitById(objectMap, &thisptr->unitId);
+
+        bindings::AttackHitParamsView params;
+        params.attacker = unitAttacker;
+        params.target = targetUnit;
+        params.attack = nullptr;
+        params.attackClass = "PoisonEffect";
+        params.damage = damage;
+
+        callLuaAttackHook(objectMap, battleMsgData, params);
+
+        visitorApi.changeUnitHp(targetUnitId, -params.damage, objectMap, 1);
 
         battleApi.checkUnitDeath(objectMap, battleMsgData, targetUnitId);
 
         battleApi.setUnitHp(battleMsgData, targetUnitId, targetUnit->currentHp);
 
-        BattleAttackUnitInfo info{};
-        info.unitId = targetUnit->id;
-        info.unitImplId = targetUnit->unitImpl->id;
-        info.damage = damage;
-        BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
-    }
-
-    //Base onHit attacks
-    bool __fastcall defaultBlisterCanPerformHooked(game::CBatAttackBlister* thisptr,
-                                                   int /*%edx*/,
-                                                   game::IMidgardObjectMap* objectMap,
-                                                   game::BattleMsgData* battleMsgData,
-                                                   game::CMidgardID* targetUnitId)
-    {
-        using namespace game;
-        auto& fn = gameFunctions();
-        static const auto& battleApi = BattleMsgDataApi::get();
-
-        CMidgardID targetGroupId{};
-        thisptr->vftable->getTargetGroupId(thisptr, &targetGroupId, battleMsgData);
-
-        CMidgardID unitGroupId{};
-        fn.getAllyOrEnemyGroupId(&unitGroupId, battleMsgData, targetUnitId, true);
-
-        if (targetGroupId != unitGroupId) {
-            // Can't target allies
-            return false;
+        if (canStack) {
+            targetInfo->poisonAppliedDamage -= params.damage / 3;
         }
 
-        if (BattleMsgDataApi::get().getUnitStatus(battleMsgData, targetUnitId,
-                                                  BattleStatus::Retreat))
-            return false;
-
-        UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
-
-        int curDamage = targetInfo->blisterAppliedDamage;
-        int attackDamage = thisptr->attack->vftable->getQtyDamage(thisptr->attack);
-        int computeDamage = computeDotDamage(&thisptr->unitId, battleMsgData, attackDamage);
-
-        if (curDamage > computeDamage)
-            return false;
-
-        return true;
+        addToBattleAttackInfo(*attackInfo, targetUnit, params.damage);
     }
 
-    void __fastcall defaultBlisterOnHitHooked(game::CBatAttackBlister* thisptr,
-                                              int /*%edx*/,
-                                              game::IMidgardObjectMap* objectMap,
-                                              game::BattleMsgData* battleMsgData,
-                                              game::CMidgardID* targetUnitId,
-                                              game::BattleAttackInfo** attackInfo)
-    {
-        using namespace game;
-
-        static const auto& battleApi = BattleMsgDataApi::get();
-        static const auto& fn = gameFunctions();
-        static const auto& idApi = CMidgardIDApi::get();
-
-        const auto attack = thisptr->attack;
-
-        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::BlisterLong, false);
-        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Blister, true);
-
-        if (attack->vftable->getInfinite(attack))
-            battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::BlisterLong, true);
-
-        UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
-        CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
-
-        const bool isItem = idApi.getType(&thisptr->id2) == IdType::Item;
-
-        int damage = attack->vftable->getQtyDamage(attack);
-
-        if (!isItem) {
-            damage = computeDotDamage(&thisptr->unitId, battleMsgData, damage);
-        }
-
-        targetInfo->blisterAppliedDamage = std::clamp(damage, 0,
-                                                      gameSettings().extendedBattle.maxDotDamage);
-        targetInfo->blisterAppliedRound = battleMsgData->currentRound;
-
-        BattleAttackUnitInfo info{};
-        info.unitId = targetUnit->id;
-        info.unitImplId = targetUnit->unitImpl->id;
-        BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
-    }
-
-    bool __fastcall defaultPoisonCanPerformHooked(game::CBatAttackPoison* thisptr,
-                                                  int /*%edx*/,
-                                                  game::IMidgardObjectMap* objectMap,
-                                                  game::BattleMsgData* battleMsgData,
-                                                  game::CMidgardID* targetUnitId)
-    {
-        using namespace game;
-        auto& fn = gameFunctions();
-        static const auto& battleApi = BattleMsgDataApi::get();
-
-        CMidgardID targetGroupId{};
-        thisptr->vftable->getTargetGroupId(thisptr, &targetGroupId, battleMsgData);
-
-        CMidgardID unitGroupId{};
-        fn.getAllyOrEnemyGroupId(&unitGroupId, battleMsgData, targetUnitId, true);
-
-        if (targetGroupId != unitGroupId) {
-            // Can't target allies
-            return false;
-        }
-
-        if (BattleMsgDataApi::get().getUnitStatus(battleMsgData, targetUnitId,
-                                                  BattleStatus::Retreat))
-            return false;
-
-        UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
-
-        int curDamage = targetInfo->poisonAppliedDamage;
-        int attackDamage = thisptr->attack->vftable->getQtyDamage(thisptr->attack);
-        int computeDamage = computeDotDamage(&thisptr->unitId, battleMsgData, attackDamage);
-
-        if (curDamage > computeDamage)
-            return false;
-
-        return true;
-    }
-
-    void __fastcall defaultPoisonOnHitHooked(game::CBatAttackPoison* thisptr,
-                                             int /*%edx*/,
-                                             game::IMidgardObjectMap* objectMap,
-                                             game::BattleMsgData* battleMsgData,
-                                             game::CMidgardID* targetUnitId,
-                                             game::BattleAttackInfo** attackInfo)
-    {
-        using namespace game;
-
-        static const auto& battleApi = BattleMsgDataApi::get();
-        static const auto& fn = gameFunctions();
-        static const auto& idApi = CMidgardIDApi::get();
-
-        const auto attack = thisptr->attack;
-
-        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::PoisonLong, false);
-        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Poison, true);
-
-        if (attack->vftable->getInfinite(attack))
-            battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::PoisonLong, true);
-
-        UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
-        CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
-
-        const bool isItem = idApi.getType(&thisptr->id2) == IdType::Item;
-
-        int damage = attack->vftable->getQtyDamage(attack);
-
-        if (!isItem) {
-            damage = computeDotDamage(&thisptr->unitId, battleMsgData, damage);
-        }
-
-        targetInfo->poisonAppliedDamage = std::clamp(damage, 0,
-                                                     gameSettings().extendedBattle.maxDotDamage);
-        targetInfo->poisonAppliedRound = battleMsgData->currentRound;
-
-        BattleAttackUnitInfo info{};
-        info.unitId = targetUnit->id;
-        info.unitImplId = targetUnit->unitImpl->id;
-        BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
-    }
-
-    bool __fastcall defaultFrostbiteCanPerformHooked(game::CBatAttackFrostbite* thisptr,
-                                                     int /*%edx*/,
-                                                     game::IMidgardObjectMap* objectMap,
-                                                     game::BattleMsgData* battleMsgData,
-                                                     game::CMidgardID* targetUnitId)
-    {
-        using namespace game;
-        auto& fn = gameFunctions();
-        static const auto& battleApi = BattleMsgDataApi::get();
-
-        CMidgardID targetGroupId{};
-        thisptr->vftable->getTargetGroupId(thisptr, &targetGroupId, battleMsgData);
-
-        CMidgardID unitGroupId{};
-        fn.getAllyOrEnemyGroupId(&unitGroupId, battleMsgData, targetUnitId, true);
-
-        if (targetGroupId != unitGroupId) {
-            // Can't target allies
-            return false;
-        }
-
-        if (BattleMsgDataApi::get().getUnitStatus(battleMsgData, targetUnitId,
-                                                  BattleStatus::Retreat))
-            return false;
-
-        UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
-
-        int curDamage = targetInfo->frostbiteAppliedDamage;
-        int attackDamage = thisptr->attack->vftable->getQtyDamage(thisptr->attack);
-        int computeDamage = computeDotDamage(&thisptr->unitId, battleMsgData, attackDamage);
-
-        if (curDamage > computeDamage)
-            return false;
-
-        return true;
-    }
-
-    void __fastcall defaultFrostbiteOnHitHooked(game::CBatAttackFrostbite* thisptr,
-                                                int /*%edx*/,
-                                                game::IMidgardObjectMap* objectMap,
-                                                game::BattleMsgData* battleMsgData,
-                                                game::CMidgardID* targetUnitId,
-                                                game::BattleAttackInfo** attackInfo)
-    {
-        using namespace game;
-
-        static const auto& battleApi = BattleMsgDataApi::get();
-        static const auto& fn = gameFunctions();
-        static const auto& idApi = CMidgardIDApi::get();
-
-        const auto attack = thisptr->attack;
-
-        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::FrostbiteLong, false);
-        battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Frostbite, true);
-
-        if (attack->vftable->getInfinite(attack))
-            battleApi.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::FrostbiteLong, true);
-
-        UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
-        CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
-
-        const bool isItem = idApi.getType(&thisptr->id2) == IdType::Item;
-
-        int damage = attack->vftable->getQtyDamage(attack);
-
-        if (!isItem) {
-            damage = computeDotDamage(&thisptr->unitId, battleMsgData, damage);
-        }
-
-        targetInfo->frostbiteAppliedDamage = std::clamp(damage, 0,
-                                                        gameSettings().extendedBattle.maxDotDamage);
-        targetInfo->frostbiteAppliedRound = battleMsgData->currentRound;
-
-        BattleAttackUnitInfo info{};
-        info.unitId = targetUnit->id;
-        info.unitImplId = targetUnit->unitImpl->id;
-        BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
-    }
-
-} // namespace hooks
+    } // namespace hooks

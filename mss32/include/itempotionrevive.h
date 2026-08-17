@@ -20,6 +20,7 @@
 #ifndef ITEMPOTIONREVIVE_H
 #define ITEMPOTIONREVIVE_H
 
+#include "dbtable.h"
 #include "itembase.h"
 
 namespace game {
@@ -29,6 +30,19 @@ struct CItemPotionRevive : public CItemBase
 
 assert_size(CItemPotionRevive, 12);
 
+namespace CItemPotionReviveApi {
+
+struct Api
+{
+    using Constructor = CItemPotionRevive*(__thiscall*)(CItemPotionRevive* thisptr,
+                                                        CDBTable* dbTable,
+                                                        const game::GlobalData** globalData);
+    Constructor constructor;
+};
+
+Api& get();
+
+} // namespace CItemPotionReviveApi
 } // namespace game
 
 #endif // ITEMPOTIONREVIVE_H

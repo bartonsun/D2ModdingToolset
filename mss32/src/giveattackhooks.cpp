@@ -27,6 +27,9 @@
 #include "midunit.h"
 #include "ussoldier.h"
 #include "usunit.h"
+#include <batattackutils.h>
+#include <attackparams.h>
+#include <hooks.h>
 
 namespace hooks {
 
@@ -95,6 +98,8 @@ namespace hooks {
     {
         using namespace game;
 
+        static const auto& fn = gameFunctions();
+
         int usedSlots = 0;
         for (int i = 0; i < 13; i++) {
             if (battleMsgData->turnsOrder[i].unitId != invalidId)
@@ -104,16 +109,48 @@ namespace hooks {
         if (usedSlots >= 13)
             return;
 
-        CMidUnit* unit = gameFunctions().findUnitById(objectMap, targetUnitId);
-        IUsSoldier* soldier = gameFunctions().castUnitImplToSoldier(unit->unitImpl);
+        CMidUnit* targetUnit = fn.findUnitById(objectMap, targetUnitId);
+
+        if (!targetUnit)
+            return;
+
+        IUsSoldier* soldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
         bool hasDoubleAttack = soldier->vftable->getAttackTwice(soldier);
 
-        BattleMsgDataApi::get().giveAttack(battleMsgData, targetUnitId, hasDoubleAttack ? 2 : 1, 1);
+        int attackCount = hasDoubleAttack ? 2 : 1;
 
-        BattleAttackUnitInfo info{};
-        info.unitId = unit->id;
-        info.unitImplId = unit->unitImpl->id;
-        BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+        /*for (int i = 0; i < 13; i++) {
+            if (battleMsgData->turnsOrder[i].unitId == *targetUnitId) {
+                attackCount = battleMsgData->turnsOrder[i].attackCount;
+                break;
+            }
+        }*/
+
+        CMidUnit* unitAttacker = fn.findUnitById(objectMap, &thisptr->unitId1);
+
+        IAttack* attack = fn.getAttackById(objectMap, &thisptr->unitId2,
+                                           thisptr->attackNumber, false);
+
+        bindings::AttackHitParamsView params;
+        params.attacker = unitAttacker;
+        params.target = targetUnit;
+        params.attackCount = attackCount;
+        params.attack = attack;
+        params.attackClass = "GiveAttack";
+        params.miss = false;
+
+        callLuaAttackHook(objectMap, battleMsgData, params);
+
+        if (params.miss) {
+            addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+            return;
+        }
+
+        attackCount = params.attackCount;
+
+        BattleMsgDataApi::get().giveAttack(battleMsgData, targetUnitId, attackCount, 1);
+
+        addToBattleAttackInfo(*attackInfo, targetUnit);
     }
 
     bool __fastcall giveAttackIsImmuneHooked(game::CBatAttackGiveAttack* thisptr,
@@ -138,26 +175,7 @@ namespace hooks {
             return false;
         }
 
-        const CMidUnit* targetUnit = fn.findUnitById(objectMap, unitId);
-        if (!targetUnit) {
-            return false;
-        }
-
-        const IUsSoldier* targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
-        const LAttackClass* attackClass = attack->vftable->getAttackClass(attack);
-        const LImmuneCat* immuneCat = targetSoldier->vftable->getImmuneByAttackClass(targetSoldier,
-                                                                                     attackClass);
-        if (immuneCat->id == immuneCategories.once->id) {
-            bool hasWard = battleApi.isUnitAttackClassWardRemoved(battleMsgData, unitId,
-                                                                  attackClass);
-            if (!hasWard) {
-                battleApi.removeUnitAttackClassWard(battleMsgData, unitId, attackClass);
-                return true;
-            }
-            return false;
-        }
-
-        return immuneCat->id == immuneCategories.always->id;
+        return IsImmuneToAttack(battleMsgData, objectMap, unitId, attack);
     }
 
 }

@@ -179,7 +179,6 @@ struct Settings
 
     bool debugMode;
 
-    bool alchemistKeepsAttackCount;
     bool instantBuffRemoval;
     int reviveAttacksUsesQtyHeal;
     bool reviveItemsUsesQtyHeal;
@@ -195,6 +194,13 @@ struct Settings
 
         bool lowerdamageCanAffectHealer;
         bool boostdamageCanAffectHealer;
+
+        bool boostCanAffectDot;
+        bool lowerCanAffectDot;
+
+        bool longEffectsUsesPower;
+
+        bool itemExtraTurn;
 
     } extendedBattle;
 

@@ -40,6 +40,10 @@
 #include "visitors.h"
 #include <spdlog/spdlog.h>
 
+#include "attackparams.h"
+#include "hooks.h"
+#include <batattackutils.h>
+
 namespace hooks {
 
 static int getDoppelgangerTransformLevel(const game::CMidUnit* doppelganger,
@@ -229,6 +233,21 @@ void __fastcall doppelgangerAttackOnHitHooked(game::CBatAttackDoppelganger* this
     CMidgardID targetUnitImplId = targetUnit->unitImpl->id;
 
     const CMidUnit* unit = fn.findUnitById(objectMap, &thisptr->unitId);
+
+    bindings::AttackHitParamsView params;
+    params.attacker = const_cast<CMidUnit*>(unit);
+    params.target = const_cast<CMidUnit*>(targetUnit);
+    params.attack = thisptr->altAttackImpl;
+    params.attackClass = "Doppelganger";
+    params.miss = false;
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss) {
+        addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+        return;
+    }
+
     const auto transformLevel = getDoppelgangerTransformLevel(unit, targetUnit, objectMap,
                                                               &thisptr->attackImplUnitId,
                                                               battleMsgData);

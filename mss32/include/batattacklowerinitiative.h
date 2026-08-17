@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/Rapthos/Experimental-version)
- * Copyright (C) 2026 Rapthos.
+ * Copyright (C) 2025 Rapthos.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,39 +17,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PLANDATA_H
-#define PLANDATA_H
+#ifndef BATATTACKLOWERINITIATIVE_H
+#define BATATTACKLOWERINITIATIVE_H
+
+#include "batattack.h"
+#include "midgardid.h"
 
 namespace game {
 
-/** Opaque 28-byte accumulator for visitor change records. */
-struct PlanDataBuffer
+struct IAttack;
+
+struct CBatAttackLowerInitiative : public CBatAttackBase
 {
-    int data[7]{};
+    CMidgardID unitId;
+    CMidgardID id2;
+    int attackNumber;
+    IAttack* attack;
 };
 
-namespace PlanDataApi {
+assert_size(CBatAttackLowerInitiative, 20);
 
-struct Api
-{
-    /**
-     * Initialises a PlanDataBuffer.
-     * sub_419A8F in Akella binary.
-     * @param a2 context pointer; nullptr works for simple terrain changes.
-     * @param a3 pointer to a zero-initialised int.
-     * @param a4 flags; always 0 in observed call sites.
-     */
-    using Ctor = void*(__thiscall*)(PlanDataBuffer* thisptr, const char* a2, const int* a3, bool a4);
-    Ctor ctor;
+namespace CBatAttackLowerInitiativeApi {
 
-    /** Destroys a PlanDataBuffer. sub_419AEE in Akella binary. */
-    using Dtor = void(__thiscall*)(PlanDataBuffer* thisptr);
-    Dtor dtor;
-};
+IBatAttackVftable* vftable();
 
-Api& get();
+} // namespace CBatAttackLowerInitiativeApi
 
-} // namespace PlanDataApi
 } // namespace game
 
-#endif // PLANDATA_H
+#endif // BATATTACKLOWERINITIATIVE_H

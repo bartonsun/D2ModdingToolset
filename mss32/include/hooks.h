@@ -33,6 +33,7 @@
 #include "battleattackinfo.h"
 #include "midsitemerchant.h"
 #include <idview.h>
+#include <attackparams.h>
 
 namespace game {
 struct DialogScriptData;
@@ -80,6 +81,17 @@ struct CMidSite;
 struct CTextBoxInterf;
 
 struct CBatAttackLowerDamage;
+struct CBatAttackLowerInitiative;
+struct CBatAttackFear;
+struct CBatAttackParalyze;
+struct CBatAttackPetrify;
+struct CBatAttackWait;
+struct CBatAttackRetreat;
+struct CBatAttackUsePotion;
+struct CBatAttackUseTalisman;
+struct CBatAttackUseOrb;
+
+struct UpdateDisableResult;
 
 template <typename T>
 struct CInterfaceT;
@@ -332,6 +344,34 @@ bool __fastcall lowerDamageCanPerformHooked(game::CBatAttackLowerDamage* thisptr
                                             game::BattleMsgData* battleMsgData,
                                             game::CMidgardID* unitId);
 
+void __fastcall lowerDamageOnHitHooked(game::CBatAttackLowerDamage* thisptr,
+                                       int /*%edx*/,
+                                       game::IMidgardObjectMap* objectMap,
+                                       game::BattleMsgData* battleMsgData,
+                                       game::CMidgardID* targetUnitId,
+                                       game::BattleAttackInfo** attackInfo);
+
+void __fastcall lowerInitiativeOnHitHooked(game::CBatAttackLowerInitiative* thisptr,
+                                           int /*%edx*/,
+                                           game::IMidgardObjectMap* objectMap,
+                                           game::BattleMsgData* battleMsgData,
+                                           game::CMidgardID* targetUnitId,
+                                           game::BattleAttackInfo** attackInfo);
+
+void __fastcall paralyzeOnHitHooked(game::CBatAttackParalyze* thisptr,
+                                    int /*%edx*/,
+                                    game::IMidgardObjectMap* objectMap,
+                                    game::BattleMsgData* battleMsgData,
+                                    game::CMidgardID* targetUnitId,
+                                    game::BattleAttackInfo** attackInfo);
+
+void __fastcall petrifyOnHitHooked(game::CBatAttackPetrify* thisptr,
+                                   int /*%edx*/,
+                                   game::IMidgardObjectMap* objectMap,
+                                   game::BattleMsgData* battleMsgData,
+                                   game::CMidgardID* targetUnitId,
+                                   game::BattleAttackInfo** attackInfo);
+
 bool __fastcall decreaseUnitAttacksHooked(game::BattleMsgData* thisptr,
                                           int /*%edx*/,
                                           const game::CMidgardID* unitId);
@@ -355,18 +395,19 @@ void __fastcall defendOnHitHooked(game::CBatAttackDefend* thisptr,
                                   game::CMidgardID* targetUnitId,
                                   game::BattleAttackInfo** attackInfo);
 
-void __fastcall reviveAttackOnHitHooked(game::CBatAttackRevive* thisptr,
-                                  int /*%edx*/,
-                                  game::IMidgardObjectMap* objectMap,
-                                  game::BattleMsgData* battleMsgData,
-                                  game::CMidgardID* targetUnitId,
-                                  game::BattleAttackInfo** attackInfo);
+void __fastcall waitAttackOnHitHooked(game::CBatAttackWait* thisptr,
+                                      int /*%edx*/,
+                                      game::IMidgardObjectMap* objectMap,
+                                      game::BattleMsgData* battleMsgData,
+                                      game::CMidgardID* targetUnitId,
+                                      game::BattleAttackInfo** attackInfo);
 
-bool __fastcall reviveAttackIsImmuneHooked(game::CBatAttackRevive* thisptr,
-                                           int /*%edx*/,
-                                           game::IMidgardObjectMap* objectMap,
-                                           game::BattleMsgData* battleMsgData,
-                                           game::CMidgardID* unitId);
+void __fastcall retreatAttackOnHitHooked(game::CBatAttackRetreat* thisptr,
+                                         int /*%edx*/,
+                                         game::IMidgardObjectMap* objectMap,
+                                         game::BattleMsgData* battleMsgData,
+                                         game::CMidgardID* targetUnitId,
+                                         game::BattleAttackInfo** attackInfo);
 
 bool __stdcall checkLongEffectDurationHooked(int roundsPassed);
 
@@ -376,6 +417,50 @@ void __fastcall damageAttackOnHitHooked(game::CBatAttackDamage* thisptr,
                                         game::BattleMsgData* battleMsgData,
                                         game::CMidgardID* targetUnitId,
                                         game::BattleAttackInfo** attackInfo);
+
+void callLuaAttackHook(game::IMidgardObjectMap* objectMap,
+                       game::BattleMsgData* battleMsgData,
+                       bindings::AttackHitParamsView& params);
+
+void __fastcall fearAttackOnHitHooked(game::CBatAttackFear* thisptr,
+                                      int /*%edx*/,
+                                      game::IMidgardObjectMap* objectMap,
+                                      game::BattleMsgData* battleMsgData,
+                                      game::CMidgardID* targetUnitId,
+                                      game::BattleAttackInfo** attackInfo);
+
+void __fastcall setUnitFlag5Hooked(game::BattleMsgData* battleMsgData,
+                                   int /*%edx*/,
+                                   game::CMidgardID* unitId,
+                                   bool enabled);
+
+game::UpdateDisableResult* __stdcall updateParalyzePetrifyEffectsHooked(
+    game::UpdateDisableResult* value,
+    game::BattleMsgData* battleMsgData,
+    game::UnitInfo* unitInfo,
+    game::CMidgardID* unitId);
+
+void __fastcall usePotionAttackOnHitHooked(game::CBatAttackUsePotion* thisptr,
+                                           int /*%edx*/,
+                                           game::IMidgardObjectMap* objectMap,
+                                           game::BattleMsgData* battleMsgData,
+                                           game::CMidgardID* targetUnitId,
+                                           game::BattleAttackInfo** attackInfo);
+
+void __fastcall useTalismanAttackOnHitHooked(game::CBatAttackUseTalisman* thisptr,
+                                             int /*%edx*/,
+                                             game::IMidgardObjectMap* objectMap,
+                                             game::BattleMsgData* battleMsgData,
+                                             game::CMidgardID* targetUnitId,
+                                             game::BattleAttackInfo** attackInfo);
+
+void __fastcall useOrbAttackOnHitHooked(game::CBatAttackUseOrb* thisptr,
+                                        int /*%edx*/,
+                                        game::IMidgardObjectMap* objectMap,
+                                        game::BattleMsgData* battleMsgData,
+                                        game::CMidgardID* targetUnitId,
+                                        game::BattleAttackInfo** attackInfo);
+
 } // namespace hooks
 
 #endif // HOOKS_H

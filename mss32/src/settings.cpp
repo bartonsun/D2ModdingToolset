@@ -300,6 +300,13 @@ static void readExtandedBattleSettings(const sol::table& table, Settings::Extend
                                                    def.lowerdamageCanAffectHealer);
     value.boostdamageCanAffectHealer = readSetting(category.value(), "boostdamageCanAffectHealer",
                                                    def.boostdamageCanAffectHealer);
+    value.boostCanAffectDot = readSetting(category.value(), "boostCanAffectDot",
+                                          def.boostCanAffectDot);
+    value.lowerCanAffectDot = readSetting(category.value(), "lowerCanAffectDot",
+                                          def.lowerCanAffectDot);
+    value.longEffectsUsesPower = readSetting(category.value(), "longEffectsUsesPower", def.longEffectsUsesPower);
+
+    value.itemExtraTurn = readSetting(category.value(), "itemExtraTurn", def.itemExtraTurn);
 }
 
 static void readSettings(const sol::table& table, Settings& settings)
@@ -333,7 +340,6 @@ static void readSettings(const sol::table& table, Settings& settings)
     settings.freeTransformSelfAttack = readSetting(table, "freeTransformSelfAttack", defaultGameSettings().freeTransformSelfAttack);
     settings.freeTransformSelfAttackInfinite = readSetting(table, "freeTransformSelfAttackInfinite", defaultGameSettings().freeTransformSelfAttackInfinite);
     settings.fixEffectiveHpFormula = readSetting(table, "fixEffectiveHpFormula", defaultGameSettings().fixEffectiveHpFormula);
-    settings.alchemistKeepsAttackCount = readSetting(table, "alchemistKeepsAttackCount", defaultGameSettings().alchemistKeepsAttackCount);
     settings.instantBuffRemoval = readSetting(table, "instantBuffRemoval", defaultGameSettings().instantBuffRemoval);
     settings.reviveAttacksUsesQtyHeal = readSetting(table, "reviveAttacksUsesQtyHeal", defaultGameSettings().reviveAttacksUsesQtyHeal);
     settings.reviveItemsUsesQtyHeal = readSetting(table, "reviveItemsUsesQtyHeal", defaultGameSettings().reviveItemsUsesQtyHeal);
@@ -442,19 +448,24 @@ const Settings& baseGameSettings()
         settings.battle.fallbackAction = game::BattleAction::Defend;
         settings.debugMode = false;
 
-        settings.alchemistKeepsAttackCount = false;
         settings.instantBuffRemoval = false;
         settings.reviveAttacksUsesQtyHeal = 0;
         settings.reviveItemsUsesQtyHeal = false;
         settings.advancedCure = false;
 
         settings.extendedBattle.dotDamageCanStack = false;
+        // Not used, but can be useful
         settings.extendedBattle.blisterDamageID = "g202aa";
         settings.extendedBattle.frostbiteDamageID = "g201aa";
         settings.extendedBattle.poisonDamageID = "g200aa";
+        //
         settings.extendedBattle.maxDotDamage = 300;
         settings.extendedBattle.lowerdamageCanAffectHealer = false;
         settings.extendedBattle.boostdamageCanAffectHealer = false;
+        settings.extendedBattle.boostCanAffectDot = false;
+        settings.extendedBattle.lowerCanAffectDot = false;
+        settings.extendedBattle.longEffectsUsesPower = false;
+        settings.extendedBattle.itemExtraTurn = false;
 
         settings.longEffectRemoveChances = {0, 50, 75, 100};
 

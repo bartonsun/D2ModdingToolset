@@ -102,6 +102,13 @@ static std::array<Api, 3> functions = {{
         (Api::IsRetreatDecisionWasMade)0x624f01,
         (Api::SetRetreatDecisionWasMade)0x624f17,
         (Api::IsAfterBattle)0x622b4b,
+        (Api::SetUnitFlag5)0x624353,
+        (Api::UpdateParalyzePetrifyEffects)0x6276C7,
+        (Api::UpdatePoisonLongEffect)0x6297EB,
+        (Api::UpdateFrostbiteLongEffect)0x62999D,
+        (Api::UpdateBlisterLongEffect)0x629B4F,
+        (Api::UpdateTransformLongEffect)0x629CE1,
+        (Api::CheckLongEffectDuration)0x6278d3,
     },
     // Russobit
     Api{
@@ -180,6 +187,13 @@ static std::array<Api, 3> functions = {{
         (Api::IsRetreatDecisionWasMade)0x624f01,
         (Api::SetRetreatDecisionWasMade)0x624f17,
         (Api::IsAfterBattle)0x622b4b,
+        (Api::SetUnitFlag5)0x624353,
+        (Api::UpdateParalyzePetrifyEffects)0x6276C7,
+        (Api::UpdatePoisonLongEffect)0x6297EB,
+        (Api::UpdateFrostbiteLongEffect)0x62999D,
+        (Api::UpdateBlisterLongEffect)0x629B4F,
+        (Api::UpdateTransformLongEffect)0x629CE1,
+        (Api::CheckLongEffectDuration)0x6278d3,
     },
     // Gog
     Api{
@@ -258,6 +272,13 @@ static std::array<Api, 3> functions = {{
         (Api::IsRetreatDecisionWasMade)0x623a91,
         (Api::SetRetreatDecisionWasMade)0x623aa7,
         (Api::IsAfterBattle)0x6216db,
+        (Api::SetUnitFlag5)0x622EE3, //TODO ???
+        (Api::UpdateParalyzePetrifyEffects)0x626207,
+        (Api::UpdatePoisonLongEffect)0x62832B,
+        (Api::UpdateFrostbiteLongEffect)0x6284DD,
+        (Api::UpdateBlisterLongEffect)0x62868F,
+        (Api::UpdateTransformLongEffect)0x626413,
+        (Api::CheckLongEffectDuration)0x626413,
     },
 }};
 // clang-format on

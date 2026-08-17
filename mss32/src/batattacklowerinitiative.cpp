@@ -1,7 +1,7 @@
 /*
  * This file is part of the modding toolset for Disciples 2.
- * (https://github.com/VladimirMakeev/D2ModdingToolset)
- * Copyright (C) 2022 Stanislav Egorov.
+ * (https://github.com/Rapthos/Experimental-version)
+ * Copyright (C) 2025 Rapthos.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,30 +17,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BATATTACKUSEPOTION_H
-#define BATATTACKUSEPOTION_H
+#include "batattacklowerinitiative.h"
+#include "version.h"
+#include <array>
 
-#include "batattack.h"
-#include "midgardid.h"
+namespace game::CBatAttackLowerInitiativeApi {
 
-namespace game {
+// clang-format off
+static std::array<IBatAttackVftable*, 4> vftables = {{
+    // Akella
+    (IBatAttackVftable*)0x6f50ec,
+    // Russobit
+    (IBatAttackVftable*)0x6f50ec,
+    // Gog
+    (IBatAttackVftable*)0x6f309c,
+    // Scenario Editor
+    (IBatAttackVftable*)nullptr,
+}};
+// clang-format on
 
-struct IAttack;
-
-struct CBatAttackUsePotion : public CBatAttackBase
+IBatAttackVftable* vftable()
 {
-    CMidgardID unitId;
-    CMidgardID itemId;
-};
+    return vftables[static_cast<int>(hooks::gameVersion())];
+}
 
-assert_size(CBatAttackUsePotion, 12);
-
-namespace CBatAttackUsePotionApi {
-
-IBatAttackVftable* vftable();
-
-} // namespace CBatAttackFearApi
-
-} // namespace game
-
-#endif // BATATTACKUSEPOTION_H
+} // namespace game::CBatAttackLowerInitiativeApi

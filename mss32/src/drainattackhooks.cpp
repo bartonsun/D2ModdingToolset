@@ -34,12 +34,21 @@
 #include "visitors.h"
 #include <spdlog/spdlog.h>
 
+#include <fmt/format.h>
+#include <fstream>
+#include <unitview.h>
+#include <battlemsgdataview.h>
+#include "scripts.h"
+#include <sol/sol.hpp>
+#include <batattackutils.h>
+
 namespace hooks {
 
 static void addBattleAttackInfo(game::BattleAttackInfo* attackInfo,
                                 const game::CMidUnit* unit,
                                 int damage,
-                                int criticalHitDamage = 0)
+                                int criticalHitDamage = 0,
+                                bool miss = false)
 {
     using namespace game;
 
@@ -48,6 +57,7 @@ static void addBattleAttackInfo(game::BattleAttackInfo* attackInfo,
     info.unitImplId = unit->unitImpl->id;
     info.damage = damage;
     info.criticalDamage = criticalHitDamage;
+    info.attackMissed = miss;
 
     BattleAttackInfoApi::get().addUnitInfo(&attackInfo->unitsInfo, &info);
 }
@@ -76,6 +86,30 @@ static int drainAttack(game::IMidgardObjectMap* objectMap,
     auto targetUnit = static_cast<const CMidUnit*>(
         objectMap->vftable->findScenarioObjectById(objectMap, targetUnitId));
     const auto targetInitialHp = targetUnit->currentHp;
+
+    auto* unitAttacker = game::gameFunctions().findUnitById(objectMap, attackerUnitId);
+
+    bindings::AttackHitParamsView params;
+    params.attacker = unitAttacker;
+    params.target = const_cast<CMidUnit*>(targetUnit);
+    params.attack = attack;
+    params.attackClass = "Drain";
+    params.damage = attackDamage;
+    params.critDamage = criticalHitDamage;
+    params.drainHealPercent = drainHealPercent;
+    params.miss = false;
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss) {
+        addToBattleAttackInfo(attackInfo, targetUnit, 0, 0, true);
+        return 0;
+    }
+
+    attackDamage = params.damage;
+    criticalHitDamage = params.critDamage;
+    drainHealPercent = params.drainHealPercent;
+    fullDamage = attackDamage + criticalHitDamage;
 
     const auto& visitors = VisitorApi::get();
     visitors.changeUnitHp(targetUnitId, -fullDamage, objectMap, 1);

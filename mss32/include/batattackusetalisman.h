@@ -31,6 +31,12 @@ struct CBatAttackUseTalisman : CBatAttackItem
 
 assert_size(CBatAttackUseTalisman, 16);
 
+namespace CBatAttackUseTalismanApi {
+
+IBatAttackVftable* vftable();
+
+}
+
 } // namespace game
 
 #endif // BATATTACKUSETALISMAN_H

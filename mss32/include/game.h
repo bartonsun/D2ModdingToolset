@@ -86,6 +86,8 @@ struct LSiteCategory;
 struct CMidSite;
 struct CTextBoxInterf;
 struct CCmdNobleResultMsg;
+struct UpdateDisableResult;
+struct UnitInfo;
 struct CMidServerLogicData;
 
 enum class ModifierElementTypeFlag : int;
@@ -776,8 +778,6 @@ using GetSideshowUnitImpl = game::CMidgardID*(__thiscall*)(TRaceType* thisptr,
 using FindCapitalByPlayerId = game::CFortification*(__stdcall*)(game::CMidgardID* playerId,
                                                                 game::IMidgardObjectMap* objectMap);
 
-using CheckLongEffectDuration = bool(__stdcall*)(int roundsPassed);
-
 
 /**
  * Handles keyboard input in strategy map interface.
@@ -958,7 +958,6 @@ struct Functions
     AddSideshowUnitToUI addSideshowUnitToUI;
     GetSideshowUnitImpl getSideshowUnitImpl;
     FindCapitalByPlayerId findCapitalByPlayerId;
-    CheckLongEffectDuration checkLongEffectDuration;
     StratInterfKeyHandler stratInterfKeyHandler;
     StratInterfSendSaveGameMsgToServer sendSaveGameMsgToServer;
     StratInterfOpenSelectedObject stratInterfOpenSelectedObject;

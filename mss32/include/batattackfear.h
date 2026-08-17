@@ -17,39 +17,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PLANDATA_H
-#define PLANDATA_H
+#ifndef BATATTACKFEARHOOKS_H
+#define BATATTACKFEARHOOKS_H
+
+#include "batattack.h"
+#include "midgardid.h"
 
 namespace game {
 
-/** Opaque 28-byte accumulator for visitor change records. */
-struct PlanDataBuffer
+struct IAttack;
+
+struct CBatAttackFear : public CBatAttackBase
 {
-    int data[7]{};
+    CMidgardID unitId;
+    CMidgardID id2;
+    int attackNumber;
+    IAttack* attack;
 };
 
-namespace PlanDataApi {
+assert_size(CBatAttackFear, 20);
 
-struct Api
-{
-    /**
-     * Initialises a PlanDataBuffer.
-     * sub_419A8F in Akella binary.
-     * @param a2 context pointer; nullptr works for simple terrain changes.
-     * @param a3 pointer to a zero-initialised int.
-     * @param a4 flags; always 0 in observed call sites.
-     */
-    using Ctor = void*(__thiscall*)(PlanDataBuffer* thisptr, const char* a2, const int* a3, bool a4);
-    Ctor ctor;
+namespace CBatAttackFearApi {
 
-    /** Destroys a PlanDataBuffer. sub_419AEE in Akella binary. */
-    using Dtor = void(__thiscall*)(PlanDataBuffer* thisptr);
-    Dtor dtor;
-};
+IBatAttackVftable* vftable();
 
-Api& get();
+} // namespace CBatAttackFearApi
 
-} // namespace PlanDataApi
 } // namespace game
 
-#endif // PLANDATA_H
+#endif // BATATTACKFEARHOOKS_H

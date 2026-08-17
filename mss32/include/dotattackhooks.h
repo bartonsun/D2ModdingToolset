@@ -35,45 +35,6 @@
 
 	namespace hooks {
 
-    bool __fastcall blisterCanPerformHooked(game::CBatAttackBlister* thisptr,
-                                            int /*%edx*/,
-                                            game::IMidgardObjectMap* objectMap,
-                                            game::BattleMsgData* battleMsgData,
-                                            game::CMidgardID* targetUnitId);
-
-	bool __fastcall frostbiteCanPerformHooked(game::CBatAttackFrostbite* thisptr,
-                                              int /*%edx*/,
-                                              game::IMidgardObjectMap* objectMap,
-                                              game::BattleMsgData* battleMsgData,
-                                              game::CMidgardID* targetUnitId);
-
-    bool __fastcall poisonCanPerformHooked(game::CBatAttackPoison* thisptr,
-                                           int /*%edx*/,
-                                           game::IMidgardObjectMap* objectMap,
-                                           game::BattleMsgData* battleMsgData,
-                                           game::CMidgardID* targetUnitId);
-
-    void __fastcall blisterOnHitHooked(game::CBatAttackBlister* thisptr,
-                                       int /*%edx*/,
-                                       game::IMidgardObjectMap* objectMap,
-                                       game::BattleMsgData* battleMsgData,
-                                       game::CMidgardID* targetUnitId,
-                                       game::BattleAttackInfo** attackInfo);
-
-    void __fastcall frostbiteOnHitHooked(game::CBatAttackFrostbite* thisptr,
-                                         int /*%edx*/,
-                                         game::IMidgardObjectMap* objectMap,
-                                         game::BattleMsgData* battleMsgData,
-                                         game::CMidgardID* targetUnitId,
-                                         game::BattleAttackInfo** attackInfo);
-
-    void __fastcall poisonOnHitHooked(game::CBatAttackPoison* thisptr,
-                                      int /*%edx*/,
-                                      game::IMidgardObjectMap* objectMap,
-                                      game::BattleMsgData* battleMsgData,
-                                      game::CMidgardID* targetUnitId,
-                                      game::BattleAttackInfo** attackInfo);
-
     void __fastcall blisterEffectOnHitHooked(game::CBatAttackBlisterEffect* thisptr,
                                              int /*%edx*/,
                                              game::IMidgardObjectMap* objectMap,
@@ -95,45 +56,45 @@
                                             game::CMidgardID* targetUnitId,
                                             game::BattleAttackInfo** attackInfo);
 
-    //Base onHit attacks
-    bool __fastcall defaultBlisterCanPerformHooked(game::CBatAttackBlister* thisptr,
-                                                   int /*%edx*/,
-                                                   game::IMidgardObjectMap* objectMap,
-                                                   game::BattleMsgData* battleMsgData,
-                                                   game::CMidgardID* targetUnitId);
-
-    void __fastcall defaultBlisterOnHitHooked(game::CBatAttackBlister* thisptr,
-                                              int /*%edx*/,
-                                              game::IMidgardObjectMap* objectMap,
-                                              game::BattleMsgData* battleMsgData,
-                                              game::CMidgardID* targetUnitId,
-                                              game::BattleAttackInfo** attackInfo);
-
-    bool __fastcall defaultPoisonCanPerformHooked(game::CBatAttackPoison* thisptr,
+    bool __fastcall blisterAttackCanPerformHooked(game::CBatAttackBlister* thisptr,
                                                   int /*%edx*/,
                                                   game::IMidgardObjectMap* objectMap,
                                                   game::BattleMsgData* battleMsgData,
                                                   game::CMidgardID* targetUnitId);
 
-    void __fastcall defaultPoisonOnHitHooked(game::CBatAttackPoison* thisptr,
+    bool __fastcall frostbiteAttackCanPerformHooked(game::CBatAttackFrostbite* thisptr,
+                                                    int /*%edx*/,
+                                                    game::IMidgardObjectMap* objectMap,
+                                                    game::BattleMsgData* battleMsgData,
+                                                    game::CMidgardID* targetUnitId);
+
+    bool __fastcall poisonAttackCanPerformHooked(game::CBatAttackPoison* thisptr,
+                                                 int /*%edx*/,
+                                                 game::IMidgardObjectMap* objectMap,
+                                                 game::BattleMsgData* battleMsgData,
+                                                 game::CMidgardID* targetUnitId);
+
+    void __fastcall blisterAttackOnHitHooked(game::CBatAttackBlister* thisptr,
                                              int /*%edx*/,
                                              game::IMidgardObjectMap* objectMap,
                                              game::BattleMsgData* battleMsgData,
                                              game::CMidgardID* targetUnitId,
                                              game::BattleAttackInfo** attackInfo);
 
-    bool __fastcall defaultFrostbiteCanPerformHooked(game::CBatAttackFrostbite* thisptr,
-                                                     int /*%edx*/,
-                                                     game::IMidgardObjectMap* objectMap,
-                                                     game::BattleMsgData* battleMsgData,
-                                                     game::CMidgardID* targetUnitId);
+    void __fastcall frostbiteAttackOnHitHooked(game::CBatAttackFrostbite* thisptr,
+                                               int /*%edx*/,
+                                               game::IMidgardObjectMap* objectMap,
+                                               game::BattleMsgData* battleMsgData,
+                                               game::CMidgardID* targetUnitId,
+                                               game::BattleAttackInfo** attackInfo);
 
-    void __fastcall defaultFrostbiteOnHitHooked(game::CBatAttackFrostbite* thisptr,
-                                                int /*%edx*/,
-                                                game::IMidgardObjectMap* objectMap,
-                                                game::BattleMsgData* battleMsgData,
-                                                game::CMidgardID* targetUnitId,
-                                                game::BattleAttackInfo** attackInfo);
+    void __fastcall poisonAttackOnHitHooked(game::CBatAttackPoison* thisptr,
+                                            int /*%edx*/,
+                                            game::IMidgardObjectMap* objectMap,
+                                            game::BattleMsgData* battleMsgData,
+                                            game::CMidgardID* targetUnitId,
+                                            game::BattleAttackInfo** attackInfo);
+
 	} // namespace hooks
 
 #endif

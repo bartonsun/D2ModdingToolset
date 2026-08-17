@@ -31,6 +31,12 @@ struct CBatAttackUseOrb : CBatAttackItem
 
 assert_size(CBatAttackUseOrb, 16);
 
+namespace CBatAttackUseOrbApi {
+
+IBatAttackVftable* vftable();
+
+}
+
 } // namespace game
 
 #endif // BATATTACKUSEORB_H

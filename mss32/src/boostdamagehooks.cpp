@@ -22,12 +22,22 @@
 #include "battleattackinfo.h"
 #include "battlemsgdata.h"
 #include "game.h"
+#include "batattackutils.h"
 #include "boostdamagehooks.h"
 #include "immunecat.h"
 #include "midunit.h"
 #include "midgardobjectmap.h"
 #include "ussoldier.h"
 #include "usunit.h"
+
+#include <fmt/format.h>
+#include <fstream>
+#include <unitview.h>
+#include <battlemsgdataview.h>
+#include "scripts.h"
+#include <sol/sol.hpp>
+#include <hooks.h>
+
 
 namespace hooks {
 
@@ -114,26 +124,45 @@ namespace hooks {
 
         auto* attack = thisptr->attackImpl;
 
+        int level = attack->vftable->getLevel(attack);
+        bool isLong = attack->vftable->getInfinite(attack);
+        CMidUnit* unitAttacker = game::gameFunctions().findUnitById(objectMap, &thisptr->unitId);
+
+        bindings::AttackHitParamsView params;
+        params.attacker = unitAttacker;
+        params.target = targetUnit;
+        params.attack = attack;
+        params.attackClass = "BoostDamage";
+        params.attackLevel = level;
+        params.isLong = isLong;
+        params.miss = false;
+
+        callLuaAttackHook(objectMap, battleMsgData, params);
+
+        if (params.miss) {
+            addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+            return;
+        }
+
+        level = params.attackLevel;
+        isLong = params.isLong;
+
         for (int i = 0; i < 4; ++i) {
             battle.setUnitStatus(battleMsgData, targetUnitId,
                                  static_cast<BattleStatus>((int)BattleStatus::BoostDamageLvl1 + i),
                                  false);
         }
 
-        const int level = attack->vftable->getLevel(attack);
         if (level >= 1 && level <= 4) {
             auto status = static_cast<BattleStatus>((int)BattleStatus::BoostDamageLvl1
                                                     + (level - 1));
             battle.setUnitStatus(battleMsgData, targetUnitId, status, true);
         }
 
-        const bool infinite = attack->vftable->getInfinite(attack);
-        battle.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::BoostDamageLong, infinite);
+        if (isLong)
+            battle.setUnitStatus(battleMsgData, targetUnitId, BattleStatus::BoostDamageLong, isLong);
 
-        BattleAttackUnitInfo info{};
-        info.unitId = targetUnit->id;
-        info.unitImplId = targetUnit->unitImpl->id;
-        BattleAttackInfoApi::get().addUnitInfo(&(*attackInfo)->unitsInfo, &info);
+        addToBattleAttackInfo(*attackInfo, targetUnit);
     }
 
     bool __fastcall boostDamageIsImmuneHooked(game::CBatAttackBoostDamage* thisptr,
@@ -160,25 +189,6 @@ namespace hooks {
             return false;
         }
 
-        const CMidUnit* targetUnit = fn.findUnitById(objectMap, unitId);
-        if (!targetUnit) {
-            return false;
-        }
-
-        const IUsSoldier* targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
-        const LAttackClass* attackClass = attack->vftable->getAttackClass(attack);
-        const LImmuneCat* immuneCat = targetSoldier->vftable->getImmuneByAttackClass(targetSoldier,
-                                                                                     attackClass);
-        if (immuneCat->id == immuneCategories.once->id) {
-            bool hasWard = battleApi.isUnitAttackClassWardRemoved(battleMsgData, unitId,
-                                                                  attackClass);
-            if (!hasWard) {
-                battleApi.removeUnitAttackClassWard(battleMsgData, unitId, attackClass);
-                return true;
-            }
-            return false;
-        }
-
-        return immuneCat->id == immuneCategories.always->id;
+        return IsImmuneToAttack(battleMsgData, objectMap, unitId, attack);
     }
 }

@@ -401,6 +401,63 @@ struct Api
     OverlayUnit overlayUnit;
 
     /**
+     * Equips an item to a stack leader's equipment slot.
+     * Uses CVisitorEquipItem.
+     * Moves the item from stack's inventory to the leader's equipment.
+     * @param[in] stackId id of the stack whose leader to equip.
+     * @param itemIndex equipment slot index (0=Banner..6=Boots).
+     * @param[in] objectMap interface used for objects search.
+     * @param apply specifies whether equip should be applied.
+     * @returns true if item was equipped when apply set to 1. If apply set to 0, returns whether
+     * visitor can be applied.
+     */
+    using EquipItem = bool(__stdcall*)(const CMidgardID* stackId,
+                                       const CMidgardID* itemId,
+                                       int itemIndex,
+                                       IMidgardObjectMap* objectMap,
+                                       int apply);
+    EquipItem equipItem;
+
+    /**
+     * Unequips an item from a stack leader's equipment slot.
+     * Uses CVisitorUnEquipItem.
+     * Moves the item from leader's equipment to the stack's inventory.
+     * @param[in] stackId id of the stack whose leader to unequip.
+     * @param itemIndex equipment slot index (0=Banner..6=Boots).
+     * @param[in] objectMap interface used for objects search.
+     * @param apply specifies whether unequip should be applied.
+     * @returns true if item was unequipped when apply set to 1. If apply set to 0, returns whether
+     * visitor can be applied.
+     */
+    using UnEquipItem = bool(__stdcall*)(const CMidgardID* stackId,
+                                         int itemIndex,
+                                         IMidgardObjectMap* objectMap,
+                                         int apply);
+    UnEquipItem unEquipItem;
+
+    /**
+     * Adds a spell effect to a target unit.
+     * Uses CVisitorAddSpellEffect.
+     * @param[in] targetId id of the target unit to receive the effect.
+     * @param[in] spellId id of the spell or item being used.
+     * @param[in] sourceId id of the spell source (caster unit or player). Can be emptyId. (In UsePotion attack is stackOwnerId)
+     * @param[in] effectId id of the spell effect to apply.
+     * @param[in] duration pointer to the effect duration in turns.
+     * @param[in] objectMap interface used for objects search.
+     * @param apply specifies whether effect should be applied.
+     * @returns true if effect was added when apply set to 1. If apply set to 0, returns whether
+     * visitor can be applied.
+     */
+    using AddSpellEffect = bool(__stdcall*)(const CMidgardID* targetId,
+                                            const CMidgardID* spellId,
+                                            const CMidgardID* sourceId,
+                                            const CMidgardID* effectId,
+                                            const int* duration,
+                                            IMidgardObjectMap* objectMap,
+                                            int apply);
+    AddSpellEffect addSpellEffect;
+
+    /**
      * Changes player attitude.
      * Uses CVisitorPlayerSetAttitude.
      * Can be used only in Scenario Editor.

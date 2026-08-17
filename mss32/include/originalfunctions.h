@@ -77,6 +77,12 @@
 #include "batviewer.h"
 #include "battleattackinfo.h"
 
+#include "itempotionheal.h"
+#include "itempotionrevive.h"
+#include "itempotionboosttemp.h"
+#include "itempotionboostperm.h"
+#include "itembase.h"
+
 namespace hooks {
 
 struct OriginalFunctions
@@ -240,12 +246,19 @@ struct OriginalFunctions
 
     game::EnrollUnitInterfApi::Api::Constructor enrollUnitInterfCtor;
 
-    game::CheckLongEffectDuration checkLongEffectDuration;
+    game::BattleMsgDataApi::Api::CheckLongEffectDuration checkLongEffectDuration;
     
     game::VisitorApi::Api::RunKillStack runKillStack;
     game::VisitorApi::Api::CreateStackDestroyed createStackDestroyed;
 
     game::BattleMsgDataApi::Api::CanPerformAttackOnUnitWithStatusCheck canPerformAttackOnUnitWithStatusCheck;
+
+    game::CItemPotionHealApi::Api::Constructor itemPotionHealCtor;
+    game::CItemPotionBoostPermApi::Api::Constructor itemPotionBoostPermCtor;
+    game::CItemPotionBoostTempApi::Api::Constructor itemPotionBoostTempCtor;
+    game::CItemPotionReviveApi::Api::Constructor itemPotionReviveCtor;
+
+    //game::CItemBaseApi::Api::Constructor itemBaseCtor;
 };
 
 OriginalFunctions& getOriginalFunctions();
