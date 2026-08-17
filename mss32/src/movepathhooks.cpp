@@ -245,17 +245,20 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
     bool manyTurnsToTravel{};
 
     std::uint32_t index{};
-    const bool altPressed = GetAsyncKeyState(VK_MENU) & 0x8000;
+    const auto& pathLayerHotkey = userSettings().hotkeys.customPathLayer;
+
+    const bool pathLayerKeyPressed = GetAsyncKeyState(static_cast<int>(pathLayerHotkey.key))
+                                     & 0x8000;
 
     CIsoLayer customLayer = *isoLayers().symMovePath;
-    customLayer.value *= 3;
+    customLayer.value = 1790;
 
    // Always clear previous path images, even if alt is pressed, because we need to hide previous
     // path images from the default layer.
     MapGraphicsApi::get().hideLayerImages(isoLayers().symMovePath);
     MapGraphicsApi::get().hideLayerImages(&customLayer);
 
-    const CIsoLayer* drawLayer = altPressed ? &customLayer : isoLayers().symMovePath;
+    const CIsoLayer* drawLayer = pathLayerKeyPressed ? &customLayer : isoLayers().symMovePath;
 
     for (auto node = pathInfo.head->next; node != pathInfo.head;
          node = node->next, firstNode = false, ++index) {

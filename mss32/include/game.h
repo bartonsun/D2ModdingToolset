@@ -785,6 +785,16 @@ using CheckLongEffectDuration = bool(__stdcall*)(int roundsPassed);
  */
 using StratInterfKeyHandler = int(__thiscall*)(void* thisPtr, int key, int a3);
 
+/**
+ * Returns phase game associated with the strategic interface.
+ */
+using StratInterfGetPhaseGame = CPhaseGame*(__thiscall*)(void* thisPtr);
+
+/**
+ * Returns true if it is currently the client's turn.
+ */
+using CPhaseGameIsClientsTurn = bool(__thiscall*)(CPhaseGame* thisPtr);
+
 
 /**
  * Sends save game message to server.
@@ -960,6 +970,8 @@ struct Functions
     FindCapitalByPlayerId findCapitalByPlayerId;
     CheckLongEffectDuration checkLongEffectDuration;
     StratInterfKeyHandler stratInterfKeyHandler;
+    StratInterfGetPhaseGame stratInterfGetPhaseGame;
+    CPhaseGameIsClientsTurn phaseGameIsClientsTurn;
     StratInterfSendSaveGameMsgToServer sendSaveGameMsgToServer;
     StratInterfOpenSelectedObject stratInterfOpenSelectedObject;
     MidServerLogicDataBeginTurn midServerLogicDataBeginTurn;
