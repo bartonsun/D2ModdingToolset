@@ -21,7 +21,7 @@ concurrency:
 jobs:
   prepare:
     name: Pre-checks (submodules)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v5
         with:
@@ -31,14 +31,14 @@ jobs:
         shell: bash # ubuntu-slim has no pwsh
         run: |
           set -e
-          n=$(grep -c '^\[submodule' .gitmodules || true)
+          n=$(git submodule status | wc -l)
           echo "submodules wired: $n"
           [ "$n" -ge 7 ] || { echo "::error::expected >=7 submodules, found $n"; exit 1; }
 
   build:
     name: Build mss32.dll (MSVC x86)
     needs: prepare
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     defaults:
       run:
         shell: pwsh

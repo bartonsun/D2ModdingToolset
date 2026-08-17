@@ -560,6 +560,7 @@ static Hooks getGameHooks()
         {EnrollUnitInterfApi::get().constructor, enrollUnitInterfCtorHooked, (void**)&orig.enrollUnitInterfCtor},
         // Modify map before game starts
         {CMidServerLogicApi::get().processZeroTurn, processZeroTurnHooked, (void**)&orig.processZeroTurn},
+        {CMidServerLogicApi::get().createImportedLeader, createImportedLeaderHooked, (void**)&orig.createImportedLeader},
         // SHOWATTACKEFFFECT, requestBattleEffect doen't work correctly. Don't use.
         {BattleViewerInterfApi::vftable()->showAttackEffect, showAttackEffectHooked, (void**)&orig.showAttackEffect},
         //Fixed an issue where a unit with an attack of 3 or more would incorrectly reset the attackCount after using a block.

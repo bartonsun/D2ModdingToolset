@@ -672,4 +672,18 @@ void __fastcall processZeroTurnHooked(game::CMidServerLogic* thisptr,
     }
 }
 
+void __fastcall createImportedLeaderHooked(game::CMidServerLogic* thisptr,
+                                           int /*%edx*/,
+                                           std::uint32_t playerNetId)
+{
+    using namespace game;
+
+    auto objectMap{thisptr->coreData->objectMap};
+    auto scenarioInfo = getScenarioInfo(objectMap);
+    int turn = scenarioInfo->currentTurn;
+
+    if (turn == 0 || turn == 1 && thisptr->currentPlayerIndex != -1) {
+        getOriginalFunctions().createImportedLeader(thisptr, playerNetId);
+    }
+}
 } // namespace hooks
