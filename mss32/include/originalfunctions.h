@@ -56,6 +56,7 @@
 #include "mideveffect.h"
 #include "midevent.h"
 #include "midgard.h"
+#include "midgardplan.h"
 #include "midgardscenariomap.h"
 #include "midmsgsender.h"
 #include "midobjectlock.h"
@@ -82,6 +83,7 @@ namespace hooks {
 struct OriginalFunctions
 {
     game::ComputePlayerDailyIncome computePlayerDailyIncome;
+    game::CMidgardPlanApi::Api::GetObjectsAtPoint getObjectsAtPoint;
     game::CreateBatAttack createBatAttack;
     game::GetAttackClassWardFlagPosition getAttackClassWardFlagPosition;
     game::AttackClassToString attackClassToString;
