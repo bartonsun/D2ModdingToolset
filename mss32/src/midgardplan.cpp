@@ -31,7 +31,7 @@ static std::array<Api, 4> functions = {{
         (Api::IsPositionContainsObjects)0x5f69ae,
         (Api::CanPlaceSite)nullptr,
         (Api::AddMapElement)nullptr,
-        (Api::GetObjectsAtPoint)nullptr,
+        (Api::GetObjectsAtPoint)0x5f6b14,
     },
     // Russobit
     Api{
@@ -39,7 +39,7 @@ static std::array<Api, 4> functions = {{
         (Api::IsPositionContainsObjects)0x5f69ae,
         (Api::CanPlaceSite)nullptr,
         (Api::AddMapElement)nullptr,
-        (Api::GetObjectsAtPoint)nullptr,
+        (Api::GetObjectsAtPoint)0x5f6b14,
     },
     // Gog
     Api{
@@ -47,7 +47,7 @@ static std::array<Api, 4> functions = {{
         (Api::IsPositionContainsObjects)0x5f5631,
         (Api::CanPlaceSite)nullptr,
         (Api::AddMapElement)nullptr,
-        (Api::GetObjectsAtPoint)nullptr,
+        (Api::GetObjectsAtPoint)0x5f5797,
     },
     // Scenario Editor
     Api{

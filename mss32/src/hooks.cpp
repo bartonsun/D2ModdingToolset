@@ -50,6 +50,7 @@
 #include "batattackusepotion.h"
 #include "batattackwait.h"
 #include "batattackutils.h"
+#include "bagdroptombhooks.h"
 #include "batbigface.h"
 #include "batlogic.h"
 #include "batlogichooks.h"
@@ -349,6 +350,7 @@ static Hooks getGameHooks()
         {CSiteMerchantInterfApi::get().constructor, siteMerchantInterfCtorHooked, (void**)&orig.siteMerchantInterfCtor},
         // Cities can generate daily income depending on scenario variable settings
         {fn.computePlayerDailyIncome, computePlayerDailyIncomeHooked, (void**)&orig.computePlayerDailyIncome},
+        {CMidgardPlanApi::get().getObjectsAtPoint, getObjectsAtPointHooked, (void**)&orig.getObjectsAtPoint},
         // Vampiric attacks can deal critical damage
         {CBatAttackDrainApi::vftable()->onHit, drainAttackOnHitHooked},
         {CBatAttackDrainOverflowApi::vftable()->onHit, drainOverflowAttackOnHitHooked},

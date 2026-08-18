@@ -1562,6 +1562,9 @@
     <ClCompile Include="src\batattackhealhooks.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\bagdroptombhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
     <ClCompile Include="src\batattackblister.cpp" />
     <ClCompile Include="src\batattackfrostbite.cpp" />
     <ClCompile Include="src\batattackpoison.cpp" />
@@ -3951,6 +3954,9 @@
       <Filter>game</Filter>
     </ClInclude>
     <ClInclude Include="include\batattackhealhooks.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bagdroptombhooks.h">
       <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\unitsforhirehooks.h">

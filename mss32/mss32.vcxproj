@@ -325,6 +325,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\globalvariableshooks.cpp" />
     <ClCompile Include="src\groupupgradehooks.cpp" />
     <ClCompile Include="src\batattackhealhooks.cpp" />
+    <ClCompile Include="src\bagdroptombhooks.cpp" />
     <ClCompile Include="src\image2memory.cpp" />
     <ClCompile Include="src\intintmap.cpp" />
     <ClCompile Include="src\intvector.cpp" />
@@ -801,6 +802,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\batattackgiveattack.h" />
     <ClInclude Include="include\batattackgroupupgrade.h" />
     <ClInclude Include="include\batattackheal.h" />
+    <ClInclude Include="include\bagdroptombhooks.h" />
     <ClInclude Include="include\batattackitem.h" />
     <ClInclude Include="include\batattackshatter.h" />
     <ClInclude Include="include\batattacksummon.h" />
