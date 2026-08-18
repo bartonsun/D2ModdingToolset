@@ -1854,8 +1854,8 @@ void __stdcall afterBattleTurnHooked(game::BattleMsgData* battleMsgData,
             if (cMidUnitNext)
                 unitNextView.emplace(cMidUnitNext);
 
-            (*f)(battleView, unitView ? unitView : nullptr,
-                 unitNextView ? unitNextView : nullptr);
+            (*f)(battleView, unitView ? unitView : std::nullopt,
+                 unitNextView ? unitNextView : std::nullopt);
         } catch (const std::exception& e) {
             showErrorMessageBox(fmt::format("Lua Error in 'OnAfterBattleTurn':\n{:s}", e.what()));
         }
