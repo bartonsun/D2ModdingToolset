@@ -97,6 +97,9 @@ struct Api
 
 Api& get();
 
+/** Returns true only when the native save entry point matches the audited x86 implementation. */
+bool nativeSaveSupported();
+
 } // namespace CPhaseGameApi
 
 } // namespace game

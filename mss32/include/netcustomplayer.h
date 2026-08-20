@@ -48,6 +48,7 @@ namespace hooks {
 
 class CNetCustomService;
 class CNetCustomSession;
+class NativeGameMessageTracker;
 
 class CNetCustomPlayer : public game::IMqNetPlayer
 {
@@ -121,6 +122,7 @@ private:
     game::IMqNetReception* m_reception;
     std::string m_name;
     std::uint32_t m_id;
+    std::shared_ptr<NativeGameMessageTracker> m_messageTracker;
     std::queue<IdMessagePair> m_messages;
     mutable std::mutex m_messagesMutex;
     std::shared_ptr<spdlog::logger> m_logger;

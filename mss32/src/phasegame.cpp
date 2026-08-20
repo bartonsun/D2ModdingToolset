@@ -20,6 +20,10 @@
 #include "phasegame.h"
 #include "version.h"
 #include <array>
+#include <cstdint>
+#include <cstring>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 namespace game::CPhaseGameApi {
 
@@ -55,6 +59,50 @@ static std::array<Api, 4> functions = {{
 Api& get()
 {
     return functions[static_cast<int>(hooks::gameVersion())];
+}
+
+bool nativeSaveSupported()
+{
+    // Reverse-engineering evidence: docs/reverse/russobit-ranked-save-abi.md.
+    // Reference executable: Discipl2.exe, 4,187,648 bytes,
+    // SHA-256 1375CDEF09EC470EE64FE5693FB734D7C69FB215212311D997F792B258A642EB.
+    // At 0x40639b the audited disassembly consumes ECX as this and returns with retn 8. Checking
+    // all recorded entry bytes below deliberately rejects size-only Russobit lookalikes.
+    static constexpr std::array<std::uint8_t, 16> expectedPrologue{
+        0xb8, 0xbc, 0x71, 0x68, 0x00, 0xe8, 0x2b, 0x70,
+        0x26, 0x00, 0x83, 0xec, 0x14, 0x56, 0x57, 0x8b,
+    };
+
+    if (hooks::gameVersion() != hooks::GameVersion::Russobit) {
+        return false;
+    }
+
+    const auto entryPoint{get().sendSaveGameMsg};
+    if (!entryPoint) {
+        return false;
+    }
+
+    const auto code{reinterpret_cast<const std::uint8_t*>(entryPoint)};
+    MEMORY_BASIC_INFORMATION memory{};
+    if (VirtualQuery(code, &memory, sizeof(memory)) != sizeof(memory)
+        || memory.State != MEM_COMMIT || (memory.Protect & (PAGE_GUARD | PAGE_NOACCESS)) != 0) {
+        return false;
+    }
+
+    const auto protection{memory.Protect & 0xff};
+    if (protection != PAGE_EXECUTE_READ && protection != PAGE_EXECUTE_READWRITE
+        && protection != PAGE_EXECUTE_WRITECOPY) {
+        return false;
+    }
+
+    const auto codeAddress{reinterpret_cast<std::uintptr_t>(code)};
+    const auto regionAddress{reinterpret_cast<std::uintptr_t>(memory.BaseAddress)};
+    if (codeAddress < regionAddress || expectedPrologue.size() > memory.RegionSize
+        || codeAddress - regionAddress > memory.RegionSize - expectedPrologue.size()) {
+        return false;
+    }
+
+    return std::memcmp(code, expectedPrologue.data(), expectedPrologue.size()) == 0;
 }
 
 } // namespace game::CPhaseGameApi

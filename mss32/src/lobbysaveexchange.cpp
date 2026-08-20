@@ -9,21 +9,20 @@
  */
 
 #include "lobbysaveexchange.h"
+#include "dynamiccast.h"
 #include "gamesettings.h"
-#include "gameutils.h"
 #include "midclient.h"
 #include "midgard.h"
 #include "netcustomsession.h"
 #include "phase.h"
 #include "phasegame.h"
 #include "utils.h"
-#include "version.h"
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
-#include <fstream>
 #include <iomanip>
 #include <limits>
 #include <optional>
@@ -51,31 +50,28 @@ struct StableFileIdentity
     DWORD volumeSerialNumber{};
     DWORD fileIndexHigh{};
     DWORD fileIndexLow{};
-    DWORD fileSizeHigh{};
-    DWORD fileSizeLow{};
-    FILETIME lastWriteTime{};
 };
 
-class NativeSavePathClaim
+class NativeFileHandle
 {
 public:
-    NativeSavePathClaim() = default;
-    explicit NativeSavePathClaim(HANDLE handle)
+    NativeFileHandle() = default;
+    explicit NativeFileHandle(HANDLE handle)
         : handle{handle}
     { }
-    ~NativeSavePathClaim()
+    ~NativeFileHandle()
     {
         reset();
     }
 
-    NativeSavePathClaim(const NativeSavePathClaim&) = delete;
-    NativeSavePathClaim& operator=(const NativeSavePathClaim&) = delete;
-    NativeSavePathClaim(NativeSavePathClaim&& other) noexcept
+    NativeFileHandle(const NativeFileHandle&) = delete;
+    NativeFileHandle& operator=(const NativeFileHandle&) = delete;
+    NativeFileHandle(NativeFileHandle&& other) noexcept
         : handle{other.handle}
     {
         other.handle = INVALID_HANDLE_VALUE;
     }
-    NativeSavePathClaim& operator=(NativeSavePathClaim&& other) noexcept
+    NativeFileHandle& operator=(NativeFileHandle&& other) noexcept
     {
         if (this != &other) {
             reset();
@@ -93,6 +89,11 @@ public:
         handle = newHandle;
     }
 
+    HANDLE get() const
+    {
+        return handle;
+    }
+
 private:
     HANDLE handle{INVALID_HANDLE_VALUE};
 };
@@ -103,7 +104,8 @@ struct SaveTransferSession
     std::string saveName;
     std::filesystem::path savePath;
     StableFileIdentity reservedFileIdentity;
-    NativeSavePathClaim pathClaim;
+    NativeFileHandle pathClaim;
+    NativeFileHandle snapshotFile;
     std::chrono::steady_clock::time_point deadline;
 };
 
@@ -111,7 +113,7 @@ struct PendingStoredAck
 {
     std::uint64_t saveId{};
     std::filesystem::path savePath;
-    std::optional<StableFileIdentity> fileIdentity;
+    NativeFileHandle snapshotFile;
     std::chrono::steady_clock::time_point deadline;
 };
 
@@ -122,11 +124,7 @@ std::optional<PendingStoredAck> pendingStoredAck;
 std::vector<std::filesystem::path> nativeSavePathTombstones;
 
 std::optional<StableFileIdentity> readStableFileIdentity(HANDLE handle);
-std::optional<StableFileIdentity> captureStableFileIdentity(const std::filesystem::path& path);
 bool sameFileObjectIdentity(const StableFileIdentity& first, const StableFileIdentity& second);
-bool sameStableFileIdentity(const StableFileIdentity& first, const StableFileIdentity& second);
-bool deleteFileWithMatchingIdentity(const std::filesystem::path& path,
-                                    const StableFileIdentity& expected);
 bool deleteEmptyFileWithMatchingObjectIdentity(const std::filesystem::path& path,
                                                const StableFileIdentity& expected);
 
@@ -232,9 +230,8 @@ bool chooseUnusedSavePath(const game::CMidgard* midgard, SaveTransferSession& tr
             continue;
         }
 
-        // The verified Russobit writer opens this path with CREATE_ALWAYS. Claim it atomically
-        // first, then let that writer truncate the same file object. This closes the exists/create
-        // race without holding a handle that could conflict with the native open.
+        // Claim the path atomically while sharing read/write access so the native save can populate
+        // the reserved object. Its object identity is checked again before any bytes are uploaded.
         const HANDLE placeholder{CreateFileW(savePath.c_str(), 0,
                                              FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                                              CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr)};
@@ -254,7 +251,7 @@ bool chooseUnusedSavePath(const game::CMidgard* midgard, SaveTransferSession& tr
             CloseHandle(placeholder);
             reserveNativeSavePath(savePath);
             spdlog::warn(__FUNCTION__
-                         ": cannot identify reserved save path '{:s}'; retaining placeholder",
+                         ": cannot identify reserved save path '{:s}'; leaving reserved file",
                          savePath.string());
             return false;
         }
@@ -324,20 +321,44 @@ bool sendNativeSaveResult(std::uint64_t saveId,
     return sendLobbyPayload(stream);
 }
 
-bool validateSaveSignature(const std::filesystem::path& path)
+bool seekToFileStart(HANDLE handle)
+{
+    LARGE_INTEGER start{};
+    return handle != INVALID_HANDLE_VALUE && SetFilePointerEx(handle, start, nullptr, FILE_BEGIN);
+}
+
+bool validateSaveSignature(HANDLE handle)
 {
     static constexpr char signature[]{"D2EESFISIG"};
     std::array<char, sizeof(signature) - 1> actual{};
-    std::ifstream file{path, std::ios::binary};
-    return file && file.read(actual.data(), actual.size())
+    DWORD bytesRead{};
+    return seekToFileStart(handle)
+        && ReadFile(handle, actual.data(), static_cast<DWORD>(actual.size()), &bytesRead, nullptr)
+        && bytesRead == actual.size()
         && std::equal(actual.begin(), actual.end(), std::begin(signature));
 }
 
-bool validateCapturedSave(const SaveTransferSession& transfer,
+bool captureImmutableSave(SaveTransferSession& transfer,
                           std::uint32_t& totalSize,
                           SaveFailureV2& failure)
 {
-    const auto identity{captureStableFileIdentity(transfer.savePath)};
+    // The zero-access placeholder was opened without FILE_SHARE_DELETE, so close it after
+    // GameSaved before acquiring a DELETE-capable snapshot handle. The object identity check below
+    // fails closed if the path was replaced during that transition.
+    transfer.pathClaim.reset();
+    const HANDLE handle{CreateFileW(transfer.savePath.c_str(),
+                                    GENERIC_READ | FILE_READ_ATTRIBUTES | DELETE,
+                                    FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, nullptr)};
+    if (handle == INVALID_HANDLE_VALUE) {
+        spdlog::warn(__FUNCTION__ ": cannot lock save snapshot '{:s}', error {:d}",
+                     transfer.savePath.string(), static_cast<int>(GetLastError()));
+        failure = SaveFailureV2::FileIo;
+        return false;
+    }
+    transfer.snapshotFile.reset(handle);
+
+    const auto identity{readStableFileIdentity(transfer.snapshotFile.get())};
     if (!identity) {
         failure = SaveFailureV2::FileIo;
         return false;
@@ -349,12 +370,12 @@ bool validateCapturedSave(const SaveTransferSession& transfer,
         return false;
     }
 
-    std::error_code error;
-    const auto fileSize64{std::filesystem::file_size(transfer.savePath, error)};
-    if (error || fileSize64 == 0) {
+    LARGE_INTEGER fileSize{};
+    if (!GetFileSizeEx(transfer.snapshotFile.get(), &fileSize) || fileSize.QuadPart <= 0) {
         failure = SaveFailureV2::FileIo;
         return false;
     }
+    const auto fileSize64{static_cast<std::uint64_t>(fileSize.QuadPart)};
     if (fileSize64 > transfer.request.maxBytes || fileSize64 > saveFileHardLimit
         || fileSize64 > std::numeric_limits<std::uint32_t>::max()) {
         failure = SaveFailureV2::TooLarge;
@@ -364,7 +385,7 @@ bool validateCapturedSave(const SaveTransferSession& transfer,
         failure = SaveFailureV2::TimedOut;
         return false;
     }
-    if (!validateSaveSignature(transfer.savePath)) {
+    if (!validateSaveSignature(transfer.snapshotFile.get())) {
         failure = SaveFailureV2::CaptureFailed;
         return false;
     }
@@ -373,10 +394,12 @@ bool validateCapturedSave(const SaveTransferSession& transfer,
     return true;
 }
 
-bool uploadSave(SaveTransferSession& transfer, SaveFailureV2& failure)
+bool uploadSave(SaveTransferSession& transfer,
+                std::uint32_t totalSize,
+                SaveFailureV2& failure)
 {
-    std::uint32_t totalSize{};
-    if (!validateCapturedSave(transfer, totalSize, failure)) {
+    if (!seekToFileStart(transfer.snapshotFile.get())) {
+        failure = SaveFailureV2::FileIo;
         return false;
     }
 
@@ -391,12 +414,6 @@ bool uploadSave(SaveTransferSession& transfer, SaveFailureV2& failure)
         return false;
     }
 
-    std::ifstream file{transfer.savePath, std::ios::binary};
-    if (!file) {
-        failure = SaveFailureV2::FileIo;
-        return false;
-    }
-
     std::array<unsigned char, saveChunkSizeMax> buffer{};
     for (std::uint32_t offset = 0; offset < totalSize;) {
         if (isDeadlineExpired(transfer)) {
@@ -406,8 +423,9 @@ bool uploadSave(SaveTransferSession& transfer, SaveFailureV2& failure)
 
         const auto chunkSize{static_cast<std::uint16_t>(
             std::min<std::uint32_t>(saveChunkSizeMax, totalSize - offset))};
-        file.read(reinterpret_cast<char*>(buffer.data()), chunkSize);
-        if (!file) {
+        DWORD bytesRead{};
+        if (!ReadFile(transfer.snapshotFile.get(), buffer.data(), chunkSize, &bytesRead, nullptr)
+            || bytesRead != chunkSize) {
             failure = SaveFailureV2::FileIo;
             return false;
         }
@@ -461,6 +479,24 @@ game::CPhaseGame* getHostPhaseGame(const game::CMidgard* midgard)
     }
 
     const auto phase{client->data->phase};
+    const auto typeIdOperator{game::RttiApi::get().typeIdOperator};
+    if (!phase->vftable || !typeIdOperator || !*typeIdOperator) {
+        return nullptr;
+    }
+
+    // CPhase has multiple concrete owners. Ask the game's own MSVC RTTI helper for the exact
+    // dynamic type before deriving the enclosing CPhaseGame object.
+    static constexpr char phaseGameTypeName[]{".?AVCPhaseGame@@"};
+    const game::TypeDescriptor* phaseType{};
+    try {
+        phaseType = (*typeIdOperator)(phase);
+    } catch (...) {
+        return nullptr;
+    }
+    if (!phaseType || std::strcmp(phaseType->name, phaseGameTypeName) != 0) {
+        return nullptr;
+    }
+
     const auto phaseGame{reinterpret_cast<game::CPhaseGame*>(
         reinterpret_cast<std::uint8_t*>(phase) - offsetof(game::CPhaseGame, phase))};
     return phaseGame->data && phaseGame->data->midClient == client ? phaseGame : nullptr;
@@ -478,33 +514,7 @@ std::optional<StableFileIdentity> readStableFileIdentity(HANDLE handle)
     identity.volumeSerialNumber = information.dwVolumeSerialNumber;
     identity.fileIndexHigh = information.nFileIndexHigh;
     identity.fileIndexLow = information.nFileIndexLow;
-    identity.fileSizeHigh = information.nFileSizeHigh;
-    identity.fileSizeLow = information.nFileSizeLow;
-    identity.lastWriteTime = information.ftLastWriteTime;
     return identity;
-}
-
-std::optional<StableFileIdentity> captureStableFileIdentity(const std::filesystem::path& path)
-{
-    const HANDLE handle{CreateFileW(path.c_str(), FILE_READ_ATTRIBUTES,
-                                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
-                                    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr)};
-    if (handle == INVALID_HANDLE_VALUE) {
-        return std::nullopt;
-    }
-
-    const auto identity{readStableFileIdentity(handle)};
-    CloseHandle(handle);
-    return identity;
-}
-
-bool sameStableFileIdentity(const StableFileIdentity& first,
-                            const StableFileIdentity& second)
-{
-    return sameFileObjectIdentity(first, second)
-           && first.fileSizeHigh == second.fileSizeHigh
-           && first.fileSizeLow == second.fileSizeLow
-           && CompareFileTime(&first.lastWriteTime, &second.lastWriteTime) == 0;
 }
 
 bool sameFileObjectIdentity(const StableFileIdentity& first,
@@ -513,38 +523,6 @@ bool sameFileObjectIdentity(const StableFileIdentity& first,
     return first.volumeSerialNumber == second.volumeSerialNumber
            && first.fileIndexHigh == second.fileIndexHigh
            && first.fileIndexLow == second.fileIndexLow;
-}
-
-bool deleteFileWithMatchingIdentity(const std::filesystem::path& path,
-                                    const StableFileIdentity& expected)
-{
-    // No sharing prevents replacement after the identity check. Marking this same open object for
-    // deletion avoids the check-then-DeleteFile path race entirely.
-    const HANDLE handle{CreateFileW(path.c_str(), FILE_READ_ATTRIBUTES | DELETE, 0, nullptr,
-                                    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr)};
-    if (handle == INVALID_HANDLE_VALUE) {
-        spdlog::warn(__FUNCTION__ ": cannot open save '{:s}' exclusively, error {:d}; retaining file",
-                     path.string(), static_cast<int>(GetLastError()));
-        return false;
-    }
-
-    const auto actual{readStableFileIdentity(handle)};
-    if (!actual || !sameStableFileIdentity(*actual, expected)) {
-        spdlog::warn(__FUNCTION__ ": save identity changed for '{:s}'; retaining file",
-                     path.string());
-        CloseHandle(handle);
-        return false;
-    }
-
-    if (!markOpenFileForDeletion(handle)) {
-        spdlog::warn(__FUNCTION__ ": cannot mark save '{:s}' for deletion, error {:d}; retaining file",
-                     path.string(), static_cast<int>(GetLastError()));
-        CloseHandle(handle);
-        return false;
-    }
-
-    CloseHandle(handle);
-    return true;
 }
 
 bool deleteEmptyFileWithMatchingObjectIdentity(const std::filesystem::path& path,
@@ -557,8 +535,9 @@ bool deleteEmptyFileWithMatchingObjectIdentity(const std::filesystem::path& path
     }
 
     const auto actual{readStableFileIdentity(handle)};
+    LARGE_INTEGER fileSize{};
     const bool unchangedPlaceholder{actual && sameFileObjectIdentity(*actual, expected)
-                                    && actual->fileSizeHigh == 0 && actual->fileSizeLow == 0};
+                                    && GetFileSizeEx(handle, &fileSize) && fileSize.QuadPart == 0};
     const bool removed{unchangedPlaceholder && markOpenFileForDeletion(handle)};
     CloseHandle(handle);
     return removed;
@@ -615,16 +594,8 @@ void awaitStoredAck()
     PendingStoredAck pending{};
     pending.saveId = activeTransfer->request.saveId;
     pending.savePath = std::move(activeTransfer->savePath);
-    const auto identity{captureStableFileIdentity(pending.savePath)};
-    if (identity && sameFileObjectIdentity(*identity, activeTransfer->reservedFileIdentity)) {
-        pending.fileIdentity = identity;
-    }
+    pending.snapshotFile = std::move(activeTransfer->snapshotFile);
     pending.deadline = activeTransfer->deadline + storedAckGrace;
-    if (!pending.fileIdentity) {
-        spdlog::warn(__FUNCTION__
-                     ": could not capture uploaded save identity '{:s}'; ACK will retain it",
-                     pending.savePath.string());
-    }
     pendingStoredAck.emplace(std::move(pending));
     activeTransfer.reset();
 }
@@ -661,14 +632,13 @@ void handleLobbySaveStoredAck(std::uint64_t saveId)
         return;
     }
 
-    if (!pendingStoredAck->fileIdentity) {
-        spdlog::warn(__FUNCTION__
-                     ": acknowledged local save '{:s}' has no captured identity; retaining file",
-                     pendingStoredAck->savePath.string());
-    } else if (deleteFileWithMatchingIdentity(pendingStoredAck->savePath,
-                                               *pendingStoredAck->fileIdentity)) {
+    if (markOpenFileForDeletion(pendingStoredAck->snapshotFile.get())) {
         spdlog::info(__FUNCTION__ ": removed acknowledged local save '{:s}', id {:016x}",
                      pendingStoredAck->savePath.string(), saveId);
+    } else {
+        spdlog::warn(__FUNCTION__
+                     ": cannot delete acknowledged local save '{:s}', error {:d}; retaining file",
+                     pendingStoredAck->savePath.string(), static_cast<int>(GetLastError()));
     }
 
     pendingStoredAck.reset();
@@ -683,7 +653,7 @@ void handleLobbySaveRequest(const LobbyProtocol::SaveRequestV3& request)
         sendLobbySaveFailure(request, SaveFailureV2::UnsafePhase);
         return;
     }
-    if (gameVersion() != GameVersion::Russobit) {
+    if (!game::CPhaseGameApi::nativeSaveSupported()) {
         sendLobbySaveFailure(request, SaveFailureV2::UnsupportedGameBuild);
         return;
     }
@@ -791,8 +761,8 @@ void handleGameSavedForLobby(bool success, const std::string& savePath)
     } else if (!success) {
         failure = SaveFailureV2::CaptureFailed;
     } else {
-        std::uint32_t ignoredSize{};
-        if (validateCapturedSave(*activeTransfer, ignoredSize, failure)) {
+        std::uint32_t totalSize{};
+        if (captureImmutableSave(*activeTransfer, totalSize, failure)) {
             const auto isV3{activeTransfer->request.wireVersion == saveRequestVersionV3};
             const auto fileName{activeTransfer->savePath.filename().string()};
             if (isV3
@@ -807,7 +777,7 @@ void handleGameSavedForLobby(bool success, const std::string& savePath)
                              activeTransfer->request.saveId);
                 activeTransfer.reset();
                 return;
-            } else if (uploadSave(*activeTransfer, failure)) {
+            } else if (uploadSave(*activeTransfer, totalSize, failure)) {
                 awaitStoredAck();
                 return;
             }

@@ -24,7 +24,7 @@
 #include "netmsgcallbacks.h"
 #include "netmsgmapentrycmdmovestackendmsg.h"
 #include "originalfunctions.h"
-#include "version.h"
+#include "phasegame.h"
 #include <cstddef>
 #include <cstring>
 #include <new>
@@ -35,7 +35,8 @@ namespace hooks {
 namespace {
 
 /** Russobit CCmdGameSavedMsg layout recovered from the native constructor/serializer. Keep this
- * view local to the only version for which the ABI was verified. */
+ * view local to the only version for which the ABI was verified.
+ * See docs/reverse/russobit-ranked-save-abi.md. */
 struct CCmdGameSavedMsgView
 {
     game::CCommandMsg command;
@@ -115,7 +116,7 @@ void __fastcall midCommandQueue2PushHooked(game::CMidCommandQueue2* thisptr,
     std::string gameSavedPath;
     if (hasActiveLobbyHostSaveTransfer()
         && commandMsg->vftable->getId(commandMsg) == CommandMsgId::GameSaved
-        && gameVersion() == GameVersion::Russobit) {
+        && CPhaseGameApi::nativeSaveSupported()) {
         const auto result{reinterpret_cast<const CCmdGameSavedMsgView*>(commandMsg)};
         gameSavedSuccessfully = result->success;
         gameSavedResultAvailable = copyNativeSavePath(result->savePath, gameSavedPath);

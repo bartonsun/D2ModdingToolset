@@ -24,10 +24,7 @@
 #include "netcustomplayer.h"
 #include "netcustomservice.h"
 #include "netcustomsession.h"
-#include "netmessages.h"
 #include "netmsg.h"
-#include "settings.h"
-#include "utils.h"
 #include <BitStream.h>
 #include <cstring>
 #include <spdlog/spdlog.h>
@@ -103,8 +100,11 @@ bool __fastcall CNetCustomPlayerClient::sendMessage(CNetCustomPlayerClient* this
     }
 
     if (thisptr->getSession()->isHost()) {
-        thisptr->forwardPlayerSetupToLobby(message);
-        return thisptr->sendHostMessage(message);
+        const bool sentToGame{thisptr->sendHostMessage(message)};
+        if (sentToGame) {
+            thisptr->forwardPlayerSetupToLobby(message);
+        }
+        return sentToGame;
     } else {
         return thisptr->sendRemoteMessage(message, thisptr->m_serverGuid);
     }
@@ -114,14 +114,14 @@ void CNetCustomPlayerClient::forwardPlayerSetupToLobby(const game::NetMessageHea
 {
     // The relay already observes the host race through normal setup state. Only the host lord
     // request is local-loopback-only and needs an out-of-band attribution message.
-    if (std::strcmp(message->messageClassName, ".?AVCMenusReqLordMsg@@")) {
+    static constexpr char lordMessageClass[]{".?AVCMenusReqLordMsg@@"};
+    if (!message || message->length < sizeof(game::NetMessageHeader) + sizeof(std::uint32_t)
+        || std::memcmp(message->messageClassName, lordMessageClass,
+                       sizeof(lordMessageClass)) != 0) {
         return;
     }
     constexpr std::uint8_t kind{1};
 
-    if (message->length < sizeof(game::NetMessageHeader) + sizeof(std::uint32_t)) {
-        return;
-    }
     std::uint32_t value{};
     std::memcpy(&value,
                 reinterpret_cast<const char*>(message) + sizeof(game::NetMessageHeader),
@@ -132,7 +132,9 @@ void CNetCustomPlayerClient::forwardPlayerSetupToLobby(const game::NetMessageHea
     stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_PLAYER_SETUP));
     stream.Write(kind);
     stream.Write(value);
-    service->send(stream, service->getLobbyGuid(), LOW_PRIORITY);
+    if (!service->send(stream, service->getLobbyGuid(), LOW_PRIORITY)) {
+        getLogger()->warn(__FUNCTION__ ": failed to forward accepted host lord to lobby");
+    }
 }
 
 bool __fastcall CNetCustomPlayerClient::setName(CNetCustomPlayerClient* thisptr,
