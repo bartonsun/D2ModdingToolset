@@ -51,14 +51,9 @@ bool CNetCustomPeer::IsPacketNotificationSent() const
     return m_packetNotificationSent;
 }
 
-void CNetCustomPeer::ResetPacketNotification()
-{
-    m_packetNotificationSent = false;
-}
-
 void CNetCustomPeer::CompletePacketProcessing()
 {
-    ResetPacketNotification();
+    m_packetNotificationSent = false;
 
     // A packet can enter the return queue after Receive() reported it empty but before the
     // notification flag is reset. Rearm here so that race cannot leave the new packet stranded.

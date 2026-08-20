@@ -21,7 +21,6 @@
 #include "lobbysaveexchange.h"
 #include "mempool.h"
 #include "midgard.h"
-#include "midgardhooks.h"
 #include "midgardmsgbox.h"
 #include "midmsgboxbuttonhandler.h"
 #include "mqnetservice.h"
@@ -29,10 +28,11 @@
 #include "netcustompeer.h"
 #include "netcustomsession.h"
 #include "netmsg.h"
+#include "phasegame.h"
 #include "settings.h"
 #include "textids.h"
+#include "uimanager.h"
 #include "utils.h"
-#include "version.h"
 #include <MessageIdentifiers.h>
 #include <algorithm>
 #include <array>
@@ -41,6 +41,7 @@
 #include <optional>
 #include <spdlog/spdlog.h>
 #include <string_view>
+#include <utility>
 #include <usersettings.h>
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -192,6 +193,32 @@ static_assert(isReservedWindowsDeviceStem("Com1"));
 static_assert(isReservedWindowsDeviceStem("LPT9"));
 static_assert(!isReservedWindowsDeviceStem("CON-save"));
 static_assert(!isReservedWindowsDeviceStem("COM10"));
+
+constexpr bool isSupportedSystemNoticePresentation(std::uint8_t presentation)
+{
+    return presentation
+           == static_cast<std::uint8_t>(LobbyProtocol::SystemNoticePresentation::Modal);
+}
+
+static_assert(!isSupportedSystemNoticePresentation(
+    static_cast<std::uint8_t>(LobbyProtocol::SystemNoticePresentation::ReservedChat)));
+static_assert(isSupportedSystemNoticePresentation(
+    static_cast<std::uint8_t>(LobbyProtocol::SystemNoticePresentation::Modal)));
+
+constexpr bool canPostPendingMatchEnd(bool loggedIn,
+                                      bool hasSession,
+                                      bool multiplayerGame,
+                                      bool gameIsRunning,
+                                      bool hasClient,
+                                      bool nativeMessageQueueEmpty)
+{
+    return loggedIn && hasSession && multiplayerGame && gameIsRunning && hasClient
+           && nativeMessageQueueEmpty;
+}
+
+static_assert(canPostPendingMatchEnd(true, true, true, true, true, true));
+static_assert(!canPostPendingMatchEnd(true, true, true, false, true, true));
+static_assert(!canPostPendingMatchEnd(true, true, true, true, true, false));
 
 bool isSafeSaveStem(std::string_view stem)
 {
@@ -699,7 +726,7 @@ bool CNetCustomService::createRoom(const char* gameName,
     row->UpdateCell(passwordColumn, password);
     row->UpdateCell(scenNameColumn, scenarioName);
     row->UpdateCell(scenDescColumn, scenarioDescription);
-    const bool ranked{hooks::gameVersion() == GameVersion::Russobit && m_roomOptions.ranked};
+    const bool ranked{game::CPhaseGameApi::nativeSaveSupported() && m_roomOptions.ranked};
     row->UpdateCell(rankedColumn, ranked ? "1" : "0");
     row->UpdateCell(simTurnsDaysColumn, simTurnsDays.c_str());
     row->UpdateCell(unlockGuiColumn, m_roomOptions.unlockGui ? "1" : "0");
@@ -988,6 +1015,11 @@ CNetCustomService::RoomOptions& CNetCustomService::getRoomOptions()
     return m_roomOptions;
 }
 
+std::shared_ptr<NativeGameMessageTracker> CNetCustomService::getNativeGameMessageTracker() const
+{
+    return m_nativeGameMessageTracker;
+}
+
 void CNetCustomService::processPeerMessages() const
 {
     peerProcessEventCallback(this, 0, 0, 0);
@@ -1122,7 +1154,7 @@ bool CNetCustomService::readSystemNotice(const SLNet::Packet* packet,
     }
 
     if (version != systemNoticeVersion || notice.noticeId == 0
-        || presentation > static_cast<std::uint8_t>(SystemNoticePresentation::Modal)
+        || !isSupportedSystemNoticePresentation(presentation)
         || textLength == 0 || textLength > systemNoticeTextMax
         || stream.GetNumberOfUnreadBits() < static_cast<SLNet::BitSize_t>(textLength) * 8) {
         spdlog::warn(__FUNCTION__ ": invalid system notice metadata");
@@ -1179,27 +1211,35 @@ void CNetCustomService::processPendingMatchEnd()
         return;
     }
 
-    if (!loggedIn() || !getSession()) {
-        m_matchEndPending = false;
-        return;
-    }
-
     auto midgard = game::CMidgardApi::get().instance();
     if (!midgard || !midgard->data) {
         return;
     }
-    if (!midgard->data->multiplayerGame || !midgard->data->gameIsRunning
-        || !midgard->data->client) {
-        m_matchEndPending = false;
+
+    auto data = midgard->data;
+    if (!canPostPendingMatchEnd(loggedIn(), getSession() != nullptr, data->multiplayerGame,
+                                data->gameIsRunning, data->client != nullptr,
+                                m_nativeGameMessageTracker->empty())) {
+        // Lobby/session teardown clears the flag explicitly. Transitional game state and native
+        // queues are retried by the maintenance event instead of losing MATCH_ENDED.
+        return;
+    }
+
+    auto uiManager = data->uiManager.data;
+    if (!uiManager || data->startMenuMessageId == 0) {
+        return;
+    }
+
+    // Native player reception also uses posted window messages. The tracker keeps this transition
+    // pending until both client and server queues are dequeued; posting MID_STARTMENU then lets an
+    // already-running client notification return before native network teardown starts.
+    if (!game::CUIManagerApi::get().postMessage(uiManager, data->startMenuMessageId, 0, 0)) {
+        spdlog::warn(__FUNCTION__ ": failed to post MID_STARTMENU, error = {:d}", GetLastError());
         return;
     }
 
     m_matchEndPending = false;
     terminateLobbySaveTransfers();
-
-    // Active gameplay normally has menuPhase == nullptr. MID_STARTMENU performs the native
-    // game/network teardown and creates a fresh menu phase.
-    midgardStartMenuMessageCallbackHooked(midgard, 0, 0, 0);
 }
 
 void CNetCustomService::processPendingSystemNotices()

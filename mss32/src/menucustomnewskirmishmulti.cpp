@@ -28,6 +28,7 @@
 #include "listbox.h"
 #include "mempool.h"
 #include "menuphase.h"
+#include "phasegame.h"
 #include "scenariodata.h"
 #include "scenariodataarray.h"
 #include "spinbuttoninterf.h"
@@ -35,7 +36,7 @@
 #include "textids.h"
 #include "togglebutton.h"
 #include "utils.h"
-#include "version.h"
+#include <cstdio>
 #include <spdlog/spdlog.h>
 
 namespace hooks {
@@ -185,7 +186,7 @@ void CMenuCustomNewSkirmishMulti::initializeRoomOptionsControls()
     auto& options = service->getRoomOptions();
 
     if (auto toggle = dialogApi.findToggleButton(dialog, "TOG_RANKED")) {
-        const bool supported{gameVersion() == GameVersion::Russobit};
+        const bool supported{CPhaseGameApi::nativeSaveSupported()};
         CToggleButtonApi::get().setChecked(toggle, supported && options.ranked);
         toggle->vftable->setEnabled(toggle, supported);
     }
@@ -217,8 +218,11 @@ void CMenuCustomNewSkirmishMulti::readRoomOptionsControls()
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
     auto& options = service->getRoomOptions();
 
+    // Ranked play is available only through the explicit supported control. A missing control
+    // must not reuse a checked value retained from an earlier host dialog.
+    options.ranked = false;
     if (auto toggle = dialogApi.findToggleButton(dialog, "TOG_RANKED")) {
-        options.ranked = gameVersion() == GameVersion::Russobit && toggle->data->checked;
+        options.ranked = CPhaseGameApi::nativeSaveSupported() && toggle->data->checked;
     }
 
     if (auto toggle = dialogApi.findToggleButton(dialog, "TOG_UNLOCK_GUI")) {

@@ -29,10 +29,12 @@
 #include <PacketPriority.h>
 #include <RakPeerInterface.h>
 #include <RoomsPlugin.h>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <filesystem>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_set>
@@ -43,6 +45,35 @@ struct NetMessageHeader;
 } // namespace game
 
 namespace hooks {
+
+/** Shared lifetime-safe count of native game messages queued by custom players. */
+class NativeGameMessageTracker
+{
+public:
+    void queued() noexcept
+    {
+        m_pending.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    void consumed(std::size_t count = 1) noexcept
+    {
+        auto pending = m_pending.load(std::memory_order_relaxed);
+        while (pending != 0) {
+            const auto remaining = count < pending ? pending - count : 0;
+            if (m_pending.compare_exchange_weak(pending, remaining, std::memory_order_relaxed)) {
+                return;
+            }
+        }
+    }
+
+    bool empty() const noexcept
+    {
+        return m_pending.load(std::memory_order_relaxed) == 0;
+    }
+
+private:
+    std::atomic_size_t m_pending{};
+};
 
 // Keep the numeric values in sync with the lobby server.  Values +1 through +7 are the
 // established custom-lobby protocol; ranked-match messages are append-only so older clients keep
@@ -114,14 +145,17 @@ static_assert(nativeSaveResultSuccess == 0);
 
 enum class SystemNoticePresentation : std::uint8_t
 {
-    Chat = 0,
+    ReservedChat = 0,
     Modal = 1,
 };
+
+static_assert(static_cast<std::uint8_t>(SystemNoticePresentation::ReservedChat) == 0);
+static_assert(static_cast<std::uint8_t>(SystemNoticePresentation::Modal) == 1);
 
 struct SystemNoticeV1
 {
     std::uint64_t noticeId{};
-    SystemNoticePresentation presentation{SystemNoticePresentation::Chat};
+    SystemNoticePresentation presentation{SystemNoticePresentation::Modal};
     std::string text;
 };
 
@@ -129,14 +163,6 @@ enum class SaveRoleV2 : std::uint8_t
 {
     Host = 0,
     Joiner = 1,
-};
-
-struct SaveRequestV2
-{
-    std::uint64_t saveId{};
-    SaveRoleV2 role{SaveRoleV2::Host};
-    std::uint32_t maxBytes{};
-    std::uint32_t timeoutMs{};
 };
 
 enum class SaveModeV3 : std::uint8_t
@@ -168,14 +194,14 @@ enum class SaveDataOperationV2 : std::uint8_t
 
 enum class SaveFailureV2 : std::uint8_t
 {
-    Unspecified = 0,
+    Reserved0 = 0, // Wire hole: success uses 0 only in ID_LOBBY_SAVE_NATIVE_RESULT.
     MalformedRequest = 1,
     UnsupportedVersion = 2,
     WrongRole = 3,
     Busy = 4,
     NoActiveGame = 5,
     UnsupportedGameBuild = 6,
-    SerializerUnvalidated = 7,
+    Reserved7 = 7, // Wire hole retained for compatibility; never emitted.
     UnsafePhase = 8,
     CaptureFailed = 9,
     FileIo = 10,
@@ -192,14 +218,14 @@ static_assert(static_cast<std::uint8_t>(SaveDataOperationV2::Begin) == 0);
 static_assert(static_cast<std::uint8_t>(SaveDataOperationV2::Chunk) == 1);
 static_assert(static_cast<std::uint8_t>(SaveDataOperationV2::Commit) == 2);
 static_assert(static_cast<std::uint8_t>(SaveDataOperationV2::Fail) == 3);
-static_assert(static_cast<std::uint8_t>(SaveFailureV2::Unspecified) == 0);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::Reserved0) == 0);
 static_assert(static_cast<std::uint8_t>(SaveFailureV2::MalformedRequest) == 1);
 static_assert(static_cast<std::uint8_t>(SaveFailureV2::UnsupportedVersion) == 2);
 static_assert(static_cast<std::uint8_t>(SaveFailureV2::WrongRole) == 3);
 static_assert(static_cast<std::uint8_t>(SaveFailureV2::Busy) == 4);
 static_assert(static_cast<std::uint8_t>(SaveFailureV2::NoActiveGame) == 5);
 static_assert(static_cast<std::uint8_t>(SaveFailureV2::UnsupportedGameBuild) == 6);
-static_assert(static_cast<std::uint8_t>(SaveFailureV2::SerializerUnvalidated) == 7);
+static_assert(static_cast<std::uint8_t>(SaveFailureV2::Reserved7) == 7);
 static_assert(static_cast<std::uint8_t>(SaveFailureV2::UnsafePhase) == 8);
 static_assert(static_cast<std::uint8_t>(SaveFailureV2::CaptureFailed) == 9);
 static_assert(static_cast<std::uint8_t>(SaveFailureV2::FileIo) == 10);
@@ -312,6 +338,8 @@ public:
 
     /** Invalidates the service's non-owning session pointer during native session teardown. */
     void notifySessionDestroyed(CNetCustomSession* session);
+
+    std::shared_ptr<NativeGameMessageTracker> getNativeGameMessageTracker() const;
 
     RoomOptions& getRoomOptions();
 
@@ -507,6 +535,8 @@ private:
     std::deque<std::uint64_t> m_seenSystemNoticeOrder;
     bool m_matchEndPending{};
     bool m_systemNoticeModalActive{};
+    std::shared_ptr<NativeGameMessageTracker> m_nativeGameMessageTracker{
+        std::make_shared<NativeGameMessageTracker>()};
     std::string m_gameFilesHash;
     std::string m_templateName;
     std::string m_templateHash;
