@@ -22,6 +22,7 @@
 #include "customaibattle.h"
 #include "customattacks.h"
 #include "custommodifiers.h"
+#include "dinputdevicehooks.h"
 #include "hooks.h"
 #include "restrictions.h"
 #include "settings.h"
@@ -208,9 +209,11 @@ static void setupDefaultLogger()
 
     // Setting maximum log level for the logger so only the sinks levels will matter
     logger->set_level(spdlog::level::trace);
+    logger->flush_on(spdlog::level::info);
     // Using UTC helps to match logs from different users (with different timezones).
     // It also helps to match client logs with lobby server logs.
     logger->set_pattern("%D %H:%M:%S.%e %5t [%=8!n] [%L] %v", spdlog::pattern_time_type::utc);
+    logger->flush();
 }
 
 BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
@@ -273,5 +276,9 @@ BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
     hooks::initializeCustomAttacks();
     hooks::initializeCustomModifiers();
     hooks::initializeCustomAiBattleLogic();
+    if (hooks::driveAutomationEnabled()) {
+        hooks::installUser32MouseHooks();
+        hooks::startDinputMouseHookThread();
+    }
     return TRUE;
 }
