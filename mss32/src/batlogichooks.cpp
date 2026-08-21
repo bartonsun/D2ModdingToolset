@@ -30,6 +30,10 @@
 #include "groupview.h"
 #include "scripts.h"
 #include "resultsender.h"
+#include "mainview2.h"
+#include "mainview2hooks.h"
+#include "midobjectlock.h"
+#include "phasegame.h"
 #include <spdlog/spdlog.h>
 
 static std::atomic<game::CBatLogic*> g_batLogic{nullptr};
@@ -80,6 +84,12 @@ void __fastcall updateGroupsIfBattleIsOverHooked(game::CBatLogic* thisptr,
 
     if (!batLogicApi.isBattleOver(thisptr)) {
         return;
+    }
+
+    if (CMainView2* view = rememberedMainView()) {
+        if (view->phaseGame && view->phaseGame->data && view->phaseGame->data->midObjectLock) {
+            view->phaseGame->data->midObjectLock->patched.movingStack = false;
+        }
     }
 
     const BattleMsgDataApi::Api& battleApi = BattleMsgDataApi::get();

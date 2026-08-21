@@ -1576,6 +1576,15 @@
     <ClCompile Include="src\bindings\globalunitsview.cpp">
       <Filter>bindings</Filter>
     </ClCompile>
+    <ClCompile Include="src\dinputdeviceapi.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\endturnapi.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dinputdevicehooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
     <ClCompile Include="src\quicksavehook.cpp">
       <Filter>hooks</Filter>
     </ClCompile>
@@ -3976,6 +3985,15 @@
     <ClInclude Include="include\batattackboostdamage.h" />
     <ClInclude Include="include\bindings\globalunitsview.h">
       <Filter>bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="include\dinputdeviceapi.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\endturnapi.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\dinputdevicehooks.h">
+      <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\quicksavehook.h">
       <Filter>hooks</Filter>

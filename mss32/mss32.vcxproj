@@ -428,6 +428,10 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\paperdollchildinterf.cpp" />
     <ClCompile Include="src\phasegame.cpp" />
     <ClCompile Include="src\phasegamehooks.cpp" />
+    <ClCompile Include="src\dinputdeviceapi.cpp" />
+    <ClCompile Include="src\endturnapi.cpp" />
+    <ClCompile Include="src\dinputdevicehooks.cpp" />
+    <ClCompile Include="src\user32msghooks.cpp" />
     <ClCompile Include="src\quicksavehook.cpp" />
     <ClCompile Include="src\resourcemarketinterface.cpp" />
     <ClCompile Include="src\resourcetype.cpp" />
@@ -568,6 +572,8 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\scripts.cpp" />
     <ClCompile Include="src\scriptutils.cpp" />
     <ClCompile Include="src\settings.cpp" />
+    <ClCompile Include="src\trainingcostapi.cpp" />
+    <ClCompile Include="src\trainingcosthooks.cpp" />
     <ClCompile Include="src\sitecategories.cpp" />
     <ClCompile Include="src\sitecategoryhooks.cpp" />
     <ClCompile Include="src\sitemerchantinterf.cpp" />
@@ -1040,6 +1046,9 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\paperdollchildinterf.h" />
     <ClInclude Include="include\phasegamehooks.h" />
     <ClInclude Include="include\playerlistentry.h" />
+    <ClInclude Include="include\dinputdeviceapi.h" />
+    <ClInclude Include="include\endturnapi.h" />
+    <ClInclude Include="include\dinputdevicehooks.h" />
     <ClInclude Include="include\quicksavehook.h" />
     <ClInclude Include="include\quickstring.h" />
     <ClInclude Include="include\refreshinfo.h" />
