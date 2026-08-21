@@ -27,9 +27,21 @@ namespace game {
 struct CMidgardID;
 struct CMqPoint;
 struct CPhaseGame;
+struct IMidgardObjectMap;
 } // namespace game
 
 namespace hooks {
+
+bool trySendStackMoveCmd(game::CPhaseGame* thisptr);
+bool trySendEndTurnCmd(game::CPhaseGame* thisptr);
+void tryPollEndTurnFromMidgard();
+void requestLeftoverRestore(const game::CMidgardID* stackId, int movement);
+void applyLeftoverRestore(game::CPhaseGame* thisptr);
+bool applyLeftoverRestoreToMap(game::IMidgardObjectMap* objectMap);
+void clearLeftoverRestore();
+
+void* getSendEndTurnMsgHooked();
+void** getSendEndTurnMsgOrig();
 
 bool __fastcall phaseGameCheckObjectLockHooked(game::CPhaseGame* thisptr, int /*%edx*/);
 

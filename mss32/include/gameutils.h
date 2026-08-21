@@ -20,6 +20,8 @@
 #ifndef GAMEUTILS_H
 #define GAMEUTILS_H
 
+#include "d2list.h"
+#include "d2pair.h"
 #include "mqpoint.h"
 #include <cstring>
 #include <string>
@@ -201,13 +203,18 @@ const game::CMidRuin* getRuinByUnitId(const game::IMidgardObjectMap* objectMap,
 const game::CMidRuin* getRuinAtOrAdjacent(const game::IMidgardObjectMap* objectMap,
                                           const game::CMidgardPlan* plan,
                                           const game::CMqPoint* point,
-                                          const game::CMidStack* stack = nullptr);
+                                          const game::CMidStack* stack = nullptr,
+                                          bool allowEnumerate = false);
 
 bool isLootedRuinInteraction(const game::IMidgardObjectMap* objectMap,
                              const game::CMidgardPlan* plan,
                              const game::CMidStack* stack,
                              const game::CMqPoint* endPoint,
                              const game::CMqPoint* startPoint);
+
+void appendStackMoveStep(game::List<game::Pair<game::CMqPoint, int>>* path,
+                         const game::CMqPoint* point,
+                         int cost);
 
 game::CMidRod* getRod(const game::IMidgardObjectMap* objectMap, const game::CMidgardID* rodId);
 

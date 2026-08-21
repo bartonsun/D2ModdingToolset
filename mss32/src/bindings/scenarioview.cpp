@@ -1205,6 +1205,9 @@ const game::CMidgardID* ScenarioView::getObjectId(int x, int y, game::IdType typ
         return nullptr;
     }
 
+    if (x < 0 || y < 0 || x >= plan->mapSize || y >= plan->mapSize) {
+        return nullptr;
+    }
     const CMqPoint position{x, y};
     return CMidgardPlanApi::get().getObjectId(plan, &position, &type);
 }

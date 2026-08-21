@@ -340,6 +340,7 @@ static void readSettings(const sol::table& table, Settings& settings)
     settings.advancedCure = readSetting(table, "advancedCure", defaultGameSettings().advancedCure);
     settings.cacheLeaderDataOnTransform = readSetting(table, "cacheLeaderDataOnTransform", defaultGameSettings().cacheLeaderDataOnTransform);
     settings.fogSpellHideEnemyVision = readSetting(table, "fogSpellHideEnemyVision", defaultGameSettings().fogSpellHideEnemyVision);
+    settings.trainerCampLowerCost = readSetting(table, "trainerCampLowerCost", defaultGameSettings().trainerCampLowerCost);
 
     auto chances = table.get<sol::optional<sol::table>>("longEffectRemoveChances");
     if (chances.has_value())
@@ -369,7 +370,7 @@ static void readSettings(const sol::table& table, Settings& settings)
 static void readDebugMode(Settings& settings)
 {
 #ifdef _DEBUG
-    settings.debugMode = true;
+    settings.debugMode = false;
     return;
 #endif
 
@@ -461,6 +462,7 @@ const Settings& baseGameSettings()
 
         settings.cacheLeaderDataOnTransform = false;
         settings.fogSpellHideEnemyVision = false;
+        settings.trainerCampLowerCost = true;
 
         initialized = true;
     }
