@@ -79,6 +79,12 @@
     <ClCompile Include="src\buildingbranch.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\buildstructinterf.cpp">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\buildstructinterfhooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
     <ClCompile Include="src\buildingcat.cpp">
       <Filter>game</Filter>
     </ClCompile>
@@ -1645,6 +1651,12 @@
     </ClInclude>
     <ClInclude Include="include\buildingbranch.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\buildstructinterf.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\buildstructinterfhooks.h">
+      <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\buildingcat.h">
       <Filter>game</Filter>

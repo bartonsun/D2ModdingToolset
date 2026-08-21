@@ -273,6 +273,8 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\bindings\unitviewbase.cpp" />
     <ClCompile Include="src\borderedimg.cpp" />
     <ClCompile Include="src\buildingbranch.cpp" />
+    <ClCompile Include="src\buildstructinterf.cpp" />
+    <ClCompile Include="src\buildstructinterfhooks.cpp" />
     <ClCompile Include="src\buildingcat.cpp" />
     <ClCompile Include="src\buildingtype.cpp" />
     <ClCompile Include="src\chatinterf.cpp" />
@@ -855,6 +857,8 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\borderedimg.h" />
     <ClInclude Include="include\bordertile.h" />
     <ClInclude Include="include\buildingbranch.h" />
+    <ClInclude Include="include\buildstructinterf.h" />
+    <ClInclude Include="include\buildstructinterfhooks.h" />
     <ClInclude Include="include\buildingcat.h" />
     <ClInclude Include="include\buildingtype.h" />
     <ClInclude Include="include\chatinterf.h" />

@@ -57,6 +57,8 @@
 #include "cureattackhooks.h"
 #include "boostdamagehooks.h"
 #include "buildingbranch.h"
+#include "buildstructinterf.h"
+#include "buildstructinterfhooks.h"
 #include "buildingtype.h"
 #include "button.h"
 #include "citystackinterf.h"
@@ -310,6 +312,9 @@ static Hooks getGameHooks()
         {CMidUnitApi::get().transform, transformHooked},
         // Show buildings with custom branch category on the 'other buildings' tab
         {CBuildingBranchApi::get().constructor, buildingBranchCtorHooked},
+        {CBuildStructInterfApi::get().updateBuildingInfo,
+         buildStructInterfUpdateBuildingInfoHooked,
+         (void**)&orig.buildStructInterfUpdateBuildingInfo},
         // Allow alchemists to buff retreating units
         {CBatAttackGiveAttackApi::vftable()->canPerform, giveAttackCanPerformHooked},
         // Prevent rewrite turnsOrder
