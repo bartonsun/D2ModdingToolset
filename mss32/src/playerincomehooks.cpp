@@ -53,6 +53,10 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
 
     getOriginalFunctions().computePlayerDailyIncome(income, objectMap, playerId);
 
+    if (!objectMap || !objectMap->vftable || !objectMap->vftable->findScenarioObjectById || !playerId) {
+        return income;
+    }
+
     auto playerObj = objectMap->vftable->findScenarioObjectById(objectMap, playerId);
     if (!playerObj) {
         spdlog::error("Could not find player {:s}", idToString(playerId));
@@ -61,32 +65,34 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
 
     const auto& races = RaceCategories::get();
     auto player = static_cast<const CMidPlayer*>(playerObj);
+    if (!player || !player->raceType || !player->raceType->data) {
+        return income;
+    }
     const auto raceId = player->raceType->data->raceType.id;
     const char* racePrefix{};
     const char* lordPrefix{};
-    CurrencyType manaType;
-    std::int32_t manaIncome;
+    CurrencyType manaType = CurrencyType::Gold;
+    std::int32_t manaIncome = 0;
 
-    if (raceId == races.neutral->id) {
-        // Skip neutrals
+    if (races.neutral && raceId == races.neutral->id) {
         return income;
-    } else if (raceId == races.human->id) {
+    } else if (races.human && raceId == races.human->id) {
         racePrefix = "EMPIRE_";
         manaType = CurrencyType::LifeMana;
         manaIncome = income->lifeMana;
-    } else if (raceId == races.heretic->id) {
+    } else if (races.heretic && raceId == races.heretic->id) {
         racePrefix = "LEGIONS_";
         manaType = CurrencyType::InfernalMana;
         manaIncome = income->infernalMana;
-    } else if (raceId == races.dwarf->id) {
+    } else if (races.dwarf && raceId == races.dwarf->id) {
         racePrefix = "CLANS_";
         manaType = CurrencyType::RunicMana;
         manaIncome = income->runicMana;
-    } else if (raceId == races.undead->id) {
+    } else if (races.undead && raceId == races.undead->id) {
         racePrefix = "HORDES_";
         manaType = CurrencyType::DeathMana;
         manaIncome = income->deathMana;
-    } else if (raceId == races.elf->id) {
+    } else if (races.elf && raceId == races.elf->id) {
         racePrefix = "ELVES_";
         manaType = CurrencyType::GroveMana;
         manaIncome = income->groveMana;
@@ -98,29 +104,36 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
         return income;
     }
 
-    // additional income for lord type
-    const auto& globalApi = GlobalDataApi::get();
-    const auto lords = (*globalApi.getGlobalData())->lords;
-    const auto lordType = (TLordType*)globalApi.findById(lords, &player->lordId);
-    const auto lordId = lordType->data->lordCategory.id;
     int additionalGoldIncome{};
     int additionalManaIncome{};
-    switch (lordId) {
-    case LordId::Warrior:
-        lordPrefix = "WARRIOR";
-        additionalGoldIncome = gameSettings().additionalLordIncome.gold.warrior;
-        additionalManaIncome = gameSettings().additionalLordIncome.mana.warrior;
-        break;
-    case LordId::Mage:
-        lordPrefix = "MAGE";
-        additionalGoldIncome = gameSettings().additionalLordIncome.gold.mage;
-        additionalManaIncome = gameSettings().additionalLordIncome.mana.mage;
-        break;
-    case LordId::Diplomat:
-        lordPrefix = "GUILDMASTER";
-        additionalGoldIncome = gameSettings().additionalLordIncome.gold.guildmaster;
-        additionalManaIncome = gameSettings().additionalLordIncome.mana.guildmaster;
-        break;
+    const auto& globalApi = GlobalDataApi::get();
+    if (globalApi.getGlobalData && *globalApi.getGlobalData()) {
+        const auto lords = (*globalApi.getGlobalData())->lords;
+        if (lords) {
+            const auto lordType = (TLordType*)globalApi.findById(lords, &player->lordId);
+            if (lordType && lordType->data) {
+                const auto lordId = lordType->data->lordCategory.id;
+                switch (lordId) {
+                case LordId::Warrior:
+                    lordPrefix = "WARRIOR";
+                    additionalGoldIncome = gameSettings().additionalLordIncome.gold.warrior;
+                    additionalManaIncome = gameSettings().additionalLordIncome.mana.warrior;
+                    break;
+                case LordId::Mage:
+                    lordPrefix = "MAGE";
+                    additionalGoldIncome = gameSettings().additionalLordIncome.gold.mage;
+                    additionalManaIncome = gameSettings().additionalLordIncome.mana.mage;
+                    break;
+                case LordId::Diplomat:
+                    lordPrefix = "GUILDMASTER";
+                    additionalGoldIncome = gameSettings().additionalLordIncome.gold.guildmaster;
+                    additionalManaIncome = gameSettings().additionalLordIncome.mana.guildmaster;
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
     }
 
     std::array<int, 6> cityGoldIncome = {gameSettings().additionalCityIncome.gold.capital,
@@ -145,8 +158,7 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
         for (const auto& variable : variables->variables) {
             const auto& name = variable.second.name;
 
-            // Additional income for specific lord
-            if (!strncmp(name, lordPrefix, std::strlen(lordPrefix))) {
+            if (lordPrefix && !strncmp(name, lordPrefix, std::strlen(lordPrefix))) {
                 const auto expectedNameGold{fmt::format("{:s}_GOLD_INCOME", lordPrefix)};
                 const auto expectedNameMana{fmt::format("{:s}_MANA_INCOME", lordPrefix)};
                 if (!strncmp(name, expectedNameGold.c_str(), sizeof(name))) {
@@ -158,8 +170,7 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
                 }
             }
 
-            // Additional city income for specific race
-            if (!strncmp(name, racePrefix, std::strlen(racePrefix))) {
+            if (racePrefix && !strncmp(name, racePrefix, std::strlen(racePrefix))) {
                 for (int i = 0; i < 6; ++i) {
                     const auto expectedName{
                         fmt::format("{:s}TIER_{:d}_CITY_INCOME", racePrefix, i)};
@@ -180,7 +191,6 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
                 }
             }
 
-            // Additional city income for all races
             if (!strncmp(name, "TIER", 4)) {
                 for (int i = 0; i < 6; ++i) {
                     const auto expectedName{fmt::format("TIER_{:d}_CITY_INCOME", i)};
@@ -204,27 +214,29 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
         }
         spdlog::debug("Loop done in {:d} iterations", listIndex);
 
-        // Custom cities income
         auto getVillageIncome = [playerId, cityGoldIncome, cityManaIncome, &additionalGoldIncome,
                                  &additionalManaIncome](const IMidScenarioObject* obj) {
+            if (!obj) return;
             auto fortification = static_cast<const CFortification*>(obj);
 
             if (fortification->ownerId == *playerId) {
                 auto vftable = static_cast<const CFortificationVftable*>(fortification->vftable);
+                if (!vftable || !vftable->getCategory) return;
                 auto category = vftable->getCategory(fortification);
+                if (!category) return;
 
-                if (category->id == FortCategories::get().village->id) {
+                if (FortCategories::get().village && category->id == FortCategories::get().village->id) {
                     auto village = static_cast<const CMidVillage*>(fortification);
-
-                    additionalGoldIncome += cityGoldIncome[village->tierLevel];
-                    additionalManaIncome += cityManaIncome[village->tierLevel];
+                    if (village->tierLevel >= 0 && village->tierLevel < 6) {
+                        additionalGoldIncome += cityGoldIncome[village->tierLevel];
+                        additionalManaIncome += cityManaIncome[village->tierLevel];
+                    }
                 }
             }
         };
 
         forEachScenarioObject(objectMap, IdType::Fortification, getVillageIncome);
 
-        // Custom capital city income
         additionalGoldIncome += cityGoldIncome[0];
         additionalManaIncome += cityManaIncome[0];
     }
@@ -236,33 +248,44 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
     BankApi::get().set(income, manaType, std::clamp(totalManaIncome, 0, 9999));
 
     static std::optional<sol::environment> env;
-    static std::optional<sol::function> getIncome;
+    static std::optional<sol::protected_function> getIncome;
     const auto path{scriptsFolder() / "income.lua"};
     if (!env && !getIncome) {
-        getIncome = getScriptFunction(path, "getTurnIncome", env, false, true);
+        env = executeScriptFile(path, false, true);
+        if (env) {
+            getIncome = getProtectedScriptFunction(*env, "getTurnIncome", false);
+        }
     }
-    if (getIncome) {
+    if (getIncome && getIncome->valid()) {
         bindings::PlayerView playerView{player, objectMap};
         bindings::CurrencyView incomeView{*income};
         try {
             bool isInterfaceCall = (std::this_thread::get_id() == mainThreadId);
-            sol::object result = (*getIncome)(playerView, incomeView, isInterfaceCall);
-            if (result.is<bindings::CurrencyView>()) {
-                const bindings::CurrencyView& resultView = result.as<bindings::CurrencyView>();
-                income->gold = resultView.bank.gold;
-                income->infernalMana = resultView.bank.infernalMana;
-                income->lifeMana = resultView.bank.lifeMana;
-                income->deathMana = resultView.bank.deathMana;
-                income->runicMana = resultView.bank.runicMana;
-                income->groveMana = resultView.bank.groveMana;
-                spdlog::debug("Income modified by Lua");
+            sol::protected_function_result result = (*getIncome)(playerView, incomeView, isInterfaceCall);
+            if (result.valid()) {
+                sol::object obj = result;
+                if (obj.is<bindings::CurrencyView>()) {
+                    const bindings::CurrencyView& resultView = obj.as<bindings::CurrencyView>();
+                    income->gold = resultView.bank.gold;
+                    income->infernalMana = resultView.bank.infernalMana;
+                    income->lifeMana = resultView.bank.lifeMana;
+                    income->deathMana = resultView.bank.deathMana;
+                    income->runicMana = resultView.bank.runicMana;
+                    income->groveMana = resultView.bank.groveMana;
+                    spdlog::debug("Income modified by Lua");
+                } else {
+                    spdlog::debug("Lua function did not return a Currency object, income unchanged");
+                }
             } else {
-                spdlog::debug("Lua function did not return a Currency object, income unchanged");
+                sol::error err = result;
+                spdlog::error("[INCOME] Lua error: {}", err.what());
             }
         } catch (const std::exception& e) {
             showErrorMessageBox(fmt::format("Failed to run '{:s}' script.\n"
                                             "Reason: '{:s}'",
                                             path.string(), e.what()));
+        } catch (...) {
+            spdlog::error("[INCOME] Lua unknown exception");
         }
     }
 

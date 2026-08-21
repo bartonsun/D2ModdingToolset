@@ -27,6 +27,9 @@ struct CCommandMsg;
 
 namespace hooks {
 
+void rememberMainView(game::CMainView2* view);
+game::CMainView2* rememberedMainView();
+
 void __fastcall mainView2ShowIsoDialogHooked(game::CMainView2* thisptr, int /*%edx*/);
 
 void __fastcall mainView2HandleCmdStackVisitMsgHooked(game::CMainView2* thisptr,

@@ -47,6 +47,20 @@
 
 namespace hooks {
 
+static game::CMainView2* g_mainView{nullptr};
+
+void rememberMainView(game::CMainView2* view)
+{
+    if (view) {
+        g_mainView = view;
+    }
+}
+
+game::CMainView2* rememberedMainView()
+{
+    return g_mainView;
+}
+
 static bool gridVisible{false};
 
 static void showGrid(int mapSize)
@@ -90,12 +104,15 @@ static void __fastcall mainView2OnToggleGrid(game::CMainView2* thisptr,
 {
     gridVisible = toggleOn;
 
-    if (gridVisible) {
+    if (gridVisible && thisptr && thisptr->phaseGame) {
         auto objectMap{game::CPhaseApi::get().getDataCache(&thisptr->phaseGame->phase)};
-        auto scenarioInfo{getScenarioInfo(objectMap)};
-
-        showGrid(scenarioInfo->mapSize);
-        return;
+        if (objectMap) {
+            auto scenarioInfo{getScenarioInfo(objectMap)};
+            if (scenarioInfo) {
+                showGrid(scenarioInfo->mapSize);
+                return;
+            }
+        }
     }
 
     hideGrid();
@@ -104,6 +121,7 @@ static void __fastcall mainView2OnToggleGrid(game::CMainView2* thisptr,
 void __fastcall mainView2ShowIsoDialogHooked(game::CMainView2* thisptr, int /*%edx*/)
 {
     using namespace game;
+    rememberMainView(thisptr);
 
     const auto& mainViewApi{CMainView2Api::get()};
 
@@ -112,16 +130,17 @@ void __fastcall mainView2ShowIsoDialogHooked(game::CMainView2* thisptr, int /*%e
     static const char buttonName[]{"TOG_GRID"};
 
     const auto& dialogApi{CDialogInterfApi::get()};
-    auto dialog{thisptr->dialogInterf};
+    auto dialog{thisptr ? thisptr->dialogInterf : nullptr};
+    if (!dialog) {
+        return;
+    }
 
     if (!dialogApi.findControl(dialog, buttonName)) {
-        // Grid button was not added to Interf.dlg, skip
         return;
     }
 
     auto toggleButton{dialogApi.findToggleButton(dialog, buttonName)};
     if (!toggleButton) {
-        // Control was found, but it is not CToggleButton
         spdlog::error("{:s} in {:s} must be a toggle button", buttonName, dialog->data->dialogName);
         return;
     }
@@ -143,49 +162,43 @@ void __fastcall mainView2ShowIsoDialogHooked(game::CMainView2* thisptr, int /*%e
     static const char turnTextName[]{"TXT_TURN"};
     const auto& textApi = CTextBoxInterfApi::get();
 
-    // Check if control exists at all
     if (!dialogApi.findControl(dialog, turnTextName)) {
-        // TXT_TURN was not added to Interf.dlg, skip
         return;
     }
 
     auto textBox = dialogApi.findTextBox(dialog, turnTextName);
-    if (textBox && textBox->data) {
+    if (textBox && textBox->data && thisptr && thisptr->phaseGame) {
         auto objectMap = CPhaseApi::get().getDataCache(&thisptr->phaseGame->phase);
-        auto scenarioInfo = getScenarioInfo(objectMap);
+        if (objectMap) {
+            auto scenarioInfo = getScenarioInfo(objectMap);
 
-        if (scenarioInfo) {
-            // Extract the current text from the DLG
-            std::string text = textBox->data->text.string ? textBox->data->text.string : "";
-            spdlog::debug("Current turn text before update: '{}'", text);
+            if (scenarioInfo) {
+                std::string text = textBox->data->text.string ? textBox->data->text.string : "";
+                spdlog::debug("Current turn text before update: '{}'", text);
 
-            // If the text is empty or does not contain the %TURN% placeholder
-            if (text.empty() || text.find("%TURN%") == std::string::npos) {
-                // Try to load the text ID from textids.lua
-                std::string textId = hooks::textIds().interf.currentTurn;
-                if (!textId.empty()) {
-                    auto idText = getInterfaceText(textId.c_str());
-                    if (!idText.empty()) {
-                        text = idText;
-                        spdlog::debug(
-                            "TXT_TURN fallback loaded from textIds().interf.currentTurn = '{}'",
-                            textId);
+                if (text.empty() || text.find("%TURN%") == std::string::npos) {
+                    std::string textId = hooks::textIds().interf.currentTurn;
+                    if (!textId.empty()) {
+                        auto idText = getInterfaceText(textId.c_str());
+                        if (!idText.empty()) {
+                            text = idText;
+                            spdlog::debug(
+                                "TXT_TURN fallback loaded from textIds().interf.currentTurn = '{}'",
+                                textId);
+                        }
+                    }
+
+                    if (text.empty()) {
+                        spdlog::debug("TXT_TURN missing or no placeholder  using default template");
+                        text = "Current turn %TURN%";
                     }
                 }
 
-                // If both the DLG and Lua values are missing, use the default template
-                if (text.empty()) {
-                    spdlog::debug("TXT_TURN missing or no placeholder — using default template");
-                    text = "Current turn %TURN%";
-                }
+                replace(text, "%TURN%", fmt::format("{}", scenarioInfo->currentTurn));
+
+                textApi.setString(textBox, text.c_str());
+                spdlog::debug("TXT_TURN updated to: '{}'", text);
             }
-
-            // Replace the %TURN% placeholder with the current turn number
-            replace(text, "%TURN%", fmt::format("{}", scenarioInfo->currentTurn));
-
-            // Set the text back to the UI element
-            textApi.setString(textBox, text.c_str());
-            spdlog::debug("TXT_TURN updated to: '{}'", text);
         }
     } else {
         spdlog::warn("TXT_TURN not found in dialog");
@@ -197,6 +210,7 @@ void __fastcall mainView2HandleCmdStackVisitMsgHooked(game::CMainView2* thisptr,
                                                       const game::CCommandMsg* stackVisitMsg)
 {
     using namespace game;
+    rememberMainView(thisptr);
 
     const auto& dynamicCast{RttiApi::get().dynamicCast};
     const auto& rtti{RttiApi::rtti()};
@@ -236,6 +250,7 @@ void __fastcall mainView2HandleCmdStackVisitMsgHooked(game::CMainView2* thisptr,
 void __fastcall mainView2CommandQueueCallbackHooked(game::CMainView2* thisptr, int /*%edx*/)
 {
     using namespace game;
+    rememberMainView(thisptr);
 
     const auto& phaseApi = CPhaseApi::get();
     const auto& commandQueueApi = CMidCommandQueue2Api::get();

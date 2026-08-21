@@ -50,13 +50,16 @@ void PlayerView::bind(sol::state& lua)
 
 IdView PlayerView::getId() const
 {
-    return player->id;
+    return player ? IdView{player->id} : IdView::getEmptyId();
 }
 
 int PlayerView::getRaceCategoryId() const
 {
+    if (!player)
+        return game::emptyCategoryId;
+
     const auto raceType = player->raceType;
-    if (!raceType)
+    if (!raceType || !raceType->data)
         return game::emptyCategoryId;
 
     return (int)raceType->data->raceType.id;
@@ -66,11 +69,19 @@ int PlayerView::getLordCategoryId() const
 {
     using namespace game;
 
+    if (!player)
+        return game::emptyCategoryId;
+
     const auto& globalApi = GlobalDataApi::get();
+    if (!globalApi.getGlobalData || !*globalApi.getGlobalData())
+        return game::emptyCategoryId;
 
     const auto lords = (*globalApi.getGlobalData())->lords;
+    if (!lords)
+        return game::emptyCategoryId;
+
     const auto lordType = (TLordType*)globalApi.findById(lords, &player->lordId);
-    if (!lordType)
+    if (!lordType || !lordType->data)
         return game::emptyCategoryId;
 
     return (int)lordType->data->lordCategory.id;
@@ -78,21 +89,25 @@ int PlayerView::getLordCategoryId() const
 
 CurrencyView PlayerView::getBank() const
 {
-    return {player->bank};
+    static const game::Bank emptyBank{};
+    return player ? CurrencyView{player->bank} : CurrencyView{emptyBank};
 }
 
 bool PlayerView::isHuman() const
 {
-    return player->isHuman;
+    return player ? player->isHuman : false;
 }
 
 bool PlayerView::isAlwaysAi() const
 {
-    return player->alwaysAi;
+    return player ? player->alwaysAi : false;
 }
 
 std::optional<FogView> PlayerView::getFog() const
 {
+    if (!player || !objectMap) {
+        return std::nullopt;
+    }
     const auto fog{hooks::getFog(objectMap, player)};
     if (!fog) {
         return std::nullopt;
@@ -106,6 +121,9 @@ std::vector<BuildingView> PlayerView::getBuildings() const
     using namespace game;
 
     std::vector<BuildingView> buildings;
+    if (!player || !objectMap) {
+        return buildings;
+    }
 
     auto playerBuildings{hooks::getPlayerBuildings(objectMap, player)};
     if (!playerBuildings) {
@@ -115,7 +133,13 @@ std::vector<BuildingView> PlayerView::getBuildings() const
     const auto& buildingsList{playerBuildings->buildings};
 
     const auto& globalApi{GlobalDataApi::get()};
+    if (!globalApi.getGlobalData || !*globalApi.getGlobalData()) {
+        return buildings;
+    }
     const GlobalData* global{*globalApi.getGlobalData()};
+    if (!global || !global->buildings) {
+        return buildings;
+    }
 
     buildings.reserve(buildingsList.length);
     for (auto node = buildingsList.head->next; node != buildingsList.head; node = node->next) {
@@ -137,6 +161,9 @@ bool PlayerView::hasBuilding(const std::string& id) const
 
 bool PlayerView::hasBuildingById(const IdView& id) const
 {
+    if (!player || !objectMap) {
+        return false;
+    }
     auto playerBuildings{hooks::getPlayerBuildings(objectMap, player)};
     if (!playerBuildings) {
         return false;

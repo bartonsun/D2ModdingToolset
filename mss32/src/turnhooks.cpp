@@ -9,12 +9,15 @@
 #include "gameutils.h"
 #include "midplayer.h"
 #include "phasegame.h"
+#include "phasegamehooks.h"
 #include "playerview.h"
 #include "scripts.h"
 #include "midserverlogic.h"
 
 #include <sol/sol.hpp>
 #include <spdlog/spdlog.h>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 namespace hooks {
 
@@ -24,7 +27,7 @@ using BeginTurnFunc = void(__thiscall*)(game::CMidServerLogicData* thisptr,
 static BeginTurnFunc beginTurnOrig;
 
 static std::optional<sol::environment> env;
-static std::optional<sol::function> processTurnStart;
+static std::optional<sol::protected_function> processTurnStart;
 
 void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
                                 int /*%edx*/,
@@ -32,15 +35,25 @@ void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
 {
     using namespace game;
 
-    beginTurnOrig(thisptr, playerId);
+    clearLeftoverRestore();
+
+    if (playerId) {
+        spdlog::info("[TURN] pre player={} t={}", idToString(playerId), GetTickCount());
+    }
+
+    if (beginTurnOrig) {
+        beginTurnOrig(thisptr, playerId);
+    }
 
     if (!thisptr || !playerId) {
         return;
     }
 
+    spdlog::info("[TURN] begin player={} t={}", idToString(playerId), GetTickCount());
+
     auto objectMap = getServerObjectMap();
 
-    if (!objectMap) {
+    if (!objectMap || !objectMap->vftable || !objectMap->vftable->findScenarioObjectById) {
         spdlog::error("[TURN] objectMap == nullptr");
         return;
     }
@@ -49,7 +62,10 @@ void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
 
         static const auto path = scriptsFolder() / "turn.lua";
 
-        processTurnStart = getScriptFunction(path, "processTurnStart", env, false, true);
+        env = executeScriptFile(path, false, true);
+        if (env) {
+            processTurnStart = getProtectedScriptFunction(*env, "processTurnStart", false);
+        }
 
         if (!processTurnStart) {
 
@@ -73,14 +89,20 @@ void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
     bindings::PlayerView playerView(player, objectMap);
 
     try {
-
-        (*processTurnStart)(playerView);
-
+        if (processTurnStart && processTurnStart->valid()) {
+            sol::protected_function_result result = (*processTurnStart)(playerView);
+            if (!result.valid()) {
+                sol::error err = result;
+                spdlog::error("[TURN] Lua error: {}", err.what());
+            }
+        }
     } catch (const std::exception& e) {
 
         spdlog::error("[TURN] Lua exception: {}", e.what());
 
         showErrorMessageBox(fmt::format("Failed to run turn.lua\nReason: {}", e.what()));
+    } catch (...) {
+        spdlog::error("[TURN] Lua unknown exception");
     }
 }
 
