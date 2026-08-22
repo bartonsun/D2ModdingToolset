@@ -572,6 +572,7 @@ static Hooks getGameHooks()
         {EnrollUnitInterfApi::get().constructor, enrollUnitInterfCtorHooked, (void**)&orig.enrollUnitInterfCtor},
         // Modify map before game starts
         {CMidServerLogicApi::get().processZeroTurn, processZeroTurnHooked, (void**)&orig.processZeroTurn},
+        {CMidServerLogicApi::get().createImportedLeader, createImportedLeaderHooked, (void**)&orig.createImportedLeader},
         // SHOWATTACKEFFFECT, requestBattleEffect doen't work correctly. Don't use.
         {BattleViewerInterfApi::vftable()->showAttackEffect, showAttackEffectHooked, (void**)&orig.showAttackEffect},
         //Fixed an issue where a unit with an attack of 3 or more would incorrectly reset the attackCount after using a block.
@@ -583,9 +584,8 @@ static Hooks getGameHooks()
         {CBatAttackFrostbiteEffectApi::vftable()->onHit, frostbiteEffectOnHitHooked},
         {CBatAttackPoisonEffectApi::vftable()->onHit, poisonEffectOnHitHooked},
 
-        // Controlable random for long effects
-        {battle.checkLongEffectDuration, checkLongEffectDurationHooked, (void**)&orig.checkLongEffectDuration},  
-
+        //Fix random for lon effects
+        {fn.checkLongEffectDuration, checkLongEffectDurationHooked, (void**)&orig.checkLongEffectDuration},
         //Cure attack always work
         {CBatAttackCureApi::vftable()->canPerform, cureAttackCanPerformHooked},
         {CBatAttackCureApi::vftable()->onHit, cureAttackOnHitHooked},
@@ -629,6 +629,9 @@ static Hooks getGameHooks()
         {CBatAttackUsePotionApi::vftable()->onHit, usePotionAttackOnHitHooked},
         {CBatAttackUseTalismanApi::vftable()->onHit, useTalismanAttackOnHitHooked},
         {CBatAttackUseOrbApi::vftable()->onHit, useOrbAttackOnHitHooked},
+
+        // Get fog spell area image
+        {GameImagesApi::get().getSpellAreaFogImage, getSpellAreaFogImageHooked, (void**)&orig.getSpellAreaFogImage},
 
         //Not used
         {BattleViewerInterfApi::vftable()->battleEnd, battleEndHooked, (void**)&orig.battleEnd},
@@ -3905,6 +3908,14 @@ void __stdcall applyCBatAttackUntransformEffectHooked(game::IMidgardObjectMap* o
 {
     getOriginalFunctions().applyCBatAttackUntransformEffect(objectMap, unitId, battleMsgData,
                                                             resultSender, sendResult);
+}
+
+game::IMqImage2* __stdcall getSpellAreaFogImageHooked(bool spellAllowed)
+{
+    if (gameSettings().fogSpellHideEnemyVision) {
+        spellAllowed = true;
+    }
+    return getOriginalFunctions().getSpellAreaFogImage(spellAllowed);
 }
 
 } // namespace hooks

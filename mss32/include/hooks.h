@@ -79,6 +79,7 @@ struct CScenarioVisitor;
 struct LSiteCategory;
 struct CMidSite;
 struct CTextBoxInterf;
+struct IMqImage2;
 
 struct CBatAttackLowerDamage;
 struct CBatAttackLowerInitiative;
@@ -460,6 +461,8 @@ void __fastcall useOrbAttackOnHitHooked(game::CBatAttackUseOrb* thisptr,
                                         game::BattleMsgData* battleMsgData,
                                         game::CMidgardID* targetUnitId,
                                         game::BattleAttackInfo** attackInfo);
+
+game::IMqImage2* __stdcall getSpellAreaFogImageHooked(bool spellAllowed);
 
 } // namespace hooks
 

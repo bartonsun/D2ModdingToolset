@@ -345,6 +345,7 @@ static void readSettings(const sol::table& table, Settings& settings)
     settings.reviveItemsUsesQtyHeal = readSetting(table, "reviveItemsUsesQtyHeal", defaultGameSettings().reviveItemsUsesQtyHeal);
     settings.advancedCure = readSetting(table, "advancedCure", defaultGameSettings().advancedCure);
     settings.cacheLeaderDataOnTransform = readSetting(table, "cacheLeaderDataOnTransform", defaultGameSettings().cacheLeaderDataOnTransform);
+    settings.fogSpellHideEnemyVision = readSetting(table, "fogSpellHideEnemyVision", defaultGameSettings().fogSpellHideEnemyVision);
 
     auto chances = table.get<sol::optional<sol::table>>("longEffectRemoveChances");
     if (chances.has_value())
@@ -470,6 +471,7 @@ const Settings& baseGameSettings()
         settings.longEffectRemoveChances = {0, 50, 75, 100};
 
         settings.cacheLeaderDataOnTransform = false;
+        settings.fogSpellHideEnemyVision = false;
 
         initialized = true;
     }

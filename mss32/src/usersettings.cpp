@@ -221,6 +221,8 @@ static void readHotkeySettings(const sol::table& table, Hotkeys& value)
                def.openSelectedObject);
 
     readHotkey(category.value(), "quickSave", value.quickSave, def.quickSave);
+
+    readHotkey(category.value(), "customPathLayer", value.customPathLayer, def.customPathLayer);
 }
 
 static void readUnitEncyclopediaSettings(const sol::table& table, UnitEncyclopedia& value)
@@ -266,6 +268,7 @@ static void readUnitEncyclopediaSettings(const sol::table& table, UnitEncycloped
 
     value.updateOnAltKeyPress = readSetting(category.value(), "updateOnAltKeyPress",
                                             def.updateOnAltKeyPress);
+
 }
 static void readMovementDisplaySettings(const sol::table& table, MovementDisplay& value)
 {
@@ -376,6 +379,11 @@ const UserSettings& baseUserSettings()
         settings.hotkeys.quickSave.ctrl = true;
         settings.hotkeys.quickSave.shift = false;
         settings.hotkeys.quickSave.alt = false;
+
+        settings.hotkeys.customPathLayer.key = VK_SHIFT;
+        settings.hotkeys.customPathLayer.ctrl = false;
+        settings.hotkeys.customPathLayer.shift = false;
+        settings.hotkeys.customPathLayer.alt = false;
 
         initialized = true;
     }

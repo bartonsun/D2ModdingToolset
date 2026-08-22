@@ -142,6 +142,7 @@ struct OriginalFunctions
 
     game::GameImagesApi::Api::GetCityPreviewLargeImageNames getCityPreviewLargeImageNames;
     game::GameImagesApi::Api::GetCityIconImageNames getCityIconImageNames;
+    game::GameImagesApi::Api::GetSpellAreaFogImage getSpellAreaFogImage;
 
     game::CEncLayoutUnitApi::Api::Initialize encLayoutUnitInitialize;
     game::CEncLayoutUnitApi::Api::Update encLayoutUnitUpdate;
@@ -186,6 +187,7 @@ struct OriginalFunctions
     game::CMidServerLogicApi::Api::CheckEventConditions checkEventConditions;
     game::CMidServerLogicApi::Api::ExecuteEventEffects executeEventEffects;
     game::CMidServerLogicApi::Api::ProcessZeroTurn processZeroTurn;
+    game::CMidServerLogicApi::Api::CreateImportedLeader createImportedLeader;
 
     game::ITestConditionVftable::Test testFrequency;
     game::ITestConditionVftable::Test testLocation;

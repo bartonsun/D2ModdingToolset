@@ -47,6 +47,7 @@ struct Hotkeys
 {
     Hotkey openSelectedObject;
     Hotkey quickSave;
+    Hotkey customPathLayer;
 };
 
 struct UnitEncyclopedia

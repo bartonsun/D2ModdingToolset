@@ -212,10 +212,6 @@ bool __stdcall changeStackLeaderInCapitalHooked(game::IMidgardObjectMap* objectM
 
     bool wasReplaced = getOriginalFunctions().changeStackLeaderInCapital(objectMap, playerInfo, turn);
 
-    if (!wasReplaced) {
-        return wasReplaced;
-    }
-
     auto scenarioInfo = getScenarioInfo(objectMap);
     if (scenarioInfo->currentTurn != turn) {
         return wasReplaced;
@@ -260,7 +256,7 @@ bool __stdcall changeStackLeaderInCapitalHooked(game::IMidgardObjectMap* objectM
             lua_State* L = env->lua_state();
             bindings::PlayerView playerView(player, objectMap);
             bindings::UnitView unitView(unit);
-            sol::object resultObj = (*modifyFunc)(playerView, unitView);
+            sol::object resultObj = (*modifyFunc)(playerView, unitView, wasReplaced);
 
             if (resultObj.is<bindings::IdView>()) {
                 auto idView = resultObj.as<bindings::IdView>();
