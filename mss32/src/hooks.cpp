@@ -584,8 +584,9 @@ static Hooks getGameHooks()
         {CBatAttackFrostbiteEffectApi::vftable()->onHit, frostbiteEffectOnHitHooked},
         {CBatAttackPoisonEffectApi::vftable()->onHit, poisonEffectOnHitHooked},
 
-        //Fix random for lon effects
-        {fn.checkLongEffectDuration, checkLongEffectDurationHooked, (void**)&orig.checkLongEffectDuration},
+        // Controlable random for long effects
+        {battle.checkLongEffectDuration, checkLongEffectDurationHooked, (void**)&orig.checkLongEffectDuration},
+
         //Cure attack always work
         {CBatAttackCureApi::vftable()->canPerform, cureAttackCanPerformHooked},
         {CBatAttackCureApi::vftable()->onHit, cureAttackOnHitHooked},
