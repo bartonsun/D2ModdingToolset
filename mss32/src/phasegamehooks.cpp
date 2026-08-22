@@ -299,7 +299,6 @@ bool trySendEndTurnCmd(game::CPhaseGame* thisptr)
         return true;
     }
     DeleteFileA(path);
-    clearLeftoverRestore();
     sending = true;
     send(thisptr);
     sending = false;
@@ -329,7 +328,6 @@ void tryPollEndTurnFromMidgard()
     if (!phaseGame->data || !phaseGame->data->midClient) {
         return;
     }
-    clearLeftoverRestore();
     trySendEndTurnCmd(phaseGame);
 }
 
@@ -338,10 +336,11 @@ bool __fastcall phaseGameCheckObjectLockHooked(game::CPhaseGame* thisptr, int /*
     if (!thisptr || !thisptr->data) {
         return false;
     }
-    applyLeftoverRestore(thisptr);
-    trySendStackMoveCmd(thisptr);
-    trySendVisitSiteCmd(thisptr);
-    trySendEndTurnCmd(thisptr);
+    if (driveAutomationEnabled()) {
+        trySendStackMoveCmd(thisptr);
+        trySendVisitSiteCmd(thisptr);
+        trySendEndTurnCmd(thisptr);
+    }
     g_movedThisTick = false;
     const auto* lock = thisptr->data->midObjectLock;
     if (!lock) {

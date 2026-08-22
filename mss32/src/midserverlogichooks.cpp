@@ -242,9 +242,6 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
 #endif
 
     auto objectMap = CMidServerLogicApi::get().getObjectMap(*thisptr);
-    if (applyLeftoverRestoreToMap(objectMap)) {
-        clearLeftoverRestore();
-    }
     const CMidStack* stackBefore = getStack(objectMap, stackId);
     const int movementBefore = stackBefore ? static_cast<int>(stackBefore->movement) : -1;
 
@@ -293,8 +290,6 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
                              movementBefore, after, refundOk);
             }
         }
-        requestLeftoverRestore(stackId, movementBefore);
-        applyLeftoverRestoreToMap(objectMap);
     }
 
     IMidMsgSender* sender = thisptr ? *thisptr : nullptr;

@@ -229,7 +229,10 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
             if (fn.getFortOrRuinEntrance(objectMap, plan, stack, pathEnd, &entrance)
                 && std::abs(lastReachablePoint->x - entrance.x) <= 1
                 && std::abs(lastReachablePoint->y - entrance.y) <= 1) {
-                pathLeadsToAction = true;
+                const CMidRuin* ruin = getRuinAtOrAdjacent(objectMap, pathEnd, lastReachablePoint);
+                if (!ruin || ruin->looterId == emptyId) {
+                    pathLeadsToAction = true;
+                }
             }
         }
     }

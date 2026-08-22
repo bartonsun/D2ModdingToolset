@@ -881,13 +881,8 @@ Hooks getHooks()
     auto& orig = getOriginalFunctions();
 
   
-    // Called when a player's turn begins.Invoked for all players, including neutral factions.
     if (hooks::executableIsGame() && fn.midServerLogicDataBeginTurn) {
         hooks.emplace_back(HookInfo{fn.midServerLogicDataBeginTurn, getBeginTurnHooked(), getBeginTurnOrig()});
-    }
-    if (hooks::executableIsGame() && EndTurnApi::get().sendEndTurnMsg) {
-        hooks.emplace_back(HookInfo{EndTurnApi::get().sendEndTurnMsg, getSendEndTurnMsgHooked(),
-                                    getSendEndTurnMsgOrig()});
     }
 
     // Register buildings with custom branch category as unit buildings
