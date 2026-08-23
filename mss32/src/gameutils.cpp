@@ -622,10 +622,7 @@ static bool adjacentToFootprint(const game::CMqPoint* point, const game::IMapEle
     return pointsChebyshevAtMostOne(point, &clamp);
 }
 
-static bool ruinMatchesInteraction(const game::IMidgardObjectMap* objectMap,
-                                   const game::CMidgardPlan* plan,
-                                   const game::CMidStack* stack,
-                                   const game::CMidRuin* ruin,
+static bool ruinMatchesInteraction(const game::CMidRuin* ruin,
                                    const game::CMqPoint* endPoint,
                                    const game::CMqPoint* startPoint)
 {
@@ -636,13 +633,6 @@ static bool ruinMatchesInteraction(const game::IMidgardObjectMap* objectMap,
     }
     CMqPoint entrance = getObjectEntrance(ruin->mapElement.position, ruin->mapElement.sizeX,
                                           ruin->mapElement.sizeY);
-    if (objectMap && plan && stack && endPoint->x >= 0 && endPoint->y >= 0
-        && endPoint->x < plan->mapSize && endPoint->y < plan->mapSize) {
-        CMqPoint resolved{};
-        if (gameFunctions().getFortOrRuinEntrance(objectMap, plan, stack, endPoint, &resolved)) {
-            entrance = resolved;
-        }
-    }
     if (pointTargetsRuin(endPoint->x, endPoint->y, ruin->mapElement.position.x,
                          ruin->mapElement.position.y, ruin->mapElement.sizeX,
                          ruin->mapElement.sizeY, entrance.x, entrance.y)) {
@@ -721,7 +711,7 @@ bool isLootedRuinInteraction(const game::IMidgardObjectMap* objectMap,
     }
 
     const auto* ruin = getRuinAtOrAdjacent(objectMap, plan, endPoint, stack, true);
-    if (ruinMatchesInteraction(objectMap, plan, stack, ruin, endPoint, startPoint)) {
+    if (ruinMatchesInteraction(ruin, endPoint, startPoint)) {
         return true;
     }
 
@@ -731,7 +721,7 @@ bool isLootedRuinInteraction(const game::IMidgardObjectMap* objectMap,
             return;
         }
         const auto* candidate = static_cast<const CMidRuin*>(obj);
-        if (ruinMatchesInteraction(objectMap, plan, stack, candidate, endPoint, startPoint)) {
+        if (ruinMatchesInteraction(candidate, endPoint, startPoint)) {
             matched = true;
         }
     });

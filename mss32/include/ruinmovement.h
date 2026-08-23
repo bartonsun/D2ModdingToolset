@@ -30,15 +30,20 @@ constexpr bool pointTargetsRuin(int pointX,
 constexpr int lootedRuinMovementRefund(bool shouldHandle,
                                        int movementBefore,
                                        int movementAfter,
-                                       int maxMovement)
+                                       int maxMovement,
+                                       int pathMovementCost)
 {
     if (!shouldHandle || movementBefore < 0 || movementAfter < 0 || maxMovement <= 0
-        || movementBefore <= movementAfter) {
+        || pathMovementCost < 0 || movementBefore <= movementAfter) {
         return 0;
     }
     const int spent = movementBefore - movementAfter;
+    if (spent <= pathMovementCost) {
+        return 0;
+    }
+    const int actionSpent = spent - pathMovementCost;
     const int actionCost = (maxMovement + 1) / 2;
-    return spent < actionCost ? spent : actionCost;
+    return actionSpent < actionCost ? actionSpent : actionCost;
 }
 
 }
