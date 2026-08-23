@@ -19,6 +19,7 @@
 
 #include "midserverlogichooks.h"
 #include "cmdmovestackendmsg.h"
+#include "d2list.h"
 #include "dynamiccast.h"
 #include "exchangeresourcesmsg.h"
 #include "game.h"
@@ -241,11 +242,27 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
     const CMidStack* stackBefore = getStack(objectMap, stackId);
     const int movementBefore = stackBefore ? static_cast<int>(stackBefore->movement) : -1;
 
+    const bool stayOrNear = startingPoint && endPoint
+        && std::abs(startingPoint->x - endPoint->x) <= 1
+        && std::abs(startingPoint->y - endPoint->y) <= 1;
+
+    const CMidPlayer* mover = playerId ? getPlayer(objectMap, playerId) : nullptr;
+    const bool humanMover = mover && mover->isHuman;
+
     bool lootedRuinBeforeMove = false;
-    if (endPoint && stackBefore) {
+    if (stayOrNear && stackBefore && humanMover) {
         if (auto plan = getMidgardPlan(objectMap)) {
             lootedRuinBeforeMove = isLootedRuinInteraction(objectMap, plan, stackBefore, endPoint,
                                                            startingPoint);
+        }
+    }
+
+    if (lootedRuinBeforeMove && movementPath && movementPath->head) {
+        using Node = ListNode<Pair<CMqPoint, int>>;
+        auto* head = movementPath->head;
+        for (auto* n = static_cast<Node*>(head->next); n != head;
+             n = static_cast<Node*>(n->next)) {
+            n->data.second = 0;
         }
     }
 
@@ -257,35 +274,17 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
         if (stackAfter) {
             const int spent = movementBefore - static_cast<int>(stackAfter->movement);
             if (spent > 0) {
-                auto leaderUnit = gameFunctions().findUnitById(objectMap, &stackAfter->leaderId);
-                int maxMovement = 0;
-                if (leaderUnit) {
-                    auto leader = gameFunctions().castUnitImplToStackLeader(leaderUnit->unitImpl);
-                    if (leader) {
-                        maxMovement = leader->vftable->getMovement(leader);
-                    }
-                }
-                const int half = maxMovement > 0 ? (maxMovement + 1) / 2 : 0;
-                const bool stayClick = startingPoint && endPoint
-                    && startingPoint->x == endPoint->x && startingPoint->y == endPoint->y;
-                if (stayClick || spent >= half) {
-                    const bool nearClick = startingPoint && endPoint
-                        && std::abs(startingPoint->x - endPoint->x) <= 1
-                        && std::abs(startingPoint->y - endPoint->y) <= 1;
-                    const int refund = nearClick ? spent : (half < spent ? half : spent);
-                    if (refund > 0) {
-                        VisitorApi::get().changeStackMoveAllowance(
-                            stackId, -refund, objectMap, 1);
-                    }
-                }
+                VisitorApi::get().changeStackMoveAllowance(stackId, -spent, objectMap, 1);
             }
         }
     }
 
-    IMidMsgSender* sender = *thisptr;
-    CCmdMoveStackEndMsg message;
-    if (!sender->vftable->sendMessage(sender, &message, true)) {
-        spdlog::error(__FUNCTION__ ": failed to send CCmdMoveStackEndMsg");
+    IMidMsgSender* sender = thisptr ? *thisptr : nullptr;
+    if (sender && sender->vftable && sender->vftable->sendMessage) {
+        CCmdMoveStackEndMsg message;
+        if (!sender->vftable->sendMessage(sender, &message, true)) {
+            spdlog::error(__FUNCTION__ ": failed to send CCmdMoveStackEndMsg");
+        }
     }
 
     return result;
