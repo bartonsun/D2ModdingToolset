@@ -636,20 +636,33 @@ static bool ruinMatchesInteraction(const game::IMidgardObjectMap* objectMap,
     if (pointOnMapElement(endPoint, &ruin->mapElement)) {
         return true;
     }
-    if (adjacentToFootprint(endPoint, &ruin->mapElement)) {
+    CMqPoint entrance = getObjectEntrance(ruin->mapElement.position, ruin->mapElement.sizeX,
+                                          ruin->mapElement.sizeY);
+    if (objectMap && plan && stack && endPoint->x >= 0 && endPoint->y >= 0
+        && endPoint->x < plan->mapSize && endPoint->y < plan->mapSize) {
+        CMqPoint resolved{};
+        if (gameFunctions().getFortOrRuinEntrance(objectMap, plan, stack, endPoint, &resolved)) {
+            entrance = resolved;
+        }
+    }
+    if (endPoint->x == entrance.x && endPoint->y == entrance.y) {
         return true;
     }
-    if (startPoint && startPoint->x == endPoint->x && startPoint->y == endPoint->y
-        && adjacentToFootprint(startPoint, &ruin->mapElement)) {
+    const bool stay = startPoint && startPoint->x == endPoint->x && startPoint->y == endPoint->y;
+    if (!stay) {
+        return false;
+    }
+    if (adjacentToFootprint(startPoint, &ruin->mapElement)) {
         return true;
     }
-    return false;
+    return pointsChebyshevAtMostOne(startPoint, &entrance);
 }
 
 const game::CMidRuin* getRuinAtOrAdjacent(const game::IMidgardObjectMap* objectMap,
                                           const game::CMidgardPlan* plan,
                                           const game::CMqPoint* point,
-                                          const game::CMidStack* stack)
+                                          const game::CMidStack* stack,
+                                          bool allowEnumerate)
 {
     using namespace game;
 
@@ -659,18 +672,26 @@ const game::CMidRuin* getRuinAtOrAdjacent(const game::IMidgardObjectMap* objectM
 
     const auto& planApi = CMidgardPlanApi::get();
     const IdType ruinType = IdType::Ruin;
+    const int mapSize = plan->mapSize;
 
     for (int dy = -1; dy <= 1; ++dy) {
         for (int dx = -1; dx <= 1; ++dx) {
             CMqPoint tile{};
             tile.x = point->x + dx;
             tile.y = point->y + dy;
+            if (tile.x < 0 || tile.y < 0 || tile.x >= mapSize || tile.y >= mapSize) {
+                continue;
+            }
             if (const auto* ruinId = planApi.getObjectId(plan, &tile, &ruinType)) {
                 if (const auto* ruin = getRuin(objectMap, ruinId)) {
                     return ruin;
                 }
             }
         }
+    }
+
+    if (!allowEnumerate) {
+        return nullptr;
     }
 
     const CMidRuin* found = nullptr;
@@ -699,9 +720,13 @@ bool isLootedRuinInteraction(const game::IMidgardObjectMap* objectMap,
         return false;
     }
 
-    const auto* ruin = getRuinAtOrAdjacent(objectMap, plan, endPoint, stack);
+    const bool stay = startPoint && startPoint->x == endPoint->x && startPoint->y == endPoint->y;
+    const auto* ruin = getRuinAtOrAdjacent(objectMap, plan, endPoint, stack, stay);
     if (ruinMatchesInteraction(objectMap, plan, stack, ruin, endPoint, startPoint)) {
         return true;
+    }
+    if (!stay) {
+        return false;
     }
 
     bool matched = false;
