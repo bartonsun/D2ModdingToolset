@@ -1,13 +1,3 @@
---[[
-  Called from movepathhooks.cpp when showMovementAfterAction is true.
-
-  Context fields:
-    stack, maxMovement, currentMovement, spentMovement,
-    remainingMovement, afterActionMovement, targetId (optional)
-
-  Return: int — movement points remaining after the action.
-]]--
-
 function movementAfterAction(ctx)
 	local remaining = ctx.remainingMovement or 0
 	local after = ctx.afterActionMovement
