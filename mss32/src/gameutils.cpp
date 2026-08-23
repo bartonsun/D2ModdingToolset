@@ -51,6 +51,7 @@
 #include "midunit.h"
 #include "playerbuildings.h"
 #include "racetype.h"
+#include "ruinmovement.h"
 #include "scenarioinfo.h"
 #include "scenedit.h"
 #include "unitutils.h"
@@ -633,9 +634,6 @@ static bool ruinMatchesInteraction(const game::IMidgardObjectMap* objectMap,
     if (!ruin || !endPoint || ruin->looterId == emptyId) {
         return false;
     }
-    if (pointOnMapElement(endPoint, &ruin->mapElement)) {
-        return true;
-    }
     CMqPoint entrance = getObjectEntrance(ruin->mapElement.position, ruin->mapElement.sizeX,
                                           ruin->mapElement.sizeY);
     if (objectMap && plan && stack && endPoint->x >= 0 && endPoint->y >= 0
@@ -645,7 +643,9 @@ static bool ruinMatchesInteraction(const game::IMidgardObjectMap* objectMap,
             entrance = resolved;
         }
     }
-    if (endPoint->x == entrance.x && endPoint->y == entrance.y) {
+    if (pointTargetsRuin(endPoint->x, endPoint->y, ruin->mapElement.position.x,
+                         ruin->mapElement.position.y, ruin->mapElement.sizeX,
+                         ruin->mapElement.sizeY, entrance.x, entrance.y)) {
         return true;
     }
     const bool stay = startPoint && startPoint->x == endPoint->x && startPoint->y == endPoint->y;
@@ -720,13 +720,9 @@ bool isLootedRuinInteraction(const game::IMidgardObjectMap* objectMap,
         return false;
     }
 
-    const bool stay = startPoint && startPoint->x == endPoint->x && startPoint->y == endPoint->y;
-    const auto* ruin = getRuinAtOrAdjacent(objectMap, plan, endPoint, stack, stay);
+    const auto* ruin = getRuinAtOrAdjacent(objectMap, plan, endPoint, stack, true);
     if (ruinMatchesInteraction(objectMap, plan, stack, ruin, endPoint, startPoint)) {
         return true;
-    }
-    if (!stay) {
-        return false;
     }
 
     bool matched = false;

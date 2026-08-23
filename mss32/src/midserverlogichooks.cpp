@@ -243,32 +243,27 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
     const CMidStack* stackBefore = getStack(objectMap, stackId);
     const int movementBefore = stackBefore ? static_cast<int>(stackBefore->movement) : -1;
 
-    const bool stayOrNear = startingPoint && endPoint
-        && std::abs(startingPoint->x - endPoint->x) <= 1
-        && std::abs(startingPoint->y - endPoint->y) <= 1;
-
     const CMidPlayer* mover = playerId ? getPlayer(objectMap, playerId) : nullptr;
     const bool humanMover = mover && mover->isHuman;
 
     bool lootedRuinBeforeMove = false;
-    if (stayOrNear && stackBefore && humanMover) {
+    int maxMovement = 0;
+    if (stackBefore && humanMover) {
         if (auto plan = getMidgardPlan(objectMap)) {
             lootedRuinBeforeMove = isLootedRuinInteraction(objectMap, plan, stackBefore, endPoint,
                                                            startingPoint);
         }
+        if (const auto* leaderUnit = gameFunctions().findUnitById(objectMap,
+                                                                  &stackBefore->leaderId)) {
+            if (const auto* leader = gameFunctions().castUnitImplToStackLeader(
+                    leaderUnit->unitImpl)) {
+                maxMovement = leader->vftable->getMovement(leader);
+            }
+        }
     }
 
     const bool handleLootedRuin = shouldHandleLootedRuinMovement(
-        stayOrNear, stackBefore != nullptr, humanMover, lootedRuinBeforeMove);
-
-    if (handleLootedRuin && movementPath && movementPath->head) {
-        using Node = ListNode<Pair<CMqPoint, int>>;
-        auto* head = movementPath->head;
-        for (auto* n = static_cast<Node*>(head->next); n != head;
-             n = static_cast<Node*>(n->next)) {
-            n->data.second = 0;
-        }
-    }
+        stackBefore != nullptr, humanMover, lootedRuinBeforeMove);
 
     auto result = getOriginalFunctions().stackMove(thisptr, playerId, movementPath, stackId,
                                                    startingPoint, endPoint);
@@ -277,7 +272,8 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
         const CMidStack* stackAfter = getStack(objectMap, stackId);
         if (stackAfter) {
             const int refund = lootedRuinMovementRefund(
-                handleLootedRuin, movementBefore, static_cast<int>(stackAfter->movement));
+                handleLootedRuin, movementBefore, static_cast<int>(stackAfter->movement),
+                maxMovement);
             if (refund > 0) {
                 VisitorApi::get().changeStackMoveAllowance(stackId, -refund, objectMap, 1);
             }
@@ -287,7 +283,7 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
     IMidMsgSender* sender = thisptr ? *thisptr : nullptr;
     if (sender && sender->vftable && sender->vftable->sendMessage) {
         CCmdMoveStackEndMsg message;
-        if (!sender->vftable->sendMessage(sender, &message, true)) {
+        if (!sender->vftable->sendMessage(sender, &message, false)) {
             spdlog::error(__FUNCTION__ ": failed to send CCmdMoveStackEndMsg");
         }
     }
