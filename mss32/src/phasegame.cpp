@@ -18,6 +18,7 @@
  */
 
 #include "phasegame.h"
+#include "utils.h"
 #include "version.h"
 #include <array>
 #include <cstdint>
@@ -74,6 +75,11 @@ bool nativeSaveSupported()
     };
 
     if (hooks::gameVersion() != hooks::GameVersion::Russobit) {
+        return false;
+    }
+
+    std::error_code fileError;
+    if (std::filesystem::file_size(hooks::exePath(), fileError) != 4187648 || fileError) {
         return false;
     }
 

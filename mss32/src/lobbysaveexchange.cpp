@@ -23,10 +23,8 @@
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
-#include <iomanip>
 #include <limits>
 #include <optional>
-#include <sstream>
 #include <slikenet/BitStream.h>
 #include <spdlog/spdlog.h>
 #include <string>
@@ -100,7 +98,7 @@ private:
 
 struct SaveTransferSession
 {
-    SaveRequestV3 request;
+    SaveRequest request;
     std::string saveName;
     std::filesystem::path savePath;
     StableFileIdentity reservedFileIdentity;
@@ -147,10 +145,9 @@ bool isDeadlineExpired(const SaveTransferSession& transfer)
     return std::chrono::steady_clock::now() >= transfer.deadline;
 }
 
-bool isLocalOnly(const SaveRequestV3& request)
+bool isLocalOnly(const SaveRequest& request)
 {
-    return request.wireVersion == saveRequestVersionV3
-           && request.mode == SaveModeV3::LocalOnly;
+    return request.mode == SaveMode::LocalOnly;
 }
 
 std::filesystem::path getSaveFolder(const game::CMidgard* midgard)
@@ -203,18 +200,9 @@ void reserveNativeSavePath(std::filesystem::path path)
     nativeSavePathTombstones.push_back(std::move(path));
 }
 
-std::string makeLegacySaveName(std::uint64_t saveId)
-{
-    std::ostringstream result;
-    result << "LobbyMatchHost_" << std::hex << std::setw(16) << std::setfill('0') << saveId;
-    return result.str();
-}
-
 bool chooseUnusedSavePath(const game::CMidgard* midgard, SaveTransferSession& transfer)
 {
-    const auto baseName{transfer.request.saveStem.empty()
-                            ? makeLegacySaveName(transfer.request.saveId)
-                            : transfer.request.saveStem};
+    const auto& baseName{transfer.request.saveStem};
     const auto folder{getSaveFolder(midgard)};
 
     for (unsigned int index = 1; index <= collisionSuffixLimit; ++index) {
@@ -277,15 +265,10 @@ bool chooseUnusedSavePath(const game::CMidgard* midgard, SaveTransferSession& tr
 
 bool sendSaveDataPrefix(SLNet::BitStream& stream,
                         std::uint64_t saveId,
-                        SaveDataOperationV2 operation)
+                        SaveDataOperation operation)
 {
-    auto service{CNetCustomService::get()};
-    if (!service) {
-        return false;
-    }
-
     stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_SAVE_UPLOAD));
-    stream.Write(saveTransferVersion);
+    stream.Write(saveTransferWireVersion);
     stream.Write(saveId);
     stream.Write(static_cast<std::uint8_t>(operation));
     return true;
@@ -299,10 +282,10 @@ bool sendLobbyPayload(SLNet::BitStream& stream)
 }
 
 bool sendNativeSaveResult(std::uint64_t saveId,
-                          std::uint8_t resultCode,
+                          SaveStatus status,
                           const std::string& fileName = {})
 {
-    const bool succeeded{resultCode == nativeSaveResultSuccess};
+    const bool succeeded{status == SaveStatus::Success};
     if (saveId == 0 || fileName.size() > saveResultFileNameMax
         || succeeded == fileName.empty()) {
         return false;
@@ -310,9 +293,9 @@ bool sendNativeSaveResult(std::uint64_t saveId,
 
     SLNet::BitStream stream;
     stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_SAVE_NATIVE_RESULT));
-    stream.Write(saveRequestVersionV3);
+    stream.Write(saveRequestWireVersion);
     stream.Write(saveId);
-    stream.Write(resultCode);
+    stream.Write(static_cast<std::uint8_t>(status));
     const auto length{static_cast<std::uint16_t>(fileName.size())};
     stream.Write(length);
     if (length != 0) {
@@ -340,7 +323,7 @@ bool validateSaveSignature(HANDLE handle)
 
 bool captureImmutableSave(SaveTransferSession& transfer,
                           std::uint32_t& totalSize,
-                          SaveFailureV2& failure)
+                          SaveStatus& failure)
 {
     // The zero-access placeholder was opened without FILE_SHARE_DELETE, so close it after
     // GameSaved before acquiring a DELETE-capable snapshot handle. The object identity check below
@@ -353,40 +336,40 @@ bool captureImmutableSave(SaveTransferSession& transfer,
     if (handle == INVALID_HANDLE_VALUE) {
         spdlog::warn(__FUNCTION__ ": cannot lock save snapshot '{:s}', error {:d}",
                      transfer.savePath.string(), static_cast<int>(GetLastError()));
-        failure = SaveFailureV2::FileIo;
+        failure = SaveStatus::FileIo;
         return false;
     }
     transfer.snapshotFile.reset(handle);
 
     const auto identity{readStableFileIdentity(transfer.snapshotFile.get())};
     if (!identity) {
-        failure = SaveFailureV2::FileIo;
+        failure = SaveStatus::FileIo;
         return false;
     }
     if (!sameFileObjectIdentity(*identity, transfer.reservedFileIdentity)) {
         spdlog::warn(__FUNCTION__ ": native save path identity changed for '{:s}'",
                      transfer.savePath.string());
-        failure = SaveFailureV2::CaptureFailed;
+        failure = SaveStatus::CaptureFailed;
         return false;
     }
 
     LARGE_INTEGER fileSize{};
     if (!GetFileSizeEx(transfer.snapshotFile.get(), &fileSize) || fileSize.QuadPart <= 0) {
-        failure = SaveFailureV2::FileIo;
+        failure = SaveStatus::FileIo;
         return false;
     }
     const auto fileSize64{static_cast<std::uint64_t>(fileSize.QuadPart)};
     if (fileSize64 > transfer.request.maxBytes || fileSize64 > saveFileHardLimit
         || fileSize64 > std::numeric_limits<std::uint32_t>::max()) {
-        failure = SaveFailureV2::TooLarge;
+        failure = SaveStatus::TooLarge;
         return false;
     }
     if (isDeadlineExpired(transfer)) {
-        failure = SaveFailureV2::TimedOut;
+        failure = SaveStatus::TimedOut;
         return false;
     }
     if (!validateSaveSignature(transfer.snapshotFile.get())) {
-        failure = SaveFailureV2::CaptureFailed;
+        failure = SaveStatus::CaptureFailed;
         return false;
     }
 
@@ -396,28 +379,28 @@ bool captureImmutableSave(SaveTransferSession& transfer,
 
 bool uploadSave(SaveTransferSession& transfer,
                 std::uint32_t totalSize,
-                SaveFailureV2& failure)
+                SaveStatus& failure)
 {
     if (!seekToFileStart(transfer.snapshotFile.get())) {
-        failure = SaveFailureV2::FileIo;
+        failure = SaveStatus::FileIo;
         return false;
     }
 
     SLNet::BitStream begin;
-    if (!sendSaveDataPrefix(begin, transfer.request.saveId, SaveDataOperationV2::Begin)) {
-        failure = SaveFailureV2::SendFailed;
+    if (!sendSaveDataPrefix(begin, transfer.request.saveId, SaveDataOperation::Begin)) {
+        failure = SaveStatus::SendFailed;
         return false;
     }
     begin.Write(totalSize);
     if (!sendLobbyPayload(begin)) {
-        failure = SaveFailureV2::SendFailed;
+        failure = SaveStatus::SendFailed;
         return false;
     }
 
     std::array<unsigned char, saveChunkSizeMax> buffer{};
     for (std::uint32_t offset = 0; offset < totalSize;) {
         if (isDeadlineExpired(transfer)) {
-            failure = SaveFailureV2::TimedOut;
+            failure = SaveStatus::TimedOut;
             return false;
         }
 
@@ -426,37 +409,37 @@ bool uploadSave(SaveTransferSession& transfer,
         DWORD bytesRead{};
         if (!ReadFile(transfer.snapshotFile.get(), buffer.data(), chunkSize, &bytesRead, nullptr)
             || bytesRead != chunkSize) {
-            failure = SaveFailureV2::FileIo;
+            failure = SaveStatus::FileIo;
             return false;
         }
 
         SLNet::BitStream chunk;
-        if (!sendSaveDataPrefix(chunk, transfer.request.saveId, SaveDataOperationV2::Chunk)) {
-            failure = SaveFailureV2::SendFailed;
+        if (!sendSaveDataPrefix(chunk, transfer.request.saveId, SaveDataOperation::Chunk)) {
+            failure = SaveStatus::SendFailed;
             return false;
         }
         chunk.Write(offset);
         chunk.Write(chunkSize);
         chunk.WriteAlignedBytes(buffer.data(), chunkSize);
         if (!sendLobbyPayload(chunk)) {
-            failure = SaveFailureV2::SendFailed;
+            failure = SaveStatus::SendFailed;
             return false;
         }
         offset += chunkSize;
     }
 
     if (isDeadlineExpired(transfer)) {
-        failure = SaveFailureV2::TimedOut;
+        failure = SaveStatus::TimedOut;
         return false;
     }
 
     SLNet::BitStream commit;
-    if (!sendSaveDataPrefix(commit, transfer.request.saveId, SaveDataOperationV2::Commit)) {
-        failure = SaveFailureV2::SendFailed;
+    if (!sendSaveDataPrefix(commit, transfer.request.saveId, SaveDataOperation::Commit)) {
+        failure = SaveStatus::SendFailed;
         return false;
     }
     if (!sendLobbyPayload(commit)) {
-        failure = SaveFailureV2::SendFailed;
+        failure = SaveStatus::SendFailed;
         return false;
     }
 
@@ -602,21 +585,21 @@ void awaitStoredAck()
 
 } // namespace
 
-void sendLobbySaveFailure(std::uint64_t saveId, LobbyProtocol::SaveFailureV2 failure)
+void sendLobbySaveFailure(std::uint64_t saveId, LobbyProtocol::SaveStatus failure)
 {
     SLNet::BitStream stream;
-    if (!sendSaveDataPrefix(stream, saveId, LobbyProtocol::SaveDataOperationV2::Fail)) {
+    if (!sendSaveDataPrefix(stream, saveId, LobbyProtocol::SaveDataOperation::Fail)) {
         return;
     }
     stream.Write(static_cast<std::uint8_t>(failure));
     sendLobbyPayload(stream);
 }
 
-void sendLobbySaveFailure(const LobbyProtocol::SaveRequestV3& request,
-                          LobbyProtocol::SaveFailureV2 failure)
+void sendLobbySaveFailure(const LobbyProtocol::SaveRequest& request,
+                          LobbyProtocol::SaveStatus failure)
 {
     if (isLocalOnly(request)) {
-        sendNativeSaveResult(request.saveId, static_cast<std::uint8_t>(failure));
+        sendNativeSaveResult(request.saveId, failure);
     } else {
         sendLobbySaveFailure(request.saveId, failure);
     }
@@ -644,41 +627,37 @@ void handleLobbySaveStoredAck(std::uint64_t saveId)
     pendingStoredAck.reset();
 }
 
-void handleLobbySaveRequest(const LobbyProtocol::SaveRequestV3& request)
+void handleLobbySaveRequest(const LobbyProtocol::SaveRequest& request)
 {
     using namespace LobbyProtocol;
 
     if (!isMainThread()) {
         spdlog::warn(__FUNCTION__ ": refusing capture outside the main/UI thread");
-        sendLobbySaveFailure(request, SaveFailureV2::UnsafePhase);
+        sendLobbySaveFailure(request, SaveStatus::UnsafePhase);
         return;
     }
     if (!game::CPhaseGameApi::nativeSaveSupported()) {
-        sendLobbySaveFailure(request, SaveFailureV2::UnsupportedGameBuild);
+        sendLobbySaveFailure(request, SaveStatus::UnsupportedGameBuild);
         return;
     }
     expireLobbySaveTransfers();
-    if (request.role != SaveRoleV2::Host || request.saveId == 0 || request.maxBytes == 0
-        || request.maxBytes > saveFileHardLimit || request.timeoutMs == 0
-        || (request.wireVersion == saveTransferVersion
-            && request.mode != SaveModeV3::Upload)) {
-        sendLobbySaveFailure(request,
-                             request.role == SaveRoleV2::Joiner ? SaveFailureV2::WrongRole
-                                                                : SaveFailureV2::MalformedRequest);
+    if (request.saveId == 0 || request.maxBytes == 0 || request.maxBytes > saveFileHardLimit
+        || request.timeoutMs == 0 || request.saveStem.empty()) {
+        sendLobbySaveFailure(request, SaveStatus::MalformedRequest);
         return;
     }
     if (pendingStoredAck) {
         if (pendingStoredAck->saveId == request.saveId) {
             return;
         }
-        sendLobbySaveFailure(request, SaveFailureV2::Busy);
+        sendLobbySaveFailure(request, SaveStatus::Busy);
         return;
     }
     if (activeTransfer) {
         if (activeTransfer->request.saveId == request.saveId) {
             return;
         }
-        sendLobbySaveFailure(request, SaveFailureV2::Busy);
+        sendLobbySaveFailure(request, SaveStatus::Busy);
         return;
     }
 
@@ -687,22 +666,22 @@ void handleLobbySaveRequest(const LobbyProtocol::SaveRequestV3& request)
     auto session{service ? service->getSession() : nullptr};
     if (!service || !session || !midgard || !midgard->data || !midgard->data->multiplayerGame
         || !midgard->data->client) {
-        sendLobbySaveFailure(request, SaveFailureV2::NoActiveGame);
+        sendLobbySaveFailure(request, SaveStatus::NoActiveGame);
         return;
     }
     if (!clientIsNativeHost(session, midgard)) {
-        sendLobbySaveFailure(request, SaveFailureV2::WrongRole);
+        sendLobbySaveFailure(request, SaveStatus::WrongRole);
         return;
     }
 
     const auto sendSaveGameMsg{game::CPhaseGameApi::get().sendSaveGameMsg};
     if (!sendSaveGameMsg) {
-        sendLobbySaveFailure(request, SaveFailureV2::UnsupportedGameBuild);
+        sendLobbySaveFailure(request, SaveStatus::UnsupportedGameBuild);
         return;
     }
     const auto phaseGame{getHostPhaseGame(midgard)};
     if (!phaseGame) {
-        sendLobbySaveFailure(request, SaveFailureV2::UnsafePhase);
+        sendLobbySaveFailure(request, SaveStatus::UnsafePhase);
         return;
     }
 
@@ -711,7 +690,7 @@ void handleLobbySaveRequest(const LobbyProtocol::SaveRequestV3& request)
     transfer.deadline = std::chrono::steady_clock::now()
         + std::chrono::milliseconds(request.timeoutMs);
     if (!chooseUnusedSavePath(midgard, transfer)) {
-        sendLobbySaveFailure(request, SaveFailureV2::FileIo);
+        sendLobbySaveFailure(request, SaveStatus::FileIo);
         return;
     }
 
@@ -732,7 +711,7 @@ void handleLobbySaveRequest(const LobbyProtocol::SaveRequestV3& request)
                          ": could not remove unchanged native-save placeholder '{:s}'",
                          placeholderPath.string());
         }
-        sendLobbySaveFailure(request, SaveFailureV2::CaptureFailed);
+        sendLobbySaveFailure(request, SaveStatus::CaptureFailed);
     }
 }
 
@@ -753,24 +732,22 @@ void handleGameSavedForLobby(bool success, const std::string& savePath)
     auto service{CNetCustomService::get()};
     auto midgard{game::CMidgardApi::get().instance()};
     auto session{service ? service->getSession() : nullptr};
-    SaveFailureV2 failure{SaveFailureV2::CaptureFailed};
+    SaveStatus failure{SaveStatus::CaptureFailed};
     if (!clientIsNativeHost(session, midgard)) {
-        failure = SaveFailureV2::WrongRole;
+        failure = SaveStatus::WrongRole;
     } else if (isDeadlineExpired(*activeTransfer)) {
-        failure = SaveFailureV2::TimedOut;
+        failure = SaveStatus::TimedOut;
     } else if (!success) {
-        failure = SaveFailureV2::CaptureFailed;
+        failure = SaveStatus::CaptureFailed;
     } else {
         std::uint32_t totalSize{};
         if (captureImmutableSave(*activeTransfer, totalSize, failure)) {
-            const auto isV3{activeTransfer->request.wireVersion == saveRequestVersionV3};
             const auto fileName{activeTransfer->savePath.filename().string()};
-            if (isV3
-                && !sendNativeSaveResult(activeTransfer->request.saveId,
-                                         nativeSaveResultSuccess, fileName)) {
+            if (!sendNativeSaveResult(activeTransfer->request.saveId, SaveStatus::Success,
+                                      fileName)) {
                 spdlog::warn(__FUNCTION__ ": failed to report native save filename {:016x}",
                              activeTransfer->request.saveId);
-                failure = SaveFailureV2::SendFailed;
+                failure = SaveStatus::SendFailed;
             } else if (isLocalOnly(activeTransfer->request)) {
                 spdlog::info(__FUNCTION__ ": retained local-only save '{:s}', id {:016x}",
                              activeTransfer->savePath.string(),
@@ -800,7 +777,7 @@ void expireLobbySaveTransfers()
         spdlog::warn(__FUNCTION__ ": lobby host save {:016x}, mode {:d}, timed out",
                      request.saveId, static_cast<int>(request.mode));
         activeTransfer.reset();
-        sendLobbySaveFailure(request, SaveFailureV2::TimedOut);
+        sendLobbySaveFailure(request, SaveStatus::TimedOut);
     }
 
     if (pendingStoredAck && std::chrono::steady_clock::now() >= pendingStoredAck->deadline) {
@@ -816,7 +793,7 @@ void terminateLobbySaveTransfers()
     if (activeTransfer) {
         const auto request{activeTransfer->request};
         activeTransfer.reset();
-        sendLobbySaveFailure(request, SaveFailureV2::TimedOut);
+        sendLobbySaveFailure(request, SaveStatus::TimedOut);
     }
 
     if (pendingStoredAck) {

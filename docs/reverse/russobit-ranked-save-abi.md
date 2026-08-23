@@ -21,6 +21,12 @@ The local reference copy can be fingerprinted with:
 The alternative Russobit/custom-icon executable of `4,214,272` bytes has not been audited for
 this entry point and is outside the evidence recorded here.
 
+The runtime ranked gate currently requires the audited `4,187,648`-byte size and the 16-byte
+entry-point signature below. Computing the recorded full-file SHA-256 in-process is intentionally
+deferred; it would add hashing code to a path whose immediate purpose is to reject the known
+unaudited custom-icon executable. A newly encountered executable remains casual until its native
+save ABI is audited and added explicitly.
+
 ## `CPhaseGame::sendSaveGameMsg`
 
 - Virtual address: `0x40639b` (`RVA 0x639b`)
@@ -54,3 +60,21 @@ Constructor `0x4786aa` establishes the fields consumed by the save callback:
 Default constructor `0x478648` also initializes the object at `+0x14` and installs the same
 vtable. These observations validate the callback's local message view only for the audited SHA-256
 above; the C++ layout assertions alone are not evidence for another executable.
+
+## `CMenusReqLordMsg` serialized fields
+
+The host handles this setup request through local loopback, so the custom lobby forwards the lord
+selection separately. The forwarded value is taken from the second 32-bit field after
+`NetMessageHeader`, based on these observations in the same audited executable:
+
+- RTTI type descriptor `.?AVCMenusReqLordMsg@@` is at `0x7972f0`, with vtable `0x6d4ffc`;
+- constructor `0x47d0c2` stores the category id at object offset `+0x4` and the lord index at
+  `+0x8`;
+- serializer `0x47d154` first calls the base serializer, then writes four bytes from `+0x4` and
+  four bytes from `+0x8`, in that order;
+- server handler `0x42b977` resolves the category from `+0x4` and passes the value returned by
+  accessor `0x5ffc5f` (`this + 0x8`) to `0x42b428`; that function stores the value at player-state
+  offset `+0xc` while copying the category separately.
+
+Consequently, reading the first 32-bit field after the 44-byte header would forward the category,
+not the lord. As with the save ABI above, these addresses document only the audited executable.

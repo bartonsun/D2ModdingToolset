@@ -218,9 +218,9 @@ void CMenuCustomNewSkirmishMulti::readRoomOptionsControls()
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
     auto& options = service->getRoomOptions();
 
-    // Ranked play is available only through the explicit supported control. A missing control
-    // must not reuse a checked value retained from an earlier host dialog.
-    options.ranked = false;
+    // Optional controls may be absent in an older/custom dialog resource. Start from the declared
+    // defaults so such a resource cannot reuse values retained from an earlier host dialog.
+    options = {};
     if (auto toggle = dialogApi.findToggleButton(dialog, "TOG_RANKED")) {
         options.ranked = CPhaseGameApi::nativeSaveSupported() && toggle->data->checked;
     }
