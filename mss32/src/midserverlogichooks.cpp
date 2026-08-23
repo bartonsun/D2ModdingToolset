@@ -242,6 +242,21 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
     auto objectMap = CMidServerLogicApi::get().getObjectMap(*thisptr);
     const CMidStack* stackBefore = getStack(objectMap, stackId);
     const int movementBefore = stackBefore ? static_cast<int>(stackBefore->movement) : -1;
+    int pathMovementCost = 0;
+    if (movementPath && movementPath->head && movementBefore > 0) {
+        using Node = ListNode<Pair<CMqPoint, int>>;
+        auto* head = movementPath->head;
+        for (auto* node = static_cast<Node*>(head->next); node != head;
+             node = static_cast<Node*>(node->next)) {
+            if (node->data.second > 0) {
+                const int remaining = movementBefore - pathMovementCost;
+                pathMovementCost += node->data.second < remaining ? node->data.second : remaining;
+                if (pathMovementCost == movementBefore) {
+                    break;
+                }
+            }
+        }
+    }
 
     const CMidPlayer* mover = playerId ? getPlayer(objectMap, playerId) : nullptr;
     const bool humanMover = mover && mover->isHuman;
@@ -273,7 +288,7 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
         if (stackAfter) {
             const int refund = lootedRuinMovementRefund(
                 handleLootedRuin, movementBefore, static_cast<int>(stackAfter->movement),
-                maxMovement);
+                maxMovement, pathMovementCost);
             if (refund > 0) {
                 VisitorApi::get().changeStackMoveAllowance(stackId, -refund, objectMap, 1);
             }
