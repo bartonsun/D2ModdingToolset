@@ -25,22 +25,21 @@
 namespace hooks {
 
 /** Lobby-server driven native host-save exchange.
- * A V2 request carries version, saveId, role, maxBytes and timeoutMs. V3 additionally carries
- * mode and a bounded ASCII save stem. Upload responses remain SaveTransferV2 and start with
- * version, saveId and operation, followed by one of:
+ * The accepted request carries wire version 3, saveId, the fixed Host role, mode, limits, and a
+ * bounded ASCII save stem. Upload responses retain wire version 2 and start with version, saveId
+ * and operation, followed by one of:
  * BEGIN(totalSize), CHUNK(offset, size, bytes), COMMIT, or FAIL(code).
  * All fields are written individually through SLNet::BitStream; this is not a packed ABI. */
 
-/** Handles a validated V2/V3 request on the main/UI thread. Only the native host path is valid;
- * the Joiner wire value remains reserved and is rejected. */
-void handleLobbySaveRequest(const LobbyProtocol::SaveRequestV3& request);
+/** Handles a validated request on the main/UI thread. Only the native host path is valid. */
+void handleLobbySaveRequest(const LobbyProtocol::SaveRequest& request);
 
-/** Sends a V2 FAIL operation when a request can be correlated but cannot be accepted. */
-void sendLobbySaveFailure(std::uint64_t saveId, LobbyProtocol::SaveFailureV2 failure);
+/** Sends a FAIL operation when a request can be correlated but cannot be accepted. */
+void sendLobbySaveFailure(std::uint64_t saveId, LobbyProtocol::SaveStatus failure);
 
 /** Sends the failure on the response channel selected by the request mode. */
-void sendLobbySaveFailure(const LobbyProtocol::SaveRequestV3& request,
-                          LobbyProtocol::SaveFailureV2 failure);
+void sendLobbySaveFailure(const LobbyProtocol::SaveRequest& request,
+                          LobbyProtocol::SaveStatus failure);
 
 /** Deletes the exact lobby-owned local save only after a matching authenticated server ACK. */
 void handleLobbySaveStoredAck(std::uint64_t saveId);

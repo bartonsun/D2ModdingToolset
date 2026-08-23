@@ -17,16 +17,17 @@
 
       | Id | Direction | Purpose |
       | --- | --- | --- |
-      | `+8 SAVE_REQUEST` | core → host | V2 requests an uploaded native host save. V3 additionally supplies `Upload`/`LocalOnly` mode and a safe ASCII file stem. |
-      | `+9 SAVE_UPLOAD` | participant → core | Carries the ordered V2 `BEGIN`, `CHUNK`, header-only `COMMIT`, or `FAIL` operations. |
+      | `+8 SAVE_REQUEST` | core → host | V3 requests one `Upload` or `LocalOnly` native host save with a safe ASCII file stem. |
+      | `+9 SAVE_UPLOAD` | participant → core | Carries the ordered wire-V2 `BEGIN`, `CHUNK`, header-only `COMMIT`, or `FAIL` operations. |
       | `+10 MATCH_ENDED` | core → participant | Returns a finalized ranked participant from the game UI to the custom lobby. |
-      | `+11 PLAYER_SETUP` | host → core | Reports authenticated setup data that the stock local-host path does not relay; V1 carries the lord choice. |
+      | `+11 PLAYER_SETUP` | participant → core | Advertises ranked-lifecycle support after login or reports the authenticated host lord choice. |
       | `+12 SYSTEM_NOTICE` | core → participant | Carries current-client modal notices only; ordinary system chat stays on legacy chat/game packets. |
       | `+13 SAVE_STORED_ACK` | core → participant | Confirms durable server storage so the exact generated local save may be deleted; it is not a RakNet ACK. |
-      | `+14 SAVE_NATIVE_RESULT` | host → core | For `LocalOnly`, reports result `0` plus the collision-safe filename or a failure code `1..13` with no filename and ends the request. For `Upload`, it reports only native-save success plus the filename; upload failures and completion use `+9 SAVE_UPLOAD` (`FAIL`/`COMMIT`). |
+      | `+14 SAVE_NATIVE_RESULT` | host → core | For `LocalOnly`, reports success plus the collision-safe filename or a failure with no filename and ends the request. For `Upload`, it reports only native-save success plus the filename; upload failures and completion use `+9 SAVE_UPLOAD` (`FAIL`/`COMMIT`). |
 
     - System chat uses the existing lobby chat or native in-game chat packet. The optional modal packet is understood only by current clients and is safely ignored by older clients;
-    - V2 Host requests remain wire-compatible. V3 Upload deliberately reuses the existing SaveTransfer V2 `+9`/`+13` exchange. The Joiner value remains reserved for wire compatibility, but is rejected: there is no active reconstructed joiner-save path;
+    - A current client advertises support with an authenticated `PLAYER_SETUP` capability message after login. Current servers send ranked-lifecycle packets only to clients that advertised it; older clients keep using the unchanged `+1..+7` lobby flow and therefore remain casual. Older servers safely ignore the capability message;
+    - The current V3 request deliberately reuses the existing wire-V2 `+9`/`+13` transfer exchange. The obsolete V2 request parser is not retained;
     - Every filename handed to the asynchronous native writer remains reserved for the client-process lifetime, so a late callback after timeout cannot attach to a newer request. The client first claims the basename with an atomic `CREATE_NEW` placeholder and keeps a no-delete handle while the verified Russobit writer uses `CREATE_ALWAYS` on that same file object. The callback and durable-storage ACK both verify its Win32 identity, and an ACK deletes that exact unchanged object through an exclusive handle.
   </details>
 - <details>

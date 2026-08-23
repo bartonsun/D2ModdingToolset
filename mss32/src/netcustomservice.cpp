@@ -194,17 +194,6 @@ static_assert(isReservedWindowsDeviceStem("LPT9"));
 static_assert(!isReservedWindowsDeviceStem("CON-save"));
 static_assert(!isReservedWindowsDeviceStem("COM10"));
 
-constexpr bool isSupportedSystemNoticePresentation(std::uint8_t presentation)
-{
-    return presentation
-           == static_cast<std::uint8_t>(LobbyProtocol::SystemNoticePresentation::Modal);
-}
-
-static_assert(!isSupportedSystemNoticePresentation(
-    static_cast<std::uint8_t>(LobbyProtocol::SystemNoticePresentation::ReservedChat)));
-static_assert(isSupportedSystemNoticePresentation(
-    static_cast<std::uint8_t>(LobbyProtocol::SystemNoticePresentation::Modal)));
-
 constexpr bool canPostPendingMatchEnd(bool loggedIn,
                                       bool hasSession,
                                       bool multiplayerGame,
@@ -1026,7 +1015,7 @@ void CNetCustomService::processPeerMessages() const
 }
 
 bool CNetCustomService::readSaveRequest(const SLNet::Packet* packet,
-                                        LobbyProtocol::SaveRequestV3& request) const
+                                        LobbyProtocol::SaveRequest& request) const
 {
     using namespace LobbyProtocol;
 
@@ -1042,61 +1031,52 @@ bool CNetCustomService::readSaveRequest(const SLNet::Packet* packet,
     SLNet::BitStream stream{packet->data, packet->length, false};
     stream.IgnoreBytes(sizeof(SLNet::MessageID));
 
+    std::uint8_t version{};
     std::uint8_t role{};
-    if (!stream.Read(request.wireVersion) || !stream.Read(request.saveId)
-        || !stream.Read(role)) {
+    if (!stream.Read(version) || !stream.Read(request.saveId) || !stream.Read(role)) {
         spdlog::warn(__FUNCTION__ ": malformed save request header");
         if (request.saveId) {
-            sendLobbySaveFailure(request.saveId, SaveFailureV2::MalformedRequest);
+            sendLobbySaveFailure(request.saveId, SaveStatus::MalformedRequest);
         }
         return false;
     }
 
-    request.role = static_cast<SaveRoleV2>(role);
-    if (request.wireVersion == saveTransferVersion) {
-        request.mode = SaveModeV3::Upload;
-        if (!stream.Read(request.maxBytes) || !stream.Read(request.timeoutMs)
-            || stream.GetNumberOfUnreadBits() != 0) {
-            spdlog::warn(__FUNCTION__ ": malformed V2 save request");
-            sendLobbySaveFailure(request, SaveFailureV2::MalformedRequest);
-            return false;
-        }
-    } else if (request.wireVersion == saveRequestVersionV3) {
-        std::uint8_t mode{};
-        std::uint16_t stemLength{};
-        if (!stream.Read(mode) || !stream.Read(request.maxBytes)
-            || !stream.Read(request.timeoutMs) || !stream.Read(stemLength)) {
-            spdlog::warn(__FUNCTION__ ": malformed V3 save request header");
-            sendLobbySaveFailure(request, SaveFailureV2::MalformedRequest);
-            return false;
-        }
-        request.mode = static_cast<SaveModeV3>(mode);
-        if (mode > static_cast<std::uint8_t>(SaveModeV3::LocalOnly)
-            || stemLength == 0 || stemLength > saveStemMax
-            || stream.GetNumberOfUnreadBits()
-                   < static_cast<SLNet::BitSize_t>(stemLength) * 8) {
-            spdlog::warn(__FUNCTION__ ": invalid V3 save request metadata");
-            sendLobbySaveFailure(request, SaveFailureV2::MalformedRequest);
-            return false;
-        }
-
-        request.saveStem.resize(stemLength);
-        if (!stream.ReadAlignedBytes(
-                reinterpret_cast<unsigned char*>(request.saveStem.data()), stemLength)
-            || stream.GetNumberOfUnreadBits() != 0 || !isSafeSaveStem(request.saveStem)) {
-            spdlog::warn(__FUNCTION__ ": invalid V3 save stem");
-            sendLobbySaveFailure(request, SaveFailureV2::MalformedRequest);
-            return false;
-        }
-    } else {
+    if (version != saveRequestWireVersion) {
         spdlog::warn(__FUNCTION__ ": unsupported save protocol version {:d}",
-                     static_cast<int>(request.wireVersion));
-        sendLobbySaveFailure(request.saveId, SaveFailureV2::UnsupportedVersion);
+                     static_cast<int>(version));
+        sendLobbySaveFailure(request.saveId, SaveStatus::UnsupportedVersion);
         return false;
     }
 
-    if (role > static_cast<std::uint8_t>(SaveRoleV2::Joiner)) {
-        sendLobbySaveFailure(request, SaveFailureV2::MalformedRequest);
+    std::uint8_t mode{};
+    std::uint16_t stemLength{};
+    if (!stream.Read(mode) || !stream.Read(request.maxBytes)
+        || !stream.Read(request.timeoutMs) || !stream.Read(stemLength)) {
+        spdlog::warn(__FUNCTION__ ": malformed save request payload");
+        sendLobbySaveFailure(request, SaveStatus::MalformedRequest);
+        return false;
+    }
+    request.mode = static_cast<SaveMode>(mode);
+    if (role != saveRoleHost
+        || mode > static_cast<std::uint8_t>(SaveMode::LocalOnly) || request.saveId == 0
+        || request.maxBytes == 0
+        || request.maxBytes > saveFileHardLimit || request.timeoutMs == 0
+        || stemLength == 0 || stemLength > saveStemMax
+        || stream.GetNumberOfUnreadBits()
+               < static_cast<SLNet::BitSize_t>(stemLength) * 8) {
+        spdlog::warn(__FUNCTION__ ": invalid save request metadata");
+        sendLobbySaveFailure(request,
+                             role != saveRoleHost ? SaveStatus::WrongRole
+                                                  : SaveStatus::MalformedRequest);
+        return false;
+    }
+
+    request.saveStem.resize(stemLength);
+    if (!stream.ReadAlignedBytes(
+            reinterpret_cast<unsigned char*>(request.saveStem.data()), stemLength)
+        || stream.GetNumberOfUnreadBits() != 0 || !isSafeSaveStem(request.saveStem)) {
+        spdlog::warn(__FUNCTION__ ": invalid save request stem");
+        sendLobbySaveFailure(request, SaveStatus::MalformedRequest);
         return false;
     }
 
@@ -1119,7 +1099,7 @@ bool CNetCustomService::readSaveStoredAck(const SLNet::Packet* packet,
     SLNet::BitStream stream{packet->data, packet->length, false};
     stream.IgnoreBytes(sizeof(SLNet::MessageID));
     std::uint8_t version{};
-    if (!stream.Read(version) || !stream.Read(saveId) || version != saveTransferVersion
+    if (!stream.Read(version) || !stream.Read(saveId) || version != saveTransferWireVersion
         || saveId == 0 || stream.GetNumberOfUnreadBits() != 0) {
         spdlog::warn(__FUNCTION__ ": invalid stored ACK payload");
         return false;
@@ -1128,7 +1108,7 @@ bool CNetCustomService::readSaveStoredAck(const SLNet::Packet* packet,
 }
 
 bool CNetCustomService::readSystemNotice(const SLNet::Packet* packet,
-                                         LobbyProtocol::SystemNoticeV1& notice) const
+                                         LobbyProtocol::SystemNotice& notice) const
 {
     using namespace LobbyProtocol;
 
@@ -1153,29 +1133,34 @@ bool CNetCustomService::readSystemNotice(const SLNet::Packet* packet,
         return false;
     }
 
-    if (version != systemNoticeVersion || notice.noticeId == 0
-        || !isSupportedSystemNoticePresentation(presentation)
+    if (version != systemNoticeWireVersion || notice.noticeId == 0
+        || presentation != static_cast<std::uint8_t>(SystemNoticePresentation::Modal)
         || textLength == 0 || textLength > systemNoticeTextMax
         || stream.GetNumberOfUnreadBits() < static_cast<SLNet::BitSize_t>(textLength) * 8) {
         spdlog::warn(__FUNCTION__ ": invalid system notice metadata");
         return false;
     }
 
-    notice.presentation = static_cast<SystemNoticePresentation>(presentation);
-    notice.text.resize(textLength);
-    if (!stream.ReadAlignedBytes(reinterpret_cast<unsigned char*>(notice.text.data()),
-                                 textLength)
-        || notice.text.find('\0') != std::string::npos
+    std::string utf8Text(textLength, '\0');
+    if (!stream.ReadAlignedBytes(reinterpret_cast<unsigned char*>(utf8Text.data()), textLength)
+        || utf8Text.find('\0') != std::string::npos
         || stream.GetNumberOfUnreadBits() != 0) {
         spdlog::warn(__FUNCTION__ ": invalid system notice text");
         return false;
     }
 
-    // Validate UTF-8 before retaining the notice for a later modal.
-    return utf8ToGameEncoding(notice.text).has_value();
+    const auto encoded{utf8ToGameEncoding(utf8Text)};
+    if (!encoded) {
+        spdlog::warn(__FUNCTION__
+                     ": notice {:016x} is invalid UTF-8 or cannot be represented in Windows-1251",
+                     notice.noticeId);
+        return false;
+    }
+    notice.text = *encoded;
+    return true;
 }
 
-void CNetCustomService::enqueueSystemNotice(LobbyProtocol::SystemNoticeV1 notice)
+void CNetCustomService::enqueueSystemNotice(LobbyProtocol::SystemNotice notice)
 {
     if (!m_seenSystemNotices.insert(notice.noticeId).second) {
         return;
@@ -1293,21 +1278,9 @@ bool CNetCustomService::showSystemNoticeModal(const std::string& text)
     return true;
 }
 
-bool CNetCustomService::displaySystemNotice(const LobbyProtocol::SystemNoticeV1& notice)
+bool CNetCustomService::displaySystemNotice(const LobbyProtocol::SystemNotice& notice)
 {
-    const auto encoded{utf8ToGameEncoding(notice.text)};
-    if (!encoded) {
-        spdlog::warn(__FUNCTION__
-                     ": notice {:016x} is invalid UTF-8 or cannot be represented in Windows-1251",
-                     notice.noticeId);
-        return false;
-    }
-
-    if (notice.presentation != LobbyProtocol::SystemNoticePresentation::Modal) {
-        spdlog::warn(__FUNCTION__ ": refusing non-modal system-notice packet");
-        return false;
-    }
-    return showSystemNoticeModal(*encoded);
+    return showSystemNoticeModal(notice.text);
 }
 
 void __fastcall CNetCustomService::lobbyMaintenanceTimerEventCallback(
@@ -1379,7 +1352,7 @@ void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes typ
         spdlog::debug(__FUNCTION__ ": room function executed");
         break;
     case ID_LOBBY_SAVE_REQUEST: {
-        LobbyProtocol::SaveRequestV3 request{};
+        LobbyProtocol::SaveRequest request{};
         if (m_service->readSaveRequest(packet, request)) {
             handleLobbySaveRequest(request);
         }
@@ -1396,7 +1369,7 @@ void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes typ
         break;
     }
     case ID_LOBBY_SYSTEM_NOTICE: {
-        LobbyProtocol::SystemNoticeV1 notice{};
+        LobbyProtocol::SystemNotice notice{};
         if (m_service->readSystemNotice(packet, notice)) {
             m_service->enqueueSystemNotice(std::move(notice));
         }
@@ -1425,6 +1398,17 @@ void CNetCustomService::LobbyCallback::MessageResult(SLNet::Client_Login* messag
 {
     if (message->resultCode == SLNet::L2RC_SUCCESS) {
         m_service->m_userName = message->userName.C_String();
+
+        // Old lobby servers ignore this authenticated extension. Current servers use it to avoid
+        // sending ranked-lifecycle packets to clients predating the append-only +8..+14 family.
+        SLNet::BitStream stream;
+        stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_PLAYER_SETUP));
+        stream.Write(static_cast<std::uint8_t>(
+            LobbyProtocol::PlayerSetupKind::ClientCapabilities));
+        stream.Write(LobbyProtocol::rankedLifecycleCapabilityVersion);
+        if (!m_service->send(stream, m_service->getLobbyGuid(), LOW_PRIORITY)) {
+            spdlog::warn(__FUNCTION__ ": failed to advertise ranked-lifecycle capability");
+        }
     }
 
     ExecuteDefaultResult(message);

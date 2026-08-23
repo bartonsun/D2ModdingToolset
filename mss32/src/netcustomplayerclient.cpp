@@ -113,25 +113,25 @@ bool __fastcall CNetCustomPlayerClient::sendMessage(CNetCustomPlayerClient* this
 void CNetCustomPlayerClient::forwardPlayerSetupToLobby(const game::NetMessageHeader* message) const
 {
     // The relay already observes the host race through normal setup state. Only the host lord
-    // request is local-loopback-only and needs an out-of-band attribution message.
+    // request is local-loopback-only and needs an out-of-band attribution message. The audited
+    // serialized layout is recorded in docs/reverse/russobit-ranked-save-abi.md.
     static constexpr char lordMessageClass[]{".?AVCMenusReqLordMsg@@"};
-    if (!message || message->length < sizeof(game::NetMessageHeader) + sizeof(std::uint32_t)
+    static constexpr auto lordIndexOffset{sizeof(game::NetMessageHeader) + sizeof(std::uint32_t)};
+    if (!message || message->length < lordIndexOffset + sizeof(std::uint32_t)
         || std::memcmp(message->messageClassName, lordMessageClass,
                        sizeof(lordMessageClass)) != 0) {
         return;
     }
-    constexpr std::uint8_t kind{1};
-
-    std::uint32_t value{};
-    std::memcpy(&value,
-                reinterpret_cast<const char*>(message) + sizeof(game::NetMessageHeader),
-                sizeof(value));
+    std::uint32_t lordIndex{};
+    std::memcpy(&lordIndex,
+                reinterpret_cast<const char*>(message) + lordIndexOffset,
+                sizeof(lordIndex));
 
     auto service = getService();
     SLNet::BitStream stream;
     stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_PLAYER_SETUP));
-    stream.Write(kind);
-    stream.Write(value);
+    stream.Write(static_cast<std::uint8_t>(LobbyProtocol::PlayerSetupKind::HostLord));
+    stream.Write(lordIndex);
     if (!service->send(stream, service->getLobbyGuid(), LOW_PRIORITY)) {
         getLogger()->warn(__FUNCTION__ ": failed to forward accepted host lord to lobby");
     }
