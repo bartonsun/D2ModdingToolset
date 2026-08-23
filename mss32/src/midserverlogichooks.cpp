@@ -42,6 +42,7 @@
 #include "originalfunctions.h"
 #include "racetype.h"
 #include "refreshinfo.h"
+#include "ruinmovement.h"
 #include "scenarioinfo.h"
 #include "settings.h"
 #include <cstdlib>
@@ -257,7 +258,10 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
         }
     }
 
-    if (lootedRuinBeforeMove && movementPath && movementPath->head) {
+    const bool handleLootedRuin = shouldHandleLootedRuinMovement(
+        stayOrNear, stackBefore != nullptr, humanMover, lootedRuinBeforeMove);
+
+    if (handleLootedRuin && movementPath && movementPath->head) {
         using Node = ListNode<Pair<CMqPoint, int>>;
         auto* head = movementPath->head;
         for (auto* n = static_cast<Node*>(head->next); n != head;
@@ -269,12 +273,13 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
     auto result = getOriginalFunctions().stackMove(thisptr, playerId, movementPath, stackId,
                                                    startingPoint, endPoint);
 
-    if (result && lootedRuinBeforeMove && movementBefore >= 0) {
+    if (result && handleLootedRuin) {
         const CMidStack* stackAfter = getStack(objectMap, stackId);
         if (stackAfter) {
-            const int spent = movementBefore - static_cast<int>(stackAfter->movement);
-            if (spent > 0) {
-                VisitorApi::get().changeStackMoveAllowance(stackId, -spent, objectMap, 1);
+            const int refund = lootedRuinMovementRefund(
+                handleLootedRuin, movementBefore, static_cast<int>(stackAfter->movement));
+            if (refund > 0) {
+                VisitorApi::get().changeStackMoveAllowance(stackId, -refund, objectMap, 1);
             }
         }
     }
