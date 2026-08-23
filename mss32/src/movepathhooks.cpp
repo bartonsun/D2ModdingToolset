@@ -141,7 +141,7 @@ static void fillMovementTargetContext(sol::table& movementContext,
             }
         }
 
-        if (const auto* ruin = hooks::getRuinAtOrAdjacent(objectMap, plan, pathEnd, stack)) {
+        if (const auto* ruin = hooks::getRuinAtOrAdjacent(objectMap, plan, pathEnd, stack, true)) {
             movementContext["targetId"] = bindings::IdView(ruin->id);
             return;
         }
