@@ -28,6 +28,8 @@
 #include "citystackinterf.h"
 #include "commandmsg.h"
 #include "condinterf.h"
+#include "currency.h"
+#include "trainingcostapi.h"
 #include "d2osexception.h"
 #include "ddcarryoveritems.h"
 #include "editboxinterf.h"
@@ -267,6 +269,13 @@ struct OriginalFunctions
     game::CItemPotionReviveApi::Api::Constructor itemPotionReviveCtor;
 
     //game::CItemBaseApi::Api::Constructor itemBaseCtor;
+
+    game::BankApi::Api::Copy bankCopy;
+    game::TrainingCostApi::Api::TrainUnitAtTrainer trainUnitAtTrainer;
+    game::TrainingCostApi::Api::TrainUiAction trainUiAction;
+    game::TrainingCostApi::Api::CanAffordTrainCheck canAffordTrainCheck;
+    game::TrainingCostApi::Api::ApplyTrainAction applyTrainAction;
+    game::TrainCampTextApi::Api::SetPartyTrainingText setPartyTrainingText;
 };
 
 OriginalFunctions& getOriginalFunctions();
