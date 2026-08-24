@@ -529,6 +529,8 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\miditem.cpp" />
     <ClCompile Include="src\itempotionapi.cpp" />
     <ClCompile Include="src\itempotionhooks.cpp" />
+    <ClCompile Include="src\trainingcostapi.cpp" />
+    <ClCompile Include="src\trainingcosthooks.cpp" />
     <ClCompile Include="src\midmsgboxbuttonhandlerstd.cpp" />
     <ClCompile Include="src\midmusic.cpp" />
     <ClCompile Include="src\midscenvariables.cpp" />
@@ -1256,6 +1258,8 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\midgardstreamenv.h" />
     <ClInclude Include="include\midinventory.h" />
     <ClInclude Include="include\miditem.h" />
+    <ClInclude Include="include\trainingcostapi.h" />
+    <ClInclude Include="include\trainingcosthooks.h" />
     <ClInclude Include="include\midlandmark.h" />
     <ClInclude Include="include\midlocation.h" />
     <ClInclude Include="include\midmsgboxbuttonhandler.h" />

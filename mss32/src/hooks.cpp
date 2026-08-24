@@ -204,6 +204,9 @@
 #include "scenedithooks.h"
 #include "scenpropinterfhooks.h"
 #include "settings.h"
+#include "currency.h"
+#include "trainingcostapi.h"
+#include "trainingcosthooks.h"
 #include "usersettings.h"
 #include "sitecategoryhooks.h"
 #include "sitemerchantinterf.h"
@@ -642,6 +645,34 @@ static Hooks getGameHooks()
         {CBatLogicApi::get().applyCBatAttackUntransformEffect, applyCBatAttackUntransformEffectHooked, (void**)&orig.applyCBatAttackUntransformEffect},
     };
     // clang-format on
+
+    if (gameSettings().trainerCampLowerCost) {
+        hooks.emplace_back(
+            HookInfo{(void*)BankApi::get().copy, bankCopyHooked, (void**)&orig.bankCopy});
+        const auto& trainApi = TrainingCostApi::get();
+        if (trainApi.trainUnitAtTrainer) {
+            hooks.emplace_back(HookInfo{(void*)trainApi.trainUnitAtTrainer, trainUnitAtTrainerHooked,
+                                        (void**)&orig.trainUnitAtTrainer});
+        }
+        if (trainApi.trainUiAction) {
+            hooks.emplace_back(HookInfo{(void*)trainApi.trainUiAction, trainUiActionHooked,
+                                        (void**)&orig.trainUiAction});
+        }
+        if (trainApi.canAffordTrainCheck) {
+            hooks.emplace_back(HookInfo{(void*)trainApi.canAffordTrainCheck,
+                                        canAffordTrainCheckHooked,
+                                        (void**)&orig.canAffordTrainCheck});
+        }
+        if (trainApi.applyTrainAction) {
+            hooks.emplace_back(HookInfo{(void*)trainApi.applyTrainAction, applyTrainActionHooked,
+                                        (void**)&orig.applyTrainAction});
+        }
+        const auto& textApi = TrainCampTextApi::get();
+        if (textApi.setPartyTrainingText) {
+            hooks.emplace_back(HookInfo{(void*)textApi.setPartyTrainingText, trainUiTextHooked,
+                                        (void**)&orig.setPartyTrainingText});
+        }
+    }
 
     if (gameSettings().extendedBattle.boostdamageCanAffectHealer
         != baseGameSettings().extendedBattle.boostdamageCanAffectHealer) {

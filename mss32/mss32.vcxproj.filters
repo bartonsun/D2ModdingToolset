@@ -241,6 +241,12 @@
     <ClCompile Include="src\sitemerchantinterf.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\trainingcostapi.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\trainingcosthooks.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\miditem.cpp">
       <Filter>game</Filter>
     </ClCompile>
@@ -2091,6 +2097,12 @@
     </ClInclude>
     <ClInclude Include="include\itempotionrevive.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\trainingcostapi.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\trainingcosthooks.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\miditem.h">
       <Filter>game</Filter>
