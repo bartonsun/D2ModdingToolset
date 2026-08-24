@@ -113,15 +113,11 @@ static_assert(ID_LOBBY_SAVE_NATIVE_RESULT < ID_GAME_MESSAGE);
  * server. */
 namespace LobbyProtocol {
 
-/** Existing wire revisions. Keep these values until client and deployed server move together. */
-static constexpr std::uint8_t systemNoticeWireVersion{1};
-static constexpr std::uint8_t saveTransferWireVersion{2};
-static constexpr std::uint8_t saveRequestWireVersion{3};
 static constexpr std::size_t systemNoticeTextMax{1024};
 static constexpr std::uint32_t saveFileHardLimit{32u * 1024u * 1024u};
-static constexpr std::uint16_t saveChunkSizeMax{16u * 1024u};
-static constexpr std::uint16_t saveStemMax{180};
-static constexpr std::uint16_t saveResultFileNameMax{220};
+static constexpr std::uint32_t saveChunkSizeMax{16u * 1024u};
+static constexpr std::size_t saveStemMax{180};
+static constexpr std::size_t saveResultFileNameMax{220};
 
 struct SystemNotice
 {
@@ -130,27 +126,17 @@ struct SystemNotice
     std::string text;
 };
 
-enum class SystemNoticePresentation : std::uint8_t
-{
-    Modal = 1,
-};
-
-/** The deployed request envelope retains one role byte; only the host value is supported. */
-static constexpr std::uint8_t saveRoleHost{0};
-
 enum class SaveMode : std::uint8_t
 {
     Upload = 0,
     LocalOnly = 1,
 };
 
-/** Validated logical request. Wire version is consumed before this object is constructed. */
+/** Validated logical request from a capability-negotiated lobby server. */
 struct SaveRequest
 {
     std::uint64_t saveId{};
     SaveMode mode{SaveMode::Upload};
-    std::uint32_t maxBytes{};
-    std::uint32_t timeoutMs{};
     std::string saveStem;
 };
 
@@ -162,23 +148,12 @@ enum class SaveDataOperation : std::uint8_t
     Fail = 3,
 };
 
-/** Status shared by SAVE_UPLOAD/FAIL and SAVE_NATIVE_RESULT. */
-enum class SaveStatus : std::uint8_t
+/** Result shared by SAVE_UPLOAD/FAIL and SAVE_NATIVE_RESULT. */
+enum class SaveResult : std::uint8_t
 {
     Success = 0,
-    MalformedRequest = 1,
-    UnsupportedVersion = 2,
-    WrongRole = 3,
-    Busy = 4,
-    NoActiveGame = 5,
-    UnsupportedGameBuild = 6,
-    // Wire value 7 is intentionally unassigned; later values remain byte-compatible.
-    UnsafePhase = 8,
-    CaptureFailed = 9,
-    FileIo = 10,
-    TooLarge = 11,
-    TimedOut = 12,
-    SendFailed = 13,
+    Failed = 1,
+    TimedOut = 2,
 };
 
 enum class PlayerSetupKind : std::uint8_t

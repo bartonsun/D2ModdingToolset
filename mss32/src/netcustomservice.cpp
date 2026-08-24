@@ -1031,52 +1031,32 @@ bool CNetCustomService::readSaveRequest(const SLNet::Packet* packet,
     SLNet::BitStream stream{packet->data, packet->length, false};
     stream.IgnoreBytes(sizeof(SLNet::MessageID));
 
-    std::uint8_t version{};
-    std::uint8_t role{};
-    if (!stream.Read(version) || !stream.Read(request.saveId) || !stream.Read(role)) {
+    std::uint8_t mode{};
+    if (!stream.Read(request.saveId) || !stream.Read(mode)) {
         spdlog::warn(__FUNCTION__ ": malformed save request header");
         if (request.saveId) {
-            sendLobbySaveFailure(request.saveId, SaveStatus::MalformedRequest);
+            sendLobbySaveFailure(request.saveId, SaveResult::Failed);
         }
         return false;
     }
 
-    if (version != saveRequestWireVersion) {
-        spdlog::warn(__FUNCTION__ ": unsupported save protocol version {:d}",
-                     static_cast<int>(version));
-        sendLobbySaveFailure(request.saveId, SaveStatus::UnsupportedVersion);
-        return false;
-    }
-
-    std::uint8_t mode{};
-    std::uint16_t stemLength{};
-    if (!stream.Read(mode) || !stream.Read(request.maxBytes)
-        || !stream.Read(request.timeoutMs) || !stream.Read(stemLength)) {
-        spdlog::warn(__FUNCTION__ ": malformed save request payload");
-        sendLobbySaveFailure(request, SaveStatus::MalformedRequest);
-        return false;
-    }
+    const auto stemBits{stream.GetNumberOfUnreadBits()};
+    const auto stemBytes{static_cast<std::size_t>(stemBits / 8)};
     request.mode = static_cast<SaveMode>(mode);
-    if (role != saveRoleHost
-        || mode > static_cast<std::uint8_t>(SaveMode::LocalOnly) || request.saveId == 0
-        || request.maxBytes == 0
-        || request.maxBytes > saveFileHardLimit || request.timeoutMs == 0
-        || stemLength == 0 || stemLength > saveStemMax
-        || stream.GetNumberOfUnreadBits()
-               < static_cast<SLNet::BitSize_t>(stemLength) * 8) {
+    if (mode > static_cast<std::uint8_t>(SaveMode::LocalOnly) || request.saveId == 0
+        || stemBits % 8 != 0 || stemBytes == 0 || stemBytes > saveStemMax) {
         spdlog::warn(__FUNCTION__ ": invalid save request metadata");
-        sendLobbySaveFailure(request,
-                             role != saveRoleHost ? SaveStatus::WrongRole
-                                                  : SaveStatus::MalformedRequest);
+        sendLobbySaveFailure(request, SaveResult::Failed);
         return false;
     }
 
-    request.saveStem.resize(stemLength);
+    request.saveStem.resize(stemBytes);
     if (!stream.ReadAlignedBytes(
-            reinterpret_cast<unsigned char*>(request.saveStem.data()), stemLength)
+            reinterpret_cast<unsigned char*>(request.saveStem.data()),
+            static_cast<unsigned int>(stemBytes))
         || stream.GetNumberOfUnreadBits() != 0 || !isSafeSaveStem(request.saveStem)) {
         spdlog::warn(__FUNCTION__ ": invalid save request stem");
-        sendLobbySaveFailure(request, SaveStatus::MalformedRequest);
+        sendLobbySaveFailure(request, SaveResult::Failed);
         return false;
     }
 
@@ -1088,8 +1068,7 @@ bool CNetCustomService::readSaveStoredAck(const SLNet::Packet* packet,
 {
     using namespace LobbyProtocol;
 
-    constexpr std::size_t packetSize{sizeof(SLNet::MessageID) + sizeof(std::uint8_t)
-                                     + sizeof(std::uint64_t)};
+    constexpr std::size_t packetSize{sizeof(SLNet::MessageID) + sizeof(std::uint64_t)};
     if (!packet || !packet->data || packet->length != packetSize
         || !isAuthenticatedLobbyPacket(this, packet)) {
         spdlog::warn(__FUNCTION__ ": refusing malformed or unauthenticated stored ACK");
@@ -1098,9 +1077,7 @@ bool CNetCustomService::readSaveStoredAck(const SLNet::Packet* packet,
 
     SLNet::BitStream stream{packet->data, packet->length, false};
     stream.IgnoreBytes(sizeof(SLNet::MessageID));
-    std::uint8_t version{};
-    if (!stream.Read(version) || !stream.Read(saveId) || version != saveTransferWireVersion
-        || saveId == 0 || stream.GetNumberOfUnreadBits() != 0) {
+    if (!stream.Read(saveId) || saveId == 0 || stream.GetNumberOfUnreadBits() != 0) {
         spdlog::warn(__FUNCTION__ ": invalid stored ACK payload");
         return false;
     }
@@ -1124,25 +1101,22 @@ bool CNetCustomService::readSystemNotice(const SLNet::Packet* packet,
     SLNet::BitStream stream{packet->data, packet->length, false};
     stream.IgnoreBytes(sizeof(SLNet::MessageID));
 
-    std::uint8_t version{};
-    std::uint8_t presentation{};
-    std::uint16_t textLength{};
-    if (!stream.Read(version) || !stream.Read(notice.noticeId) || !stream.Read(presentation)
-        || !stream.Read(textLength)) {
+    if (!stream.Read(notice.noticeId)) {
         spdlog::warn(__FUNCTION__ ": malformed system notice header");
         return false;
     }
 
-    if (version != systemNoticeWireVersion || notice.noticeId == 0
-        || presentation != static_cast<std::uint8_t>(SystemNoticePresentation::Modal)
-        || textLength == 0 || textLength > systemNoticeTextMax
-        || stream.GetNumberOfUnreadBits() < static_cast<SLNet::BitSize_t>(textLength) * 8) {
+    const auto textBits{stream.GetNumberOfUnreadBits()};
+    const auto textBytes{static_cast<std::size_t>(textBits / 8)};
+    if (notice.noticeId == 0 || textBits % 8 != 0 || textBytes == 0
+        || textBytes > systemNoticeTextMax) {
         spdlog::warn(__FUNCTION__ ": invalid system notice metadata");
         return false;
     }
 
-    std::string utf8Text(textLength, '\0');
-    if (!stream.ReadAlignedBytes(reinterpret_cast<unsigned char*>(utf8Text.data()), textLength)
+    std::string utf8Text(textBytes, '\0');
+    if (!stream.ReadAlignedBytes(reinterpret_cast<unsigned char*>(utf8Text.data()),
+                                 static_cast<unsigned int>(textBytes))
         || utf8Text.find('\0') != std::string::npos
         || stream.GetNumberOfUnreadBits() != 0) {
         spdlog::warn(__FUNCTION__ ": invalid system notice text");

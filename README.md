@@ -17,8 +17,8 @@
 
       | Id | Direction | Purpose |
       | --- | --- | --- |
-      | `+8 SAVE_REQUEST` | core → host | V3 requests one `Upload` or `LocalOnly` native host save with a safe ASCII file stem. |
-      | `+9 SAVE_UPLOAD` | participant → core | Carries the ordered wire-V2 `BEGIN`, `CHUNK`, header-only `COMMIT`, or `FAIL` operations. |
+      | `+8 SAVE_REQUEST` | core → host | Requests one `Upload` or `LocalOnly` native host save with a safe ASCII file stem. |
+      | `+9 SAVE_UPLOAD` | participant → core | Carries the ordered `BEGIN`, `CHUNK`, header-only `COMMIT`, or `FAIL` operations. |
       | `+10 MATCH_ENDED` | core → participant | Returns a finalized ranked participant from the game UI to the custom lobby. |
       | `+11 PLAYER_SETUP` | participant → core | Advertises ranked-lifecycle support after login or reports the authenticated host lord choice. |
       | `+12 SYSTEM_NOTICE` | core → participant | Carries current-client modal notices only; ordinary system chat stays on legacy chat/game packets. |
@@ -27,7 +27,19 @@
 
     - System chat uses the existing lobby chat or native in-game chat packet. The optional modal packet is understood only by current clients and is safely ignored by older clients;
     - A current client advertises support with an authenticated `PLAYER_SETUP` capability message after login. Current servers send ranked-lifecycle packets only to clients that advertised it; older clients keep using the unchanged `+1..+7` lobby flow and therefore remain casual. Older servers safely ignore the capability message;
-    - The current V3 request deliberately reuses the existing wire-V2 `+9`/`+13` transfer exchange. The obsolete V2 request parser is not retained;
+    - The capability value `1` selects the sole ranked-lifecycle schema. Packets `+8..+10` and `+12..+14` therefore carry no redundant per-message version field. Their payloads after the one-byte message id are:
+
+      | Id | Payload |
+      | --- | --- |
+      | `+8 SAVE_REQUEST` | `u64 saveId`, `u8 mode`, then the ASCII save stem to the packet end. |
+      | `+9 SAVE_UPLOAD` | `u64 saveId`, `u8 operation`; `BEGIN` adds `u32 totalSize`, `CHUNK` adds raw bytes to the packet end, `COMMIT` adds nothing, and `FAIL` adds `u8 result`. |
+      | `+10 MATCH_ENDED` | Empty. |
+      | `+11 PLAYER_SETUP` | `u8 kind`, `u32 value`: capability kind `0` announces value `1`; host-lord kind `1` carries the selected lord. |
+      | `+12 SYSTEM_NOTICE` | `u64 noticeId`, then UTF-8 text to the packet end. |
+      | `+13 SAVE_STORED_ACK` | `u64 saveId`. |
+      | `+14 SAVE_NATIVE_RESULT` | `u64 saveId`, `u8 result`, then the successful save filename to the packet end; failures have no filename. |
+
+      Modes are `Upload=0` and `LocalOnly=1`; operations are `BEGIN=0`, `CHUNK=1`, `COMMIT=2`, and `FAIL=3`; results are `Success=0`, `Failed=1`, and `TimedOut=2`. Save requests use fixed client limits of 32 MiB and 30 seconds. Each chunk is at most 16 KiB;
     - Every filename handed to the asynchronous native writer remains reserved for the client-process lifetime, so a late callback after timeout cannot attach to a newer request. The client first claims the basename with an atomic `CREATE_NEW` placeholder and keeps a no-delete handle while the verified Russobit writer uses `CREATE_ALWAYS` on that same file object. The callback and durable-storage ACK both verify its Win32 identity, and an ACK deletes that exact unchanged object through an exclusive handle.
   </details>
 - <details>
