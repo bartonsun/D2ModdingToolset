@@ -210,6 +210,9 @@ settings = {
 	reviveUsesQtyHeal = false,
 	advancedCure = false,
 
+	-- Show impassable non-mountain landmarks on the minimap as PalMap MOUNTNE pictograms
+	minimapShowImpassableObjects = true,
+
 	extendedBattle = {
 		dotDamageCanStack = false,
 		blisterDamageID = "g202aa0001",
