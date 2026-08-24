@@ -25,21 +25,20 @@
 namespace hooks {
 
 /** Lobby-server driven native host-save exchange.
- * The accepted request carries wire version 3, saveId, the fixed Host role, mode, limits, and a
- * bounded ASCII save stem. Upload responses retain wire version 2 and start with version, saveId
- * and operation, followed by one of:
- * BEGIN(totalSize), CHUNK(offset, size, bytes), COMMIT, or FAIL(code).
+ * The capability-negotiated request carries saveId, mode, and a bounded ASCII save stem. Upload
+ * responses start with saveId and operation, followed by one of:
+ * BEGIN(totalSize), CHUNK(bytes), COMMIT, or FAIL(result).
  * All fields are written individually through SLNet::BitStream; this is not a packed ABI. */
 
 /** Handles a validated request on the main/UI thread. Only the native host path is valid. */
 void handleLobbySaveRequest(const LobbyProtocol::SaveRequest& request);
 
 /** Sends a FAIL operation when a request can be correlated but cannot be accepted. */
-void sendLobbySaveFailure(std::uint64_t saveId, LobbyProtocol::SaveStatus failure);
+void sendLobbySaveFailure(std::uint64_t saveId, LobbyProtocol::SaveResult result);
 
 /** Sends the failure on the response channel selected by the request mode. */
 void sendLobbySaveFailure(const LobbyProtocol::SaveRequest& request,
-                          LobbyProtocol::SaveStatus failure);
+                          LobbyProtocol::SaveResult result);
 
 /** Deletes the exact lobby-owned local save only after a matching authenticated server ACK. */
 void handleLobbySaveStoredAck(std::uint64_t saveId);
