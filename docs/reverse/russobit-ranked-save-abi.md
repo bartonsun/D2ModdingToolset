@@ -1,80 +1,88 @@
-# Russobit native save entry point
+# Точка входа нативного сохранения Russobit
 
-This note records the executable evidence used by the ranked host-save path. Its support scope is
-the exact binary below; identifying another executable as `GameVersion::Russobit` does not prove
-that it has the same function at the same address.
+В этой заметке зафиксированы результаты анализа исполняемого файла, на которых основан механизм
+сохранения рейтингового матча хостом. Поддержка ограничена точно указанным ниже бинарным файлом:
+определение другого файла как `GameVersion::Russobit` не доказывает, что в нём находится та же
+функция по тому же адресу.
 
-## Audited executable
+## Проанализированный исполняемый файл
 
-- File: `Discipl2.exe`
-- Size: `4,187,648` bytes
+- Файл: `Discipl2.exe`
+- Размер: `4,187,648` байт
 - SHA-256: `1375cdef09ec470ee64fe5693fb734d7c69fb215212311d997f792b258a642eb`
-- PE image base: `0x400000`
+- Базовый адрес PE-образа: `0x400000`
 
-The local reference copy can be fingerprinted with:
+Проверить отпечаток локальной эталонной копии можно так:
 
 ```powershell
 (Get-Item -LiteralPath .\Discipl2.exe).Length
 (Get-FileHash -LiteralPath .\Discipl2.exe -Algorithm SHA256).Hash
 ```
 
-The alternative Russobit/custom-icon executable of `4,214,272` bytes has not been audited for
-this entry point and is outside the evidence recorded here.
+Альтернативный исполняемый файл Russobit с изменённой иконкой размером `4,214,272` байта не
+проверялся для этой точки входа и не входит в приведённую здесь доказательную базу.
 
-The runtime ranked gate currently requires the audited `4,187,648`-byte size and the 16-byte
-entry-point signature below. Computing the recorded full-file SHA-256 in-process is intentionally
-deferred; it would add hashing code to a path whose immediate purpose is to reject the known
-unaudited custom-icon executable. A newly encountered executable remains casual until its native
-save ABI is audited and added explicitly.
+Проверка допуска в рейтинговый режим во время выполнения проверяет размер `4,187,648` байт и
+приведённую ниже 16-байтовую сигнатуру точки входа. Вычисление зафиксированного SHA-256 всего файла
+внутри процесса сознательно отложено: оно добавило бы код хеширования в путь, непосредственная
+задача которого — отсечь известный непроверенный файл с изменённой иконкой. Любой новый
+исполняемый файл остаётся в режиме `casual`, пока его нативный ABI сохранения не будет
+проанализирован и добавлен явно.
 
 ## `CPhaseGame::sendSaveGameMsg`
 
-- Virtual address: `0x40639b` (`RVA 0x639b`)
-- First 16 bytes:
+- Виртуальный адрес: `0x40639b` (`RVA 0x639b`)
+- Первые 16 байт:
   `B8 BC 71 68 00 E8 2B 70 26 00 83 EC 14 56 57 8B`
-- Cross-references observed at: `0x405fd6`, `0x48ffa1`, `0x4c4a69`
+- Обнаруженные перекрёстные ссылки: `0x405fd6`, `0x48ffa1`, `0x4c4a69`
 
-The disassembly reads the object from `ECX`, pushes the second stack argument followed by the
-string argument, and returns with `retn 8`. This supports the declaration used by `phasegame.h`:
+Согласно дизассемблированному коду, объект передаётся через `ECX`; функция кладёт в стек второй
+аргумент, затем строковый аргумент и возвращается через `retn 8`. Это подтверждает объявление,
+используемое в `phasegame.h`:
 
 ```cpp
 void __thiscall(CPhaseGame* thisptr, const char* saveName, bool uiLockRequest);
 ```
 
-This evidence establishes the address and calling convention only for the fingerprint above. It
-does not establish compatible addresses for Akella, GOG, Scenario Editor, or the custom-icon
-Russobit executable.
+Эти доказательства подтверждают адрес и соглашение о вызовах только для указанного выше отпечатка.
+Они не подтверждают совместимые адреса для Akella, GOG, Scenario Editor или исполняемого файла
+Russobit с изменённой иконкой.
 
-## `CCmdGameSavedMsg` view
+## Представление `CCmdGameSavedMsg`
 
-The same binary contains the RTTI type descriptor `.?AVCCmdGameSavedMsg@@` at `0x792c10`, whose
-complete-object locator is at `0x704c90` and whose vtable is at `0x6d4b44`.
+В том же бинарном файле RTTI-дескриптор типа `.?AVCCmdGameSavedMsg@@` находится по адресу
+`0x792c10`, его `complete-object locator` — по адресу `0x704c90`, а `vtable` — по адресу
+`0x6d4b44`.
 
-Constructor `0x4786aa` establishes the fields consumed by the save callback:
+Конструктор `0x4786aa` задаёт поля, которые использует обработчик сохранения (`callback`):
 
-- success byte at offset `+0x10`, copied from constructor argument 0;
-- save-path object at offset `+0x14`, initialized/copied from argument 1;
-- UI-lock byte at offset `+0x18`, copied from argument 2;
-- vtable `0x6d4b44`, followed by `retn 0x0c`.
+- байт результата по смещению `+0x10`, скопированный из аргумента конструктора 0;
+- объект пути сохранения по смещению `+0x14`, инициализированный или скопированный из аргумента 1;
+- байт блокировки интерфейса (`UI-lock`) по смещению `+0x18`, скопированный из аргумента 2;
+- `vtable` `0x6d4b44`, после чего выполняется `retn 0x0c`.
 
-Default constructor `0x478648` also initializes the object at `+0x14` and installs the same
-vtable. These observations validate the callback's local message view only for the audited SHA-256
-above; the C++ layout assertions alone are not evidence for another executable.
+Конструктор по умолчанию `0x478648` также инициализирует объект по смещению `+0x14` и устанавливает
+ту же `vtable`. Эти наблюдения подтверждают локальное представление сообщения в обработчике только
+для указанного выше SHA-256; одни лишь проверки компоновки C++ не являются доказательством для
+другого исполняемого файла.
 
-## `CMenusReqLordMsg` serialized fields
+## Сериализованные поля `CMenusReqLordMsg`
 
-The host handles this setup request through local loopback, so the custom lobby forwards the lord
-selection separately. The forwarded value is taken from the second 32-bit field after
-`NetMessageHeader`, based on these observations in the same audited executable:
+Хост обрабатывает этот запрос настройки через локальный `loopback`, поэтому пользовательское лобби
+отдельно передаёт выбор лорда. Передаваемое значение берётся из второго 32-битного поля после
+`NetMessageHeader`. Это основано на следующих наблюдениях в том же проанализированном файле:
 
-- RTTI type descriptor `.?AVCMenusReqLordMsg@@` is at `0x7972f0`, with vtable `0x6d4ffc`;
-- constructor `0x47d0c2` stores the category id at object offset `+0x4` and the lord index at
-  `+0x8`;
-- serializer `0x47d154` first calls the base serializer, then writes four bytes from `+0x4` and
-  four bytes from `+0x8`, in that order;
-- server handler `0x42b977` resolves the category from `+0x4` and passes the value returned by
-  accessor `0x5ffc5f` (`this + 0x8`) to `0x42b428`; that function stores the value at player-state
-  offset `+0xc` while copying the category separately.
+- RTTI-дескриптор типа `.?AVCMenusReqLordMsg@@` находится по адресу `0x7972f0`, `vtable` — по
+  адресу `0x6d4ffc`;
+- конструктор `0x47d0c2` сохраняет идентификатор категории по смещению объекта `+0x4`, а индекс
+  лорда — по смещению `+0x8`;
+- сериализатор `0x47d154` сначала вызывает базовый сериализатор, затем записывает четыре байта из
+  `+0x4` и четыре байта из `+0x8` именно в таком порядке;
+- серверный обработчик `0x42b977` определяет категорию из `+0x4` и передаёт в `0x42b428` значение,
+  возвращённое функцией доступа (`accessor`) `0x5ffc5f` (`this + 0x8`); функция `0x42b428`
+  сохраняет это значение по смещению `+0xc` в структуре состояния игрока, отдельно копируя
+  категорию.
 
-Consequently, reading the first 32-bit field after the 44-byte header would forward the category,
-not the lord. As with the save ABI above, these addresses document only the audited executable.
+Следовательно, чтение первого 32-битного поля после 44-байтового заголовка передало бы категорию,
+а не лорда. Как и в случае с ABI сохранения выше, эти адреса относятся только к проанализированному
+исполняемому файлу.
