@@ -10,6 +10,26 @@ constexpr bool shouldHandleLootedRuinMovement(bool stackExists,
     return stackExists && humanMover && lootedRuin;
 }
 
+constexpr bool shouldSkipLootedRuinEntry(bool stackExists,
+                                         bool humanMover,
+                                         bool lootedRuin)
+{
+    return shouldHandleLootedRuinMovement(stackExists, humanMover, lootedRuin);
+}
+
+constexpr bool skipLootedRuinCallsOriginal(bool skipEntry)
+{
+    return !skipEntry;
+}
+
+constexpr int movementAfterLootedRuinClick(bool skipEntry, int movementBefore, int originalAfter)
+{
+    if (!skipEntry) {
+        return originalAfter;
+    }
+    return movementBefore;
+}
+
 constexpr bool pointTargetsRuin(int pointX,
                                 int pointY,
                                 int originX,
@@ -25,25 +45,6 @@ constexpr bool pointTargetsRuin(int pointX,
     const bool inside = pointX >= originX && pointX < originX + sizeX && pointY >= originY
         && pointY < originY + sizeY;
     return inside || (pointX == entranceX && pointY == entranceY);
-}
-
-constexpr int lootedRuinMovementRefund(bool shouldHandle,
-                                       int movementBefore,
-                                       int movementAfter,
-                                       int maxMovement,
-                                       int pathMovementCost)
-{
-    if (!shouldHandle || movementBefore < 0 || movementAfter < 0 || maxMovement <= 0
-        || pathMovementCost < 0 || movementBefore <= movementAfter) {
-        return 0;
-    }
-    const int spent = movementBefore - movementAfter;
-    if (spent <= pathMovementCost) {
-        return 0;
-    }
-    const int actionSpent = spent - pathMovementCost;
-    const int actionCost = (maxMovement + 1) / 2;
-    return actionSpent < actionCost ? actionSpent : actionCost;
 }
 
 }
