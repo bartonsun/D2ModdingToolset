@@ -1106,7 +1106,7 @@ void CNetCustomService::processPendingMatchEnd()
         return;
     }
     if (!m_nativeGameMessageTracker->empty()) {
-        // Native game messages use the same main thread and must be consumed before teardown.
+        // Client and host-server receptions use different windows; wait until both queues drain.
         return;
     }
 
