@@ -34,9 +34,8 @@
 namespace hooks {
 namespace {
 
-/** Russobit CCmdGameSavedMsg layout recovered from the native constructor/serializer. Keep this
- * view local to the only version for which the ABI was verified.
- * See docs/reverse/russobit-ranked-save-abi.md. */
+/** Russobit CCmdGameSavedMsg layout recovered from constructor 0x4786aa
+ * (vtable 0x6d4b44). Keep this view local to the verified build. */
 struct CCmdGameSavedMsgView
 {
     game::CCommandMsg command;

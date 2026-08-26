@@ -64,7 +64,6 @@ Api& get()
 
 bool nativeSaveSupported()
 {
-    // Reverse-engineering evidence: docs/reverse/russobit-ranked-save-abi.md.
     // Reference executable: Discipl2.exe, 4,187,648 bytes,
     // SHA-256 1375CDEF09EC470EE64FE5693FB734D7C69FB215212311D997F792B258A642EB.
     // At 0x40639b the audited disassembly consumes ECX as this and returns with retn 8. Checking
@@ -103,6 +102,7 @@ bool nativeSaveSupported()
 
     const auto codeAddress{reinterpret_cast<std::uintptr_t>(code)};
     const auto regionAddress{reinterpret_cast<std::uintptr_t>(memory.BaseAddress)};
+    // These are runtime bounds returned by VirtualQuery, not version-specific API addresses.
     if (codeAddress < regionAddress || expectedPrologue.size() > memory.RegionSize
         || codeAddress - regionAddress > memory.RegionSize - expectedPrologue.size()) {
         return false;

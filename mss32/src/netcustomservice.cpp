@@ -36,7 +36,6 @@
 #include <MessageIdentifiers.h>
 #include <algorithm>
 #include <array>
-#include <limits>
 #include <mutex>
 #include <optional>
 #include <spdlog/spdlog.h>
@@ -51,12 +50,9 @@ namespace hooks {
 namespace {
 
 static constexpr std::uint32_t lobbyMaintenanceIntervalMs{250};
-static constexpr std::size_t rememberedNoticesMax{256};
 static constexpr UINT gameTextCodePage{1251};
-/** Main-thread guard shared by packet draining and local lobby maintenance. */
-bool peerProcessActive{};
-/** Prevents native UI transitions from recursively processing deferred lobby state. */
-bool lobbyStateProcessActive{};
+/** Prevents recursive packet, maintenance, and deferred-UI processing on the main thread. */
+bool mainThreadCallbackActive{};
 
 struct MainThreadCallbackGuard
 {
@@ -112,7 +108,7 @@ game::CMidMsgBoxButtonHandlerVftable systemNoticeMsgBoxButtonHandlerVftable{
 
 std::optional<std::string> utf8ToGameEncoding(std::string_view text)
 {
-    if (text.empty() || text.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    if (text.empty()) {
         return std::nullopt;
     }
 
@@ -154,74 +150,18 @@ bool isAuthenticatedLobbyPacket(const CNetCustomService* service, const SLNet::P
            && packet->guid == service->getLobbyGuid();
 }
 
-constexpr char upperAscii(char character)
-{
-    return character >= 'a' && character <= 'z'
-        ? static_cast<char>(character - ('a' - 'A'))
-        : character;
-}
-
-constexpr bool equalsAsciiCaseInsensitive(std::string_view value, std::string_view expected)
-{
-    if (value.size() != expected.size()) {
-        return false;
-    }
-    for (std::size_t index = 0; index < value.size(); ++index) {
-        if (upperAscii(value[index]) != upperAscii(expected[index])) {
-            return false;
-        }
-    }
-    return true;
-}
-
-constexpr bool isReservedWindowsDeviceStem(std::string_view stem)
-{
-    if (equalsAsciiCaseInsensitive(stem, "CON") || equalsAsciiCaseInsensitive(stem, "PRN")
-        || equalsAsciiCaseInsensitive(stem, "AUX") || equalsAsciiCaseInsensitive(stem, "NUL")) {
-        return true;
-    }
-    if (stem.size() != 4 || stem[3] < '1' || stem[3] > '9') {
-        return false;
-    }
-    return equalsAsciiCaseInsensitive(stem.substr(0, 3), "COM")
-           || equalsAsciiCaseInsensitive(stem.substr(0, 3), "LPT");
-}
-
-static_assert(isReservedWindowsDeviceStem("CON"));
-static_assert(isReservedWindowsDeviceStem("nul"));
-static_assert(isReservedWindowsDeviceStem("Com1"));
-static_assert(isReservedWindowsDeviceStem("LPT9"));
-static_assert(!isReservedWindowsDeviceStem("CON-save"));
-static_assert(!isReservedWindowsDeviceStem("COM10"));
-
-constexpr bool canPostPendingMatchEnd(bool loggedIn,
-                                      bool hasSession,
-                                      bool multiplayerGame,
-                                      bool gameIsRunning,
-                                      bool hasClient,
-                                      bool nativeMessageQueueEmpty)
-{
-    return loggedIn && hasSession && multiplayerGame && gameIsRunning && hasClient
-           && nativeMessageQueueEmpty;
-}
-
-static_assert(canPostPendingMatchEnd(true, true, true, true, true, true));
-static_assert(!canPostPendingMatchEnd(true, true, true, false, true, true));
-static_assert(!canPostPendingMatchEnd(true, true, true, true, true, false));
-
 bool isSafeSaveStem(std::string_view stem)
 {
     if (stem.empty() || stem.size() > LobbyProtocol::saveStemMax) {
         return false;
     }
 
-    return !isReservedWindowsDeviceStem(stem)
-           && std::all_of(stem.begin(), stem.end(), [](unsigned char character) {
-                  return (character >= 'A' && character <= 'Z')
-                         || (character >= 'a' && character <= 'z')
-                         || (character >= '0' && character <= '9') || character == '_'
-                         || character == '-';
-              });
+    return std::all_of(stem.begin(), stem.end(), [](unsigned char character) {
+        return (character >= 'A' && character <= 'Z')
+               || (character >= 'a' && character <= 'z')
+               || (character >= '0' && character <= '9') || character == '_'
+               || character == '-';
+    });
 }
 
 } // namespace
@@ -703,7 +643,8 @@ bool CNetCustomService::createRoom(const char* gameName,
 
     const auto& templateName = getTemplateName();
     const auto& templateHash = getTemplateHash();
-    const auto effectiveSimTurnsDays{m_roomOptions.effectiveSimultaneousTurnsDays()};
+    const auto effectiveSimTurnsDays{
+        m_roomOptions.simultaneousTurnsEnabled ? m_roomOptions.simultaneousTurnsDays : 0};
     const auto simTurnsDays{std::to_string(effectiveSimTurnsDays)};
 
     auto row = properties.AddRow(0);
@@ -901,7 +842,7 @@ void __fastcall CNetCustomService::peerProcessEventCallback(const CNetCustomServ
         return;
     }
 
-    if (peerProcessActive || lobbyStateProcessActive) {
+    if (mainThreadCallbackActive) {
         // Native callbacks can pump messages and timers.  Local maintenance will drain deferred
         // UI state after the outer callback returns; no packet is resent here.
         return;
@@ -909,7 +850,7 @@ void __fastcall CNetCustomService::peerProcessEventCallback(const CNetCustomServ
 
     auto peer = service->m_peer;
     {
-        MainThreadCallbackGuard callbackGuard{peerProcessActive};
+        MainThreadCallbackGuard callbackGuard{mainThreadCallbackActive};
         for (auto packet = peer->Receive(); packet != nullptr;
              peer->DeallocatePacket(packet), packet = peer->Receive()) {
 
@@ -1084,8 +1025,7 @@ bool CNetCustomService::readSaveStoredAck(const SLNet::Packet* packet,
     return true;
 }
 
-bool CNetCustomService::readSystemNotice(const SLNet::Packet* packet,
-                                         LobbyProtocol::SystemNotice& notice) const
+bool CNetCustomService::readSystemNotice(const SLNet::Packet* packet, std::string& notice) const
 {
     using namespace LobbyProtocol;
 
@@ -1101,15 +1041,9 @@ bool CNetCustomService::readSystemNotice(const SLNet::Packet* packet,
     SLNet::BitStream stream{packet->data, packet->length, false};
     stream.IgnoreBytes(sizeof(SLNet::MessageID));
 
-    if (!stream.Read(notice.noticeId)) {
-        spdlog::warn(__FUNCTION__ ": malformed system notice header");
-        return false;
-    }
-
     const auto textBits{stream.GetNumberOfUnreadBits()};
     const auto textBytes{static_cast<std::size_t>(textBits / 8)};
-    if (notice.noticeId == 0 || textBits % 8 != 0 || textBytes == 0
-        || textBytes > systemNoticeTextMax) {
+    if (textBits % 8 != 0 || textBytes == 0 || textBytes > systemNoticeTextMax) {
         spdlog::warn(__FUNCTION__ ": invalid system notice metadata");
         return false;
     }
@@ -1126,36 +1060,25 @@ bool CNetCustomService::readSystemNotice(const SLNet::Packet* packet,
     const auto encoded{utf8ToGameEncoding(utf8Text)};
     if (!encoded) {
         spdlog::warn(__FUNCTION__
-                     ": notice {:016x} is invalid UTF-8 or cannot be represented in Windows-1251",
-                     notice.noticeId);
+                     ": notice is invalid UTF-8 or cannot be represented in Windows-1251");
         return false;
     }
-    notice.text = *encoded;
+    notice = *encoded;
     return true;
 }
 
-void CNetCustomService::enqueueSystemNotice(LobbyProtocol::SystemNotice notice)
+void CNetCustomService::enqueueSystemNotice(std::string notice)
 {
-    if (!m_seenSystemNotices.insert(notice.noticeId).second) {
-        return;
-    }
-
-    m_seenSystemNoticeOrder.push_back(notice.noticeId);
-    if (m_seenSystemNoticeOrder.size() > rememberedNoticesMax) {
-        m_seenSystemNotices.erase(m_seenSystemNoticeOrder.front());
-        m_seenSystemNoticeOrder.pop_front();
-    }
-
     m_pendingSystemNotices.push_back(std::move(notice));
 }
 
 void CNetCustomService::processDeferredLobbyState()
 {
-    if (peerProcessActive || lobbyStateProcessActive || m_systemNoticeModalActive) {
+    if (mainThreadCallbackActive || m_systemNoticeModalActive) {
         return;
     }
 
-    MainThreadCallbackGuard callbackGuard{lobbyStateProcessActive};
+    MainThreadCallbackGuard callbackGuard{mainThreadCallbackActive};
     if (m_matchEndPending) {
         processPendingMatchEnd();
         return;
@@ -1176,11 +1099,14 @@ void CNetCustomService::processPendingMatchEnd()
     }
 
     auto data = midgard->data;
-    if (!canPostPendingMatchEnd(loggedIn(), getSession() != nullptr, data->multiplayerGame,
-                                data->gameIsRunning, data->client != nullptr,
-                                m_nativeGameMessageTracker->empty())) {
-        // Lobby/session teardown clears the flag explicitly. Transitional game state and native
-        // queues are retried by the maintenance event instead of losing MATCH_ENDED.
+    if (!loggedIn() || !getSession() || !data->multiplayerGame || !data->client) {
+        // A detached terminal packet can arrive after the old native session has already gone.
+        // It must not block later global notices while waiting for state that will never return.
+        m_matchEndPending = false;
+        return;
+    }
+    if (!m_nativeGameMessageTracker->empty()) {
+        // Native game messages use the same main thread and must be consumed before teardown.
         return;
     }
 
@@ -1203,13 +1129,18 @@ void CNetCustomService::processPendingMatchEnd()
 
 void CNetCustomService::processPendingSystemNotices()
 {
-    while (!m_systemNoticeModalActive && !m_pendingSystemNotices.empty()) {
-        auto notice{std::move(m_pendingSystemNotices.front())};
-        m_pendingSystemNotices.pop_front();
-        if (displaySystemNotice(notice)) {
-            return;
-        }
+    if (m_systemNoticeModalActive || m_pendingSystemNotices.empty()) {
+        return;
     }
+
+    auto notice{std::move(m_pendingSystemNotices.front())};
+    m_pendingSystemNotices.pop_front();
+    m_systemNoticeModalActive = true;
+
+    auto handler = static_cast<SystemNoticeMsgBoxButtonHandler*>(
+        game::Memory::get().allocate(sizeof(SystemNoticeMsgBoxButtonHandler)));
+    handler->vftable = &systemNoticeMsgBoxButtonHandlerVftable;
+    showMessageBox(notice, handler, false);
 }
 
 void CNetCustomService::notifySystemNoticeModalClosed()
@@ -1238,38 +1169,19 @@ void CNetCustomService::clearLobbyMatchState()
     m_matchEndPending = false;
 }
 
-bool CNetCustomService::showSystemNoticeModal(const std::string& text)
-{
-    if (m_systemNoticeModalActive) {
-        return false;
-    }
-    m_systemNoticeModalActive = true;
-
-    auto handler = static_cast<SystemNoticeMsgBoxButtonHandler*>(
-        game::Memory::get().allocate(sizeof(SystemNoticeMsgBoxButtonHandler)));
-    handler->vftable = &systemNoticeMsgBoxButtonHandlerVftable;
-    showMessageBox(text, handler, false);
-    return true;
-}
-
-bool CNetCustomService::displaySystemNotice(const LobbyProtocol::SystemNotice& notice)
-{
-    return showSystemNoticeModal(notice.text);
-}
-
 void __fastcall CNetCustomService::lobbyMaintenanceTimerEventCallback(
     CNetCustomService* /*thisptr*/,
     int /*%edx*/)
 {
     auto service = get();
-    if (!service || peerProcessActive || lobbyStateProcessActive) {
+    if (!service || mainThreadCallbackActive) {
         // A timer notification may already be queued when native service teardown removes the
         // event. Resolve the current instance instead of trusting the callback's raw userdata.
         return;
     }
 
     {
-        MainThreadCallbackGuard callbackGuard{lobbyStateProcessActive};
+        MainThreadCallbackGuard callbackGuard{mainThreadCallbackActive};
         expireLobbySaveTransfers();
     }
 
@@ -1343,7 +1255,7 @@ void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes typ
         break;
     }
     case ID_LOBBY_SYSTEM_NOTICE: {
-        LobbyProtocol::SystemNotice notice{};
+        std::string notice;
         if (m_service->readSystemNotice(packet, notice)) {
             m_service->enqueueSystemNotice(std::move(notice));
         }
