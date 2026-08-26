@@ -37,7 +37,6 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 namespace game {
@@ -88,17 +87,17 @@ enum LobbyMessageId
     ID_LOBBY_GET_CHAT_MESSAGES_RESPONSE = ID_USER_PACKET_ENUM + 5,
     ID_GAME_MESSAGE_TO_HOST_SERVER = ID_USER_PACKET_ENUM + 6,
     ID_GAME_MESSAGE_TO_HOST_CLIENT = ID_USER_PACKET_ENUM + 7,
-    /** Core -> participant: start one bounded native host save. */
+    /** Core -> host: start one bounded native host save. */
     ID_LOBBY_SAVE_REQUEST = ID_USER_PACKET_ENUM + 8,
-    /** Participant -> core: one native-save BEGIN, CHUNK, COMMIT, or FAIL operation. */
+    /** Host -> core: one native-save BEGIN, CHUNK, COMMIT, or FAIL operation. */
     ID_LOBBY_SAVE_UPLOAD = ID_USER_PACKET_ENUM + 9,
     /** Core -> participant: the ranked match is finalized; leave the game UI for the lobby. */
     ID_LOBBY_MATCH_ENDED = ID_USER_PACKET_ENUM + 10,
     /** Participant -> core: protocol capability or authenticated host setup extension. */
     ID_LOBBY_PLAYER_SETUP = ID_USER_PACKET_ENUM + 11,
-    /** Core -> participant: deduplicated modal notice. System chat uses legacy chat packets. */
+    /** Core -> participant: modal notice. System chat uses legacy chat packets. */
     ID_LOBBY_SYSTEM_NOTICE = ID_USER_PACKET_ENUM + 12,
-    /** Core -> participant: durable-storage confirmation, not a RakNet delivery ACK. */
+    /** Core -> host: durable-storage confirmation, not a RakNet delivery ACK. */
     ID_LOBBY_SAVE_STORED_ACK = ID_USER_PACKET_ENUM + 13,
     /** Host -> core: native-save result and actual collision-safe basename. */
     ID_LOBBY_SAVE_NATIVE_RESULT = ID_USER_PACKET_ENUM + 14,
@@ -118,13 +117,6 @@ static constexpr std::uint32_t saveFileHardLimit{32u * 1024u * 1024u};
 static constexpr std::uint32_t saveChunkSizeMax{16u * 1024u};
 static constexpr std::size_t saveStemMax{180};
 static constexpr std::size_t saveResultFileNameMax{220};
-
-struct SystemNotice
-{
-    std::uint64_t noticeId{};
-    /** Converted from wire UTF-8 to the game's Windows-1251 before this object is queued. */
-    std::string text;
-};
 
 enum class SaveMode : std::uint8_t
 {
@@ -210,11 +202,6 @@ public:
         /** Spinner selection retained while simultaneous turns are disabled. */
         int simultaneousTurnsDays{7};
         bool unlockGui{false};
-
-        constexpr int effectiveSimultaneousTurnsDays() const noexcept
-        {
-            return simultaneousTurnsEnabled ? simultaneousTurnsDays : 0;
-        }
     };
 
     // !!! Keep in sync with lobby server
@@ -433,14 +420,11 @@ private:
     bool readSaveRequest(const SLNet::Packet* packet,
                          LobbyProtocol::SaveRequest& request) const;
     bool readSaveStoredAck(const SLNet::Packet* packet, std::uint64_t& saveId) const;
-    bool readSystemNotice(const SLNet::Packet* packet,
-                          LobbyProtocol::SystemNotice& notice) const;
-    void enqueueSystemNotice(LobbyProtocol::SystemNotice notice);
+    bool readSystemNotice(const SLNet::Packet* packet, std::string& notice) const;
+    void enqueueSystemNotice(std::string notice);
     void processDeferredLobbyState();
     void processPendingMatchEnd();
     void processPendingSystemNotices();
-    bool displaySystemNotice(const LobbyProtocol::SystemNotice& notice);
-    bool showSystemNoticeModal(const std::string& text);
     /** Drops the current match transfer/terminal state while retaining global system notices. */
     void clearLobbyMatchState();
 
@@ -462,9 +446,7 @@ private:
     game::UiEvent m_lobbyMaintenanceTimerEvent;
     std::vector<NetPeerCallback*> m_peerCallbacks;
     mutable std::mutex m_peerCallbacksMutex;
-    std::deque<LobbyProtocol::SystemNotice> m_pendingSystemNotices;
-    std::unordered_set<std::uint64_t> m_seenSystemNotices;
-    std::deque<std::uint64_t> m_seenSystemNoticeOrder;
+    std::deque<std::string> m_pendingSystemNotices;
     bool m_matchEndPending{};
     bool m_systemNoticeModalActive{};
     std::shared_ptr<NativeGameMessageTracker> m_nativeGameMessageTracker{
@@ -474,11 +456,6 @@ private:
     std::string m_templateHash;
     RoomOptions m_roomOptions;
 };
-
-static_assert(CNetCustomService::RoomOptions{}.effectiveSimultaneousTurnsDays() == 0);
-static_assert(CNetCustomService::RoomOptions{false, true, 7, false}
-                  .effectiveSimultaneousTurnsDays()
-              == 7);
 
 assert_offset(CNetCustomService, vftable, 0);
 

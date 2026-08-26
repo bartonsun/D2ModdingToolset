@@ -113,8 +113,8 @@ bool __fastcall CNetCustomPlayerClient::sendMessage(CNetCustomPlayerClient* this
 void CNetCustomPlayerClient::forwardPlayerSetupToLobby(const game::NetMessageHeader* message) const
 {
     // The relay already observes the host race through normal setup state. Only the host lord
-    // request is local-loopback-only and needs an out-of-band attribution message. The audited
-    // serialized layout is recorded in docs/reverse/russobit-ranked-save-abi.md.
+    // request is local-loopback-only and needs an out-of-band attribution message. In the audited
+    // Russobit serializer at 0x47d154, category (+0x4) precedes lord index (+0x8).
     static constexpr char lordMessageClass[]{".?AVCMenusReqLordMsg@@"};
     static constexpr auto lordIndexOffset{sizeof(game::NetMessageHeader) + sizeof(std::uint32_t)};
     if (!message || message->length < lordIndexOffset + sizeof(std::uint32_t)

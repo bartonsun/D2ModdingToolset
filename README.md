@@ -8,8 +8,8 @@
 - <details>
     <summary>Adds ranked-match lifecycle support to the custom lobby;</summary>
 
-    - Ranked hosting is enabled only when the runtime native-save entry point matches the audited Russobit signature documented in [`docs/reverse/russobit-ranked-save-abi.md`](docs/reverse/russobit-ranked-save-abi.md). The note records the sole fully audited executable fingerprint; builds with a different entry point remain casual;
-    - Lobby-requested saves always use the original host's native save builder. Ranked saves are uploaded and the exact local file is deleted only after durable-storage acknowledgement; casual saves remain only in the host's save folder;
+    - Ranked host saves are enabled only for the verified Russobit executable (`4,187,648` bytes with the matching native-save entry signature); other builds remain casual;
+    - Lobby-requested saves always use the original host's native save builder. `Upload` deletes the exact local file only after durable-storage acknowledgement; `LocalOnly` retains it in the host's save folder;
     - Save-transfer COMMIT carries no client digest. The server computes the stored artifact SHA-256 while receiving the chunks;
     - Loaded games are always casual. This prevents a ranked setting from a previous room being reused for an unrelated save;
     - Custom protocol ids are append-only: the existing lobby/game ids `+1` through `+7` and relay id `255` are unchanged. Rooms created by older clients have no `Ranked` column and remain casual;
@@ -17,15 +17,15 @@
 
       | Id | Direction | Purpose |
       | --- | --- | --- |
-      | `+8 SAVE_REQUEST` | core → host | Requests one `Upload` or `LocalOnly` native host save with a safe ASCII file stem. |
-      | `+9 SAVE_UPLOAD` | participant → core | Carries the ordered `BEGIN`, `CHUNK`, header-only `COMMIT`, or `FAIL` operations. |
+      | `+8 SAVE_REQUEST` | core → host | Requests one `Upload` or `LocalOnly` native host save with a bounded ASCII stem; only letters, digits, `_`, and `-` are accepted. |
+      | `+9 SAVE_UPLOAD` | host → core | Carries the ordered `BEGIN`, `CHUNK`, header-only `COMMIT`, or `FAIL` operations. |
       | `+10 MATCH_ENDED` | core → participant | Returns a finalized ranked participant from the game UI to the custom lobby. |
       | `+11 PLAYER_SETUP` | participant → core | Advertises ranked-lifecycle support after login or reports the authenticated host lord choice. |
       | `+12 SYSTEM_NOTICE` | core → participant | Carries current-client modal notices only; ordinary system chat stays on legacy chat/game packets. |
-      | `+13 SAVE_STORED_ACK` | core → participant | Confirms durable server storage so the exact generated local save may be deleted; it is not a RakNet ACK. |
+      | `+13 SAVE_STORED_ACK` | core → host | Confirms durable server storage so the exact generated local save may be deleted; it is not a RakNet ACK. |
       | `+14 SAVE_NATIVE_RESULT` | host → core | For `LocalOnly`, reports success plus the collision-safe filename or a failure with no filename and ends the request. For `Upload`, it reports only native-save success plus the filename; upload failures and completion use `+9 SAVE_UPLOAD` (`FAIL`/`COMMIT`). |
 
-    - System chat uses the existing lobby chat or native in-game chat packet. The optional modal packet is understood only by current clients and is safely ignored by older clients;
+    - System chat uses the existing lobby chat or native in-game chat packet. The server sends the optional modal packet only to current clients;
     - A current client advertises support with an authenticated `PLAYER_SETUP` capability message after login. Current servers send ranked-lifecycle packets only to clients that advertised it; older clients keep using the unchanged `+1..+7` lobby flow and therefore remain casual. Older servers safely ignore the capability message;
     - The capability value `1` selects the sole ranked-lifecycle schema. Packets `+8..+10` and `+12..+14` therefore carry no redundant per-message version field. Their payloads after the one-byte message id are:
 
@@ -35,7 +35,7 @@
       | `+9 SAVE_UPLOAD` | `u64 saveId`, `u8 operation`; `BEGIN` adds `u32 totalSize`, `CHUNK` adds raw bytes to the packet end, `COMMIT` adds nothing, and `FAIL` adds `u8 result`. |
       | `+10 MATCH_ENDED` | Empty. |
       | `+11 PLAYER_SETUP` | `u8 kind`, `u32 value`: capability kind `0` announces value `1`; host-lord kind `1` carries the selected lord. |
-      | `+12 SYSTEM_NOTICE` | `u64 noticeId`, then UTF-8 text to the packet end. |
+      | `+12 SYSTEM_NOTICE` | UTF-8 text to the packet end. |
       | `+13 SAVE_STORED_ACK` | `u64 saveId`. |
       | `+14 SAVE_NATIVE_RESULT` | `u64 saveId`, `u8 result`, then the successful save filename to the packet end; failures have no filename. |
 
