@@ -28,8 +28,9 @@
 #include <slikenet/BitStream.h>
 #include <spdlog/spdlog.h>
 #include <string>
+#include <system_error>
 #include <thread>
-#include <vector>
+#include <utility>
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
@@ -43,13 +44,6 @@ using namespace LobbyProtocol;
 static constexpr auto storedAckGrace{std::chrono::seconds(10)};
 static constexpr auto saveRequestTimeout{std::chrono::seconds(30)};
 static constexpr unsigned int collisionSuffixLimit{9999};
-
-struct StableFileIdentity
-{
-    DWORD volumeSerialNumber{};
-    DWORD fileIndexHigh{};
-    DWORD fileIndexLow{};
-};
 
 class NativeFileHandle
 {
@@ -102,8 +96,6 @@ struct SaveTransferSession
     SaveRequest request;
     std::string saveName;
     std::filesystem::path savePath;
-    StableFileIdentity reservedFileIdentity;
-    NativeFileHandle pathClaim;
     NativeFileHandle snapshotFile;
     std::chrono::steady_clock::time_point deadline;
 };
@@ -118,14 +110,7 @@ struct PendingStoredAck
 
 std::optional<SaveTransferSession> activeTransfer;
 std::optional<PendingStoredAck> pendingStoredAck;
-/** A native save request cannot be cancelled. Keep every path handed to it reserved for this DLL
- * lifetime so a late GameSaved callback can never match a later request after timeout/teardown. */
-std::vector<std::filesystem::path> nativeSavePathTombstones;
-
-std::optional<StableFileIdentity> readStableFileIdentity(HANDLE handle);
-bool sameFileObjectIdentity(const StableFileIdentity& first, const StableFileIdentity& second);
-bool deleteEmptyFileWithMatchingObjectIdentity(const std::filesystem::path& path,
-                                               const StableFileIdentity& expected);
+std::uint64_t nativeSaveRequestSequence{};
 
 bool markOpenFileForDeletion(HANDLE handle)
 {
@@ -188,73 +173,42 @@ bool sameWindowsPath(const std::filesystem::path& first,
     }
 }
 
-bool nativeSavePathIsReserved(const std::filesystem::path& path)
-{
-    return std::any_of(nativeSavePathTombstones.begin(), nativeSavePathTombstones.end(),
-                       [&](const auto& reserved) { return sameWindowsPath(path, reserved); });
-}
-
-void reserveNativeSavePath(std::filesystem::path path)
-{
-    path = path.lexically_normal();
-    path.make_preferred();
-    nativeSavePathTombstones.push_back(std::move(path));
-}
-
 bool chooseUnusedSavePath(const game::CMidgard* midgard, SaveTransferSession& transfer)
 {
     const auto& baseName{transfer.request.saveStem};
     const auto folder{getSaveFolder(midgard)};
+    if (nativeSaveRequestSequence == std::numeric_limits<std::uint64_t>::max()) {
+        return false;
+    }
+    const auto sequence{++nativeSaveRequestSequence};
+    const auto requestSuffix{sequence == 1 ? std::string{} : '_' + std::to_string(sequence)};
 
     for (unsigned int index = 1; index <= collisionSuffixLimit; ++index) {
-        const auto suffix{index == 1 ? std::string{} : '_' + std::to_string(index)};
-        const auto saveName{baseName + suffix};
-        const auto fileName{saveName + ".sg"};
-        if (fileName.size() > saveResultFileNameMax) {
+        const auto collisionSuffix{index == 1 ? std::string{} : '_' + std::to_string(index)};
+        const auto suffix{requestSuffix + collisionSuffix};
+        if (suffix.size() + 3 >= saveResultFileNameMax) {
             return false;
         }
+        const auto maxBaseSize{saveResultFileNameMax - suffix.size() - 3};
+        const auto saveName{baseName.substr(0, maxBaseSize) + suffix};
+        const auto fileName{saveName + ".sg"};
 
         const auto savePath{folder / fileName};
-        if (nativeSavePathIsReserved(savePath)) {
+        std::error_code error;
+        if (std::filesystem::exists(savePath, error)) {
             continue;
         }
-
-        // Claim the path atomically while sharing read/write access so the native save can populate
-        // the reserved object. Its object identity is checked again before any bytes are uploaded.
-        const HANDLE placeholder{CreateFileW(savePath.c_str(), 0,
-                                             FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
-                                             CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr)};
-        if (placeholder == INVALID_HANDLE_VALUE) {
-            const auto createError{GetLastError()};
-            if (createError == ERROR_FILE_EXISTS || createError == ERROR_ALREADY_EXISTS
-                || GetFileAttributesW(savePath.c_str()) != INVALID_FILE_ATTRIBUTES) {
-                continue;
-            }
-            spdlog::warn(__FUNCTION__ ": cannot reserve save path '{:s}', error {:d}",
-                         savePath.string(), static_cast<int>(createError));
-            return false;
-        }
-
-        const auto identity{readStableFileIdentity(placeholder)};
-        if (!identity) {
-            CloseHandle(placeholder);
-            reserveNativeSavePath(savePath);
-            spdlog::warn(__FUNCTION__
-                         ": cannot identify reserved save path '{:s}'; leaving reserved file",
-                         savePath.string());
+        if (error) {
+            spdlog::warn(__FUNCTION__ ": cannot inspect save path '{:s}': {:s}",
+                         savePath.string(), error.message());
             return false;
         }
 
         try {
-            reserveNativeSavePath(savePath);
             transfer.saveName = saveName;
             transfer.savePath = savePath;
-            transfer.reservedFileIdentity = *identity;
-            transfer.pathClaim.reset(placeholder);
         } catch (...) {
-            CloseHandle(placeholder);
-            deleteEmptyFileWithMatchingObjectIdentity(savePath, *identity);
-            spdlog::warn(__FUNCTION__ ": could not retain reserved save path state");
+            spdlog::warn(__FUNCTION__ ": could not retain save path state");
             return false;
         }
 
@@ -318,37 +272,20 @@ bool validateSaveSignature(HANDLE handle)
         && std::equal(actual.begin(), actual.end(), std::begin(signature));
 }
 
-bool captureImmutableSave(SaveTransferSession& transfer,
-                          std::uint32_t& totalSize,
-                          SaveResult& failure)
+bool captureSave(SaveTransferSession& transfer,
+                 std::uint32_t& totalSize,
+                 SaveResult& failure)
 {
-    // The zero-access placeholder was opened without FILE_SHARE_DELETE, so close it after
-    // GameSaved before acquiring a DELETE-capable snapshot handle. The object identity check below
-    // fails closed if the path was replaced during that transition.
-    transfer.pathClaim.reset();
-    const HANDLE handle{CreateFileW(transfer.savePath.c_str(),
-                                    GENERIC_READ | FILE_READ_ATTRIBUTES | DELETE,
+    const HANDLE handle{CreateFileW(transfer.savePath.c_str(), GENERIC_READ | DELETE,
                                     FILE_SHARE_READ, nullptr, OPEN_EXISTING,
                                     FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, nullptr)};
     if (handle == INVALID_HANDLE_VALUE) {
-        spdlog::warn(__FUNCTION__ ": cannot lock save snapshot '{:s}', error {:d}",
+        spdlog::warn(__FUNCTION__ ": cannot open native save '{:s}', error {:d}",
                      transfer.savePath.string(), static_cast<int>(GetLastError()));
         failure = SaveResult::Failed;
         return false;
     }
     transfer.snapshotFile.reset(handle);
-
-    const auto identity{readStableFileIdentity(transfer.snapshotFile.get())};
-    if (!identity) {
-        failure = SaveResult::Failed;
-        return false;
-    }
-    if (!sameFileObjectIdentity(*identity, transfer.reservedFileIdentity)) {
-        spdlog::warn(__FUNCTION__ ": native save path identity changed for '{:s}'",
-                     transfer.savePath.string());
-        failure = SaveResult::Failed;
-        return false;
-    }
 
     LARGE_INTEGER fileSize{};
     if (!GetFileSizeEx(transfer.snapshotFile.get(), &fileSize) || fileSize.QuadPart <= 0) {
@@ -468,47 +405,6 @@ game::CPhaseGame* getHostPhaseGame(const game::CMidgard* midgard)
     const auto phaseGame{reinterpret_cast<game::CPhaseGame*>(
         reinterpret_cast<std::uint8_t*>(phase) - offsetof(game::CPhaseGame, phase))};
     return phaseGame->data && phaseGame->data->midClient == client ? phaseGame : nullptr;
-}
-
-std::optional<StableFileIdentity> readStableFileIdentity(HANDLE handle)
-{
-    BY_HANDLE_FILE_INFORMATION information{};
-    if (handle == INVALID_HANDLE_VALUE || !GetFileInformationByHandle(handle, &information)
-        || (information.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
-        return std::nullopt;
-    }
-
-    StableFileIdentity identity{};
-    identity.volumeSerialNumber = information.dwVolumeSerialNumber;
-    identity.fileIndexHigh = information.nFileIndexHigh;
-    identity.fileIndexLow = information.nFileIndexLow;
-    return identity;
-}
-
-bool sameFileObjectIdentity(const StableFileIdentity& first,
-                            const StableFileIdentity& second)
-{
-    return first.volumeSerialNumber == second.volumeSerialNumber
-           && first.fileIndexHigh == second.fileIndexHigh
-           && first.fileIndexLow == second.fileIndexLow;
-}
-
-bool deleteEmptyFileWithMatchingObjectIdentity(const std::filesystem::path& path,
-                                               const StableFileIdentity& expected)
-{
-    const HANDLE handle{CreateFileW(path.c_str(), FILE_READ_ATTRIBUTES | DELETE, 0, nullptr,
-                                    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr)};
-    if (handle == INVALID_HANDLE_VALUE) {
-        return false;
-    }
-
-    const auto actual{readStableFileIdentity(handle)};
-    LARGE_INTEGER fileSize{};
-    const bool unchangedPlaceholder{actual && sameFileObjectIdentity(*actual, expected)
-                                    && GetFileSizeEx(handle, &fileSize) && fileSize.QuadPart == 0};
-    const bool removed{unchangedPlaceholder && markOpenFileForDeletion(handle)};
-    CloseHandle(handle);
-    return removed;
 }
 
 bool isExpectedHostSaveResultPath(const std::string& observed,
@@ -684,14 +580,7 @@ void handleLobbySaveRequest(const LobbyProtocol::SaveRequest& request)
         sendSaveGameMsg(phaseGame, activeTransfer->saveName.c_str(), false);
     } catch (...) {
         spdlog::warn(__FUNCTION__ ": native host save builder raised a C++ exception");
-        const auto placeholderPath{activeTransfer->savePath};
-        const auto placeholderIdentity{activeTransfer->reservedFileIdentity};
         activeTransfer.reset();
-        if (!deleteEmptyFileWithMatchingObjectIdentity(placeholderPath, placeholderIdentity)) {
-            spdlog::warn(__FUNCTION__
-                         ": could not remove unchanged native-save placeholder '{:s}'",
-                         placeholderPath.string());
-        }
         sendLobbySaveFailure(request, SaveResult::Failed);
     }
 }
@@ -722,7 +611,7 @@ void handleGameSavedForLobby(bool success, const std::string& savePath)
         failure = SaveResult::Failed;
     } else {
         std::uint32_t totalSize{};
-        if (captureImmutableSave(*activeTransfer, totalSize, failure)) {
+        if (captureSave(*activeTransfer, totalSize, failure)) {
             const auto fileName{activeTransfer->savePath.filename().string()};
             if (!sendNativeSaveResult(activeTransfer->request.saveId, SaveResult::Success,
                                       fileName)) {
