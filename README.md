@@ -40,7 +40,7 @@
       | `+14 SAVE_NATIVE_RESULT` | `u64 saveId`, `u8 result`, then the successful save filename to the packet end; failures have no filename. |
 
       Modes are `Upload=0` and `LocalOnly=1`; operations are `BEGIN=0`, `CHUNK=1`, `COMMIT=2`, and `FAIL=3`; results are `Success=0`, `Failed=1`, and `TimedOut=2`. Save requests use fixed client limits of 32 MiB and 30 seconds. Each chunk is at most 16 KiB;
-    - Every filename handed to the asynchronous native writer remains reserved for the client-process lifetime, so a late callback after timeout cannot attach to a newer request. The client first claims the basename with an atomic `CREATE_NEW` placeholder and keeps a no-delete handle while the verified Russobit writer uses `CREATE_ALWAYS` on that same file object. The callback and durable-storage ACK both verify its Win32 identity, and an ACK deletes that exact unchanged object through an exclusive handle.
+    - The client gives each native request a process-unique collision-safe filename, opens the completed file after `GameSaved`, and keeps that exact file open until the durable-storage acknowledgement removes it. Failures retain the file.
   </details>
 - <details>
     <summary>Adds random scenario map generator;</summary>
