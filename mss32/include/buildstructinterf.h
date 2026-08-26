@@ -5,11 +5,13 @@
 #include "midgardid.h"
 #include "mqrect.h"
 #include <cstddef>
+#include <cstdint>
 
 namespace game {
 
 struct CDialogInterf;
 struct CBuildingBranch;
+struct CMqPoint;
 struct TUsUnitImpl;
 
 struct CBuildStructInterfData
@@ -46,6 +48,11 @@ struct Api
 {
     using UpdateBuildingInfo = void(__thiscall*)(CBuildStructInterf* thisptr);
     UpdateBuildingInfo updateBuildingInfo;
+
+    using UnitFaceMouseButtonCallback = void(__thiscall*)(CBuildStructInterf* thisptr,
+                                                          std::uint32_t mouseButton,
+                                                          const CMqPoint* mousePosition);
+    UnitFaceMouseButtonCallback unitFaceMouseButtonCallback;
 };
 
 Api& get();

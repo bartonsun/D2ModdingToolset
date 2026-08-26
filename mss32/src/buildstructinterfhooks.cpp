@@ -1,8 +1,8 @@
 #include "buildstructinterfhooks.h"
 #include "borderedimg.h"
 #include "buildstructinterf.h"
-#include "button.h"
 #include "dialoginterf.h"
+#include "formattedtext.h"
 #include "game.h"
 #include "globaldata.h"
 #include "interfaceutils.h"
@@ -12,11 +12,15 @@
 #include "multilayerimg.h"
 #include "originalfunctions.h"
 #include "pictureinterf.h"
+#include "smartptr.h"
 #include "textboxinterf.h"
 #include "usracialsoldier.h"
 #include "ussoldier.h"
 #include "usunitimpl.h"
+#include "utils.h"
 #include <algorithm>
+#include <cstdint>
+#include <iterator>
 #include <string>
 #include <utility>
 #include <vector>
@@ -26,7 +30,10 @@ namespace {
 
 struct UpgradePath
 {
+    game::CMidgardID sourceId;
+    game::CMidgardID sourceCanonicalId;
     game::CMidgardID unitId;
+    game::CMidgardID unitCanonicalId;
     std::string sourceName;
     std::string targetName;
     int level;
@@ -34,16 +41,113 @@ struct UpgradePath
 
 struct LayoutState
 {
+    struct Portrait
+    {
+        game::CMqRect area{};
+        const game::TUsUnitImpl* unit{};
+    };
+
     game::CBuildStructInterf* owner{};
     game::CDialogInterf* dialog{};
     game::CMqRect faceArea{};
-    game::CMqRect unitInfoArea{};
+    game::CMqRect upgradedArea{};
+    std::vector<Portrait> portraits;
     bool active{};
 };
 
 LayoutState layoutState;
 
-std::vector<UpgradePath> getUpgradePaths(const game::CMidgardID& buildingId)
+game::RttiInfo<game::CInterfaceVftable> buildStructRttiInfo{};
+game::CInterfaceVftable::HandleMouse buildStructHandleMouse{};
+
+int callBuildStructHandleMouse(game::CBuildStructInterf* interf,
+                               const game::TUsUnitImpl* unit,
+                               std::uint32_t mouseButton,
+                               const game::CMqPoint* mousePosition)
+{
+    const auto previousUnit = interf->data->displayedUnit;
+    interf->data->displayedUnit = unit;
+    game::CBuildStructInterfApi::get().unitFaceMouseButtonCallback(interf, mouseButton,
+                                                                   mousePosition);
+    interf->data->displayedUnit = previousUnit;
+    return 1;
+}
+
+int __fastcall buildStructHandleMouseHooked(game::CInterface* thisptr,
+                                            int /*%edx*/,
+                                            std::uint32_t mouseButton,
+                                            const game::CMqPoint* mousePosition)
+{
+    if (mouseButton != WM_RBUTTONDOWN) {
+        return buildStructHandleMouse(thisptr, mouseButton, mousePosition);
+    }
+
+    auto interf = reinterpret_cast<game::CBuildStructInterf*>(thisptr);
+    if (!interf->dialog || !interf->data || !mousePosition) {
+        return 1;
+    }
+
+    if (layoutState.active && layoutState.owner == interf
+        && layoutState.dialog == interf->dialog) {
+        for (const auto& portrait : layoutState.portraits) {
+            if (portrait.unit
+                && game::MqRectApi::get().ptInRect(&portrait.area, mousePosition)) {
+                return callBuildStructHandleMouse(interf, portrait.unit, mouseButton,
+                                                  mousePosition);
+            }
+        }
+        return 1;
+    }
+
+    const auto face = game::CDialogInterfApi::get().findPicture(interf->dialog, "IMG_FACE");
+    if (face && interf->data->displayedUnit
+        && game::MqRectApi::get().ptInRect(face->vftable->getArea(face), mousePosition)) {
+        return callBuildStructHandleMouse(interf, interf->data->displayedUnit, mouseButton,
+                                          mousePosition);
+    }
+
+    return 1;
+}
+
+void installBuildStructMouseHandler(game::CBuildStructInterf* interf)
+{
+    auto base = reinterpret_cast<game::CInterface*>(interf);
+    if (base->vftable == &buildStructRttiInfo.vftable) {
+        return;
+    }
+
+    if (!buildStructHandleMouse) {
+        buildStructHandleMouse = base->vftable->handleMouse;
+        replaceRttiInfo(buildStructRttiInfo, base->vftable, true);
+        buildStructRttiInfo.vftable.handleMouse =
+            reinterpret_cast<game::CInterfaceVftable::HandleMouse>(
+                buildStructHandleMouseHooked);
+    }
+
+    base->vftable = &buildStructRttiInfo.vftable;
+}
+
+game::CMidgardID getCanonicalUnitId(const game::TUsUnitImpl* unit)
+{
+    using namespace game;
+
+    if (!unit) {
+        return emptyId;
+    }
+
+    auto soldier = gameFunctions().castUnitImplToSoldier(unit);
+    if (soldier) {
+        const auto baseId = soldier->vftable->getBaseUnitImplId(soldier);
+        if (baseId && CMidgardIDApi::get().getType(baseId) == IdType::UnitGlobal) {
+            return *baseId;
+        }
+    }
+
+    return unit->id;
+}
+
+std::vector<UpgradePath> getUpgradePaths(const game::CMidgardID& buildingId,
+                                         const game::CMidgardID* preferredUnitId = nullptr)
 {
     using namespace game;
 
@@ -89,10 +193,44 @@ std::vector<UpgradePath> getUpgradePaths(const game::CMidgardID& buildingId)
 
         const auto sourceName = source->vftable->getName(source);
         const auto targetName = target->vftable->getName(target);
-        result.push_back(UpgradePath{it->first, sourceName ? sourceName : "",
+        result.push_back(UpgradePath{*previousId, getCanonicalUnitId(previousImpl), it->second->id,
+                                     getCanonicalUnitId(it->second), sourceName ? sourceName : "",
                                      targetName ? targetName : "",
                                      target->vftable->getLevel(target)});
     }
+
+    std::vector<UpgradePath> uniquePaths;
+    for (auto& path : result) {
+        const auto samePath = [&path](const UpgradePath& other) {
+            return path.sourceCanonicalId == other.sourceCanonicalId
+                   && path.unitCanonicalId == other.unitCanonicalId
+                   && path.sourceName == other.sourceName && path.targetName == other.targetName
+                   && path.level == other.level;
+        };
+        const auto duplicate = std::find_if(uniquePaths.begin(), uniquePaths.end(), samePath);
+        if (duplicate == uniquePaths.end()) {
+            uniquePaths.push_back(std::move(path));
+            continue;
+        }
+
+        const auto representativeRank = [preferredUnitId](const UpgradePath& candidate) {
+            int rank = 0;
+            if (preferredUnitId && candidate.unitId == *preferredUnitId) {
+                rank += 4;
+            }
+            if (candidate.unitId == candidate.unitCanonicalId) {
+                rank += 2;
+            }
+            if (candidate.sourceId == candidate.sourceCanonicalId) {
+                rank += 1;
+            }
+            return rank;
+        };
+        if (representativeRank(path) > representativeRank(*duplicate)) {
+            *duplicate = std::move(path);
+        }
+    }
+    result = std::move(uniquePaths);
 
     std::sort(result.begin(), result.end(),
               [](const UpgradePath& first, const UpgradePath& second) {
@@ -102,14 +240,11 @@ std::vector<UpgradePath> getUpgradePaths(const game::CMidgardID& buildingId)
                   if (first.sourceName != second.sourceName) {
                       return first.sourceName < second.sourceName;
                   }
-                  return first.unitId < second.unitId;
+                  if (first.sourceCanonicalId != second.sourceCanonicalId) {
+                      return first.sourceCanonicalId < second.sourceCanonicalId;
+                  }
+                  return first.unitCanonicalId < second.unitCanonicalId;
               });
-
-    result.erase(std::unique(result.begin(), result.end(),
-                             [](const UpgradePath& first, const UpgradePath& second) {
-                                 return first.unitId == second.unitId;
-                             }),
-                 result.end());
     return result;
 }
 
@@ -163,53 +298,149 @@ std::string getTargetNames(const std::vector<UpgradePath>& paths)
     return result;
 }
 
+int getTextWidth(game::CTextBoxInterf* textBox, const std::string& text)
+{
+    using namespace game;
+
+    FormattedTextPtr formattedText;
+    IFormattedTextApi::get().getFormattedText(&formattedText);
+    if (!formattedText.data) {
+        return 0;
+    }
+
+    std::string formatted = textBox->data->format.string;
+    formatted += text;
+    const int width = formattedText.data->vftable->getTextWidth(formattedText.data,
+                                                                formatted.c_str());
+    SmartPointerApi::get().createOrFree(reinterpret_cast<SmartPointer*>(&formattedText), nullptr);
+    return width;
+}
+
+std::string fitSingleLineText(game::CTextBoxInterf* textBox,
+                              const std::string& text,
+                              int width)
+{
+    if (getTextWidth(textBox, text) <= width) {
+        return text;
+    }
+
+    const std::string smallFont = "\\fSmall;";
+    if (getTextWidth(textBox, smallFont + text) <= width) {
+        return smallFont + text;
+    }
+
+    std::string shortened = text;
+    while (!shortened.empty()) {
+        shortened.pop_back();
+        const auto candidate = smallFont + shortened + "...";
+        if (getTextWidth(textBox, candidate) <= width) {
+            return candidate;
+        }
+    }
+
+    return smallFont + "...";
+}
+
 void restoreLayout(game::CBuildStructInterf* interf)
 {
     if (!layoutState.active) {
+        layoutState.portraits.clear();
         return;
     }
 
     if (layoutState.owner == interf && layoutState.dialog == interf->dialog) {
         const auto& dialogApi = game::CDialogInterfApi::get();
         auto face = dialogApi.findPicture(interf->dialog, "IMG_FACE");
-        auto unitInfo = dialogApi.findTextBox(interf->dialog, "TXT_UNIT_INFO");
+        auto upgraded = dialogApi.findTextBox(interf->dialog, "TXT_UPGRADED");
         if (face) {
             face->vftable->setArea(face, &layoutState.faceArea);
         }
-        if (unitInfo) {
-            unitInfo->vftable->setArea(unitInfo, &layoutState.unitInfoArea);
+        if (upgraded) {
+            upgraded->vftable->setArea(upgraded, &layoutState.upgradedArea);
         }
     }
 
+    layoutState.portraits.clear();
     layoutState.active = false;
 }
 
-game::CMultiLayerImg* createFacesImage(const std::vector<UpgradePath>& paths, int maxWidth)
+struct FramedFace
+{
+    game::IMqImage2* image{};
+    game::CMqPoint size{};
+    const game::TUsUnitImpl* unit{};
+};
+
+FramedFace createFramedFace(const game::CMidgardID& unitId, bool leftSide)
 {
     using namespace game;
 
-    std::vector<std::pair<IMqImage2*, int>> faces;
-    int faceWidth = 0;
+    const auto globalDataPtr = GlobalDataApi::get().getGlobalData();
+    const auto globalData = globalDataPtr ? *globalDataPtr : nullptr;
+    auto unit = globalData && globalData->units
+                    ? static_cast<TUsUnitImpl*>(
+                          GlobalDataApi::get().findById(globalData->units, &unitId))
+                    : nullptr;
+    auto soldier = unit ? gameFunctions().castUnitImplToSoldier(unit) : nullptr;
+    const bool smallUnit = !soldier || soldier->vftable->getSizeSmall(soldier);
+
+    auto face = gameFunctions().createUnitFaceImage(const_cast<CMidgardID*>(&unitId), false);
+    if (!face) {
+        return {};
+    }
+    face->vftable->setLeftSide(face, leftSide);
+
+    const auto border = smallUnit ? BorderType::UnitSmall : BorderType::UnitLarge;
+    auto framedFace = createBorderedImage(reinterpret_cast<IMqImage2*>(face), border);
+    CMqPoint size{};
+    framedFace->vftable->getSize(framedFace, &size);
+    return FramedFace{framedFace, size, unit};
+}
+
+FramedFace createFramedFace(const game::CMidgardID& unitId,
+                            const game::CMidgardID& canonicalId,
+                            bool leftSide)
+{
+    auto face = createFramedFace(unitId, leftSide);
+    if (!face.image && canonicalId != unitId) {
+        face = createFramedFace(canonicalId, leftSide);
+    }
+    return face;
+}
+
+struct FacesImage
+{
+    game::CMultiLayerImg* image{};
+    game::CMqPoint size{};
+    std::vector<LayoutState::Portrait> portraits;
+};
+
+FacesImage createFacesImage(const std::vector<UpgradePath>& paths)
+{
+    using namespace game;
+
+    struct Face
+    {
+        IMqImage2* image;
+        CMqPoint size;
+        const TUsUnitImpl* unit;
+    };
+
+    std::vector<Face> faces;
     int totalWidth = 0;
+    int maxHeight = 0;
     for (const auto& path : paths) {
-        auto unitId = path.unitId;
-        auto face = gameFunctions().createUnitFaceImage(&unitId, false);
-        if (!face) {
+        const auto framedFace = createFramedFace(path.unitId, path.unitCanonicalId, false);
+        if (!framedFace.image) {
             continue;
         }
-        face->vftable->setLeftSide(face, false);
-
-        auto framedFace = createBorderedImage(reinterpret_cast<IMqImage2*>(face),
-                                              BorderType::UnitSmall);
-        CMqPoint size{};
-        framedFace->vftable->getSize(framedFace, &size);
-        faceWidth = std::max(faceWidth, size.x);
-        totalWidth += size.x;
-        faces.emplace_back(framedFace, size.x);
+        totalWidth += framedFace.size.x;
+        maxHeight = std::max(maxHeight, framedFace.size.y);
+        faces.push_back(Face{framedFace.image, framedFace.size, framedFace.unit});
     }
 
     if (faces.empty()) {
-        return nullptr;
+        return {};
     }
 
     auto image = static_cast<CMultiLayerImg*>(Memory::get().allocate(sizeof(CMultiLayerImg)));
@@ -218,18 +449,20 @@ game::CMultiLayerImg* createFacesImage(const std::vector<UpgradePath>& paths, in
 
     constexpr int gap = 4;
     totalWidth += gap * (static_cast<int>(faces.size()) - 1);
-    const bool overlap = totalWidth > maxWidth;
-    const int step = overlap && faces.size() > 1
-                         ? std::max(1,
-                                    (maxWidth - faceWidth) / (static_cast<int>(faces.size()) - 1))
-                         : 0;
     int offset = 0;
-    for (const auto& [face, width] : faces) {
-        multilayerApi.addImage(image, face, offset, 0);
-        offset += overlap ? step : width + gap;
+    std::vector<LayoutState::Portrait> portraits;
+    portraits.reserve(faces.size());
+    for (std::size_t i = 0; i < faces.size(); ++i) {
+        const auto& face = faces[i];
+        const int top = (maxHeight - face.size.y) / 2;
+        multilayerApi.addImage(image, face.image, offset, top);
+        portraits.push_back(LayoutState::Portrait{
+            CMqRect{offset, top, offset + face.size.x, top + face.size.y}, face.unit});
+        offset += face.size.x + gap;
     }
+    image->data->size = CMqPoint{totalWidth, maxHeight};
 
-    return image;
+    return FacesImage{image, image->data->size, std::move(portraits)};
 }
 
 void showUpgradePaths(game::CBuildStructInterf* interf,
@@ -240,19 +473,22 @@ void showUpgradePaths(game::CBuildStructInterf* interf,
 
     const auto& dialogApi = CDialogInterfApi::get();
     auto upgraded = dialogApi.findTextBox(interf->dialog, "TXT_UPGRADED");
-    auto unitInfo = dialogApi.findTextBox(interf->dialog, "TXT_UNIT_INFO");
     auto info = dialogApi.findTextBox(interf->dialog, "TXT_INFO");
-    auto status = dialogApi.findTextBox(interf->dialog, "TXT_STATUS");
     auto face = dialogApi.findPicture(interf->dialog, "IMG_FACE");
-    auto buildButton = dialogApi.findButton(interf->dialog, "BTN_BUILD");
-    if (!upgraded || !unitInfo || !info || !status || !face || !buildButton) {
+    if (!upgraded || !info || !face) {
+        return;
+    }
+
+    auto facesImage = createFacesImage(paths);
+    if (!facesImage.image) {
         return;
     }
 
     layoutState.owner = interf;
     layoutState.dialog = interf->dialog;
     layoutState.faceArea = *face->vftable->getArea(face);
-    layoutState.unitInfoArea = *unitInfo->vftable->getArea(unitInfo);
+    layoutState.upgradedArea = *upgraded->vftable->getArea(upgraded);
+    layoutState.portraits.clear();
     layoutState.active = true;
 
     std::string infoText = info->data->text.string;
@@ -267,25 +503,35 @@ void showUpgradePaths(game::CBuildStructInterf* interf,
         upgradedText += ", ";
     }
     upgradedText += getTargetNames(hiddenPaths);
-    CTextBoxInterfApi::get().setString(upgraded, upgradedText.c_str());
-
     const auto infoArea = *info->vftable->getArea(info);
-    auto faceArea = layoutState.faceArea;
-    const int maxWidth = infoArea.right - faceArea.left;
-    auto facesImage = createFacesImage(paths, maxWidth);
-    if (!facesImage) {
-        return;
-    }
+    auto upgradedArea = layoutState.upgradedArea;
+    upgradedArea.right = infoArea.right;
+    upgraded->vftable->setArea(upgraded, &upgradedArea);
+    const auto fittedUpgradedText = fitSingleLineText(upgraded, upgradedText,
+                                                      upgradedArea.right - upgradedArea.left);
+    CTextBoxInterfApi::get().setString(upgraded, fittedUpgradedText.c_str());
 
+    auto faceArea = layoutState.faceArea;
     faceArea.right = infoArea.right;
     face->vftable->setArea(face, &faceArea);
 
-    auto unitInfoArea = *status->vftable->getArea(status);
-    unitInfoArea.top = unitInfoArea.bottom;
-    unitInfoArea.bottom = buildButton->vftable->getArea(reinterpret_cast<CInterface*>(buildButton))
-                              ->top;
-    unitInfo->vftable->setArea(unitInfo, &unitInfoArea);
-    setCenteredImage(face, facesImage);
+    const auto& firstPortrait = facesImage.portraits.front().area;
+    const int firstPortraitWidth = firstPortrait.right - firstPortrait.left;
+    const game::CMqPoint imageOffset{
+        (layoutState.faceArea.right - layoutState.faceArea.left - firstPortraitWidth) / 2,
+        (layoutState.faceArea.bottom - layoutState.faceArea.top - facesImage.size.y) / 2,
+    };
+    game::CPictureInterfApi::get().setImage(face, facesImage.image, &imageOffset);
+
+    const int imageLeft = faceArea.left + imageOffset.x;
+    const int imageTop = faceArea.top + imageOffset.y;
+    layoutState.portraits = std::move(facesImage.portraits);
+    for (auto& portrait : layoutState.portraits) {
+        portrait.area.left += imageLeft;
+        portrait.area.right += imageLeft;
+        portrait.area.top += imageTop;
+        portrait.area.bottom += imageTop;
+    }
 }
 
 } // namespace
@@ -300,6 +546,13 @@ void __fastcall buildStructInterfUpdateBuildingInfoHooked(game::CBuildStructInte
         return;
     }
 
+    installBuildStructMouseHandler(thisptr);
+
+    auto unitInfo = game::CDialogInterfApi::get().findTextBox(thisptr->dialog, "TXT_UNIT_INFO");
+    if (unitInfo) {
+        game::CTextBoxInterfApi::get().setString(unitInfo, "");
+    }
+
     const auto& buildingId = thisptr->data->buildingId;
     if (game::CMidgardIDApi::get().getType(&buildingId) != game::IdType::Building) {
         return;
@@ -309,12 +562,21 @@ void __fastcall buildStructInterfUpdateBuildingInfoHooked(game::CBuildStructInte
         return;
     }
 
-    auto paths = getUpgradePaths(buildingId);
+    const auto displayedActualUnitId = thisptr->data->displayedUnit->id;
+    const auto displayedUnitId = getCanonicalUnitId(thisptr->data->displayedUnit);
+    auto paths = getUpgradePaths(buildingId, &displayedActualUnitId);
+    const auto primary = std::find_if(paths.begin(), paths.end(),
+                                      [&displayedUnitId](const UpgradePath& path) {
+                                          return path.unitCanonicalId == displayedUnitId;
+                                      });
+    if (primary != paths.end() && primary != paths.begin()) {
+        std::rotate(paths.begin(), primary, std::next(primary));
+    }
+
     auto hiddenPaths = paths;
-    const auto& displayedUnitId = thisptr->data->displayedUnit->id;
     hiddenPaths.erase(std::remove_if(hiddenPaths.begin(), hiddenPaths.end(),
                                      [&displayedUnitId](const UpgradePath& path) {
-                                         return path.unitId == displayedUnitId;
+                                         return path.unitCanonicalId == displayedUnitId;
                                      }),
                       hiddenPaths.end());
 
