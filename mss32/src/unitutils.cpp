@@ -125,9 +125,12 @@ bool isUnitSmall(const game::CMidUnit* unit)
 {
     using namespace game;
 
-    const auto& fn = gameFunctions();
-
-    auto soldier = fn.castUnitImplToSoldier(unit->unitImpl);
+    auto soldier = castUnitImplToSoldierWithLogging(unit->unitImpl);
+    if (!soldier) {
+        // Fail safe: treat unknown/non-soldier units as small so exchange logic
+        // does not attempt big-unit (2-slot) handling for them.
+        return true;
+    }
     return soldier->vftable->getSizeSmall(soldier);
 }
 
