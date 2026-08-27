@@ -34,7 +34,7 @@
       | `+8 SAVE_REQUEST` | `u64 saveId`, `u8 mode`, then the ASCII save stem to the packet end. |
       | `+9 SAVE_UPLOAD` | `u64 saveId`, `u8 operation`; `BEGIN` adds `u32 totalSize`, `CHUNK` adds raw bytes to the packet end, `COMMIT` adds nothing, and `FAIL` adds `u8 result`. |
       | `+10 MATCH_ENDED` | Empty. |
-      | `+11 PLAYER_SETUP` | `u8 kind`, `u32 value`: capability kind `0` announces value `1`; host-lord kind `1` carries the selected lord. |
+      | `+11 PLAYER_SETUP` | `u8 kind`, `u32 value`: capability kind `0` announces value `1`; host-lord kind `1` carries the selected lord category. |
       | `+12 SYSTEM_NOTICE` | UTF-8 text to the packet end. |
       | `+13 SAVE_STORED_ACK` | `u64 saveId`. |
       | `+14 SAVE_NATIVE_RESULT` | `u64 saveId`, `u8 result`, then the successful save filename to the packet end; failures have no filename. |
