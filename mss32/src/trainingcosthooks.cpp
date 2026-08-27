@@ -197,8 +197,18 @@ game::Bank* __fastcall bankCopyHooked(game::Bank* thisptr, int /*%edx*/, const g
 {
     game::Bank* result = getOriginalFunctions().bankCopy(thisptr, other);
 
-    if (!gameSettings().trainerCampLowerCost || g_scopeDepth <= 0 || g_discountApplied
-        || g_lowerCostPercent <= 0 || !thisptr) {
+    if (!gameSettings().trainerCampLowerCost || g_scopeDepth <= 0) {
+        return result;
+    }
+
+    // Every Bank::Copy that happens while a training scope is open, applied or
+    // not. Without this line a scope that the game never routes through
+    // Bank::Copy is indistinguishable from one where the discount was already
+    // spent, and both look like silence in the log.
+    spdlog::info("trainer bankCopy depth={} percent={} applied={}", g_scopeDepth,
+                 g_lowerCostPercent, g_discountApplied);
+
+    if (g_discountApplied || g_lowerCostPercent <= 0 || !thisptr) {
         return result;
     }
 
@@ -277,6 +287,7 @@ bool __stdcall canAffordTrainCheckHooked(game::IMidgardObjectMap* objectMap,
         percent = lowerCostPercentForStack(objectMap, a2);
     }
 
+    spdlog::info("trainer canAfford percent={}", percent);
     TrainingDiscountScope scope{percent};
     return getOriginalFunctions().canAffordTrainCheck(objectMap, a2, a3);
 }
@@ -300,6 +311,7 @@ bool __stdcall applyTrainActionHooked(game::IMidgardObjectMap* objectMap,
         percent = lowerCostPercentForStack(objectMap, a2);
     }
 
+    spdlog::info("trainer applyTrain percent={}", percent);
     TrainingDiscountScope scope{percent};
     return getOriginalFunctions().applyTrainAction(objectMap, a2, a3, a4, a5, a6);
 }
