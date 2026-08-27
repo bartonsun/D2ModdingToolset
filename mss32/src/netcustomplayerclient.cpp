@@ -112,26 +112,26 @@ bool __fastcall CNetCustomPlayerClient::sendMessage(CNetCustomPlayerClient* this
 
 void CNetCustomPlayerClient::forwardPlayerSetupToLobby(const game::NetMessageHeader* message) const
 {
-    // The relay already observes the host race through normal setup state. Only the host lord
-    // request is local-loopback-only and needs an out-of-band attribution message. In the audited
-    // Russobit serializer at 0x47d154, category (+0x4) precedes lord index (+0x8).
+    // The stock player-list message already exposes the host race to the relay, but the host's
+    // lord request stays in the local loopback. Its first field is the lord category; the second
+    // one is only the selected portrait.
     static constexpr char lordMessageClass[]{".?AVCMenusReqLordMsg@@"};
-    static constexpr auto lordIndexOffset{sizeof(game::NetMessageHeader) + sizeof(std::uint32_t)};
-    if (!message || message->length < lordIndexOffset + sizeof(std::uint32_t)
+    static constexpr auto lordCategoryOffset{sizeof(game::NetMessageHeader)};
+    if (!message || message->length < lordCategoryOffset + sizeof(std::int32_t)
         || std::memcmp(message->messageClassName, lordMessageClass,
                        sizeof(lordMessageClass)) != 0) {
         return;
     }
-    std::uint32_t lordIndex{};
-    std::memcpy(&lordIndex,
-                reinterpret_cast<const char*>(message) + lordIndexOffset,
-                sizeof(lordIndex));
+    std::int32_t lordCategory{};
+    std::memcpy(&lordCategory,
+                reinterpret_cast<const char*>(message) + lordCategoryOffset,
+                sizeof(lordCategory));
 
     auto service = getService();
     SLNet::BitStream stream;
     stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_PLAYER_SETUP));
     stream.Write(static_cast<std::uint8_t>(LobbyProtocol::PlayerSetupKind::HostLord));
-    stream.Write(lordIndex);
+    stream.Write(lordCategory);
     if (!service->send(stream, service->getLobbyGuid(), LOW_PRIORITY)) {
         getLogger()->warn(__FUNCTION__ ": failed to forward accepted host lord to lobby");
     }

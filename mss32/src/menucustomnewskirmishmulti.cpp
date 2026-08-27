@@ -47,8 +47,10 @@ CMenuCustomNewSkirmishMulti::CMenuCustomNewSkirmishMulti(game::CMenuPhase* menuP
 {
     using namespace game;
 
-    CustomHostDialogGuard dialogGuard;
-    CMenuNewSkirmishMultiApi::get().constructor(this, menuPhase);
+    {
+        CustomHostDialogGuard dialogGuard;
+        CMenuNewSkirmishMultiApi::get().constructor(this, menuPhase);
+    }
 
     static RttiInfo<CMenuNewSkirmishMultiVftable> rttiInfo = {};
     if (rttiInfo.locator == nullptr) {
