@@ -186,7 +186,15 @@ static void setupVftableHooks()
 }
 
 static LPTOP_LEVEL_EXCEPTION_FILTER previousExceptionFilter = nullptr;
-static LONG crashAlreadyLogged = 0;
+// A vectored handler sees *every* exception the process raises, including the
+// ones the game handles and survives -- SmartHeap raises a read fault on a
+// guard page and keeps going. Measured 2026-08-28: one such fault at 14:11:41
+// spent the single crash slot, and the fault that actually killed the game 70
+// seconds later wrote nothing. First-chance records are bounded on their own
+// counter; the terminal filter always gets to write.
+static LONG firstChanceLogged = 0;
+static LONG terminalLogged = 0;
+static const LONG maxFirstChanceRecords = 3;
 
 static bool isFatalExceptionCode(DWORD code)
 {
@@ -210,14 +218,19 @@ static bool isFatalExceptionCode(DWORD code)
  * address as module + offset, which is the only form comparable between runs,
  * plus the operation and address for an access violation.
  */
-static void logCrash(EXCEPTION_POINTERS* info)
+static void logCrash(EXCEPTION_POINTERS* info, bool firstChance)
 {
     if (!info || !info->ExceptionRecord) {
         return;
     }
-    if (InterlockedCompareExchange(&crashAlreadyLogged, 1, 0) != 0) {
+    if (firstChance) {
+        if (InterlockedIncrement(&firstChanceLogged) > maxFirstChanceRecords) {
+            return;
+        }
+    } else if (InterlockedCompareExchange(&terminalLogged, 1, 0) != 0) {
         return;
     }
+    const char* const kind = firstChance ? "first-chance" : "fatal";
 
     const EXCEPTION_RECORD* record = info->ExceptionRecord;
     const void* address = record->ExceptionAddress;
@@ -238,20 +251,28 @@ static void logCrash(EXCEPTION_POINTERS* info)
         offset -= reinterpret_cast<std::uintptr_t>(handle);
     }
 
-    spdlog::error("crash code={:#x} at {}+{:#x} thread={}", record->ExceptionCode, module, offset,
-                  GetCurrentThreadId());
+    // Both lines are spelled out instead of interpolating `kind`: the log audit
+    // greps for these prefixes, and a marker that only exists after a runtime
+    // substitution cannot be checked against the source that writes it.
+    if (firstChance) {
+        spdlog::error("crash first-chance code={:#x} at {}+{:#x} thread={}",
+                      record->ExceptionCode, module, offset, GetCurrentThreadId());
+    } else {
+        spdlog::error("crash fatal code={:#x} at {}+{:#x} thread={}", record->ExceptionCode,
+                      module, offset, GetCurrentThreadId());
+    }
 
     if (record->ExceptionCode == EXCEPTION_ACCESS_VIOLATION
         && record->NumberParameters >= 2) {
         const ULONG_PTR operation = record->ExceptionInformation[0];
-        const char* kind = operation == 0 ? "read" : (operation == 1 ? "write" : "execute");
-        spdlog::error("crash access {} at {:#x}", kind,
+        const char* access = operation == 0 ? "read" : (operation == 1 ? "write" : "execute");
+        spdlog::error("crash {} access {} at {:#x}", kind, access,
                       static_cast<std::uintptr_t>(record->ExceptionInformation[1]));
     }
 
     if (info->ContextRecord) {
         const CONTEXT* context = info->ContextRecord;
-        spdlog::error("crash eip={:#x} esp={:#x} ebp={:#x}",
+        spdlog::error("crash {} eip={:#x} esp={:#x} ebp={:#x}", kind,
                       static_cast<std::uintptr_t>(context->Eip),
                       static_cast<std::uintptr_t>(context->Esp),
                       static_cast<std::uintptr_t>(context->Ebp));
@@ -262,7 +283,10 @@ static void logCrash(EXCEPTION_POINTERS* info)
 
 static LONG WINAPI unhandledExceptionHooked(EXCEPTION_POINTERS* info)
 {
-    logCrash(info);
+    // This one runs when nothing else claimed the exception, i.e. the game is
+    // going down. It writes regardless of how many first-chance records the
+    // vectored handler already produced.
+    logCrash(info, false);
     return previousExceptionFilter ? previousExceptionFilter(info) : EXCEPTION_CONTINUE_SEARCH;
 }
 
@@ -272,7 +296,7 @@ static LONG CALLBACK vectoredExceptionHooked(EXCEPTION_POINTERS* info)
     // handler that never writes anything. Vectored handlers run first, and this
     // one only reads: the exception keeps travelling untouched.
     if (info && info->ExceptionRecord && isFatalExceptionCode(info->ExceptionRecord->ExceptionCode)) {
-        logCrash(info);
+        logCrash(info, true);
     }
     return EXCEPTION_CONTINUE_SEARCH;
 }

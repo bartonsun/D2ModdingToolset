@@ -1,5 +1,6 @@
 #include "trainingcosthooks.h"
 #include "currency.h"
+#include "ddstackgroup.h"
 #include "dynamiccast.h"
 #include "game.h"
 #include "gameutils.h"
@@ -29,6 +30,15 @@ namespace {
 thread_local int g_lowerCostPercent = 0;
 thread_local int g_discountApplied = 0;
 thread_local int g_scopeDepth = 0;
+
+// 0x5009c8 is shared by CDDStackGroup, CDDStackNoActionGroup and CDDReinfGroup,
+// so it fires for stack-group actions all over the interface, not just in the
+// camp. Opening a discount scope there would put a leader's lowerCost on
+// whatever Bank::Copy happens next. The camp always draws its own text first --
+// in the client's log `trainer uiText enter` precedes every `uiAction` -- so the
+// text hook, which is camp-only, records which group belongs to the camp. Only
+// the pointer is compared; it is never dereferenced.
+thread_local const void* g_campStackGroup = nullptr;
 
 } // namespace
 
@@ -263,27 +273,53 @@ bool __stdcall trainUnitAtTrainerHooked(game::IMidgardObjectMap* objectMap,
     return getOriginalFunctions().trainUnitAtTrainer(objectMap, playerId, unitId, apply);
 }
 
-void __fastcall trainUiActionHooked(game::CSiteTrainingCampInterf* thisptr,
+void __fastcall trainUiActionHooked(game::CDDStackGroup* thisptr,
                                     int /*%edx*/,
                                     int a1,
                                     int a2)
 {
-    if (!gameSettings().trainerCampLowerCost || !thisptr || !thisptr->trainingCampData) {
+    // 0x5009c8 is not a camp-interface method. In Discipl2.exe it sits at index
+    // 17 of the CDDStackGroup / CDDStackNoActionGroup / CDDReinfGroup vftables,
+    // its body reads [this+0x10] -> [data+4] -> getDataCache, and it ends in
+    // `ret 8`. Reading it as CSiteTrainingCampInterf meant dereferencing offset
+    // 0x24 of a 20-byte object -- the access violation in the client's log.
+    if (!gameSettings().trainerCampLowerCost || !thisptr || !thisptr->data) {
         getOriginalFunctions().trainUiAction(thisptr, a1, a2);
         return;
     }
 
-    // Written before the lookup: a log that ends here names the hook the process
-    // died in, instead of leaving two hooks that wrote the same line.
+    // A pointer comparison cannot fault, so it comes first: every stack-group
+    // action in the game reaches this slot and none of them should write a line
+    // into the log the client sends us.
+    if (thisptr != g_campStackGroup) {
+        spdlog::debug("trainer uiAction skip=not-camp");
+        getOriginalFunctions().trainUiAction(thisptr, a1, a2);
+        return;
+    }
+
+    // Written before the lookups: a log that ends here names the hook the
+    // process died in, instead of leaving two hooks that wrote the same line.
     spdlog::info("trainer uiAction enter");
 
-    auto* data = thisptr->trainingCampData;
+    auto* data = thisptr->data;
+    // The route the function itself takes: the disassembly of 0x5009c8 reads
+    // [data+4] -> +8 -> getDataCache, i.e. exactly this. data->objectMap is only
+    // a fallback -- a field offset nothing in this function confirms.
     const game::IMidgardObjectMap* objectMap = nullptr;
     if (data->phaseGame) {
         objectMap = game::CPhaseApi::get().getDataCache(&data->phaseGame->phase);
     }
+    if (!objectMap) {
+        objectMap = data->objectMap;
+    }
 
-    const int percent = lowerCostPercentForStack(objectMap, &data->stackId);
+    // Which of the group's two ids is the stack is not stated anywhere, so each
+    // one is routed by its own type and an id that is neither returns 0.
+    int percent = lowerCostPercentForId(objectMap, &data->id1);
+    if (percent <= 0) {
+        percent = lowerCostPercentForId(objectMap, &data->id2);
+    }
+
     spdlog::info("trainer ui percent={} from=action", percent);
     TrainingDiscountScope scope{percent};
     getOriginalFunctions().trainUiAction(thisptr, a1, a2);
@@ -296,6 +332,8 @@ void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*
     int percent = 0;
     if (gameSettings().trainerCampLowerCost && thisptr && thisptr->trainingCampData) {
         auto* data = thisptr->trainingCampData;
+        // The camp names its own group here, and only here.
+        g_campStackGroup = data->stackGroup;
         const game::IMidgardObjectMap* objectMap = nullptr;
         if (data->phaseGame) {
             objectMap = game::CPhaseApi::get().getDataCache(&data->phaseGame->phase);
