@@ -44,6 +44,7 @@
 #include <usersettings.h>
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <wincrypt.h>
 
 namespace hooks {
 
@@ -51,8 +52,141 @@ namespace {
 
 static constexpr std::uint32_t lobbyMaintenanceIntervalMs{250};
 static constexpr UINT gameTextCodePage{1251};
+static constexpr std::size_t clientHelloWireSize{
+    sizeof(SLNet::MessageID) + sizeof(std::uint8_t) + sizeof(std::uint32_t)
+    + LobbyProtocol::clientInstallIdSize + sizeof(std::uint16_t) * 2
+    + sizeof(std::uint32_t)};
+static_assert(clientHelloWireSize == 30);
 /** Prevents recursive packet, maintenance, and deferred-UI processing on the main thread. */
 bool mainThreadCallbackActive{};
+
+struct ClientEnvironment
+{
+    std::array<std::uint8_t, LobbyProtocol::clientInstallIdSize> installId{};
+    std::uint16_t windowsMajor{};
+    std::uint16_t windowsMinor{};
+    std::uint32_t windowsBuild{};
+};
+
+class RegistryKey
+{
+public:
+    ~RegistryKey()
+    {
+        if (key) {
+            RegCloseKey(key);
+        }
+    }
+
+    HKEY key{};
+};
+
+class WinHandle
+{
+public:
+    ~WinHandle()
+    {
+        if (handle) {
+            CloseHandle(handle);
+        }
+    }
+
+    HANDLE handle{};
+};
+
+bool validInstallId(
+    const std::array<std::uint8_t, LobbyProtocol::clientInstallIdSize>& installId)
+{
+    return std::any_of(installId.begin(), installId.end(),
+                       [](std::uint8_t value) { return value != 0; });
+}
+
+bool readInstallId(
+    HKEY key, std::array<std::uint8_t, LobbyProtocol::clientInstallIdSize>& installId)
+{
+    DWORD type{};
+    DWORD size{static_cast<DWORD>(installId.size())};
+    return RegQueryValueExW(key, L"InstallId", nullptr, &type, installId.data(), &size)
+               == ERROR_SUCCESS
+           && type == REG_BINARY && size == installId.size() && validInstallId(installId);
+}
+
+bool generateInstallId(
+    std::array<std::uint8_t, LobbyProtocol::clientInstallIdSize>& installId)
+{
+    HCRYPTPROV provider{};
+    if (!CryptAcquireContextW(&provider, nullptr, nullptr, PROV_RSA_FULL,
+                              CRYPT_VERIFYCONTEXT)) {
+        return false;
+    }
+    const bool generated{
+        CryptGenRandom(provider, static_cast<DWORD>(installId.size()), installId.data()) != FALSE};
+    CryptReleaseContext(provider, 0);
+    return generated && validInstallId(installId);
+}
+
+std::optional<std::array<std::uint8_t, LobbyProtocol::clientInstallIdSize>> installId()
+{
+    // The named mutex keeps two local game clients from creating different first-run ids.
+    WinHandle mutex{CreateMutexW(nullptr, FALSE, L"Local\\Conclave.InstallId")};
+    if (!mutex.handle) {
+        return std::nullopt;
+    }
+    const DWORD waitResult{WaitForSingleObject(mutex.handle, 250)};
+    if (waitResult != WAIT_OBJECT_0 && waitResult != WAIT_ABANDONED) {
+        return std::nullopt;
+    }
+
+    RegistryKey registry;
+    const LONG opened{RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\Conclave", 0, nullptr,
+                                      REG_OPTION_NON_VOLATILE, KEY_QUERY_VALUE | KEY_SET_VALUE,
+                                      nullptr, &registry.key, nullptr)};
+    if (opened != ERROR_SUCCESS) {
+        ReleaseMutex(mutex.handle);
+        return std::nullopt;
+    }
+
+    std::array<std::uint8_t, LobbyProtocol::clientInstallIdSize> value{};
+    if (!readInstallId(registry.key, value)) {
+        if (!generateInstallId(value)
+            || RegSetValueExW(registry.key, L"InstallId", 0, REG_BINARY, value.data(),
+                              static_cast<DWORD>(value.size())) != ERROR_SUCCESS) {
+            ReleaseMutex(mutex.handle);
+            return std::nullopt;
+        }
+    }
+
+    ReleaseMutex(mutex.handle);
+    return value;
+}
+
+std::optional<ClientEnvironment> clientEnvironment()
+{
+    using RtlGetVersion = LONG(WINAPI*)(OSVERSIONINFOW*);
+    const auto ntdll{GetModuleHandleW(L"ntdll.dll")};
+    const auto rtlGetVersion{ntdll ? reinterpret_cast<RtlGetVersion>(
+                                         GetProcAddress(ntdll, "RtlGetVersion"))
+                                   : nullptr};
+    if (!rtlGetVersion) {
+        return std::nullopt;
+    }
+
+    OSVERSIONINFOW version{};
+    version.dwOSVersionInfoSize = sizeof(version);
+    if (rtlGetVersion(&version) != 0 || version.dwMajorVersion > 0xffffu
+        || version.dwMinorVersion > 0xffffu) {
+        return std::nullopt;
+    }
+
+    const auto id{installId()};
+    if (!id) {
+        return std::nullopt;
+    }
+
+    return ClientEnvironment{*id, static_cast<std::uint16_t>(version.dwMajorVersion),
+                             static_cast<std::uint16_t>(version.dwMinorVersion),
+                             static_cast<std::uint32_t>(version.dwBuildNumber)};
+}
 
 struct MainThreadCallbackGuard
 {
@@ -1285,14 +1419,21 @@ void CNetCustomService::LobbyCallback::MessageResult(SLNet::Client_Login* messag
     if (message->resultCode == SLNet::L2RC_SUCCESS) {
         m_service->m_userName = message->userName.C_String();
 
-        // Old lobby servers ignore this authenticated extension. Current servers use it to avoid
-        // sending ranked-lifecycle packets to clients predating the append-only +8..+14 family.
+        // Pre-ranked lobby servers ignore this authenticated extension. Current servers use its
+        // fixed schema both for the ranked capability gate and optional anti-abuse signals.
+        const auto environment{clientEnvironment().value_or(ClientEnvironment{})};
         SLNet::BitStream stream;
         stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_PLAYER_SETUP));
         stream.Write(static_cast<std::uint8_t>(
             LobbyProtocol::PlayerSetupKind::ClientCapabilities));
         stream.Write(LobbyProtocol::rankedLifecycleCapabilityVersion);
-        if (!m_service->send(stream, m_service->getLobbyGuid(), LOW_PRIORITY)) {
+        stream.WriteAlignedBytes(environment.installId.data(),
+                                 static_cast<unsigned int>(environment.installId.size()));
+        stream.Write(environment.windowsMajor);
+        stream.Write(environment.windowsMinor);
+        stream.Write(environment.windowsBuild);
+        const auto lobbyGuid{m_service->getLobbyGuid()};
+        if (!m_service->send(stream, lobbyGuid, LOW_PRIORITY)) {
             spdlog::warn(__FUNCTION__ ": failed to advertise ranked-lifecycle capability");
         }
     }
