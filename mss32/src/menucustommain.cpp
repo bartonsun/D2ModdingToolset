@@ -289,6 +289,9 @@ void CMenuCustomMain::LobbyCallback::MessageResult(SLNet::Client_Login* message)
         if (msg.empty()) {
             msg = "The account is banned from the lobby server.";
         }
+        msg += "\n\n[";
+        msg += SLNet::Lobby2ResultCodeDescription::ToEnum(message->resultCode);
+        msg += "]";
         showMessageBox(msg);
         break;
     }
