@@ -156,6 +156,7 @@ enum class PlayerSetupKind : std::uint8_t
 
 /** Exact capability schema announced after a successful Lobby2 login. */
 static constexpr std::uint32_t rankedLifecycleCapabilityVersion{1};
+static constexpr std::size_t clientInstallIdSize{16};
 
 } // namespace LobbyProtocol
 
