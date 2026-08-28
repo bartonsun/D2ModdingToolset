@@ -8,6 +8,7 @@ namespace game {
 
 struct IMidgardObjectMap;
 struct CSiteTrainingCampInterf;
+struct CDDStackGroup;
 
 namespace TrainingCostApi {
 
@@ -18,7 +19,7 @@ struct Api
                                                 const CMidgardID* unitId,
                                                 int apply);
 
-    using TrainUiAction = void(__thiscall*)(CSiteTrainingCampInterf* thisptr, int a1, int a2);
+    using TrainUiAction = void(__thiscall*)(CDDStackGroup* thisptr, int a1, int a2);
 
     using CanAffordTrainCheck = bool(__stdcall*)(IMidgardObjectMap* objectMap,
                                                  const CMidgardID* a2,

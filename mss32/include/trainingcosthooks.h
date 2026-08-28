@@ -9,6 +9,7 @@ namespace game {
 
 struct IMidgardObjectMap;
 struct CSiteTrainingCampInterf;
+struct CDDStackGroup;
 
 } // namespace game
 
@@ -45,7 +46,7 @@ bool __stdcall trainUnitAtTrainerHooked(game::IMidgardObjectMap* objectMap,
                                         const game::CMidgardID* unitId,
                                         int apply);
 
-void __fastcall trainUiActionHooked(game::CSiteTrainingCampInterf* thisptr,
+void __fastcall trainUiActionHooked(game::CDDStackGroup* thisptr,
                                     int /*%edx*/,
                                     int a1,
                                     int a2);
