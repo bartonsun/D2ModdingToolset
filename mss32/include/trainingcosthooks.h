@@ -22,6 +22,13 @@ int lowerCostPercentForStack(const game::IMidgardObjectMap* objectMap,
 int lowerCostPercentForUnit(const game::IMidgardObjectMap* objectMap,
                             const game::CMidgardID* unitId);
 
+/**
+ * Routes an id to the lookup its own type allows. The camp hooks get arguments
+ * the game does not describe, and both game lookups behind these functions
+ * trust the id they are given.
+ */
+int lowerCostPercentForId(const game::IMidgardObjectMap* objectMap, const game::CMidgardID* id);
+
 struct TrainingDiscountScope
 {
     explicit TrainingDiscountScope(int lowerCostPercent);

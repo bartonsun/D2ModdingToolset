@@ -31,6 +31,7 @@
 #include <spdlog/sinks/msvc_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/spdlog.h>
+#include <cstdint>
 #include <string>
 #include <thread>
 #define WIN32_LEAN_AND_MEAN
@@ -184,6 +185,104 @@ static void setupVftableHooks()
     spdlog::debug("All vftable hooks are set");
 }
 
+static LPTOP_LEVEL_EXCEPTION_FILTER previousExceptionFilter = nullptr;
+static LONG crashAlreadyLogged = 0;
+
+static bool isFatalExceptionCode(DWORD code)
+{
+    switch (code) {
+    case EXCEPTION_ACCESS_VIOLATION:
+    case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
+    case EXCEPTION_DATATYPE_MISALIGNMENT:
+    case EXCEPTION_ILLEGAL_INSTRUCTION:
+    case EXCEPTION_INT_DIVIDE_BY_ZERO:
+    case EXCEPTION_PRIV_INSTRUCTION:
+    case EXCEPTION_STACK_OVERFLOW:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/**
+ * A crash leaves the log looking exactly like a game that was closed by hand:
+ * the last line written is simply the last line. This writes the faulting
+ * address as module + offset, which is the only form comparable between runs,
+ * plus the operation and address for an access violation.
+ */
+static void logCrash(EXCEPTION_POINTERS* info)
+{
+    if (!info || !info->ExceptionRecord) {
+        return;
+    }
+    if (InterlockedCompareExchange(&crashAlreadyLogged, 1, 0) != 0) {
+        return;
+    }
+
+    const EXCEPTION_RECORD* record = info->ExceptionRecord;
+    const void* address = record->ExceptionAddress;
+
+    std::string module = "unknown";
+    std::uintptr_t offset = reinterpret_cast<std::uintptr_t>(address);
+    HMODULE handle = nullptr;
+    if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+                               | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           static_cast<LPCSTR>(address), &handle)
+        && handle) {
+        char path[MAX_PATH]{};
+        if (GetModuleFileNameA(handle, path, MAX_PATH)) {
+            const std::string full{path};
+            const auto slash = full.find_last_of("\\/");
+            module = slash == std::string::npos ? full : full.substr(slash + 1);
+        }
+        offset -= reinterpret_cast<std::uintptr_t>(handle);
+    }
+
+    spdlog::error("crash code={:#x} at {}+{:#x} thread={}", record->ExceptionCode, module, offset,
+                  GetCurrentThreadId());
+
+    if (record->ExceptionCode == EXCEPTION_ACCESS_VIOLATION
+        && record->NumberParameters >= 2) {
+        const ULONG_PTR operation = record->ExceptionInformation[0];
+        const char* kind = operation == 0 ? "read" : (operation == 1 ? "write" : "execute");
+        spdlog::error("crash access {} at {:#x}", kind,
+                      static_cast<std::uintptr_t>(record->ExceptionInformation[1]));
+    }
+
+    if (info->ContextRecord) {
+        const CONTEXT* context = info->ContextRecord;
+        spdlog::error("crash eip={:#x} esp={:#x} ebp={:#x}",
+                      static_cast<std::uintptr_t>(context->Eip),
+                      static_cast<std::uintptr_t>(context->Esp),
+                      static_cast<std::uintptr_t>(context->Ebp));
+    }
+
+    spdlog::default_logger()->flush();
+}
+
+static LONG WINAPI unhandledExceptionHooked(EXCEPTION_POINTERS* info)
+{
+    logCrash(info);
+    return previousExceptionFilter ? previousExceptionFilter(info) : EXCEPTION_CONTINUE_SEARCH;
+}
+
+static LONG CALLBACK vectoredExceptionHooked(EXCEPTION_POINTERS* info)
+{
+    // The game installs its own top-level filter, so a fatal fault can reach a
+    // handler that never writes anything. Vectored handlers run first, and this
+    // one only reads: the exception keeps travelling untouched.
+    if (info && info->ExceptionRecord && isFatalExceptionCode(info->ExceptionRecord->ExceptionCode)) {
+        logCrash(info);
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+static void setupCrashLogging()
+{
+    AddVectoredExceptionHandler(1, vectoredExceptionHooked);
+    previousExceptionFilter = SetUnhandledExceptionFilter(unhandledExceptionHooked);
+}
+
 static void setupDefaultLogger()
 {
     auto logger = spdlog::default_logger();
@@ -233,6 +332,7 @@ BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
     // DisableThreadLibraryCalls(hDll);
 
     setupDefaultLogger();
+    setupCrashLogging();
 
     library = hDll;
     mainThreadId = std::this_thread::get_id();
