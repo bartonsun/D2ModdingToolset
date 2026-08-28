@@ -135,6 +135,13 @@ int lowerCostPercentForStack(const game::IMidgardObjectMap* objectMap,
         return 0;
     }
 
+    // The camp hooks receive raw arguments whose type the game never states. A
+    // lookup that is handed something other than a stack must stop here rather
+    // than inside Disciples' own code, which takes the id on trust.
+    if (game::CMidgardIDApi::get().getType(stackId) != game::IdType::Stack) {
+        return 0;
+    }
+
     const game::CMidStack* stack = getStack(objectMap, stackId);
     if (!stack) {
         return 0;
@@ -167,12 +174,33 @@ int lowerCostPercentForUnit(const game::IMidgardObjectMap* objectMap,
         return 0;
     }
 
+    if (game::CMidgardIDApi::get().getType(unitId) != game::IdType::Unit) {
+        return 0;
+    }
+
     const game::CMidgardID* stackId = game::gameFunctions().getStackIdByUnitId(objectMap, unitId);
     if (!stackId) {
         return 0;
     }
 
     return lowerCostPercentForStack(objectMap, stackId);
+}
+
+int lowerCostPercentForId(const game::IMidgardObjectMap* objectMap,
+                          const game::CMidgardID* id)
+{
+    if (!objectMap || !id) {
+        return 0;
+    }
+
+    switch (game::CMidgardIDApi::get().getType(id)) {
+    case game::IdType::Unit:
+        return lowerCostPercentForUnit(objectMap, id);
+    case game::IdType::Stack:
+        return lowerCostPercentForStack(objectMap, id);
+    default:
+        return 0;
+    }
 }
 
 TrainingDiscountScope::TrainingDiscountScope(int lowerCostPercent)
@@ -227,6 +255,8 @@ bool __stdcall trainUnitAtTrainerHooked(game::IMidgardObjectMap* objectMap,
         return getOriginalFunctions().trainUnitAtTrainer(objectMap, playerId, unitId, apply);
     }
 
+    spdlog::info("trainer trainUnit enter");
+
     const int percent = lowerCostPercentForUnit(objectMap, unitId);
     spdlog::info("trainer trainUnit percent={}", percent);
     TrainingDiscountScope scope{percent};
@@ -243,6 +273,10 @@ void __fastcall trainUiActionHooked(game::CSiteTrainingCampInterf* thisptr,
         return;
     }
 
+    // Written before the lookup: a log that ends here names the hook the process
+    // died in, instead of leaving two hooks that wrote the same line.
+    spdlog::info("trainer uiAction enter");
+
     auto* data = thisptr->trainingCampData;
     const game::IMidgardObjectMap* objectMap = nullptr;
     if (data->phaseGame) {
@@ -250,13 +284,15 @@ void __fastcall trainUiActionHooked(game::CSiteTrainingCampInterf* thisptr,
     }
 
     const int percent = lowerCostPercentForStack(objectMap, &data->stackId);
-    spdlog::info("trainer ui percent={}", percent);
+    spdlog::info("trainer ui percent={} from=action", percent);
     TrainingDiscountScope scope{percent};
     getOriginalFunctions().trainUiAction(thisptr, a1, a2);
 }
 
 void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*%edx*/)
 {
+    spdlog::info("trainer uiText enter");
+
     int percent = 0;
     if (gameSettings().trainerCampLowerCost && thisptr && thisptr->trainingCampData) {
         auto* data = thisptr->trainingCampData;
@@ -265,7 +301,7 @@ void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*
             objectMap = game::CPhaseApi::get().getDataCache(&data->phaseGame->phase);
         }
         percent = lowerCostPercentForStack(objectMap, &data->stackId);
-        spdlog::info("trainer ui percent={}", percent);
+        spdlog::info("trainer ui percent={} from=text", percent);
     }
     TrainingDiscountScope scope{percent};
     getOriginalFunctions().setPartyTrainingText(thisptr);
@@ -279,12 +315,11 @@ bool __stdcall canAffordTrainCheckHooked(game::IMidgardObjectMap* objectMap,
         return getOriginalFunctions().canAffordTrainCheck(objectMap, a2, a3);
     }
 
-    int percent = lowerCostPercentForUnit(objectMap, a3);
+    spdlog::info("trainer canAfford enter");
+
+    int percent = lowerCostPercentForId(objectMap, a3);
     if (percent <= 0) {
-        percent = lowerCostPercentForUnit(objectMap, a2);
-    }
-    if (percent <= 0) {
-        percent = lowerCostPercentForStack(objectMap, a2);
+        percent = lowerCostPercentForId(objectMap, a2);
     }
 
     spdlog::info("trainer canAfford percent={}", percent);
@@ -303,12 +338,14 @@ bool __stdcall applyTrainActionHooked(game::IMidgardObjectMap* objectMap,
         return getOriginalFunctions().applyTrainAction(objectMap, a2, a3, a4, a5, a6);
     }
 
-    int percent = lowerCostPercentForUnit(objectMap, a4);
+    spdlog::info("trainer applyTrain enter");
+
+    int percent = lowerCostPercentForId(objectMap, a4);
     if (percent <= 0) {
-        percent = lowerCostPercentForUnit(objectMap, a3);
+        percent = lowerCostPercentForId(objectMap, a3);
     }
     if (percent <= 0) {
-        percent = lowerCostPercentForStack(objectMap, a2);
+        percent = lowerCostPercentForId(objectMap, a2);
     }
 
     spdlog::info("trainer applyTrain percent={}", percent);
