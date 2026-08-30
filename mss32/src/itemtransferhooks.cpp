@@ -517,7 +517,10 @@ static void transferItems(const std::vector<game::CMidgardID>& items,
     for (const auto& item : items) {
         sendExchangeItemMsg(phaseGame, srcObjectId, dstObjectId, &item, 0);
 
-        if (!exchangeItem(srcObjectId, dstObjectId, &item, objectMap, 0)) {
+        // Match the native drag-and-drop path: apply the validated exchange locally after the
+        // network message is queued. Validation-only mode leaves the inventory unchanged until
+        // the server echoes the operation, making the transfer buttons appear to hang online.
+        if (!exchangeItem(srcObjectId, dstObjectId, &item, objectMap, 1)) {
             spdlog::error("Failed to transfer item {:s} from {:s} {:s} to {:s} {:s}",
                           idToString(&item), srcObjectName, idToString(srcObjectId), dstObjectName,
                           idToString(dstObjectId));
