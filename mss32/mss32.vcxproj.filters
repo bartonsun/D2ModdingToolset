@@ -515,6 +515,9 @@
     <ClCompile Include="src\midgardmapblock.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\territorycoveragehooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
     <ClCompile Include="src\terraincountmap.cpp">
       <Filter>game</Filter>
     </ClCompile>
@@ -2707,6 +2710,9 @@
     </ClInclude>
     <ClInclude Include="include\landmark.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\territorycoveragehooks.h">
+      <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\midlandmark.h">
       <Filter>game</Filter>
