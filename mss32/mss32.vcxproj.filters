@@ -623,6 +623,12 @@
     <ClCompile Include="src\midgardmap.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\minimapimpassableapi.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\minimapimpassablehooks.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\batunitanim.cpp">
       <Filter>game</Filter>
     </ClCompile>
@@ -2593,6 +2599,12 @@
     </ClInclude>
     <ClInclude Include="include\midgardmap.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\minimapimpassableapi.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\minimapimpassablehooks.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\tooltip.h">
       <Filter>game</Filter>
