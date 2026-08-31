@@ -165,16 +165,19 @@ int lowerCostPercentForStack(const game::IMidgardObjectMap* objectMap,
 
     const game::IUsStackLeader* leader = game::gameFunctions().castUnitImplToStackLeader(
         leaderUnit->unitImpl);
-    int native = 0;
+    // The trader skill raises the leader's negotiate stat and the shop prices
+    // in it, but the native getLowerCost on this interface never reflects it
+    // (measured: negotiate 10/25 -> 0), so it is counted here explicitly.
+    // max() keeps a game build whose getLowerCost already folds negotiate in
+    // from counting it twice; the mod channels stay additive on top.
+    int fromLeader = 0;
     if (leader) {
-        native = leader->vftable->getLowerCost(leader);
+        fromLeader = std::max(leader->vftable->getLowerCost(leader),
+                              leader->vftable->getNegotiate(leader));
     }
-    if (native > 0) {
-        return std::clamp(native, 0, 100);
-    }
-    const int fallback = lowerCostFromUnitModifiers(leaderUnit)
-                         + lowerCostFromStackItems(objectMap, stack);
-    return std::clamp(fallback, 0, 100);
+    const int total = fromLeader + lowerCostFromUnitModifiers(leaderUnit)
+                      + lowerCostFromStackItems(objectMap, stack);
+    return std::clamp(total, 0, 100);
 }
 
 int lowerCostPercentForUnit(const game::IMidgardObjectMap* objectMap,
