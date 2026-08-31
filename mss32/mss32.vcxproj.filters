@@ -506,6 +506,12 @@
     <ClCompile Include="src\capitaldata.cpp">
       <Filter>game</Filter>
     </ClCompile>
+    <ClCompile Include="src\capitalscoutapi.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\capitalscouthooks.cpp">
+      <Filter>hooks</Filter>
+    </ClCompile>
     <ClCompile Include="src\tilevariation.cpp">
       <Filter>game</Filter>
     </ClCompile>
@@ -1660,6 +1666,12 @@
     </ClInclude>
     <ClInclude Include="include\capital.h">
       <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="include\capitalscoutapi.h">
+      <Filter>hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\capitalscouthooks.h">
+      <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\categories.h">
       <Filter>game</Filter>
