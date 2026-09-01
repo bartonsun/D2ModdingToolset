@@ -19,6 +19,7 @@
 
 #pragma comment(lib, "Lib/detours.lib")
 
+#include "buildstamp.h"
 #include "customaibattle.h"
 #include "customattacks.h"
 #include "custommodifiers.h"
@@ -334,6 +335,12 @@ static void setupDefaultLogger()
     // Using UTC helps to match logs from different users (with different timezones).
     // It also helps to match client logs with lobby server logs.
     logger->set_pattern("%D %H:%M:%S.%e %5t [%=8!n] [%L] %v", spdlog::pattern_time_type::utc);
+
+    // First line of every run, before any game code: a log from an old dll and a
+    // log from a new one are otherwise structurally identical, so a client
+    // report of "the fix does not work" cannot be told apart from a file that
+    // was never replaced.
+    spdlog::info("mss32 build={} logger=ready", hooks::buildStamp);
 }
 
 BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
