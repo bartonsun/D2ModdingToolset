@@ -40,6 +40,14 @@ thread_local int g_scopeDepth = 0;
 // the pointer is compared; it is never dereferenced.
 thread_local const void* g_campStackGroup = nullptr;
 
+// The stack the camp is trained from. The group's own id1/id2 are not stack ids
+// in every scenario -- measured 2026-09-01 in the client's log, where the text
+// hook reports 25% from `trainingCampData->stackId` and the action hook, one
+// second later on the same camp, reports 0 from those two ids. The id is kept
+// rather than the percent so the fallback is recomputed at press time: the
+// hero's state can change between drawing the text and pressing the slot.
+thread_local game::CMidgardID g_campStackId = game::invalidId;
+
 } // namespace
 
 void applyLeaderLowerCostToBank(game::Bank* bank, int lowerCostPercent)
@@ -315,12 +323,20 @@ void __fastcall trainUiActionHooked(game::CDDStackGroup* thisptr,
 
     // Which of the group's two ids is the stack is not stated anywhere, so each
     // one is routed by its own type and an id that is neither returns 0.
+    const char* source = "ids";
     int percent = lowerCostPercentForId(objectMap, &data->id1);
     if (percent <= 0) {
         percent = lowerCostPercentForId(objectMap, &data->id2);
     }
+    // The visible price goes through this scope, so a group whose ids name no
+    // stack has to reach the same hero the camp text already resolved --
+    // otherwise the shown price stays full while the charged one is discounted.
+    if (percent <= 0 && g_campStackId != game::invalidId) {
+        percent = lowerCostPercentForId(objectMap, &g_campStackId);
+        source = "camp";
+    }
 
-    spdlog::info("trainer ui percent={} from=action", percent);
+    spdlog::info("trainer ui percent={} from=action src={}", percent, source);
     TrainingDiscountScope scope{percent};
     getOriginalFunctions().trainUiAction(thisptr, a1, a2);
 }
@@ -330,6 +346,7 @@ void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*
     spdlog::info("trainer uiText enter");
 
     g_campStackGroup = nullptr;
+    g_campStackId = game::invalidId;
     int percent = 0;
     if (gameSettings().trainerCampLowerCost && thisptr && thisptr->trainingCampData) {
         auto* data = thisptr->trainingCampData;
@@ -339,11 +356,16 @@ void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*
         }
         percent = lowerCostPercentForStack(objectMap, &data->stackId);
         spdlog::info("trainer ui percent={} from=text", percent);
+        // The action hook resolves this same id through the type-routed lookup, so a
+        // log that shows the two disagreeing names the fallback as the broken half
+        // instead of leaving the camp price unexplained.
+        spdlog::info("trainer camp idcheck={}", lowerCostPercentForId(objectMap, &data->stackId));
     }
     TrainingDiscountScope scope{percent};
     getOriginalFunctions().setPartyTrainingText(thisptr);
     if (gameSettings().trainerCampLowerCost && thisptr && thisptr->trainingCampData) {
         g_campStackGroup = thisptr->trainingCampData->stackGroup;
+        g_campStackId = thisptr->trainingCampData->stackId;
     }
 }
 
