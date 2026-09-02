@@ -15,7 +15,7 @@
 
 namespace hooks {
 
-inline constexpr char buildStamp[] = "t50c-20260901";
+inline constexpr char buildStamp[] = "t53-20260902";
 
 } // namespace hooks
 
