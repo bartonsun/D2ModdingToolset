@@ -54,6 +54,7 @@ thread_local game::CMidgardID g_campStackId = game::invalidId;
 static volatile unsigned long g_campUiAtMs = 0;
 static thread_local int g_campPercent = 0;
 static bool g_inPartyTrainingText = false;
+static bool g_inTrainUnit = false;
 
 } // namespace
 
@@ -280,6 +281,14 @@ game::Bank* __fastcall bankCopyHooked(game::Bank* thisptr, int /*%edx*/, const g
         return result;
     }
 
+    if (!g_inTrainUnit) {
+        return result;
+    }
+
+    if (thisptr->gold > 999) {
+        return result;
+    }
+
     applyLeaderLowerCostToBank(thisptr, g_lowerCostPercent);
     g_discountApplied = 1;
     spdlog::info("trainer lowerCost apply percent={} gold={}", g_lowerCostPercent,
@@ -301,7 +310,10 @@ bool __stdcall trainUnitAtTrainerHooked(game::IMidgardObjectMap* objectMap,
     const int percent = lowerCostPercentForUnit(objectMap, unitId);
     spdlog::info("trainer trainUnit percent={}", percent);
     TrainingDiscountScope scope{percent};
-    return getOriginalFunctions().trainUnitAtTrainer(objectMap, playerId, unitId, apply);
+    g_inTrainUnit = true;
+    const bool trained = getOriginalFunctions().trainUnitAtTrainer(objectMap, playerId, unitId, apply);
+    g_inTrainUnit = false;
+    return trained;
 }
 
 void __fastcall trainUiActionHooked(game::CDDStackGroup* thisptr,
