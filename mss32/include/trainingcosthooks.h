@@ -53,6 +53,10 @@ void __fastcall trainUiActionHooked(game::CDDStackGroup* thisptr,
 
 void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*%edx*/);
 
+bool trainerCampUiRecentlyActive();
+
+long trainerCampUiAgeMs();
+
 bool __stdcall canAffordTrainCheckHooked(game::IMidgardObjectMap* objectMap,
                                          const game::CMidgardID* a2,
                                          const game::CMidgardID* a3);

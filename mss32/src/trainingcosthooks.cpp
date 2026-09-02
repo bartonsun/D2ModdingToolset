@@ -23,6 +23,8 @@
 #include <cstdint>
 #include <cstring>
 #include <spdlog/spdlog.h>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 namespace hooks {
 namespace {
@@ -48,7 +50,19 @@ thread_local const void* g_campStackGroup = nullptr;
 // hero's state can change between drawing the text and pressing the slot.
 thread_local game::CMidgardID g_campStackId = game::invalidId;
 
+static volatile unsigned long g_campUiAtMs = 0;
+
 } // namespace
+
+bool trainerCampUiRecentlyActive()
+{
+    return g_campUiAtMs && GetTickCount() - g_campUiAtMs < 2500;
+}
+
+long trainerCampUiAgeMs()
+{
+    return g_campUiAtMs ? static_cast<long>(GetTickCount() - g_campUiAtMs) : -1;
+}
 
 void applyLeaderLowerCostToBank(game::Bank* bank, int lowerCostPercent)
 {
@@ -251,8 +265,13 @@ game::Bank* __fastcall bankCopyHooked(game::Bank* thisptr, int /*%edx*/, const g
     // not. Without this line a scope that the game never routes through
     // Bank::Copy is indistinguishable from one where the discount was already
     // spent, and both look like silence in the log.
-    spdlog::info("trainer bankCopy depth={} percent={} applied={}", g_scopeDepth,
-                 g_lowerCostPercent, g_discountApplied);
+    //
+    // The amount comes with it because the discount is spent on the first copy
+    // of a scope and the camp draws three (client log, 2026-09-01 15:19:32).
+    // Without the number, a scope that discounted the wrong one of the three
+    // reads exactly like a scope that discounted the drawn price.
+    spdlog::info("trainer bankCopy depth={} percent={} applied={} gold={}", g_scopeDepth,
+                 g_lowerCostPercent, g_discountApplied, thisptr ? thisptr->gold : -1);
 
     if (g_discountApplied || g_lowerCostPercent <= 0 || !thisptr) {
         return result;
@@ -260,7 +279,8 @@ game::Bank* __fastcall bankCopyHooked(game::Bank* thisptr, int /*%edx*/, const g
 
     applyLeaderLowerCostToBank(thisptr, g_lowerCostPercent);
     g_discountApplied = 1;
-    spdlog::info("trainer lowerCost apply percent={}", g_lowerCostPercent);
+    spdlog::info("trainer lowerCost apply percent={} gold={}", g_lowerCostPercent,
+                 thisptr->gold);
     return result;
 }
 
@@ -344,6 +364,8 @@ void __fastcall trainUiActionHooked(game::CDDStackGroup* thisptr,
 void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*%edx*/)
 {
     spdlog::info("trainer uiText enter");
+
+    g_campUiAtMs = GetTickCount();
 
     g_campStackGroup = nullptr;
     g_campStackId = game::invalidId;
