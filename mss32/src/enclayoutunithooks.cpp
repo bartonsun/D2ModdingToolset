@@ -907,7 +907,8 @@ static void setTxtStats(game::CEncLayoutUnit* layout,
         getUnit(descriptor), getModifiedUnitImpl(descriptor), isMaxLevel, data->isInBattle,
         getFortificationArmor(layout), data->shatteredArmor,
         getRemovedAttackSourceWards(data->attackSourceImmunityStatuses),
-        getRemovedAttackClassWards(data->attackClassImmunityStatuses));
+        getRemovedAttackClassWards(data->attackClassImmunityStatuses),
+        getUnitRegen(layout, soldierImpl));
     if (text.empty()) {
         text = getTxtStatsText(layout, soldierImpl, editorModifiers);
     }

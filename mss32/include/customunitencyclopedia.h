@@ -50,7 +50,8 @@ public:
                                 int fortificationArmor,
                                 int shatteredArmor,
                                 const std::vector<game::AttackSourceId>& removedSourceWards,
-                                const std::vector<game::AttackClassId>& removedClassWards) const;
+                                const std::vector<game::AttackClassId>& removedClassWards,
+                                int unitRegen) const;
     std::string getTxtStats2Text(const game::CMidUnit* unit,
                                  const game::IUsUnit* unitImpl,
                                  bool isInBattle,
