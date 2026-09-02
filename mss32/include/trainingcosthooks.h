@@ -10,6 +10,7 @@ namespace game {
 struct IMidgardObjectMap;
 struct CSiteTrainingCampInterf;
 struct CDDStackGroup;
+struct CTextBoxInterf;
 
 } // namespace game
 
@@ -52,6 +53,10 @@ void __fastcall trainUiActionHooked(game::CDDStackGroup* thisptr,
                                     int a2);
 
 void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*%edx*/);
+
+void __fastcall textBoxSetStringHooked(game::CTextBoxInterf* thisptr,
+                                       int /*%edx*/,
+                                       const char* value);
 
 bool trainerCampUiRecentlyActive();
 

@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <string>
 #include <spdlog/spdlog.h>
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -51,6 +52,8 @@ thread_local const void* g_campStackGroup = nullptr;
 thread_local game::CMidgardID g_campStackId = game::invalidId;
 
 static volatile unsigned long g_campUiAtMs = 0;
+static thread_local int g_campPercent = 0;
+static bool g_inPartyTrainingText = false;
 
 } // namespace
 
@@ -384,7 +387,10 @@ void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*
         spdlog::info("trainer camp idcheck={}", lowerCostPercentForId(objectMap, &data->stackId));
     }
     TrainingDiscountScope scope{percent};
+    g_campPercent = percent;
+    g_inPartyTrainingText = true;
     getOriginalFunctions().setPartyTrainingText(thisptr);
+    g_inPartyTrainingText = false;
     if (gameSettings().trainerCampLowerCost && thisptr && thisptr->trainingCampData) {
         g_campStackGroup = thisptr->trainingCampData->stackGroup;
         g_campStackId = thisptr->trainingCampData->stackId;
@@ -435,6 +441,76 @@ bool __stdcall applyTrainActionHooked(game::IMidgardObjectMap* objectMap,
     spdlog::info("trainer applyTrain percent={}", percent);
     TrainingDiscountScope scope{percent};
     return getOriginalFunctions().applyTrainAction(objectMap, a2, a3, a4, a5, a6);
+}
+
+void __fastcall textBoxSetStringHooked(game::CTextBoxInterf* thisptr,
+                                       int /*%edx*/,
+                                       const char* value)
+{
+    if (!value || !*value || !gameSettings().trainerCampLowerCost || g_inPartyTrainingText
+        || !g_campUiAtMs || GetTickCount() - g_campUiAtMs >= 60000 || g_campPercent <= 0
+        || g_campStackId == game::invalidId) {
+        return getOriginalFunctions().textBoxSetString(thisptr, value);
+    }
+
+    const char* ruGold = std::strstr(value, "\xE7\xEE\xEB\xEE\xF2");
+    std::string lower;
+    lower.reserve(std::strlen(value));
+    for (const char* p = value; *p; ++p) {
+        lower += (*p >= 'A' && *p <= 'Z') ? static_cast<char>(*p - 'A' + 'a') : *p;
+    }
+    const char* enGold = std::strstr(lower.c_str(), "gold");
+
+    size_t goldIdx = static_cast<size_t>(-1);
+    if (ruGold) {
+        goldIdx = static_cast<size_t>(ruGold - value);
+    }
+    if (enGold) {
+        const size_t idx = static_cast<size_t>(enGold - lower.c_str());
+        if (goldIdx == static_cast<size_t>(-1) || idx < goldIdx) {
+            goldIdx = idx;
+        }
+    }
+    if (goldIdx == static_cast<size_t>(-1)) {
+        return getOriginalFunctions().textBoxSetString(thisptr, value);
+    }
+
+    const char* firstRun = nullptr;
+    size_t firstLen = 0;
+    int runs = 0;
+    for (const char* p = value; *p; ++p) {
+        if (*p >= '0' && *p <= '9') {
+            const char* start = p;
+            while (*p >= '0' && *p <= '9') {
+                ++p;
+            }
+            ++runs;
+            if (runs == 1) {
+                firstRun = start;
+                firstLen = static_cast<size_t>(p - start);
+            }
+            --p;
+        }
+    }
+    if (runs != 1 || firstLen == 0 || firstLen > 6
+        || static_cast<size_t>(firstRun - value) >= goldIdx) {
+        return getOriginalFunctions().textBoxSetString(thisptr, value);
+    }
+
+    int price = 0;
+    for (size_t i = 0; i < firstLen; ++i) {
+        price = price * 10 + (firstRun[i] - '0');
+    }
+    const int discounted = price * (100 - g_campPercent) / 100;
+    if (price <= 0 || discounted <= 0 || discounted == price) {
+        return getOriginalFunctions().textBoxSetString(thisptr, value);
+    }
+
+    std::string text{value, static_cast<size_t>(firstRun - value)};
+    text += std::to_string(discounted);
+    text += firstRun + firstLen;
+    spdlog::info("trainer dialog price {} -> {}", price, discounted);
+    return getOriginalFunctions().textBoxSetString(thisptr, text.c_str());
 }
 
 } // namespace hooks
