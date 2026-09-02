@@ -999,7 +999,7 @@ function getTargetsField(unitImpl)
 	return getModifiedStringText(getAttackTargetsName(attack.reach), attack.reach ~= attack.generated.reach)
 end
 
-function doGetTxtStatsText(unit, unitImpl, isMaxLevel, isInBattle, fortificationArmor, shatteredArmor, removedSourceWards, removedClassWards)
+function doGetTxtStatsText(unit, unitImpl, isMaxLevel, isInBattle, fortificationArmor, shatteredArmor, removedSourceWards, removedClassWards, unitRegen)
 	-- \s110
 	-- \fmedboldLevel:\t\fnormal%LEVEL%\n
 	-- \fMedboldXP:\t\fNormal%XP%\n
@@ -1083,8 +1083,8 @@ function doGetTxtAttackInfoText(unit, unitImpl, boostDamageLevel, lowerDamageLev
 end
 
 -- TODO: debug and remove
-function getTxtStatsText(unit, unitImpl, isMaxLevel, isInBattle, fortificationArmor, shatteredArmor, removedSourceWards, removedClassWards)
-	local success, result = xpcall(doGetTxtStatsText, debug.traceback, unit, unitImpl, isMaxLevel, isInBattle, fortificationArmor, shatteredArmor, removedSourceWards, removedClassWards)
+function getTxtStatsText(unit, unitImpl, isMaxLevel, isInBattle, fortificationArmor, shatteredArmor, removedSourceWards, removedClassWards, unitRegen)
+	local success, result = xpcall(doGetTxtStatsText, debug.traceback, unit, unitImpl, isMaxLevel, isInBattle, fortificationArmor, shatteredArmor, removedSourceWards, removedClassWards, unitRegen)
 	if not success then
 		log(result)
 	end
