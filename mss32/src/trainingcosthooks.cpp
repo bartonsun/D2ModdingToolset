@@ -195,12 +195,11 @@ int lowerCostPercentForStack(const game::IMidgardObjectMap* objectMap,
     if (leader) {
         native = leader->vftable->getLowerCost(leader);
     }
-    if (native > 0) {
-        return std::clamp(native, 0, 100);
+    if (native <= 0) {
+        native = lowerCostFromUnitModifiers(leaderUnit);
     }
-    const int fallback = lowerCostFromUnitModifiers(leaderUnit)
-                         + lowerCostFromStackItems(objectMap, stack);
-    return std::clamp(fallback, 0, 100);
+    const int total = native + lowerCostFromStackItems(objectMap, stack);
+    return std::clamp(total, 0, 100);
 }
 
 int lowerCostPercentForUnit(const game::IMidgardObjectMap* objectMap,
