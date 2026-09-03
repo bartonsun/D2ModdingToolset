@@ -54,7 +54,7 @@ struct ScenarioFileHeader
     int mapSize;
     DifficultyLevelId difficulty;
     int turnNumber;
-    int unknown;
+    int turnOrderOffset; /**< Saved (currentPlayerIndex + loadedTurnOffset) modulo player count. */
     char campaignId[11];
     int unknown2;
     char unknown3;
@@ -76,8 +76,10 @@ assert_offset(ScenarioFileHeader, author, 256);
 assert_offset(ScenarioFileHeader, official, 277);
 assert_offset(ScenarioFileHeader, name, 278);
 assert_offset(ScenarioFileHeader, mapSize, 534);
+assert_offset(ScenarioFileHeader, turnOrderOffset, 546);
 assert_offset(ScenarioFileHeader, difficulty, 538);
 assert_offset(ScenarioFileHeader, campaignId, 550);
+assert_offset(ScenarioFileHeader, race, 822);
 assert_offset(ScenarioFileHeader, racesTotal, 2649);
 assert_offset(ScenarioFileHeader, races, 2653);
 
@@ -87,22 +89,20 @@ struct Api
 {
     /**
      * Reads scenario file and parses its header performing validity checks.
-     * @param[in] a1 meaning unknown.
      * @param[in] filePath full path to scenario file (.sg).
      * @param[inout] scenarioFileId pointer parsed scenario file id from header is stored here.
      * @param[inout] header scenario file header to populate.
-     * @param a5 unknown
-     * @param a6 unknown
-     * @param a7 unknown
+     * @param[in] loadCampaignVariables whether to read embedded campaign variables.
+     * @param[out] version optional file format version.
+     * @param[out] expansion optional expansion-format flag.
      * @returns true on success, false if scenario file can't be read or header data invalid.
      */
-    using ReadAndCheckHeader = bool(__stdcall*)(void* a1,
-                                                const char* filePath,
+    using ReadAndCheckHeader = bool(__stdcall*)(const char* filePath,
                                                 CMidgardID* scenarioFileId,
                                                 ScenarioFileHeader* header,
-                                                int a5,
-                                                int a6,
-                                                int a7);
+                                                bool loadCampaignVariables,
+                                                int* version,
+                                                bool* expansion);
     ReadAndCheckHeader readAndCheckHeader;
 };
 

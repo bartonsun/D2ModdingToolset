@@ -23,6 +23,7 @@
 #include "exchangeresourcesmsg.h"
 #include "gameutils.h"
 #include "idset.h"
+#include "lobbysaveresume.h"
 #include "logutils.h"
 #include "midgardscenariomap.h"
 #include "midplayer.h"
@@ -43,6 +44,7 @@
 #include "unitutils.h"
 #include "utils.h"
 #include <chrono>
+#include <cstddef>
 #include <filesystem>
 #include <process.h>
 #include "scripts.h"
@@ -53,6 +55,38 @@
 #include <unordered_set>
 
 namespace hooks {
+namespace {
+
+// Russobit constructor 0x478428 stores the active player at +0x10;
+// CCommandMsg::playerId is a separate field used to address the message.
+struct CmdBeginTurnMsgView
+{
+    game::CCommandMsg command;
+    game::CMidgardID activePlayerId;
+};
+
+static_assert(sizeof(CmdBeginTurnMsgView) == 20);
+static_assert(offsetof(CmdBeginTurnMsgView, activePlayerId) == 16);
+
+thread_local game::CMidServerLogic* resumingServerLogic{};
+
+struct SaveResumeScope
+{
+    game::CMidServerLogic* previous;
+
+    explicit SaveResumeScope(game::CMidServerLogic* logic)
+        : previous(resumingServerLogic)
+    {
+        resumingServerLogic = logic;
+    }
+
+    ~SaveResumeScope()
+    {
+        resumingServerLogic = previous;
+    }
+};
+
+} // namespace
 
 // spdlog uses const std::string& to get named log so we create singleton of std::string.
 // Log name is truncated to 8 characters by the default logger pattern.
@@ -594,6 +628,25 @@ game::CMidServerLogic* __fastcall midServerLogicCtorHooked(game::CMidServerLogic
     return thisptr;
 }
 
+bool __fastcall midServerLogicSendPlayerMessageHooked(game::IMidMsgSender* thisptr,
+                                                       int /*%edx*/,
+                                                       game::CCommandMsg* message,
+                                                       const game::CMidgardID* playerId,
+                                                       bool sendBeforeObjectsChanges)
+{
+    using namespace game;
+
+    if (resumingServerLogic == castMidMsgSenderToMidServerLogic(thisptr)
+        && message->vftable->getId(message) == CommandMsgId::BeginTurn) {
+        auto* beginTurn = reinterpret_cast<CmdBeginTurnMsgView*>(message);
+        beginTurn->activePlayerId = resumingServerLogic->coreData->players->bgn->playerId;
+    }
+
+    // Keep the original recipient: the host still needs its own initial notification.
+    return getOriginalFunctions().midServerLogicSendPlayerMessage(
+        thisptr, message, playerId, sendBeforeObjectsChanges);
+}
+
 void __fastcall processZeroTurnHooked(game::CMidServerLogic* thisptr,
                                       int /*%edx*/,
                                       std::uint32_t playerNetId,
@@ -605,7 +658,11 @@ void __fastcall processZeroTurnHooked(game::CMidServerLogic* thisptr,
     auto scenarioInfo = getScenarioInfo(objectMap);
     bool isTurnZero = (scenarioInfo->currentTurn == 0);
 
-    getOriginalFunctions().processZeroTurn(thisptr, playerNetId, a3);
+    const bool resume = a3 && scenarioInfo->currentTurn > 0 && prepareLobbySaveResume(thisptr);
+    {
+        SaveResumeScope scope(resume ? thisptr : nullptr);
+        getOriginalFunctions().processZeroTurn(thisptr, playerNetId, a3);
+    }
 
 
     if (!isTurnZero) {
