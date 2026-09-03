@@ -144,12 +144,13 @@ int lowerCostFromStackItems(const game::IMidgardObjectMap* objectMap,
     int tableCount = 0;
     const auto* table = TrainingDiscountData::items(tableCount);
 
-    const CMidInventory* inventory = &stack->inventory;
-    const int count = inventory->vftable->getItemsCount(inventory);
+    // The stack inventory holds backpack items too: the client's lute lay there
+    // unequipped and still cut the price («програ посчитала лютню которую я не
+    // одевал», 2026-09-03). Only the leader's equipped slots grant the discount.
+    const IdVector& equipped = stack->leaderEquippedItems;
     int sum = 0;
-    for (int i = 0; i < count; ++i) {
-        const CMidgardID* itemId = inventory->vftable->getItem(inventory, i);
-        if (!itemId) {
+    for (const CMidgardID* itemId = equipped.bgn; itemId != equipped.end; ++itemId) {
+        if (*itemId == emptyId) {
             continue;
         }
         const auto* midItem = static_cast<const CMidItem*>(
