@@ -17,12 +17,16 @@
 #include "sitetrainingcampinterf.h"
 #include "trainingcostapi.h"
 #include "ummodifier.h"
+#include "unitutils.h"
+#include "ussoldier.h"
+#include "usunitimpl.h"
 #include "umstack.h"
 #include "usstackleader.h"
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <vector>
 #include <spdlog/spdlog.h>
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -95,41 +99,6 @@ int tablePercent(const game::TrainingDiscountData::Entry* table, int count, cons
     return 0;
 }
 
-int lowerCostFromUnitModifiers(const game::CMidUnit* unit)
-{
-    using namespace game;
-
-    if (!unit || !unit->unitImpl) {
-        return 0;
-    }
-
-    const auto& idApi = CMidgardIDApi::get();
-    const auto& rtti = RttiApi::rtti();
-    const auto dynamicCast = RttiApi::get().dynamicCast;
-
-    int tableCount = 0;
-    const auto* table = TrainingDiscountData::modifiers(tableCount);
-
-    int sum = 0;
-    CUmModifier* modifier = nullptr;
-    for (auto curr = unit->unitImpl; curr; curr = modifier->data->prev) {
-        modifier = (CUmModifier*)dynamicCast(curr, 0, rtti.IUsUnitType, rtti.CUmModifierType, 0);
-        if (!modifier || !modifier->data) {
-            break;
-        }
-        CUmStack* stackUm = castUmModifierToUmStack(modifier);
-        if (stackUm && stackUm->data && stackUm->data->lowerCost.initialized) {
-            sum += stackUm->data->lowerCost.value;
-            continue;
-        }
-        const CMidgardID modifierId = modifier->data->modifierId;
-        char buf[16]{};
-        idApi.toString(&modifierId, buf);
-        sum += tablePercent(table, tableCount, buf);
-    }
-    return std::clamp(sum, 0, 100);
-}
-
 int lowerCostFromStackItems(const game::IMidgardObjectMap* objectMap,
                             const game::CMidStack* stack)
 {
@@ -165,6 +134,124 @@ int lowerCostFromStackItems(const game::IMidgardObjectMap* objectMap,
     return std::clamp(sum, 0, 100);
 }
 
+int unitLevelGrowth(const game::CMidUnit* unit)
+{
+    using namespace game;
+
+    if (!unit || !unit->unitImpl) {
+        return 0;
+    }
+
+    const auto& fn = gameFunctions();
+    const IUsSoldier* soldier = fn.castUnitImplToSoldier(unit->unitImpl);
+    if (!soldier) {
+        return 0;
+    }
+
+    const TUsUnitImpl* baseImpl = getGlobalUnitImpl(&unit->unitImpl->id);
+    if (!baseImpl) {
+        return 0;
+    }
+    const IUsSoldier* baseSoldier = fn.castUnitImplToSoldier(baseImpl);
+    if (!baseSoldier) {
+        return 0;
+    }
+
+    const int growth = soldier->vftable->getLevel(soldier)
+                       - baseSoldier->vftable->getLevel(baseSoldier);
+    return growth > 0 ? growth : 0;
+}
+
+int lowerCostFromGroupModifiers(const game::IMidgardObjectMap* objectMap,
+                                const game::CMidStack* stack)
+{
+    using namespace game;
+
+    if (!objectMap || !stack) {
+        return 0;
+    }
+
+    // smnsAura pays every discount out of groupMods, which is built from the
+    // whole group: `_GroupInfo_stackHasModifierAmount(mod) > 0`. A lute on the
+    // skald or a second trader in the squad counts there, so the leader's own
+    // chain is not the whole answer.
+    const char* skaldModifierId = TrainingDiscountData::skaldDiscountModifier();
+
+    const auto& idApi = CMidgardIDApi::get();
+    const auto& rtti = RttiApi::rtti();
+    const auto dynamicCast = RttiApi::get().dynamicCast;
+
+    int tableCount = 0;
+    const auto* table = TrainingDiscountData::modifiers(tableCount);
+
+    std::vector<std::string> counted;
+    const auto alreadyCounted = [&counted](const char* id) {
+        for (const std::string& seen : counted) {
+            if (_stricmp(seen.c_str(), id) == 0) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    int sum = 0;
+    int skaldBest = -1;
+
+    const IdVector& units = stack->group.units;
+    for (const CMidgardID* unitId = units.bgn; unitId != units.end; ++unitId) {
+        const CMidUnit* unit = gameFunctions().findUnitById(objectMap, unitId);
+        if (!unit || !unit->unitImpl || !(unit->currentHp > 0)) {
+            continue;
+        }
+
+        CUmModifier* modifier = nullptr;
+        for (auto curr = unit->unitImpl; curr; curr = modifier->data->prev) {
+            modifier = (CUmModifier*)dynamicCast(curr, 0, rtti.IUsUnitType,
+                                                 rtti.CUmModifierType, 0);
+            if (!modifier || !modifier->data) {
+                break;
+            }
+
+            const CMidgardID modifierId = modifier->data->modifierId;
+            char buf[16]{};
+            idApi.toString(&modifierId, buf);
+
+            // The dwarf skald grows with its carrier, so it is not a flat row:
+            // the highest-level carrier decides, exactly as the mod's
+            // smnsConditions_highestWithModifier does.
+            if (_stricmp(buf, skaldModifierId) == 0) {
+                const int growth = unitLevelGrowth(unit);
+                if (growth > skaldBest) {
+                    skaldBest = growth;
+                }
+                continue;
+            }
+
+            CUmStack* stackUm = castUmModifierToUmStack(modifier);
+            if (stackUm && stackUm->data && stackUm->data->lowerCost.initialized) {
+                if (!alreadyCounted(buf)) {
+                    counted.emplace_back(buf);
+                    sum += stackUm->data->lowerCost.value;
+                }
+                continue;
+            }
+
+            const int percent = tablePercent(table, tableCount, buf);
+            if (percent > 0 && !alreadyCounted(buf)) {
+                counted.emplace_back(buf);
+                sum += percent;
+            }
+        }
+    }
+
+    if (skaldBest >= 0) {
+        sum += tablePercent(table, tableCount, skaldModifierId)
+               + TrainingDiscountData::skaldDiscountPerLevel() * skaldBest;
+    }
+
+    return std::clamp(sum, 0, 100);
+}
+
 int lowerCostPercentForStack(const game::IMidgardObjectMap* objectMap,
                              const game::CMidgardID* stackId)
 {
@@ -196,12 +283,12 @@ int lowerCostPercentForStack(const game::IMidgardObjectMap* objectMap,
     if (leader) {
         native = leader->vftable->getLowerCost(leader);
     }
-    // The game reports only real L_LOWER_COST rows (Trader skill 25). Discount
-    // spells are aura-only in this mod, so a leader with the skill saw the scan
-    // skipped and the spell counted for nothing (client, 2026-09-03). The scan
-    // folds the real rows in through lowerCost.value, so it never undercounts
-    // native; the larger of the two is the honest figure.
-    const int percent = std::max(native, lowerCostFromUnitModifiers(leaderUnit));
+    // The game reports only real L_LOWER_COST rows of the leader (Trader skill
+    // 25). Discount spells are aura-only in this mod and the mod pays the rest
+    // out of the whole squad, so neither number alone is the price. The group
+    // scan folds the real rows in through lowerCost.value, so it never
+    // undercounts native; the larger of the two is the honest figure.
+    const int percent = std::max(native, lowerCostFromGroupModifiers(objectMap, stack));
     const int total = percent + lowerCostFromStackItems(objectMap, stack);
     return std::clamp(total, 0, 100);
 }

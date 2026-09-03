@@ -66,6 +66,10 @@ const Entry* modifiers(int& count);
 
 const Entry* items(int& count);
 
+const char* skaldDiscountModifier();
+
+int skaldDiscountPerLevel();
+
 } // namespace TrainingDiscountData
 
 } // namespace game
