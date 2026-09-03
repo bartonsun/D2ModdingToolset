@@ -468,6 +468,15 @@ void __fastcall trainUiActionHooked(game::CDDStackGroup* thisptr,
 
 void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*%edx*/)
 {
+    // The switch has to be read before anything else runs. Reading it further
+    // down left the camp UI writing g_campStackGroup / g_campStackId and a log
+    // line on every open even with the discount turned off, so «off» was never
+    // stock behaviour here.
+    if (!gameSettings().trainerCampLowerCost) {
+        getOriginalFunctions().setPartyTrainingText(thisptr);
+        return;
+    }
+
     spdlog::info("trainer uiText enter");
 
     g_campUiAtMs = GetTickCount();
@@ -475,7 +484,7 @@ void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*
     g_campStackGroup = nullptr;
     g_campStackId = game::invalidId;
     int percent = 0;
-    if (gameSettings().trainerCampLowerCost && thisptr && thisptr->trainingCampData) {
+    if (thisptr && thisptr->trainingCampData) {
         auto* data = thisptr->trainingCampData;
         const game::IMidgardObjectMap* objectMap = nullptr;
         if (data->phaseGame) {
@@ -493,7 +502,7 @@ void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*
     g_inPartyTrainingText = true;
     getOriginalFunctions().setPartyTrainingText(thisptr);
     g_inPartyTrainingText = false;
-    if (gameSettings().trainerCampLowerCost && thisptr && thisptr->trainingCampData) {
+    if (thisptr && thisptr->trainingCampData) {
         g_campStackGroup = thisptr->trainingCampData->stackGroup;
         g_campStackId = thisptr->trainingCampData->stackId;
     }
