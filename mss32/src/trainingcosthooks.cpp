@@ -462,6 +462,13 @@ void __fastcall trainUiActionHooked(game::CDDStackGroup* thisptr,
     }
 
     spdlog::info("trainer ui percent={} from=action src={}", percent, source);
+    // Reaching this line means the camp the text hook recorded is still open and
+    // this is the unit just clicked in it. The dialog that follows reads both of
+    // these, and the freshness window used to be stamped by the text hook alone
+    // -- so a camp visit longer than the window went back to showing full price
+    // while the charged price stayed discounted.
+    g_campPercent = percent;
+    g_campUiAtMs = GetTickCount();
     TrainingDiscountScope scope{percent};
     getOriginalFunctions().trainUiAction(thisptr, a1, a2);
 }
