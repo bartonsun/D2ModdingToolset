@@ -41,7 +41,12 @@ void UserSettingsView::bind(sol::state& lua)
 
     lua.new_usertype<Lobby::Client>("LobbyClient", "port", &Lobby::Client::port);
 
-    lua.new_usertype<Lobby>("Lobby", "server", &Lobby::server, "client", &Lobby::client);
+    lua.new_usertype<Lobby::Controls>("LobbyControls", "ranked", &Lobby::Controls::ranked,
+                                      "simultaneousTurns", &Lobby::Controls::simultaneousTurns,
+                                      "unlockGui", &Lobby::Controls::unlockGui);
+
+    lua.new_usertype<Lobby>("Lobby", "server", &Lobby::server, "client", &Lobby::client,
+                             "controls", &Lobby::controls);
 
     lua.new_usertype<UserSettings>(
         "UserSettings",
