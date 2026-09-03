@@ -473,7 +473,7 @@ const Settings& baseGameSettings()
 
         settings.cacheLeaderDataOnTransform = false;
         settings.fogSpellHideEnemyVision = false;
-        settings.trainerCampLowerCost = true;
+        settings.trainerCampLowerCost = false;
 
         initialized = true;
     }

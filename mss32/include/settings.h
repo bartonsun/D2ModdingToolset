@@ -208,7 +208,7 @@ struct Settings
 
     bool cacheLeaderDataOnTransform{false};
     bool fogSpellHideEnemyVision{false};
-    bool trainerCampLowerCost{true};
+    bool trainerCampLowerCost{false};
 };
 
 const Settings& baseGameSettings();
