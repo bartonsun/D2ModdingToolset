@@ -35,6 +35,7 @@
 #include "stringarray.h"
 #include "textids.h"
 #include "togglebutton.h"
+#include "usersettings.h"
 #include "utils.h"
 #include <cstdio>
 #include <spdlog/spdlog.h>
@@ -186,6 +187,20 @@ void CMenuCustomNewSkirmishMulti::initializeRoomOptionsControls()
     const auto& dialogApi = CDialogInterfApi::get();
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
     auto& options = service->getRoomOptions();
+    const auto& controls = userSettings().lobby.controls;
+
+    if (!controls.ranked) {
+        dialogApi.hideControl(dialog, "TOG_RANKED");
+    }
+    if (!controls.unlockGui) {
+        dialogApi.hideControl(dialog, "TOG_UNLOCK_GUI");
+    }
+    if (!controls.simultaneousTurns) {
+        dialogApi.hideControl(dialog, "TOG_SIM_DAYS_LABEL");
+        dialogApi.hideControl(dialog, "SPIN_SIM_DAYS");
+        dialogApi.hideControl(dialog, "BTN_SIM_DAYS_INC");
+        dialogApi.hideControl(dialog, "BTN_SIM_DAYS_DN");
+    }
 
     if (auto toggle = dialogApi.findToggleButton(dialog, "TOG_RANKED")) {
         const bool supported{CPhaseGameApi::nativeSaveSupported()};
@@ -219,28 +234,34 @@ void CMenuCustomNewSkirmishMulti::readRoomOptionsControls()
     const auto& dialogApi = CDialogInterfApi::get();
     auto dialog = CMenuBaseApi::get().getDialogInterface(this);
     auto& options = service->getRoomOptions();
+    const auto& controls = userSettings().lobby.controls;
 
-    // Optional controls may be absent in an older/custom dialog resource. Start from the declared
-    // defaults so such a resource cannot reuse values retained from an earlier host dialog.
+    // Hidden or absent controls must not reuse values retained from an earlier host dialog.
     options = {};
-    if (auto toggle = dialogApi.findToggleButton(dialog, "TOG_RANKED")) {
-        options.ranked = CPhaseGameApi::nativeSaveSupported() && toggle->data->checked;
+    if (controls.ranked) {
+        if (auto toggle = dialogApi.findToggleButton(dialog, "TOG_RANKED")) {
+            options.ranked = CPhaseGameApi::nativeSaveSupported() && toggle->data->checked;
+        }
     }
 
-    if (auto toggle = dialogApi.findToggleButton(dialog, "TOG_UNLOCK_GUI")) {
-        options.unlockGui = toggle->data->checked;
+    if (controls.unlockGui) {
+        if (auto toggle = dialogApi.findToggleButton(dialog, "TOG_UNLOCK_GUI")) {
+            options.unlockGui = toggle->data->checked;
+        }
     }
 
-    auto simTurnsToggle = dialogApi.findToggleButton(dialog, "TOG_SIM_DAYS_LABEL");
-    if (simTurnsToggle) {
-        options.simultaneousTurnsEnabled = simTurnsToggle->data->checked;
-    }
+    if (controls.simultaneousTurns) {
+        auto simTurnsToggle = dialogApi.findToggleButton(dialog, "TOG_SIM_DAYS_LABEL");
+        if (simTurnsToggle) {
+            options.simultaneousTurnsEnabled = simTurnsToggle->data->checked;
+        }
 
-    if (auto spin = dialogApi.findSpinButton(dialog, "SPIN_SIM_DAYS")) {
-        options.simultaneousTurnsDays = spin->data->selectedOption;
-        if (!simTurnsToggle) {
-            // Preserve spinner-only semantics for older/custom dialog resources.
-            options.simultaneousTurnsEnabled = options.simultaneousTurnsDays > 0;
+        if (auto spin = dialogApi.findSpinButton(dialog, "SPIN_SIM_DAYS")) {
+            options.simultaneousTurnsDays = spin->data->selectedOption;
+            if (!simTurnsToggle) {
+                // Preserve spinner-only semantics for older/custom dialog resources.
+                options.simultaneousTurnsEnabled = options.simultaneousTurnsDays > 0;
+            }
         }
     }
 }
