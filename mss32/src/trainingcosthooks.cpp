@@ -196,10 +196,13 @@ int lowerCostPercentForStack(const game::IMidgardObjectMap* objectMap,
     if (leader) {
         native = leader->vftable->getLowerCost(leader);
     }
-    if (native <= 0) {
-        native = lowerCostFromUnitModifiers(leaderUnit);
-    }
-    const int total = native + lowerCostFromStackItems(objectMap, stack);
+    // The game reports only real L_LOWER_COST rows (Trader skill 25). Discount
+    // spells are aura-only in this mod, so a leader with the skill saw the scan
+    // skipped and the spell counted for nothing (client, 2026-09-03). The scan
+    // folds the real rows in through lowerCost.value, so it never undercounts
+    // native; the larger of the two is the honest figure.
+    const int percent = std::max(native, lowerCostFromUnitModifiers(leaderUnit));
+    const int total = percent + lowerCostFromStackItems(objectMap, stack);
     return std::clamp(total, 0, 100);
 }
 
