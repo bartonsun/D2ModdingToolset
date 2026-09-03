@@ -82,4 +82,14 @@ const Entry* items(int& count)
     return itemTable;
 }
 
+const char* skaldDiscountModifier()
+{
+    return "g070um0097";
+}
+
+int skaldDiscountPerLevel()
+{
+    return 3;
+}
+
 } // namespace game::TrainingDiscountData
