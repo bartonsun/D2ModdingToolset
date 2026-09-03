@@ -468,10 +468,11 @@ void __fastcall trainUiActionHooked(game::CDDStackGroup* thisptr,
 
 void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*%edx*/)
 {
-    // The switch has to be read before anything else runs. Reading it further
-    // down left the camp UI writing g_campStackGroup / g_campStackId and a log
-    // line on every open even with the discount turned off, so «off» was never
-    // stock behaviour here.
+    // hooks.cpp only installs these hooks when the switch is on, so this guard
+    // never fires in a shipped build. It stays because the hook body is the
+    // only place that says what «off» means: every other hook here already
+    // read the flag first, and this one read it three statements in, which is
+    // the shape that breaks the day someone installs the hooks unconditionally.
     if (!gameSettings().trainerCampLowerCost) {
         getOriginalFunctions().setPartyTrainingText(thisptr);
         return;

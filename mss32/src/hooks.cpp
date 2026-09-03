@@ -673,17 +673,23 @@ static Hooks getGameHooks()
             hooks.emplace_back(HookInfo{(void*)textApi.setPartyTrainingText, trainUiTextHooked,
                                         (void**)&orig.setPartyTrainingText});
         }
+        const auto& textBoxApi = CTextBoxInterfApi::get();
+        if (textBoxApi.setString) {
+            hooks.emplace_back(HookInfo{(void*)textBoxApi.setString, textBoxSetStringHooked,
+                                        (void**)&orig.textBoxSetString});
+        }
 
         // A missing address skips its hook silently, and the camp then reads exactly
         // like a build that was never installed.
         spdlog::info("trainer hooks version={} train={:#x} ui={:#x} afford={:#x} apply={:#x} "
-                     "text={:#x}",
+                     "text={:#x} textbox={:#x}",
                      static_cast<int>(hooks::gameVersion()),
                      reinterpret_cast<std::uintptr_t>(trainApi.trainUnitAtTrainer),
                      reinterpret_cast<std::uintptr_t>(trainApi.trainUiAction),
                      reinterpret_cast<std::uintptr_t>(trainApi.canAffordTrainCheck),
                      reinterpret_cast<std::uintptr_t>(trainApi.applyTrainAction),
-                     reinterpret_cast<std::uintptr_t>(textApi.setPartyTrainingText));
+                     reinterpret_cast<std::uintptr_t>(textApi.setPartyTrainingText),
+                     reinterpret_cast<std::uintptr_t>(textBoxApi.setString));
         if (!trainApi.trainUiAction && !textApi.setPartyTrainingText) {
             spdlog::error("trainer camp discount has no addresses for game version {}",
                           static_cast<int>(hooks::gameVersion()));
