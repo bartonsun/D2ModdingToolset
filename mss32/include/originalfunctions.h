@@ -24,6 +24,7 @@
 #include "autodialog.h"
 #include "battlemsgdata.h"
 #include "batlogic.h"
+#include "buildstructinterf.h"
 #include "citystackinterf.h"
 #include "commandmsg.h"
 #include "condinterf.h"
@@ -155,6 +156,8 @@ struct OriginalFunctions
     game::CEncLayoutCityApi::Api::Update encLayoutCityUpdate;
 
     game::CEncLayoutRuinApi::Api::Update encLayoutRuinUpdate;
+
+    game::CBuildStructInterfApi::Api::UpdateBuildingInfo buildStructInterfUpdateBuildingInfo;
 
     game::IMidMsgSenderVftable::SendObjectsChanges midServerLogicSendObjectsChanges;
 
