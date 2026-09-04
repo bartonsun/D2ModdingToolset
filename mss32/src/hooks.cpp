@@ -204,6 +204,9 @@
 #include "scenedithooks.h"
 #include "scenpropinterfhooks.h"
 #include "settings.h"
+#include "currency.h"
+#include "trainingcostapi.h"
+#include "trainingcosthooks.h"
 #include "usersettings.h"
 #include "sitecategoryhooks.h"
 #include "sitemerchantinterf.h"
@@ -250,6 +253,7 @@
 #include "visitors.h"
 #include "reviveattackhooks.h"
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <iterator>
@@ -642,6 +646,55 @@ static Hooks getGameHooks()
         {CBatLogicApi::get().applyCBatAttackUntransformEffect, applyCBatAttackUntransformEffectHooked, (void**)&orig.applyCBatAttackUntransformEffect},
     };
     // clang-format on
+
+    if (gameSettings().trainerCampLowerCost) {
+        hooks.emplace_back(
+            HookInfo{(void*)BankApi::get().copy, bankCopyHooked, (void**)&orig.bankCopy});
+        const auto& trainApi = TrainingCostApi::get();
+        if (trainApi.trainUnitAtTrainer) {
+            hooks.emplace_back(HookInfo{(void*)trainApi.trainUnitAtTrainer, trainUnitAtTrainerHooked,
+                                        (void**)&orig.trainUnitAtTrainer});
+        }
+        if (trainApi.trainUiAction) {
+            hooks.emplace_back(HookInfo{(void*)trainApi.trainUiAction, trainUiActionHooked,
+                                        (void**)&orig.trainUiAction});
+        }
+        if (trainApi.canAffordTrainCheck) {
+            hooks.emplace_back(HookInfo{(void*)trainApi.canAffordTrainCheck,
+                                        canAffordTrainCheckHooked,
+                                        (void**)&orig.canAffordTrainCheck});
+        }
+        if (trainApi.applyTrainAction) {
+            hooks.emplace_back(HookInfo{(void*)trainApi.applyTrainAction, applyTrainActionHooked,
+                                        (void**)&orig.applyTrainAction});
+        }
+        const auto& textApi = TrainCampTextApi::get();
+        if (textApi.setPartyTrainingText) {
+            hooks.emplace_back(HookInfo{(void*)textApi.setPartyTrainingText, trainUiTextHooked,
+                                        (void**)&orig.setPartyTrainingText});
+        }
+        const auto& textBoxApi = CTextBoxInterfApi::get();
+        if (textBoxApi.setString) {
+            hooks.emplace_back(HookInfo{(void*)textBoxApi.setString, textBoxSetStringHooked,
+                                        (void**)&orig.textBoxSetString});
+        }
+
+        // A missing address skips its hook silently, and the camp then reads exactly
+        // like a build that was never installed.
+        spdlog::info("trainer hooks version={} train={:#x} ui={:#x} afford={:#x} apply={:#x} "
+                     "text={:#x} textbox={:#x}",
+                     static_cast<int>(hooks::gameVersion()),
+                     reinterpret_cast<std::uintptr_t>(trainApi.trainUnitAtTrainer),
+                     reinterpret_cast<std::uintptr_t>(trainApi.trainUiAction),
+                     reinterpret_cast<std::uintptr_t>(trainApi.canAffordTrainCheck),
+                     reinterpret_cast<std::uintptr_t>(trainApi.applyTrainAction),
+                     reinterpret_cast<std::uintptr_t>(textApi.setPartyTrainingText),
+                     reinterpret_cast<std::uintptr_t>(textBoxApi.setString));
+        if (!trainApi.trainUiAction && !textApi.setPartyTrainingText) {
+            spdlog::error("trainer camp discount has no addresses for game version {}",
+                          static_cast<int>(hooks::gameVersion()));
+        }
+    }
 
     if (gameSettings().extendedBattle.boostdamageCanAffectHealer
         != baseGameSettings().extendedBattle.boostdamageCanAffectHealer) {
