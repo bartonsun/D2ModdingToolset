@@ -90,6 +90,13 @@ struct Lobby
         std::uint16_t port{0};
     } client;
 
+    struct Controls
+    {
+        bool ranked{true};
+        bool simultaneousTurns{false};
+        bool unlockGui{false};
+    } controls;
+
     // Stores login information while the game is running,
     // not loaded from userSettings.lua.
     std::string password;

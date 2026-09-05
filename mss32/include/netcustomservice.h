@@ -29,7 +29,12 @@
 #include <PacketPriority.h>
 #include <RakPeerInterface.h>
 #include <RoomsPlugin.h>
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <deque>
 #include <filesystem>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -40,19 +45,120 @@ struct NetMessageHeader;
 
 namespace hooks {
 
-// !!! Keep in sync with lobby server
-// Should not exceed the size of SLNet::MessageID
-enum ClientMessages
+/** Shared lifetime-safe count of native game messages queued by custom players. */
+class NativeGameMessageTracker
+{
+public:
+    void queued() noexcept
+    {
+        m_pending.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    void consumed(std::size_t count = 1) noexcept
+    {
+        auto pending = m_pending.load(std::memory_order_relaxed);
+        while (pending != 0) {
+            const auto remaining = count < pending ? pending - count : 0;
+            if (m_pending.compare_exchange_weak(pending, remaining, std::memory_order_relaxed)) {
+                return;
+            }
+        }
+    }
+
+    bool empty() const noexcept
+    {
+        return m_pending.load(std::memory_order_relaxed) == 0;
+    }
+
+private:
+    std::atomic_size_t m_pending{};
+};
+
+// Keep the numeric values in sync with the lobby server.  Values +1 through +7 are the
+// established custom-lobby protocol; ranked-match messages are append-only so older clients keep
+// interpreting every legacy byte exactly as before.  Every value must fit in SLNet::MessageID and
+// remain below the stock game-message relay byte (255).
+enum LobbyMessageId
 {
     ID_LOBBY_CHAT_MESSAGE = ID_USER_PACKET_ENUM + 1,
-    ID_LOBBY_GET_ONLINE_USERS_REQUEST,
-    ID_LOBBY_GET_ONLINE_USERS_RESPONSE,
-    ID_LOBBY_GET_CHAT_MESSAGES_REQUEST,
-    ID_LOBBY_GET_CHAT_MESSAGES_RESPONSE,
-    ID_GAME_MESSAGE_TO_HOST_SERVER,
-    ID_GAME_MESSAGE_TO_HOST_CLIENT,
+    ID_LOBBY_GET_ONLINE_USERS_REQUEST = ID_USER_PACKET_ENUM + 2,
+    ID_LOBBY_GET_ONLINE_USERS_RESPONSE = ID_USER_PACKET_ENUM + 3,
+    ID_LOBBY_GET_CHAT_MESSAGES_REQUEST = ID_USER_PACKET_ENUM + 4,
+    ID_LOBBY_GET_CHAT_MESSAGES_RESPONSE = ID_USER_PACKET_ENUM + 5,
+    ID_GAME_MESSAGE_TO_HOST_SERVER = ID_USER_PACKET_ENUM + 6,
+    ID_GAME_MESSAGE_TO_HOST_CLIENT = ID_USER_PACKET_ENUM + 7,
+    /** Core -> host: start one bounded native host save. */
+    ID_LOBBY_SAVE_REQUEST = ID_USER_PACKET_ENUM + 8,
+    /** Host -> core: one native-save BEGIN, CHUNK, COMMIT, or FAIL operation. */
+    ID_LOBBY_SAVE_UPLOAD = ID_USER_PACKET_ENUM + 9,
+    /** Core -> participant: the ranked match is finalized; leave the game UI for the lobby. */
+    ID_LOBBY_MATCH_ENDED = ID_USER_PACKET_ENUM + 10,
+    /** Participant -> core: protocol capability or authenticated host setup extension. */
+    ID_LOBBY_PLAYER_SETUP = ID_USER_PACKET_ENUM + 11,
+    /** Core -> participant: modal notice. System chat uses legacy chat packets. */
+    ID_LOBBY_SYSTEM_NOTICE = ID_USER_PACKET_ENUM + 12,
+    /** Core -> host: durable-storage confirmation, not a RakNet delivery ACK. */
+    ID_LOBBY_SAVE_STORED_ACK = ID_USER_PACKET_ENUM + 13,
+    /** Host -> core: native-save result and actual collision-safe basename. */
+    ID_LOBBY_SAVE_NATIVE_RESULT = ID_USER_PACKET_ENUM + 14,
     ID_GAME_MESSAGE = game::netMessageNormalType & 0xff,
 };
+
+static_assert(ID_GAME_MESSAGE == 255);
+static_assert(ID_LOBBY_SAVE_NATIVE_RESULT < ID_GAME_MESSAGE);
+
+/** Lobby-specific wire protocol. Values are serialized field-by-field with SLNet::BitStream;
+ * these structures are logical payloads, not packed wire images. Keep in sync with the lobby
+ * server. */
+namespace LobbyProtocol {
+
+static constexpr std::size_t systemNoticeTextMax{1024};
+static constexpr std::uint32_t saveFileHardLimit{32u * 1024u * 1024u};
+static constexpr std::uint32_t saveChunkSizeMax{16u * 1024u};
+static constexpr std::size_t saveStemMax{180};
+static constexpr std::size_t saveResultFileNameMax{220};
+
+enum class SaveMode : std::uint8_t
+{
+    Upload = 0,
+    LocalOnly = 1,
+};
+
+/** Validated logical request from a capability-negotiated lobby server. */
+struct SaveRequest
+{
+    std::uint64_t saveId{};
+    SaveMode mode{SaveMode::Upload};
+    std::string saveStem;
+};
+
+enum class SaveDataOperation : std::uint8_t
+{
+    Begin = 0,
+    Chunk = 1,
+    Commit = 2,
+    Fail = 3,
+};
+
+/** Result shared by SAVE_UPLOAD/FAIL and SAVE_NATIVE_RESULT. */
+enum class SaveResult : std::uint8_t
+{
+    Success = 0,
+    Failed = 1,
+    TimedOut = 2,
+};
+
+enum class PlayerSetupKind : std::uint8_t
+{
+    ClientCapabilities = 0,
+    HostLord = 1,
+};
+
+/** Exact capability schema announced after a successful Lobby2 login. */
+static constexpr std::uint32_t rankedLifecycleCapabilityVersion{1};
+static constexpr std::size_t clientInstallIdSize{16};
+
+} // namespace LobbyProtocol
 
 class CNetCustomPeer;
 class CNetCustomSession;
@@ -88,6 +194,17 @@ public:
         SLNet::RakString text;
     };
 
+    /** Room options set in the custom lobby menu, sent as room property columns on creation. */
+    struct RoomOptions
+    {
+        bool ranked{false};
+        /** Whether the simultaneous-turns room option is enabled. */
+        bool simultaneousTurnsEnabled{false};
+        /** Spinner selection retained while simultaneous turns are disabled. */
+        int simultaneousTurnsDays{7};
+        bool unlockGui{false};
+    };
+
     // !!! Keep in sync with lobby server
     static constexpr std::uint32_t peerConnectionTimeout{30000};
     static constexpr std::uint32_t peerShutdownTimeout{100};
@@ -103,6 +220,9 @@ public:
     static constexpr char scenarioDescriptionColumnName[] = "ScenarioDescription";
     static constexpr char templateNameColumnName[] = "TemplateName";
     static constexpr char templateHashColumnName[] = "TemplateHash";
+    static constexpr char rankedColumnName[] = "Ranked";
+    static constexpr char simultaneousTurnsDaysColumnName[] = "SimultaneousTurnsDays";
+    static constexpr char unlockGuiColumnName[] = "UnlockGui";
     // See SLNet::Lobby2Message::ValidatePassword
     static constexpr std::uint32_t passwordMaxLength{50};
 
@@ -132,6 +252,16 @@ public:
     std::string computeTemplateHash(const std::string& templateName) const;
     UserInfo getUserInfo() const;
     void processPeerMessages() const;
+
+    /** Shows the next queued global notice after the active native dialog is dismissed. */
+    void notifySystemNoticeModalClosed();
+
+    /** Invalidates the service's non-owning session pointer during native session teardown. */
+    void notifySessionDestroyed(CNetCustomSession* session);
+
+    std::shared_ptr<NativeGameMessageTracker> getNativeGameMessageTracker() const;
+
+    RoomOptions& getRoomOptions();
 
     bool registerAccount(const char* userName, const char* password);
     bool login(const char* userName, const char* password);
@@ -280,10 +410,24 @@ private:
     };
 
     static void __fastcall peerProcessEventCallback(const CNetCustomService* thisptr,
-                                                    int /*%edx*/,
-                                                    unsigned int,
-                                                    long);
+                                                     int /*%edx*/,
+                                                     unsigned int,
+                                                     long);
+    /** Expires local save deadlines and drains deferred UI state; it never resends network data. */
+    static void __fastcall lobbyMaintenanceTimerEventCallback(CNetCustomService* thisptr,
+                                                               int /*%edx*/);
     std::vector<NetPeerCallback*> getPeerCallbacks() const;
+
+    bool readSaveRequest(const SLNet::Packet* packet,
+                         LobbyProtocol::SaveRequest& request) const;
+    bool readSaveStoredAck(const SLNet::Packet* packet, std::uint64_t& saveId) const;
+    bool readSystemNotice(const SLNet::Packet* packet, std::string& notice) const;
+    void enqueueSystemNotice(std::string notice);
+    void processDeferredLobbyState();
+    void processPendingMatchEnd();
+    void processPendingSystemNotices();
+    /** Drops the current match transfer/terminal state while retaining global system notices. */
+    void clearLobbyMatchState();
 
     bool m_connected;
     PeerCallback m_peerCallback;
@@ -300,11 +444,18 @@ private:
     /** Connection with lobby server. */
     CNetCustomPeer* m_peer;
     game::UiEvent m_peerProcessEvent;
+    game::UiEvent m_lobbyMaintenanceTimerEvent;
     std::vector<NetPeerCallback*> m_peerCallbacks;
     mutable std::mutex m_peerCallbacksMutex;
+    std::deque<std::string> m_pendingSystemNotices;
+    bool m_matchEndPending{};
+    bool m_systemNoticeModalActive{};
+    std::shared_ptr<NativeGameMessageTracker> m_nativeGameMessageTracker{
+        std::make_shared<NativeGameMessageTracker>()};
     std::string m_gameFilesHash;
     std::string m_templateName;
     std::string m_templateHash;
+    RoomOptions m_roomOptions;
 };
 
 assert_offset(CNetCustomService, vftable, 0);

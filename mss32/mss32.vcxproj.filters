@@ -752,6 +752,12 @@
     <ClCompile Include="src\menucustomlobby.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
+    <ClCompile Include="src\lobbysaveexchange.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lobbysaveresume.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
     <ClCompile Include="src\netcustomservice.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
@@ -2793,6 +2799,12 @@
       <Filter>game</Filter>
     </ClInclude>
     <ClInclude Include="include\menucustomlobby.h">
+      <Filter>features\lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="include\lobbysaveexchange.h">
+      <Filter>features\lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="include\lobbysaveresume.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
     <ClInclude Include="include\netcustomservice.h">

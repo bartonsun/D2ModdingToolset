@@ -18,24 +18,287 @@
  */
 
 #include "netcustomservice.h"
+#include "lobbysaveexchange.h"
 #include "mempool.h"
 #include "midgard.h"
+#include "midgardmsgbox.h"
+#include "midmsgboxbuttonhandler.h"
 #include "mqnetservice.h"
 #include "mquikernel.h"
 #include "netcustompeer.h"
 #include "netcustomsession.h"
 #include "netmsg.h"
+#include "phasegame.h"
 #include "settings.h"
 #include "textids.h"
 #include "uimanager.h"
 #include "utils.h"
 #include <MessageIdentifiers.h>
+#include <algorithm>
 #include <array>
 #include <mutex>
+#include <optional>
 #include <spdlog/spdlog.h>
+#include <string_view>
+#include <utility>
 #include <usersettings.h>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <wincrypt.h>
 
 namespace hooks {
+
+namespace {
+
+static constexpr std::uint32_t lobbyMaintenanceIntervalMs{250};
+static constexpr UINT gameTextCodePage{1251};
+static constexpr std::size_t clientHelloWireSize{
+    sizeof(SLNet::MessageID) + sizeof(std::uint8_t) + sizeof(std::uint32_t)
+    + LobbyProtocol::clientInstallIdSize + sizeof(std::uint16_t) * 2
+    + sizeof(std::uint32_t)};
+static_assert(clientHelloWireSize == 30);
+/** Prevents recursive packet, maintenance, and deferred-UI processing on the main thread. */
+bool mainThreadCallbackActive{};
+
+struct ClientEnvironment
+{
+    std::array<std::uint8_t, LobbyProtocol::clientInstallIdSize> installId{};
+    std::uint16_t windowsMajor{};
+    std::uint16_t windowsMinor{};
+    std::uint32_t windowsBuild{};
+};
+
+class RegistryKey
+{
+public:
+    ~RegistryKey()
+    {
+        if (key) {
+            RegCloseKey(key);
+        }
+    }
+
+    HKEY key{};
+};
+
+class WinHandle
+{
+public:
+    ~WinHandle()
+    {
+        if (handle) {
+            CloseHandle(handle);
+        }
+    }
+
+    HANDLE handle{};
+};
+
+bool validInstallId(
+    const std::array<std::uint8_t, LobbyProtocol::clientInstallIdSize>& installId)
+{
+    return std::any_of(installId.begin(), installId.end(),
+                       [](std::uint8_t value) { return value != 0; });
+}
+
+bool readInstallId(
+    HKEY key, std::array<std::uint8_t, LobbyProtocol::clientInstallIdSize>& installId)
+{
+    DWORD type{};
+    DWORD size{static_cast<DWORD>(installId.size())};
+    return RegQueryValueExW(key, L"InstallId", nullptr, &type, installId.data(), &size)
+               == ERROR_SUCCESS
+           && type == REG_BINARY && size == installId.size() && validInstallId(installId);
+}
+
+bool generateInstallId(
+    std::array<std::uint8_t, LobbyProtocol::clientInstallIdSize>& installId)
+{
+    HCRYPTPROV provider{};
+    if (!CryptAcquireContextW(&provider, nullptr, nullptr, PROV_RSA_FULL,
+                              CRYPT_VERIFYCONTEXT)) {
+        return false;
+    }
+    const bool generated{
+        CryptGenRandom(provider, static_cast<DWORD>(installId.size()), installId.data()) != FALSE};
+    CryptReleaseContext(provider, 0);
+    return generated && validInstallId(installId);
+}
+
+std::optional<std::array<std::uint8_t, LobbyProtocol::clientInstallIdSize>> installId()
+{
+    // The named mutex keeps two local game clients from creating different first-run ids.
+    WinHandle mutex{CreateMutexW(nullptr, FALSE, L"Local\\Conclave.InstallId")};
+    if (!mutex.handle) {
+        return std::nullopt;
+    }
+    const DWORD waitResult{WaitForSingleObject(mutex.handle, 250)};
+    if (waitResult != WAIT_OBJECT_0 && waitResult != WAIT_ABANDONED) {
+        return std::nullopt;
+    }
+
+    RegistryKey registry;
+    const LONG opened{RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\Conclave", 0, nullptr,
+                                      REG_OPTION_NON_VOLATILE, KEY_QUERY_VALUE | KEY_SET_VALUE,
+                                      nullptr, &registry.key, nullptr)};
+    if (opened != ERROR_SUCCESS) {
+        ReleaseMutex(mutex.handle);
+        return std::nullopt;
+    }
+
+    std::array<std::uint8_t, LobbyProtocol::clientInstallIdSize> value{};
+    if (!readInstallId(registry.key, value)) {
+        if (!generateInstallId(value)
+            || RegSetValueExW(registry.key, L"InstallId", 0, REG_BINARY, value.data(),
+                              static_cast<DWORD>(value.size())) != ERROR_SUCCESS) {
+            ReleaseMutex(mutex.handle);
+            return std::nullopt;
+        }
+    }
+
+    ReleaseMutex(mutex.handle);
+    return value;
+}
+
+std::optional<ClientEnvironment> clientEnvironment()
+{
+    using RtlGetVersion = LONG(WINAPI*)(OSVERSIONINFOW*);
+    const auto ntdll{GetModuleHandleW(L"ntdll.dll")};
+    const auto rtlGetVersion{ntdll ? reinterpret_cast<RtlGetVersion>(
+                                         GetProcAddress(ntdll, "RtlGetVersion"))
+                                   : nullptr};
+    if (!rtlGetVersion) {
+        return std::nullopt;
+    }
+
+    OSVERSIONINFOW version{};
+    version.dwOSVersionInfoSize = sizeof(version);
+    if (rtlGetVersion(&version) != 0 || version.dwMajorVersion > 0xffffu
+        || version.dwMinorVersion > 0xffffu) {
+        return std::nullopt;
+    }
+
+    const auto id{installId()};
+    if (!id) {
+        return std::nullopt;
+    }
+
+    return ClientEnvironment{*id, static_cast<std::uint16_t>(version.dwMajorVersion),
+                             static_cast<std::uint16_t>(version.dwMinorVersion),
+                             static_cast<std::uint32_t>(version.dwBuildNumber)};
+}
+
+struct MainThreadCallbackGuard
+{
+    explicit MainThreadCallbackGuard(bool& active)
+        : active{active}
+    {
+        active = true;
+    }
+
+    ~MainThreadCallbackGuard()
+    {
+        active = false;
+    }
+
+    bool& active;
+};
+
+struct SystemNoticeMsgBoxButtonHandler : game::CMidMsgBoxButtonHandler
+{ };
+
+void __fastcall systemNoticeMsgBoxButtonHandlerDestructor(
+    SystemNoticeMsgBoxButtonHandler* thisptr,
+    int /*%edx*/,
+    char flags)
+{
+    if (flags & 1) {
+        game::Memory::get().freeNonZero(thisptr);
+    }
+}
+
+void __fastcall systemNoticeMsgBoxButtonHandler(
+    SystemNoticeMsgBoxButtonHandler* /*thisptr*/,
+    int /*%edx*/,
+    game::CMidgardMsgBox* msgBox,
+    bool /*okPressed*/)
+{
+    // The handler itself deliberately owns no service or UI pointers. Both are resolved on the
+    // main thread at dismissal time, so service/session teardown cannot leave a dangling capture.
+    if (msgBox) {
+        hideInterface(msgBox);
+        msgBox->vftable->destructor(msgBox, 1);
+    }
+    if (auto service = CNetCustomService::get()) {
+        service->notifySystemNoticeModalClosed();
+    }
+}
+
+game::CMidMsgBoxButtonHandlerVftable systemNoticeMsgBoxButtonHandlerVftable{
+    (game::CMidMsgBoxButtonHandlerVftable::Destructor)
+        systemNoticeMsgBoxButtonHandlerDestructor,
+    (game::CMidMsgBoxButtonHandlerVftable::Handler)systemNoticeMsgBoxButtonHandler,
+};
+
+std::optional<std::string> utf8ToGameEncoding(std::string_view text)
+{
+    if (text.empty()) {
+        return std::nullopt;
+    }
+
+    const auto wideLength{MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+                                               static_cast<int>(text.size()), nullptr, 0)};
+    if (wideLength <= 0) {
+        return std::nullopt;
+    }
+
+    std::wstring wide(static_cast<std::size_t>(wideLength), L'\0');
+    if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+                             static_cast<int>(text.size()), wide.data(), wideLength)) {
+        return std::nullopt;
+    }
+
+    BOOL usedDefaultChar{};
+    const auto encodedLength{WideCharToMultiByte(
+        gameTextCodePage, WC_NO_BEST_FIT_CHARS, wide.data(), wideLength, nullptr, 0, nullptr,
+        &usedDefaultChar)};
+    if (encodedLength <= 0 || usedDefaultChar) {
+        return std::nullopt;
+    }
+
+    std::string encoded(static_cast<std::size_t>(encodedLength), '\0');
+    usedDefaultChar = FALSE;
+    if (!WideCharToMultiByte(gameTextCodePage, WC_NO_BEST_FIT_CHARS, wide.data(), wideLength,
+                             encoded.data(), encodedLength, nullptr, &usedDefaultChar)
+        || usedDefaultChar) {
+        return std::nullopt;
+    }
+
+    return encoded;
+}
+
+bool isAuthenticatedLobbyPacket(const CNetCustomService* service, const SLNet::Packet* packet)
+{
+    return service && packet && service->loggedIn()
+           && packet->guid != SLNet::UNASSIGNED_RAKNET_GUID
+           && packet->guid == service->getLobbyGuid();
+}
+
+bool isSafeSaveStem(std::string_view stem)
+{
+    if (stem.empty() || stem.size() > LobbyProtocol::saveStemMax) {
+        return false;
+    }
+
+    return std::all_of(stem.begin(), stem.end(), [](unsigned char character) {
+        return (character >= 'A' && character <= 'Z')
+               || (character >= 'a' && character <= 'z')
+               || (character >= '0' && character <= '9') || character == '_'
+               || character == '-';
+    });
+}
+
+} // namespace
 
 game::IMqNetServiceVftable CNetCustomService::g_vftable = {
     (game::IMqNetServiceVftable::Destructor)destructor,
@@ -48,6 +311,9 @@ game::IMqNetServiceVftable CNetCustomService::g_vftable = {
 CNetCustomService* CNetCustomService::get()
 {
     auto midgard = game::CMidgardApi::get().instance();
+    if (!midgard || !midgard->data) {
+        return nullptr;
+    }
     auto service = midgard->data->netService;
 
     if (service && service->vftable == &g_vftable) {
@@ -76,6 +342,10 @@ CNetCustomService::CNetCustomService()
     // createTimerEvent(&m_peerProcessEvent, this, peerProcessEventCallback, peerProcessInterval);
     addPeerCallback(&m_peerCallback);
     createMessageEvent(&m_peerProcessEvent, this, peerProcessEventCallback, peerProcessMessageName);
+    // Expires save transfers, waits for a safe pending-match UI transition and recovers a peer
+    // notification that was nested inside a native UI callback. This never resends a packet.
+    createTimerEvent(&m_lobbyMaintenanceTimerEvent, this,
+                     lobbyMaintenanceTimerEventCallback, lobbyMaintenanceIntervalMs);
 
     m_peer = new CNetCustomPeer(peerProcessMessageName);
     // auto peer = SLNet::RakPeerInterface::GetInstance();
@@ -91,10 +361,13 @@ CNetCustomService::~CNetCustomService()
 {
     spdlog::debug(__FUNCTION__);
 
+    clearLobbyMatchState();
     m_peer->Shutdown(peerShutdownTimeout);
     SLNet::RakPeerInterface::DestroyInstance(m_peer);
 
-    game::UiEventApi::get().destructor(&m_peerProcessEvent);
+    const auto& eventApi{game::UiEventApi::get()};
+    eventApi.destructor(&m_lobbyMaintenanceTimerEvent);
+    eventApi.destructor(&m_peerProcessEvent);
 }
 
 bool CNetCustomService::connect()
@@ -497,8 +770,16 @@ bool CNetCustomService::createRoom(const char* gameName,
     auto templateHashColumn{
         properties.AddColumn(templateHashColumnName, DataStructures::Table::STRING)};
 
+    auto rankedColumn{properties.AddColumn(rankedColumnName, DataStructures::Table::STRING)};
+    auto simTurnsDaysColumn{
+        properties.AddColumn(simultaneousTurnsDaysColumnName, DataStructures::Table::STRING)};
+    auto unlockGuiColumn{properties.AddColumn(unlockGuiColumnName, DataStructures::Table::STRING)};
+
     const auto& templateName = getTemplateName();
     const auto& templateHash = getTemplateHash();
+    const auto effectiveSimTurnsDays{
+        m_roomOptions.simultaneousTurnsEnabled ? m_roomOptions.simultaneousTurnsDays : 0};
+    const auto simTurnsDays{std::to_string(effectiveSimTurnsDays)};
 
     auto row = properties.AddRow(0);
     row->UpdateCell(hashColumn, filesHash.c_str());
@@ -509,6 +790,10 @@ bool CNetCustomService::createRoom(const char* gameName,
     row->UpdateCell(passwordColumn, password);
     row->UpdateCell(scenNameColumn, scenarioName);
     row->UpdateCell(scenDescColumn, scenarioDescription);
+    const bool ranked{game::CPhaseGameApi::nativeSaveSupported() && m_roomOptions.ranked};
+    row->UpdateCell(rankedColumn, ranked ? "1" : "0");
+    row->UpdateCell(simTurnsDaysColumn, simTurnsDays.c_str());
+    row->UpdateCell(unlockGuiColumn, m_roomOptions.unlockGui ? "1" : "0");
 
     m_roomsClient.ExecuteFunc(&room);
     return true;
@@ -650,6 +935,8 @@ void __fastcall CNetCustomService::createSession(CNetCustomService* thisptr,
 {
     spdlog::debug(__FUNCTION__ ": session name = {:s}", sessionName);
 
+    thisptr->clearLobbyMatchState();
+
     auto session = (CNetCustomSession*)game::Memory::get().allocate(sizeof(CNetCustomSession));
     new (session) CNetCustomSession(thisptr, sessionName, thisptr->getPeerGuid());
     thisptr->m_session = session;
@@ -663,6 +950,8 @@ void __fastcall CNetCustomService::joinSession(CNetCustomService* thisptr,
                                                const char* /*password*/)
 {
     spdlog::debug(__FUNCTION__ ": session name = {:s}", netSessionEnum->sessionName);
+
+    thisptr->clearLobbyMatchState();
 
     auto session = (CNetCustomSession*)game::Memory::get().allocate(sizeof(CNetCustomSession));
     new (session)
@@ -687,26 +976,37 @@ void __fastcall CNetCustomService::peerProcessEventCallback(const CNetCustomServ
         return;
     }
 
-    static bool processing = false;
-    if (processing) {
-        // Any callback can possibly process window messages that can contain WM_TIMER of this event
-        spdlog::debug(__FUNCTION__ ": preventing processing callback re-entry");
+    if (mainThreadCallbackActive) {
+        // Native callbacks can pump messages and timers.  Local maintenance will drain deferred
+        // UI state after the outer callback returns; no packet is resent here.
         return;
     }
 
-    processing = true;
     auto peer = service->m_peer;
-    for (auto packet = peer->Receive(); packet != nullptr;
-         peer->DeallocatePacket(packet), packet = peer->Receive()) {
+    {
+        MainThreadCallbackGuard callbackGuard{mainThreadCallbackActive};
+        for (auto packet = peer->Receive(); packet != nullptr;
+             peer->DeallocatePacket(packet), packet = peer->Receive()) {
 
-        auto type = static_cast<DefaultMessageIDTypes>(packet->data[0]);
-        auto callbacks = service->getPeerCallbacks();
-        for (auto& callback : callbacks) {
-            callback->onPacketReceived(type, peer, packet);
+            auto type = static_cast<DefaultMessageIDTypes>(packet->data[0]);
+            auto callbacks = service->getPeerCallbacks();
+            for (auto& callback : callbacks) {
+                callback->onPacketReceived(type, peer, packet);
+            }
         }
+
+        // MATCH_ENDED itself is deferred below. Other native observers can still replace the
+        // service, so acknowledge only through the peer that is still installed.
+        auto currentService = get();
+        if (currentService != service || currentService->m_peer != peer) {
+            return;
+        }
+        peer->CompletePacketProcessing();
     }
-    processing = false;
-    peer->ResetPacketNotification();
+
+    if (get() == service) {
+        service->processDeferredLobbyState();
+    }
 }
 
 std::vector<NetPeerCallback*> CNetCustomService::getPeerCallbacks() const
@@ -774,9 +1074,261 @@ CNetCustomService::UserInfo CNetCustomService::getUserInfo() const
     return {getPeerGuid(), getUserName().c_str()};
 }
 
+CNetCustomService::RoomOptions& CNetCustomService::getRoomOptions()
+{
+    return m_roomOptions;
+}
+
+std::shared_ptr<NativeGameMessageTracker> CNetCustomService::getNativeGameMessageTracker() const
+{
+    return m_nativeGameMessageTracker;
+}
+
 void CNetCustomService::processPeerMessages() const
 {
     peerProcessEventCallback(this, 0, 0, 0);
+}
+
+bool CNetCustomService::readSaveRequest(const SLNet::Packet* packet,
+                                        LobbyProtocol::SaveRequest& request) const
+{
+    using namespace LobbyProtocol;
+
+    if (!packet || !packet->data || packet->length < sizeof(SLNet::MessageID)) {
+        spdlog::warn(__FUNCTION__ ": malformed save request packet");
+        return false;
+    }
+    if (!isAuthenticatedLobbyPacket(this, packet)) {
+        spdlog::warn(__FUNCTION__ ": refusing save request not authenticated by lobby session");
+        return false;
+    }
+
+    SLNet::BitStream stream{packet->data, packet->length, false};
+    stream.IgnoreBytes(sizeof(SLNet::MessageID));
+
+    std::uint8_t mode{};
+    if (!stream.Read(request.saveId) || !stream.Read(mode)) {
+        spdlog::warn(__FUNCTION__ ": malformed save request header");
+        if (request.saveId) {
+            sendLobbySaveFailure(request.saveId, SaveResult::Failed);
+        }
+        return false;
+    }
+
+    const auto stemBits{stream.GetNumberOfUnreadBits()};
+    const auto stemBytes{static_cast<std::size_t>(stemBits / 8)};
+    request.mode = static_cast<SaveMode>(mode);
+    if (mode > static_cast<std::uint8_t>(SaveMode::LocalOnly) || request.saveId == 0
+        || stemBits % 8 != 0 || stemBytes == 0 || stemBytes > saveStemMax) {
+        spdlog::warn(__FUNCTION__ ": invalid save request metadata");
+        sendLobbySaveFailure(request, SaveResult::Failed);
+        return false;
+    }
+
+    request.saveStem.resize(stemBytes);
+    if (!stream.ReadAlignedBytes(
+            reinterpret_cast<unsigned char*>(request.saveStem.data()),
+            static_cast<unsigned int>(stemBytes))
+        || stream.GetNumberOfUnreadBits() != 0 || !isSafeSaveStem(request.saveStem)) {
+        spdlog::warn(__FUNCTION__ ": invalid save request stem");
+        sendLobbySaveFailure(request, SaveResult::Failed);
+        return false;
+    }
+
+    return true;
+}
+
+bool CNetCustomService::readSaveStoredAck(const SLNet::Packet* packet,
+                                          std::uint64_t& saveId) const
+{
+    using namespace LobbyProtocol;
+
+    constexpr std::size_t packetSize{sizeof(SLNet::MessageID) + sizeof(std::uint64_t)};
+    if (!packet || !packet->data || packet->length != packetSize
+        || !isAuthenticatedLobbyPacket(this, packet)) {
+        spdlog::warn(__FUNCTION__ ": refusing malformed or unauthenticated stored ACK");
+        return false;
+    }
+
+    SLNet::BitStream stream{packet->data, packet->length, false};
+    stream.IgnoreBytes(sizeof(SLNet::MessageID));
+    if (!stream.Read(saveId) || saveId == 0 || stream.GetNumberOfUnreadBits() != 0) {
+        spdlog::warn(__FUNCTION__ ": invalid stored ACK payload");
+        return false;
+    }
+    return true;
+}
+
+bool CNetCustomService::readSystemNotice(const SLNet::Packet* packet, std::string& notice) const
+{
+    using namespace LobbyProtocol;
+
+    if (!packet || !packet->data || packet->length < sizeof(SLNet::MessageID)) {
+        spdlog::warn(__FUNCTION__ ": malformed system notice packet");
+        return false;
+    }
+    if (!isAuthenticatedLobbyPacket(this, packet)) {
+        spdlog::warn(__FUNCTION__ ": refusing system notice not authenticated by lobby session");
+        return false;
+    }
+
+    SLNet::BitStream stream{packet->data, packet->length, false};
+    stream.IgnoreBytes(sizeof(SLNet::MessageID));
+
+    const auto textBits{stream.GetNumberOfUnreadBits()};
+    const auto textBytes{static_cast<std::size_t>(textBits / 8)};
+    if (textBits % 8 != 0 || textBytes == 0 || textBytes > systemNoticeTextMax) {
+        spdlog::warn(__FUNCTION__ ": invalid system notice metadata");
+        return false;
+    }
+
+    std::string utf8Text(textBytes, '\0');
+    if (!stream.ReadAlignedBytes(reinterpret_cast<unsigned char*>(utf8Text.data()),
+                                 static_cast<unsigned int>(textBytes))
+        || utf8Text.find('\0') != std::string::npos
+        || stream.GetNumberOfUnreadBits() != 0) {
+        spdlog::warn(__FUNCTION__ ": invalid system notice text");
+        return false;
+    }
+
+    const auto encoded{utf8ToGameEncoding(utf8Text)};
+    if (!encoded) {
+        spdlog::warn(__FUNCTION__
+                     ": notice is invalid UTF-8 or cannot be represented in Windows-1251");
+        return false;
+    }
+    notice = *encoded;
+    return true;
+}
+
+void CNetCustomService::enqueueSystemNotice(std::string notice)
+{
+    m_pendingSystemNotices.push_back(std::move(notice));
+}
+
+void CNetCustomService::processDeferredLobbyState()
+{
+    if (mainThreadCallbackActive || m_systemNoticeModalActive) {
+        return;
+    }
+
+    MainThreadCallbackGuard callbackGuard{mainThreadCallbackActive};
+    if (m_matchEndPending) {
+        processPendingMatchEnd();
+        return;
+    }
+
+    processPendingSystemNotices();
+}
+
+void CNetCustomService::processPendingMatchEnd()
+{
+    if (!m_matchEndPending) {
+        return;
+    }
+
+    auto midgard = game::CMidgardApi::get().instance();
+    if (!midgard || !midgard->data) {
+        return;
+    }
+
+    auto data = midgard->data;
+    if (!loggedIn() || !getSession() || !data->multiplayerGame || !data->client) {
+        // A detached terminal packet can arrive after the old native session has already gone.
+        // It must not block later global notices while waiting for state that will never return.
+        m_matchEndPending = false;
+        return;
+    }
+    if (!m_nativeGameMessageTracker->empty()) {
+        // Client and host-server receptions use different windows; wait until both queues drain.
+        return;
+    }
+
+    auto uiManager = data->uiManager.data;
+    if (!uiManager || data->startMenuMessageId == 0) {
+        return;
+    }
+
+    // Native player reception also uses posted window messages. The tracker keeps this transition
+    // pending until both client and server queues are dequeued; posting MID_STARTMENU then lets an
+    // already-running client notification return before native network teardown starts.
+    if (!game::CUIManagerApi::get().postMessage(uiManager, data->startMenuMessageId, 0, 0)) {
+        spdlog::warn(__FUNCTION__ ": failed to post MID_STARTMENU, error = {:d}", GetLastError());
+        return;
+    }
+
+    m_matchEndPending = false;
+    terminateLobbySaveTransfers();
+}
+
+void CNetCustomService::processPendingSystemNotices()
+{
+    if (m_systemNoticeModalActive || m_pendingSystemNotices.empty()) {
+        return;
+    }
+
+    auto notice{std::move(m_pendingSystemNotices.front())};
+    m_pendingSystemNotices.pop_front();
+    m_systemNoticeModalActive = true;
+
+    auto handler = static_cast<SystemNoticeMsgBoxButtonHandler*>(
+        game::Memory::get().allocate(sizeof(SystemNoticeMsgBoxButtonHandler)));
+    handler->vftable = &systemNoticeMsgBoxButtonHandlerVftable;
+    showMessageBox(notice, handler, false);
+}
+
+void CNetCustomService::notifySystemNoticeModalClosed()
+{
+    if (!m_systemNoticeModalActive) {
+        return;
+    }
+
+    m_systemNoticeModalActive = false;
+    processDeferredLobbyState();
+}
+
+void CNetCustomService::notifySessionDestroyed(CNetCustomSession* session)
+{
+    if (m_session != session) {
+        return;
+    }
+
+    m_session = nullptr;
+    clearLobbyMatchState();
+}
+
+void CNetCustomService::clearLobbyMatchState()
+{
+    resetLobbySaveTransferState();
+    m_matchEndPending = false;
+}
+
+void __fastcall CNetCustomService::lobbyMaintenanceTimerEventCallback(
+    CNetCustomService* /*thisptr*/,
+    int /*%edx*/)
+{
+    auto service = get();
+    if (!service || mainThreadCallbackActive) {
+        // A timer notification may already be queued when native service teardown removes the
+        // event. Resolve the current instance instead of trusting the callback's raw userdata.
+        return;
+    }
+
+    {
+        MainThreadCallbackGuard callbackGuard{mainThreadCallbackActive};
+        expireLobbySaveTransfers();
+    }
+
+    service = get();
+    if (!service) {
+        return;
+    }
+
+    if (service->m_peer->IsPacketNotificationSent()) {
+        peerProcessEventCallback(service, 0, 0, 0);
+    } else {
+        service->processDeferredLobbyState();
+    }
 }
 
 void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
@@ -804,16 +1356,54 @@ void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes typ
     case ID_DISCONNECTION_NOTIFICATION:
         spdlog::debug(__FUNCTION__ ": server was shut down");
         m_service->m_connected = false;
+        m_service->m_userName.clear();
+        m_service->clearLobbyMatchState();
         break;
     case ID_CONNECTION_LOST:
         spdlog::debug(__FUNCTION__ ": connection with server is lost");
         m_service->m_connected = false;
+        m_service->m_userName.clear();
+        m_service->clearLobbyMatchState();
         break;
     case ID_LOBBY2_SERVER_ERROR:
         spdlog::debug(__FUNCTION__ ": lobby server error");
         break;
     case ID_ROOMS_EXECUTE_FUNC:
         spdlog::debug(__FUNCTION__ ": room function executed");
+        break;
+    case ID_LOBBY_SAVE_REQUEST: {
+        LobbyProtocol::SaveRequest request{};
+        if (m_service->readSaveRequest(packet, request)) {
+            handleLobbySaveRequest(request);
+        }
+        break;
+    }
+    case ID_LOBBY_SAVE_STORED_ACK: {
+        std::uint64_t saveId{};
+        if (m_service->readSaveStoredAck(packet, saveId)) {
+            // Peer packets are drained only by the UI-event callback (or the same main-thread
+            // teardown/watchdog path). Apply the ACK synchronously before a later RELIABLE_ORDERED
+            // MATCH_ENDED packet can reset the transfer state.
+            handleLobbySaveStoredAck(saveId);
+        }
+        break;
+    }
+    case ID_LOBBY_SYSTEM_NOTICE: {
+        std::string notice;
+        if (m_service->readSystemNotice(packet, notice)) {
+            m_service->enqueueSystemNotice(std::move(notice));
+        }
+        break;
+    }
+    case ID_LOBBY_MATCH_ENDED:
+        if (!isAuthenticatedLobbyPacket(m_service, packet)) {
+            spdlog::warn(__FUNCTION__ ": refusing MATCH_ENDED not authenticated by lobby session");
+        } else if (packet->data && packet->length == sizeof(SLNet::MessageID)) {
+            spdlog::info(__FUNCTION__ ": received lobby MATCH_ENDED");
+            m_service->m_matchEndPending = true;
+        } else {
+            spdlog::warn(__FUNCTION__ ": malformed match-ended packet");
+        }
         break;
     default:
         // Log user messages explicitly to avoid cluttering the log
@@ -828,6 +1418,24 @@ void CNetCustomService::LobbyCallback::MessageResult(SLNet::Client_Login* messag
 {
     if (message->resultCode == SLNet::L2RC_SUCCESS) {
         m_service->m_userName = message->userName.C_String();
+
+        // Pre-ranked lobby servers ignore this authenticated extension. Current servers use its
+        // fixed schema both for the ranked capability gate and optional anti-abuse signals.
+        const auto environment{clientEnvironment().value_or(ClientEnvironment{})};
+        SLNet::BitStream stream;
+        stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_PLAYER_SETUP));
+        stream.Write(static_cast<std::uint8_t>(
+            LobbyProtocol::PlayerSetupKind::ClientCapabilities));
+        stream.Write(LobbyProtocol::rankedLifecycleCapabilityVersion);
+        stream.WriteAlignedBytes(environment.installId.data(),
+                                 static_cast<unsigned int>(environment.installId.size()));
+        stream.Write(environment.windowsMajor);
+        stream.Write(environment.windowsMinor);
+        stream.Write(environment.windowsBuild);
+        const auto lobbyGuid{m_service->getLobbyGuid()};
+        if (!m_service->send(stream, lobbyGuid, LOW_PRIORITY)) {
+            spdlog::warn(__FUNCTION__ ": failed to advertise ranked-lifecycle capability");
+        }
     }
 
     ExecuteDefaultResult(message);
@@ -837,6 +1445,7 @@ void CNetCustomService::LobbyCallback::MessageResult(SLNet::Client_Logoff* messa
 {
     if (message->resultCode == SLNet::L2RC_SUCCESS) {
         m_service->m_userName.clear();
+        m_service->clearLobbyMatchState();
     }
 
     ExecuteDefaultResult(message);
@@ -849,6 +1458,7 @@ void CNetCustomService::LobbyCallback::MessageResult(
         if (m_service->m_userName == message->handle.C_String()) {
             // The same account is remotely logged-in, means that we are now logged out
             m_service->m_userName.clear();
+            m_service->clearLobbyMatchState();
         }
     }
 

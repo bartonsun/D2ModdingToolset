@@ -18,32 +18,41 @@
  */
 
 #include "phasegame.h"
+#include "utils.h"
 #include "version.h"
 #include <array>
+#include <cstdint>
+#include <cstring>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 namespace game::CPhaseGameApi {
 
 // clang-format off
 static std::array<Api, 4> functions = {{
-    // Akella
+    // Akella -- ranked host capture is intentionally unsupported for this build.
     Api{
         (Api::CheckObjectLock)0x4078b7,
         (Api::SendStackMoveMsg)0x40650f,
+        (Api::SendSaveGameMsg)nullptr,
     },
     // Russobit
     Api{
         (Api::CheckObjectLock)0x4078b7,
         (Api::SendStackMoveMsg)0x40650f,
+        (Api::SendSaveGameMsg)0x40639b,
     },
-    // Gog
+    // GOG -- ranked host capture is intentionally unsupported for this build.
     Api{
         (Api::CheckObjectLock)0x40753e,
         (Api::SendStackMoveMsg)0x40619b,
+        (Api::SendSaveGameMsg)nullptr,
     },
     // Scenario Editor
     Api{
         (Api::CheckObjectLock)nullptr,
         (Api::SendStackMoveMsg)nullptr,
+        (Api::SendSaveGameMsg)nullptr,
     },
 }};
 // clang-format on
@@ -51,6 +60,55 @@ static std::array<Api, 4> functions = {{
 Api& get()
 {
     return functions[static_cast<int>(hooks::gameVersion())];
+}
+
+bool nativeSaveSupported()
+{
+    // Reference executable: Discipl2.exe, 4,187,648 bytes,
+    // SHA-256 1375CDEF09EC470EE64FE5693FB734D7C69FB215212311D997F792B258A642EB.
+    // At 0x40639b the audited disassembly consumes ECX as this and returns with retn 8. Checking
+    // all recorded entry bytes below deliberately rejects size-only Russobit lookalikes.
+    static constexpr std::array<std::uint8_t, 16> expectedPrologue{
+        0xb8, 0xbc, 0x71, 0x68, 0x00, 0xe8, 0x2b, 0x70,
+        0x26, 0x00, 0x83, 0xec, 0x14, 0x56, 0x57, 0x8b,
+    };
+
+    if (hooks::gameVersion() != hooks::GameVersion::Russobit) {
+        return false;
+    }
+
+    std::error_code fileError;
+    if (std::filesystem::file_size(hooks::exePath(), fileError) != 4187648 || fileError) {
+        return false;
+    }
+
+    const auto entryPoint{get().sendSaveGameMsg};
+    if (!entryPoint) {
+        return false;
+    }
+
+    const auto code{reinterpret_cast<const std::uint8_t*>(entryPoint)};
+    MEMORY_BASIC_INFORMATION memory{};
+    if (VirtualQuery(code, &memory, sizeof(memory)) != sizeof(memory)
+        || memory.State != MEM_COMMIT || (memory.Protect & (PAGE_GUARD | PAGE_NOACCESS)) != 0) {
+        return false;
+    }
+
+    const auto protection{memory.Protect & 0xff};
+    if (protection != PAGE_EXECUTE_READ && protection != PAGE_EXECUTE_READWRITE
+        && protection != PAGE_EXECUTE_WRITECOPY) {
+        return false;
+    }
+
+    const auto codeAddress{reinterpret_cast<std::uintptr_t>(code)};
+    const auto regionAddress{reinterpret_cast<std::uintptr_t>(memory.BaseAddress)};
+    // These are runtime bounds returned by VirtualQuery, not version-specific API addresses.
+    if (codeAddress < regionAddress || expectedPrologue.size() > memory.RegionSize
+        || codeAddress - regionAddress > memory.RegionSize - expectedPrologue.size()) {
+        return false;
+    }
+
+    return std::memcmp(code, expectedPrologue.data(), expectedPrologue.size()) == 0;
 }
 
 } // namespace game::CPhaseGameApi
