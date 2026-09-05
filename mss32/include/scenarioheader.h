@@ -28,6 +28,7 @@
 namespace game {
 
 struct CMidgardID;
+struct CStreamBits;
 
 /** Describes race in scenario file header. */
 struct RaceInfo
@@ -92,7 +93,7 @@ struct Api
      * @param[in] filePath full path to scenario file (.sg).
      * @param[inout] scenarioFileId pointer parsed scenario file id from header is stored here.
      * @param[inout] header scenario file header to populate.
-     * @param[in] loadCampaignVariables whether to read embedded campaign variables.
+     * @param[out] embeddedData optional output for the embedded-data stream; nullptr skips it.
      * @param[out] version optional file format version.
      * @param[out] expansion optional expansion-format flag.
      * @returns true on success, false if scenario file can't be read or header data invalid.
@@ -100,7 +101,7 @@ struct Api
     using ReadAndCheckHeader = bool(__stdcall*)(const char* filePath,
                                                 CMidgardID* scenarioFileId,
                                                 ScenarioFileHeader* header,
-                                                bool loadCampaignVariables,
+                                                CStreamBits** embeddedData,
                                                 int* version,
                                                 bool* expansion);
     ReadAndCheckHeader readAndCheckHeader;

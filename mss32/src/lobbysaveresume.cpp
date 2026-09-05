@@ -68,7 +68,7 @@ void captureLobbySaveTurnBase(game::CMidgardScenarioMap* scenarioMap,
     ScenarioFileHeader header{};
     CMidgardID scenarioId{};
     if (!ScenarioFileHeaderApi::get().readAndCheckHeader(
-            streamEnv->fileName.string, &scenarioId, &header, false, nullptr, nullptr)
+            streamEnv->fileName.string, &scenarioId, &header, nullptr, nullptr, nullptr)
         || scenarioId != scenarioMap->scenarioFileId
         || std::find(raceOrder.begin(), raceOrder.end(), header.race) == raceOrder.end()) {
         spdlog::warn("Lobby resume: cannot read the saved turn-order origin");
