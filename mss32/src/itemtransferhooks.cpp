@@ -1,4 +1,4 @@
-ï»¿/*
+/*
  * This file is part of the modding toolset for Disciples 2.
  * (https://github.com/VladimirMakeev/D2ModdingToolset)
  * Copyright (C) 2021 Vladimir Makeev.
@@ -23,6 +23,8 @@
 #include "dialoginterf.h"
 #include "dynamiccast.h"
 #include "exchangeinterf.h"
+#include "exchangeinterfhooks.h"
+#include "usstackleader.h"
 #include "fortification.h"
 #include "fortview.h"
 #include "globaldata.h"
@@ -1675,11 +1677,16 @@ static void setupPickupButtons(game::CPickUpDropInterf* thisptr, game::CDialogIn
     constexpr char name[] = "DLG_PICKUP_DROP";
 
     auto hook = [&](const char* ctrl, Callback fn) {
+        spdlog::debug("setupExchangeButtons: hooking {:s}", ctrl);
         if (dlg.findControl(dialog, ctrl)) {
+            spdlog::debug("setupExchangeButtons: {:s} found, assigning", ctrl);
             cb.callback = fn;
             api.createButtonFunctor(&fun, 0, thisptr, &cb);
             btn.assignFunctor(dialog, ctrl, name, &fun, 0);
             free(&fun, nullptr);
+            spdlog::debug("setupExchangeButtons: {:s} assigned OK", ctrl);
+        } else {
+            spdlog::debug("setupExchangeButtons: {:s} NOT found, skipping", ctrl);
         }
     };
 
@@ -1699,6 +1706,154 @@ static void setupPickupButtons(game::CPickUpDropInterf* thisptr, game::CDialogIn
     hook("BTN_SORT_R_CUSTOM", (CB::Callback)sortPickupCustomR);
 }
 
+// TEMP DEBUG: set to false to disable leadership check for position-diagnostics testing.
+// !!! REMEMBER TO SET BACK TO true AFTER TESTING !!!
+static constexpr bool ENFORCE_LEADERSHIP_LIMIT = true;
+
+static void transferArmyDirection(const game::VisitorApi::Api& visitor,
+                                  const game::CMidUnitGroupApi::Api& groupApi,
+                                  game::CMidStack* srcStack,
+                                  const game::CMidgardID& srcId,
+                                  game::CMidStack* dstStack,
+                                  const game::CMidgardID& dstId,
+                                  game::IMidgardObjectMap* objectMap,
+                                  bool& anyMoved)
+{
+    using namespace game;
+
+    int dstLeadership = -1;
+    auto dstLeaderUnit = static_cast<const CMidUnit*>(
+        objectMap->vftable->findScenarioObjectById(objectMap, &dstStack->leaderId));
+    if (dstLeaderUnit && dstLeaderUnit->unitImpl) {
+        auto stackLeader = gameFunctions().castUnitImplToStackLeader(dstLeaderUnit->unitImpl);
+        if (stackLeader) {
+            dstLeadership = stackLeader->vftable->getLeadership(stackLeader);
+        }
+    }
+    int dstUnitCount = 0;
+    for (int p = 0; p < 6; ++p) {
+        if (*groupApi.getUnitIdByPosition(&dstStack->group, p) != emptyId) {
+            ++dstUnitCount;
+        }
+    }
+    spdlog::debug("exchangeSwapArmies: dst leadership = {:d}, dst unit count = {:d}",
+                  dstLeadership, dstUnitCount);
+    if (ENFORCE_LEADERSHIP_LIMIT && dstLeadership >= 0 && dstUnitCount >= dstLeadership) {
+        spdlog::debug("exchangeSwapArmies: dst leaders leadership is full, nothing to do");
+        return;
+    }
+
+    for (int srcPos = 0; srcPos < 6; ++srcPos) {
+        auto srcUnitId = *groupApi.getUnitIdByPosition(&srcStack->group, srcPos);
+        if (srcUnitId == emptyId) {
+            continue;
+        }
+
+        if (srcUnitId == srcStack->leaderId) {
+            spdlog::debug("exchangeSwapArmies: skipping leader at pos {:d}", srcPos);
+            continue;
+        }
+
+        int freePos = -1;
+        auto sameSlotUnitId = *groupApi.getUnitIdByPosition(&dstStack->group, srcPos);
+        if (sameSlotUnitId == emptyId) {
+            freePos = srcPos;
+        } else {
+            for (int dstPos = 0; dstPos < 6; ++dstPos) {
+                auto dstUnitId = *groupApi.getUnitIdByPosition(&dstStack->group, dstPos);
+                if (dstUnitId == emptyId) {
+                    freePos = dstPos;
+                    break;
+                }
+            }
+        }
+
+        if (freePos == -1) {
+            spdlog::debug("exchangeSwapArmies: no free slot in dst group, stopping direction");
+            break;
+        }
+
+        int remaining = 0;
+        for (int p = 0; p < 6; ++p) {
+            auto id = *groupApi.getUnitIdByPosition(&srcStack->group, p);
+            if (id != emptyId) {
+                ++remaining;
+            }
+        }
+        if (remaining <= 1) {
+            spdlog::debug("exchangeSwapArmies: stopping before emptying src group entirely "
+                          "(remaining = {:d})",
+                          remaining);
+            break;
+        }
+
+        bool swapped = false;
+        if (visitor.swapUnitPosition(srcPos, &srcId, freePos, &dstId, objectMap, 0)) {
+            swapped = visitor.swapUnitPosition(srcPos, &srcId, freePos, &dstId, objectMap, 1);
+        } else {
+            swapped = visitor.swapUnitPosition(freePos, &dstId, srcPos, &srcId, objectMap, 1);
+        }
+
+        spdlog::debug("exchangeSwapArmies: swap {:s} from src pos {:d} to dst pos {:d} = {:s}",
+                      idToString(&srcUnitId), srcPos, freePos, swapped ? "OK" : "FAIL");
+        spdlog::debug("exchangeSwapArmies: srcPos row={:d} col={:d}, freePos row={:d} col={:d}",
+                      srcPos % 2, srcPos / 2, freePos % 2, freePos / 2);
+        if (swapped) {
+            anyMoved = true;
+            ++dstUnitCount;
+            if (ENFORCE_LEADERSHIP_LIMIT && dstLeadership >= 0 && dstUnitCount >= dstLeadership) {
+                spdlog::debug("exchangeSwapArmies: dst leaders leadership reached, stopping direction");
+                break;
+            }
+        } else {
+            spdlog::error("exchangeSwapArmies: failed to swap unit {:s}", idToString(&srcUnitId));
+        }
+    }
+}
+
+static void __fastcall exchangeSwapArmies(game::CExchangeInterf* thisptr, int /*%edx*/)
+{
+    using namespace game;
+    spdlog::debug("exchangeSwapArmies called, thisptr = {:p}", (void*)thisptr);
+    if (!thisptr || !thisptr->data) {
+        spdlog::error("exchangeSwapArmies: thisptr or thisptr->data is null, aborting");
+        return;
+    }
+    auto objectMap = CPhaseApi::get().getDataCache(&thisptr->dragDropInterf.phaseGame->phase);
+    const auto& visitor = VisitorApi::get();
+    const auto& groupApi = CMidUnitGroupApi::get();
+    auto& leftId = thisptr->data->stackLeftSideId;
+    auto& rightId = thisptr->data->stackRightSideId;
+    spdlog::debug("exchangeSwapArmies: leftId = {:s}, rightId = {:s}", idToString(&leftId),
+                  idToString(&rightId));
+
+    auto* leftStack = hooks::getStack(objectMap, &leftId);
+    auto* rightStack = hooks::getStack(objectMap, &rightId);
+    if (!leftStack || !rightStack) {
+        spdlog::error("exchangeSwapArmies: leftStack = {:p}, rightStack = {:p}", (void*)leftStack,
+                      (void*)rightStack);
+        return;
+    }
+
+    bool anyMoved = false;
+
+    spdlog::debug("exchangeSwapArmies: --- transferring right -> left ---");
+    transferArmyDirection(visitor, groupApi, rightStack, rightId, leftStack, leftId, objectMap,
+                          anyMoved);
+
+    spdlog::debug("exchangeSwapArmies: --- transferring left -> right ---");
+    transferArmyDirection(visitor, groupApi, leftStack, leftId, rightStack, rightId, objectMap,
+                          anyMoved);
+
+    if (anyMoved) {
+        spdlog::debug("exchangeSwapArmies: forcing UI refresh for both stacks");
+        exchangeInterfOnObjectChangedHooked(thisptr, 0, (IMidScenarioObject*)leftStack);
+        exchangeInterfOnObjectChangedHooked(thisptr, 0, (IMidScenarioObject*)rightStack);
+    }
+
+    spdlog::debug("exchangeSwapArmies: finished, anyMoved = {:s}", anyMoved ? "true" : "false");
+}
+
 static void setupExchangeButtons(game::CExchangeInterf* thisptr, game::CDialogInterf* dialog)
 {
     using namespace game;
@@ -1714,11 +1869,16 @@ static void setupExchangeButtons(game::CExchangeInterf* thisptr, game::CDialogIn
     constexpr char name[] = "DLG_EXCHANGE";
 
     auto hook = [&](const char* ctrl, Callback fn) {
+        spdlog::debug("setupExchangeButtons: hooking {:s}", ctrl);
         if (dlg.findControl(dialog, ctrl)) {
+            spdlog::debug("setupExchangeButtons: {:s} found, assigning", ctrl);
             cb.callback = fn;
             api.createButtonFunctor(&fun, 0, thisptr, &cb);
             btn.assignFunctor(dialog, ctrl, name, &fun, 0);
             free(&fun, nullptr);
+            spdlog::debug("setupExchangeButtons: {:s} assigned OK", ctrl);
+        } else {
+            spdlog::debug("setupExchangeButtons: {:s} NOT found, skipping", ctrl);
         }
     };
 
@@ -1733,9 +1893,13 @@ static void setupExchangeButtons(game::CExchangeInterf* thisptr, game::CDialogIn
     hook("BTN_TRANSF_R_VALUABLES", (Callback)exchangeTransferValuablesToRightStack);
 
     // --- SORT buttons ---
+    spdlog::debug("setupExchangeButtons: calling setupExchangeSortButtons");
     setupExchangeSortButtons(api, btn, dlg, thisptr, dialog, fun, cb, free, name);
+    spdlog::debug("setupExchangeButtons: setupExchangeSortButtons finished");
     hook("BTN_SORT_L_CUSTOM", (Callback)sortExchangeCustomL);
     hook("BTN_SORT_R_CUSTOM", (Callback)sortExchangeCustomR);
+    hook("BTN_SWAP_ARMY", (Callback)exchangeSwapArmies);
+    spdlog::debug("setupExchangeButtons: finished");
 }
 
 game::CExchangeInterf* __fastcall exchangeInterfCtorHooked(game::CExchangeInterf* thisptr,
@@ -1747,11 +1911,15 @@ game::CExchangeInterf* __fastcall exchangeInterfCtorHooked(game::CExchangeInterf
 {
     using namespace game;
 
+    spdlog::debug("exchangeInterfCtorHooked: started");
     getOriginalFunctions().exchangeInterfCtor(thisptr, taskOpenInterf, phaseGame, stackLeftSide,
                                               stackRightSide);
+    spdlog::debug("exchangeInterfCtorHooked: original ctor finished");
 
     auto dialog = CDragAndDropInterfApi::get().getDialog(&thisptr->dragDropInterf);
+    spdlog::debug("exchangeInterfCtorHooked: dialog = {:p}", (void*)dialog);
     setupExchangeButtons(thisptr, dialog);
+    spdlog::debug("exchangeInterfCtorHooked: setupExchangeButtons finished");
 
     return thisptr;
 }
@@ -1862,7 +2030,7 @@ game::CMidMsgBoxButtonHandlerVftable sellValuablesMsgBoxHandlerVftable{
     (game::CMidMsgBoxButtonHandlerVftable::Destructor)sellItemsMsgBoxHandlerDtor,
     (game::CMidMsgBoxButtonHandlerVftable::Handler)sellValuablesMsgBoxHandlerFunction};
 
-/** Handles the â€œSell all itemsâ€ confirmation box. */
+/** Handles the “Sell all items” confirmation box. */
 void __fastcall sellAllItemsMsgBoxHandlerFunction(SellItemsMsgBoxHandler* thisptr,
                                                   int /*%edx*/,
                                                   game::CMidgardMsgBox* msgBox,
@@ -1981,7 +2149,7 @@ static game::Bank computeItemsSellPrice(game::IMidgardObjectMap* objectMap,
     return sellPrice;
 }
 
-/** Merchant: â€œSell all valuablesâ€ button callback. */
+/** Merchant: “Sell all valuables” button callback. */
 void __fastcall merchantSellValuables(game::CSiteMerchantInterf* thisptr, int /*%edx*/)
 {
     using namespace game;
@@ -1995,7 +2163,7 @@ void __fastcall merchantSellValuables(game::CSiteMerchantInterf* thisptr, int /*
 
     // ---- Instant sell (Alt or Ctrl+Alt) ----
     if (instantSell) {
-        spdlog::info("[Merchant] ALT pressed â€” instant sell of ALL valuables");
+        spdlog::info("[Merchant] ALT pressed — instant sell of ALL valuables");
         sellItemsToMerchant(phaseGame, &thisptr->data->merchantId, stackId, isValuable);
         return;
     }
@@ -2027,7 +2195,7 @@ void __fastcall merchantSellValuables(game::CSiteMerchantInterf* thisptr, int /*
 
 
 
-/** Merchant: â€œSell all itemsâ€ button callback. */
+/** Merchant: “Sell all items” button callback. */
 void __fastcall merchantSellAll(game::CSiteMerchantInterf* thisptr, int /*%edx*/)
 {
     using namespace game;
@@ -2042,7 +2210,7 @@ void __fastcall merchantSellAll(game::CSiteMerchantInterf* thisptr, int /*%edx*/
 
     // ---- Instant sell (Alt or Ctrl+Alt) ----
     if (instantSell) {
-        spdlog::info("[Merchant] ALT pressed â€” instant sell of ALL items (including equipped)");
+        spdlog::info("[Merchant] ALT pressed — instant sell of ALL items (including equipped)");
         sellItemsToMerchant(phaseGame, &thisptr->data->merchantId, stackId, std::nullopt, true);
         return;
     }
@@ -2128,3 +2296,6 @@ game::CSiteMerchantInterf* __fastcall siteMerchantInterfCtorHooked(
 }
 
 } // namespace hooks
+
+
+
