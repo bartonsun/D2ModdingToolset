@@ -61,6 +61,7 @@
 #include "midgard.h"
 #include "midgardplan.h"
 #include "textboxinterf.h"
+#include "middragdropinterf.h"
 #include "midgardscenariomap.h"
 #include "midmsgsender.h"
 #include "midobjectlock.h"
@@ -278,6 +279,7 @@ struct OriginalFunctions
     game::TrainingCostApi::Api::ApplyTrainAction applyTrainAction;
     game::TrainCampTextApi::Api::SetPartyTrainingText setPartyTrainingText;
     game::CTextBoxInterfApi::Api::SetString textBoxSetString;
+    game::CMidDragDropInterfApi::Api::Destructor midDragDropInterfDtor;
 };
 
 OriginalFunctions& getOriginalFunctions();

@@ -54,6 +54,7 @@ thread_local const void* g_campStackGroup = nullptr;
 // rather than the percent so the fallback is recomputed at press time: the
 // hero's state can change between drawing the text and pressing the slot.
 thread_local game::CMidgardID g_campStackId = game::invalidId;
+thread_local const game::CMidDragDropInterf* g_campDragDrop = nullptr;
 
 static volatile unsigned long g_campUiAtMs = 0;
 static thread_local int g_campPercent = 0;
@@ -70,6 +71,15 @@ bool trainerCampUiRecentlyActive()
 long trainerCampUiAgeMs()
 {
     return g_campUiAtMs ? static_cast<long>(GetTickCount() - g_campUiAtMs) : -1;
+}
+
+void clearCampPriceWindow()
+{
+    g_campUiAtMs = 0;
+    g_campPercent = 0;
+    g_campStackId = game::invalidId;
+    g_campStackGroup = nullptr;
+    g_campDragDrop = nullptr;
 }
 
 void applyLeaderLowerCostToBank(game::Bank* bank, int lowerCostPercent)
@@ -513,6 +523,7 @@ void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*
     if (thisptr && thisptr->trainingCampData) {
         g_campStackGroup = thisptr->trainingCampData->stackGroup;
         g_campStackId = thisptr->trainingCampData->stackId;
+        g_campDragDrop = thisptr;
     }
 }
 
@@ -567,8 +578,7 @@ void __fastcall textBoxSetStringHooked(game::CTextBoxInterf* thisptr,
                                        const char* value)
 {
     if (!value || !*value || !gameSettings().trainerCampLowerCost || g_inPartyTrainingText
-        || !g_campUiAtMs || GetTickCount() - g_campUiAtMs >= 60000 || g_campPercent <= 0
-        || g_campStackId == game::invalidId) {
+        || g_campPercent <= 0 || g_campStackId == game::invalidId) {
         return getOriginalFunctions().textBoxSetString(thisptr, value);
     }
 
@@ -630,6 +640,18 @@ void __fastcall textBoxSetStringHooked(game::CTextBoxInterf* thisptr,
     text += firstRun + firstLen;
     spdlog::info("trainer dialog price {} -> {}", price, discounted);
     return getOriginalFunctions().textBoxSetString(thisptr, text.c_str());
+}
+
+void __fastcall midDragDropInterfDtorHooked(game::CMidDragDropInterf* thisptr, int /*%edx*/)
+{
+    if (!gameSettings().trainerCampLowerCost) {
+        getOriginalFunctions().midDragDropInterfDtor(thisptr);
+        return;
+    }
+    if (thisptr == g_campDragDrop) {
+        clearCampPriceWindow();
+    }
+    getOriginalFunctions().midDragDropInterfDtor(thisptr);
 }
 
 } // namespace hooks

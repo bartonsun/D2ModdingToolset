@@ -686,6 +686,11 @@ static Hooks getGameHooks()
             hooks.emplace_back(HookInfo{(void*)textBoxApi.setString, textBoxSetStringHooked,
                                         (void**)&orig.textBoxSetString});
         }
+        const auto& dragDropApi = CMidDragDropInterfApi::get();
+        if (dragDropApi.destructor) {
+            hooks.emplace_back(HookInfo{(void*)dragDropApi.destructor, midDragDropInterfDtorHooked,
+                                        (void**)&orig.midDragDropInterfDtor});
+        }
 
         // A missing address skips its hook silently, and the camp then reads exactly
         // like a build that was never installed.
