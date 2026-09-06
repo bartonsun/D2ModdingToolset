@@ -82,6 +82,11 @@ void clearCampPriceWindow()
     g_campDragDrop = nullptr;
 }
 
+bool trainerCampSessionOpen()
+{
+    return g_campStackId != game::invalidId;
+}
+
 void applyLeaderLowerCostToBank(game::Bank* bank, int lowerCostPercent)
 {
     if (!bank || lowerCostPercent <= 0) {

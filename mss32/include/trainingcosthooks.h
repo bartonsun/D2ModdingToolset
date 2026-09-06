@@ -64,6 +64,8 @@ long trainerCampUiAgeMs();
 
 void clearCampPriceWindow();
 
+bool trainerCampSessionOpen();
+
 void __fastcall midDragDropInterfDtorHooked(game::CMidDragDropInterf* thisptr, int /*%edx*/);
 
 bool __stdcall canAffordTrainCheckHooked(game::IMidgardObjectMap* objectMap,
