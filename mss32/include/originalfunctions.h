@@ -273,6 +273,8 @@ struct OriginalFunctions
     //game::CItemBaseApi::Api::Constructor itemBaseCtor;
 
     game::BankApi::Api::Copy bankCopy;
+    game::BankApi::Api::CopyCtor bankCopyCtor;
+    game::BankApi::Api::Multiply bankMultiply;
     game::TrainingCostApi::Api::TrainUnitAtTrainer trainUnitAtTrainer;
     game::TrainingCostApi::Api::TrainUiAction trainUiAction;
     game::TrainingCostApi::Api::CanAffordTrainCheck canAffordTrainCheck;

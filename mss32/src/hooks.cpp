@@ -50,7 +50,6 @@
 #include "batattackusepotion.h"
 #include "batattackwait.h"
 #include "batattackutils.h"
-#include "bagdroptombhooks.h"
 #include "batbigface.h"
 #include "batlogic.h"
 #include "batlogichooks.h"
@@ -362,7 +361,6 @@ static Hooks getGameHooks()
         {CSiteMerchantInterfApi::get().constructor, siteMerchantInterfCtorHooked, (void**)&orig.siteMerchantInterfCtor},
         // Cities can generate daily income depending on scenario variable settings
         {fn.computePlayerDailyIncome, computePlayerDailyIncomeHooked, (void**)&orig.computePlayerDailyIncome},
-        {CMidgardPlanApi::get().getObjectsAtPoint, getObjectsAtPointHooked, (void**)&orig.getObjectsAtPoint},
         // Vampiric attacks can deal critical damage
         {CBatAttackDrainApi::vftable()->onHit, drainAttackOnHitHooked},
         {CBatAttackDrainOverflowApi::vftable()->onHit, drainOverflowAttackOnHitHooked},
@@ -659,6 +657,14 @@ static Hooks getGameHooks()
         hooks.emplace_back(
             HookInfo{(void*)BankApi::get().copy, bankCopyHooked, (void**)&orig.bankCopy});
         const auto& trainApi = TrainingCostApi::get();
+        if (BankApi::get().copyCtor && trainApi.costCopyReturnTrainUnit) {
+            hooks.emplace_back(HookInfo{(void*)BankApi::get().copyCtor, bankCopyCtorHooked,
+                                        (void**)&orig.bankCopyCtor});
+        }
+        if (BankApi::get().multiply && trainApi.multiplyReturnTrainUnit) {
+            hooks.emplace_back(HookInfo{(void*)BankApi::get().multiply, bankMultiplyHooked,
+                                        (void**)&orig.bankMultiply});
+        }
         if (trainApi.trainUnitAtTrainer) {
             hooks.emplace_back(HookInfo{(void*)trainApi.trainUnitAtTrainer, trainUnitAtTrainerHooked,
                                         (void**)&orig.trainUnitAtTrainer});
@@ -695,14 +701,15 @@ static Hooks getGameHooks()
         // A missing address skips its hook silently, and the camp then reads exactly
         // like a build that was never installed.
         spdlog::info("trainer hooks version={} train={:#x} ui={:#x} afford={:#x} apply={:#x} "
-                     "text={:#x} textbox={:#x}",
+                     "text={:#x} textbox={:#x} mult={:#x}",
                      static_cast<int>(hooks::gameVersion()),
                      reinterpret_cast<std::uintptr_t>(trainApi.trainUnitAtTrainer),
                      reinterpret_cast<std::uintptr_t>(trainApi.trainUiAction),
                      reinterpret_cast<std::uintptr_t>(trainApi.canAffordTrainCheck),
                      reinterpret_cast<std::uintptr_t>(trainApi.applyTrainAction),
                      reinterpret_cast<std::uintptr_t>(textApi.setPartyTrainingText),
-                     reinterpret_cast<std::uintptr_t>(textBoxApi.setString));
+                     reinterpret_cast<std::uintptr_t>(textBoxApi.setString),
+                     reinterpret_cast<std::uintptr_t>(trainApi.multiplyReturnTrainUnit));
         if (!trainApi.trainUiAction && !textApi.setPartyTrainingText) {
             spdlog::error("trainer camp discount has no addresses for game version {}",
                           static_cast<int>(hooks::gameVersion()));

@@ -1,41 +1,31 @@
 #include "trainingcosthooks.h"
 #include "currency.h"
 #include "ddstackgroup.h"
-#include "dynamiccast.h"
 #include "game.h"
 #include "gameutils.h"
-#include "itemutils.h"
 #include "midgardid.h"
-#include "miditem.h"
 #include "midstack.h"
 #include "midunit.h"
-#include "modifierutils.h"
 #include "originalfunctions.h"
 #include "phase.h"
 #include "phasegame.h"
 #include "settings.h"
 #include "sitetrainingcampinterf.h"
 #include "trainingcostapi.h"
-#include "ummodifier.h"
 #include "unitutils.h"
-#include "ussoldier.h"
-#include "usunitimpl.h"
-#include "umstack.h"
 #include "usstackleader.h"
 #include <algorithm>
 #include <cstdint>
-#include <cstring>
 #include <string>
-#include <vector>
 #include <spdlog/spdlog.h>
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <intrin.h>
 
 namespace hooks {
 namespace {
 
 thread_local int g_lowerCostPercent = 0;
-thread_local int g_discountApplied = 0;
 thread_local int g_scopeDepth = 0;
 
 // 0x5009c8 is shared by CDDStackGroup, CDDStackNoActionGroup and CDDReinfGroup,
@@ -59,7 +49,6 @@ thread_local const game::CMidDragDropInterf* g_campDragDrop = nullptr;
 static volatile unsigned long g_campUiAtMs = 0;
 static thread_local int g_campPercent = 0;
 static bool g_inPartyTrainingText = false;
-static bool g_inTrainUnit = false;
 
 } // namespace
 
@@ -94,179 +83,34 @@ void applyLeaderLowerCostToBank(game::Bank* bank, int lowerCostPercent)
     }
 
     const int clamped = std::clamp(lowerCostPercent, 0, 100);
-    const std::int16_t factor = static_cast<std::int16_t>(100 - clamped);
+    const int factor = 100 - clamped;
     if (factor >= 100) {
         return;
     }
 
-    auto& bankApi = game::BankApi::get();
-    bankApi.multiply(bank, factor);
-    bankApi.divide(bank, 100);
-}
-
-int tablePercent(const game::TrainingDiscountData::Entry* table, int count, const char* id)
-{
-    for (int i = 0; i < count; ++i) {
-        if (_stricmp(table[i].id, id) == 0) {
-            return table[i].percent;
-        }
-    }
-    return 0;
-}
-
-int lowerCostFromStackItems(const game::IMidgardObjectMap* objectMap,
-                            const game::CMidStack* stack)
-{
-    using namespace game;
-
-    if (!objectMap || !stack) {
-        return 0;
-    }
-
-    const auto& idApi = CMidgardIDApi::get();
-
-    int tableCount = 0;
-    const auto* table = TrainingDiscountData::items(tableCount);
-
-    // The stack inventory holds backpack items too: the client's lute lay there
-    // unequipped and still cut the price («програ посчитала лютню которую я не
-    // одевал», 2026-09-03). Only the leader's equipped slots grant the discount.
-    const IdVector& equipped = stack->leaderEquippedItems;
-    int sum = 0;
-    for (const CMidgardID* itemId = equipped.bgn; itemId != equipped.end; ++itemId) {
-        if (*itemId == emptyId) {
-            continue;
-        }
-        const auto* midItem = static_cast<const CMidItem*>(
-            objectMap->vftable->findScenarioObjectById(objectMap, itemId));
-        if (!midItem) {
-            continue;
-        }
-        char buf[16]{};
-        idApi.toString(&midItem->globalItemId, buf);
-        sum += tablePercent(table, tableCount, buf);
-    }
-    return std::clamp(sum, 0, 100);
-}
-
-int unitLevelGrowth(const game::CMidUnit* unit)
-{
-    using namespace game;
-
-    if (!unit || !unit->unitImpl) {
-        return 0;
-    }
-
-    const auto& fn = gameFunctions();
-    const IUsSoldier* soldier = fn.castUnitImplToSoldier(unit->unitImpl);
-    if (!soldier) {
-        return 0;
-    }
-
-    const TUsUnitImpl* baseImpl = getGlobalUnitImpl(&unit->unitImpl->id);
-    if (!baseImpl) {
-        return 0;
-    }
-    const IUsSoldier* baseSoldier = fn.castUnitImplToSoldier(baseImpl);
-    if (!baseSoldier) {
-        return 0;
-    }
-
-    const int growth = soldier->vftable->getLevel(soldier)
-                       - baseSoldier->vftable->getLevel(baseSoldier);
-    return growth > 0 ? growth : 0;
-}
-
-int lowerCostFromGroupModifiers(const game::IMidgardObjectMap* objectMap,
-                                const game::CMidStack* stack)
-{
-    using namespace game;
-
-    if (!objectMap || !stack) {
-        return 0;
-    }
-
-    // smnsAura pays every discount out of groupMods, which is built from the
-    // whole group: `_GroupInfo_stackHasModifierAmount(mod) > 0`. A lute on the
-    // skald or a second trader in the squad counts there, so the leader's own
-    // chain is not the whole answer.
-    const char* skaldModifierId = TrainingDiscountData::skaldDiscountModifier();
-
-    const auto& idApi = CMidgardIDApi::get();
-    const auto& rtti = RttiApi::rtti();
-    const auto dynamicCast = RttiApi::get().dynamicCast;
-
-    int tableCount = 0;
-    const auto* table = TrainingDiscountData::modifiers(tableCount);
-
-    std::vector<std::string> counted;
-    const auto alreadyCounted = [&counted](const char* id) {
-        for (const std::string& seen : counted) {
-            if (_stricmp(seen.c_str(), id) == 0) {
-                return true;
-            }
-        }
-        return false;
+    // Direct per-resource math, not BankApi::multiply + divide: multiply
+    // clamps every resource at 9999, so a 1124-gold price at factor 30 would
+    // read 9999/100 = 99 instead of 337. Prices stay below 10000, so the
+    // product fits an int and the result below the original value.
+    const auto scale = [factor](std::int16_t value) {
+        return static_cast<std::int16_t>(static_cast<int>(value) * factor / 100);
     };
-
-    int sum = 0;
-    int skaldBest = -1;
-
-    const IdVector& units = stack->group.units;
-    for (const CMidgardID* unitId = units.bgn; unitId != units.end; ++unitId) {
-        const CMidUnit* unit = gameFunctions().findUnitById(objectMap, unitId);
-        if (!unit || !unit->unitImpl || !(unit->currentHp > 0)) {
-            continue;
-        }
-
-        CUmModifier* modifier = nullptr;
-        for (auto curr = unit->unitImpl; curr; curr = modifier->data->prev) {
-            modifier = (CUmModifier*)dynamicCast(curr, 0, rtti.IUsUnitType,
-                                                 rtti.CUmModifierType, 0);
-            if (!modifier || !modifier->data) {
-                break;
-            }
-
-            const CMidgardID modifierId = modifier->data->modifierId;
-            char buf[16]{};
-            idApi.toString(&modifierId, buf);
-
-            // The dwarf skald grows with its carrier, so it is not a flat row:
-            // the highest-level carrier decides, exactly as the mod's
-            // smnsConditions_highestWithModifier does.
-            if (_stricmp(buf, skaldModifierId) == 0) {
-                const int growth = unitLevelGrowth(unit);
-                if (growth > skaldBest) {
-                    skaldBest = growth;
-                }
-                continue;
-            }
-
-            CUmStack* stackUm = castUmModifierToUmStack(modifier);
-            if (stackUm && stackUm->data && stackUm->data->lowerCost.initialized) {
-                if (!alreadyCounted(buf)) {
-                    counted.emplace_back(buf);
-                    sum += stackUm->data->lowerCost.value;
-                }
-                continue;
-            }
-
-            const int percent = tablePercent(table, tableCount, buf);
-            if (percent > 0 && !alreadyCounted(buf)) {
-                counted.emplace_back(buf);
-                sum += percent;
-            }
-        }
-    }
-
-    if (skaldBest >= 0) {
-        sum += tablePercent(table, tableCount, skaldModifierId)
-               + TrainingDiscountData::skaldDiscountPerLevel() * skaldBest;
-    }
-
-    return std::clamp(sum, 0, 100);
+    bank->gold = scale(bank->gold);
+    bank->infernalMana = scale(bank->infernalMana);
+    bank->lifeMana = scale(bank->lifeMana);
+    bank->deathMana = scale(bank->deathMana);
+    bank->runicMana = scale(bank->runicMana);
+    bank->groveMana = scale(bank->groveMana);
 }
 
+// Barton, 2026-09-07: the camp discount must come from the mod's own function —
+// «вы получаете размер скидки каким-то своим способом, а не используете функцию
+// из luaApi». The leader's vtable slot is that function: custommodifier.cpp
+// installs stackLeaderGetLowerCost there, which walks the whole Lua modifier
+// chain (smnsAura group effects, the smns valueCap ceiling, per-thread script
+// environments) and ends in the same number the merchant shop charges. A second
+// source — a local table or a local ceiling — drifts from the mod the first
+// time Barton edits either, which is exactly the fork he rejected.
 int lowerCostPercentForStack(const game::IMidgardObjectMap* objectMap,
                              const game::CMidgardID* stackId)
 {
@@ -294,18 +138,11 @@ int lowerCostPercentForStack(const game::IMidgardObjectMap* objectMap,
 
     const game::IUsStackLeader* leader = game::gameFunctions().castUnitImplToStackLeader(
         leaderUnit->unitImpl);
-    int native = 0;
-    if (leader) {
-        native = leader->vftable->getLowerCost(leader);
+    if (!leader) {
+        return 0;
     }
-    // The game reports only real L_LOWER_COST rows of the leader (Trader skill
-    // 25). Discount spells are aura-only in this mod and the mod pays the rest
-    // out of the whole squad, so neither number alone is the price. The group
-    // scan folds the real rows in through lowerCost.value, so it never
-    // undercounts native; the larger of the two is the honest figure.
-    const int percent = std::max(native, lowerCostFromGroupModifiers(objectMap, stack));
-    const int total = percent + lowerCostFromStackItems(objectMap, stack);
-    return std::clamp(total, 0, 100);
+
+    return std::clamp(leader->vftable->getLowerCost(leader), 0, 100);
 }
 
 int lowerCostPercentForUnit(const game::IMidgardObjectMap* objectMap,
@@ -348,7 +185,6 @@ TrainingDiscountScope::TrainingDiscountScope(int lowerCostPercent)
 {
     if (g_scopeDepth == 0) {
         g_lowerCostPercent = lowerCostPercent;
-        g_discountApplied = 0;
     }
     ++g_scopeDepth;
 }
@@ -358,7 +194,6 @@ TrainingDiscountScope::~TrainingDiscountScope()
     --g_scopeDepth;
     if (g_scopeDepth == 0) {
         g_lowerCostPercent = 0;
-        g_discountApplied = 0;
     }
 }
 
@@ -375,29 +210,68 @@ game::Bank* __fastcall bankCopyHooked(game::Bank* thisptr, int /*%edx*/, const g
     // Bank::Copy is indistinguishable from one where the discount was already
     // spent, and both look like silence in the log.
     //
-    // The amount comes with it because the discount is spent on the first copy
-    // of a scope and the camp draws three (client log, 2026-09-01 15:19:32).
-    // Without the number, a scope that discounted the wrong one of the three
+    // The amount comes with it because a scope that discounts the wrong copy
     // reads exactly like a scope that discounted the drawn price.
-    spdlog::info("trainer bankCopy depth={} percent={} applied={} gold={}", g_scopeDepth,
-                 g_lowerCostPercent, g_discountApplied, thisptr ? thisptr->gold : -1);
+    spdlog::info("trainer bankCopy depth={} percent={} gold={}", g_scopeDepth,
+                 g_lowerCostPercent, thisptr ? thisptr->gold : -1);
+    return result;
+}
 
-    if (g_discountApplied || g_lowerCostPercent <= 0 || !thisptr) {
+// Observation point, not the discount point. Both train flows build their
+// working price as a local copy through the Bank copy constructor --
+// trainUnitAtTrainer at 0x5d9004, canAffordTrainCheck at 0x46d54f (Akella) --
+// but the copy starts as a 1-gold template that a later Bank::Multiply turns
+// into the charged price (client log 2026-09-07 11:53: the copy read gold=1
+// while the dialog promised 79, and scaling it here to 0 made trainUnitAtTrainer
+// charge nothing). The multiply return site in TrainingCostApi is where the
+// discount belongs; this hook only records what the template carried.
+game::Bank* __fastcall bankCopyCtorHooked(game::Bank* thisptr, int /*%edx*/,
+                                          const game::Bank* other)
+{
+    game::Bank* result = getOriginalFunctions().bankCopyCtor(thisptr, other);
+
+    if (!gameSettings().trainerCampLowerCost || g_scopeDepth <= 0 || !thisptr) {
         return result;
     }
 
-    if (!g_inTrainUnit) {
+    const auto& trainApi = game::TrainingCostApi::get();
+    const void* const ret = *static_cast<void**>(_AddressOfReturnAddress());
+    const char* site = nullptr;
+    if (trainApi.costCopyReturnTrainUnit && ret == trainApi.costCopyReturnTrainUnit) {
+        site = "train";
+    } else if (trainApi.costCopyReturnCanAfford && ret == trainApi.costCopyReturnCanAfford) {
+        site = "afford";
+    } else {
         return result;
     }
 
-    if (thisptr->gold > 999) {
+    spdlog::info("trainer costCopy site={} gold={}", site, thisptr->gold);
+    return result;
+}
+
+// The discount point. Inside trainUnitAtTrainer the cost template is multiplied
+// into the real charge by Bank::Multiply at 0x5d901f (Akella); the subtraction
+// that charges the player reads that product. Scaling the product as the
+// multiply returns charges exactly the figure the camp dialog shows.
+game::Bank* __fastcall bankMultiplyHooked(game::Bank* thisptr, int /*%edx*/, std::int16_t value)
+{
+    game::Bank* result = getOriginalFunctions().bankMultiply(thisptr, value);
+
+    if (!gameSettings().trainerCampLowerCost || g_scopeDepth <= 0 || g_lowerCostPercent <= 0
+        || !thisptr) {
         return result;
     }
 
+    const auto& trainApi = game::TrainingCostApi::get();
+    const void* const ret = *static_cast<void**>(_AddressOfReturnAddress());
+    if (!trainApi.multiplyReturnTrainUnit || ret != trainApi.multiplyReturnTrainUnit) {
+        return result;
+    }
+
+    const std::int16_t before = thisptr->gold;
     applyLeaderLowerCostToBank(thisptr, g_lowerCostPercent);
-    g_discountApplied = 1;
-    spdlog::info("trainer lowerCost apply percent={} gold={}", g_lowerCostPercent,
-                 thisptr->gold);
+    spdlog::info("trainer priceScale gold={}->{} percent={}", before, thisptr->gold,
+                 g_lowerCostPercent);
     return result;
 }
 
@@ -415,10 +289,7 @@ bool __stdcall trainUnitAtTrainerHooked(game::IMidgardObjectMap* objectMap,
     const int percent = lowerCostPercentForUnit(objectMap, unitId);
     spdlog::info("trainer trainUnit percent={}", percent);
     TrainingDiscountScope scope{percent};
-    g_inTrainUnit = true;
-    const bool trained = getOriginalFunctions().trainUnitAtTrainer(objectMap, playerId, unitId, apply);
-    g_inTrainUnit = false;
-    return trained;
+    return getOriginalFunctions().trainUnitAtTrainer(objectMap, playerId, unitId, apply);
 }
 
 void __fastcall trainUiActionHooked(game::CDDStackGroup* thisptr,

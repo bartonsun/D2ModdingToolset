@@ -36,6 +36,29 @@ struct Api
     TrainUiAction trainUiAction;
     CanAffordTrainCheck canAffordTrainCheck;
     ApplyTrainAction applyTrainAction;
+
+    /**
+     * Return addresses seen by the Bank copy-constructor when the two train
+     * flows build their local copy of IUsSoldier::getTrainingCost. The copy
+     * starts as a 1-gold template (client log 2026-09-07 11:53: the copy read
+     * gold=1 while the dialog promised 79), so scaling it at these sites
+     * zeroes the template and the later multiply charges nothing -- they are
+     * observation-only now. GoG values are the measured Akella sites shifted
+     * by the same function pair deltas as the four hook addresses above.
+     */
+    const void* costCopyReturnTrainUnit;
+    const void* costCopyReturnCanAfford;
+
+    /**
+     * Return address of the Bank::Multiply call that turns the 1-gold cost
+     * template into the charged price (Akella: multiply at 0x5d901f inside
+     * trainUnitAtTrainer, returns to 0x5d9024). The discount scales the bank
+     * when this multiply returns, so the subtraction that follows charges
+     * exactly the discounted figure the dialog shows. Derived for GoG from
+     * the cost-copy return inside the same function (+0x1b), same
+     * caveat as the rows above.
+     */
+    const void* multiplyReturnTrainUnit;
 };
 
 Api& get();
@@ -53,24 +76,6 @@ struct Api
 Api& get();
 
 } // namespace TrainCampTextApi
-
-namespace TrainingDiscountData {
-
-struct Entry
-{
-    const char* id;
-    int percent;
-};
-
-const Entry* modifiers(int& count);
-
-const Entry* items(int& count);
-
-const char* skaldDiscountModifier();
-
-int skaldDiscountPerLevel();
-
-} // namespace TrainingDiscountData
 
 } // namespace game
 

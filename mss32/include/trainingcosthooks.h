@@ -42,6 +42,11 @@ struct TrainingDiscountScope
 
 game::Bank* __fastcall bankCopyHooked(game::Bank* thisptr, int /*%edx*/, const game::Bank* other);
 
+game::Bank* __fastcall bankCopyCtorHooked(game::Bank* thisptr, int /*%edx*/,
+                                          const game::Bank* other);
+
+game::Bank* __fastcall bankMultiplyHooked(game::Bank* thisptr, int /*%edx*/, std::int16_t value);
+
 bool __stdcall trainUnitAtTrainerHooked(game::IMidgardObjectMap* objectMap,
                                         const game::CMidgardID* playerId,
                                         const game::CMidgardID* unitId,
