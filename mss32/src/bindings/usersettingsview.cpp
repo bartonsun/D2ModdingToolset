@@ -49,6 +49,7 @@ void UserSettingsView::bind(sol::state& lua)
         "showBanners", &UserSettings::showBanners, 
         "showResources", &UserSettings::showResources,
         "showLandConverted", &UserSettings::showLandConverted,
+        "hideBuildingPopup", &UserSettings::hideBuildingPopup,
         "carryOverItemsMax", &UserSettings::carryOverItemsMax,
 
         "customSortOrder", &UserSettings::customSortOrder,

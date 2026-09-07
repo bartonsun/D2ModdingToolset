@@ -26,6 +26,8 @@ settings = {
 	-- Show percentage of land coverted
 	showLandConverted = false,
 
+	hideBuildingPopup = false,
+
 	-- Maximum number of items the player is allowed to transfer
 	-- between campaign scenarios [0 : INT_MAX]
 	carryOverItemsMax = 5,

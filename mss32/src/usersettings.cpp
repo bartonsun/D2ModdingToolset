@@ -328,6 +328,8 @@ static void readUserSettings(const sol::table& table, UserSettings& settings)
 
     settings.showLandConverted = readSetting(table, "showLandConverted",
                                              defaultUserSettings().showLandConverted);
+    settings.hideBuildingPopup = readSetting(table, "hideBuildingPopup",
+                                              defaultUserSettings().hideBuildingPopup);
     settings.carryOverItemsMax = readSetting(table, "carryOverItemsMax",
                                              defaultUserSettings().carryOverItemsMax, 0);
 
@@ -348,6 +350,7 @@ const UserSettings& baseUserSettings()
         settings.showBanners = false;
         settings.showResources = false;
         settings.showLandConverted = false;
+        settings.hideBuildingPopup = false;
 
         settings.carryOverItemsMax = 5;
 

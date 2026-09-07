@@ -315,6 +315,9 @@ static Hooks getGameHooks()
         {CBuildStructInterfApi::get().updateBuildingInfo,
          buildStructInterfUpdateBuildingInfoHooked,
          (void**)&orig.buildStructInterfUpdateBuildingInfo},
+        {CBuildStructInterfApi::get().updateBuildingPopup,
+         buildStructInterfUpdateBuildingPopupHooked,
+         (void**)&orig.buildStructInterfUpdateBuildingPopup},
         // Allow alchemists to buff retreating units
         {CBatAttackGiveAttackApi::vftable()->canPerform, giveAttackCanPerformHooked},
         // Prevent rewrite turnsOrder

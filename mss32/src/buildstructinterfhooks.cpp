@@ -1,11 +1,14 @@
 #include "buildstructinterfhooks.h"
+#include "autodialog.h"
 #include "borderedimg.h"
 #include "buildstructinterf.h"
+#include "buildingtype.h"
 #include "dialoginterf.h"
 #include "formattedtext.h"
 #include "game.h"
 #include "globaldata.h"
 #include "interfaceutils.h"
+#include "image2text.h"
 #include "mempool.h"
 #include "midgardid.h"
 #include "mqrect.h"
@@ -17,6 +20,7 @@
 #include "usracialsoldier.h"
 #include "ussoldier.h"
 #include "usunitimpl.h"
+#include "usersettings.h"
 #include "utils.h"
 #include <algorithm>
 #include <cstdint>
@@ -96,17 +100,18 @@ int __fastcall buildStructHandleMouseHooked(game::CInterface* thisptr,
                                                   mousePosition);
             }
         }
-        return 1;
+    } else {
+        const auto face = game::CDialogInterfApi::get().findPicture(interf->dialog, "IMG_FACE");
+        if (face && interf->data->displayedUnit
+            && game::MqRectApi::get().ptInRect(face->vftable->getArea(face), mousePosition)) {
+            return callBuildStructHandleMouse(interf, interf->data->displayedUnit, mouseButton,
+                                              mousePosition);
+        }
     }
 
-    const auto face = game::CDialogInterfApi::get().findPicture(interf->dialog, "IMG_FACE");
-    if (face && interf->data->displayedUnit
-        && game::MqRectApi::get().ptInRect(face->vftable->getArea(face), mousePosition)) {
-        return callBuildStructHandleMouse(interf, interf->data->displayedUnit, mouseButton,
-                                          mousePosition);
-    }
-
-    return 1;
+    return userSettings().hideBuildingPopup
+               ? 1
+               : buildStructHandleMouse(thisptr, mouseButton, mousePosition);
 }
 
 void installBuildStructMouseHandler(game::CBuildStructInterf* interf)
@@ -248,44 +253,6 @@ std::vector<UpgradePath> getUpgradePaths(const game::CMidgardID& buildingId,
     return result;
 }
 
-std::string toRoman(int value)
-{
-    static const std::pair<int, const char*> digits[] = {
-        {1000, "M"}, {900, "CM"}, {500, "D"}, {400, "CD"}, {100, "C"}, {90, "XC"}, {50, "L"},
-        {40, "XL"},  {10, "X"},   {9, "IX"},  {5, "V"},    {4, "IV"},  {1, "I"},
-    };
-
-    std::string result;
-    for (const auto& [number, text] : digits) {
-        while (value >= number) {
-            result += text;
-            value -= number;
-        }
-    }
-    return result;
-}
-
-std::string getPathsText(const std::vector<UpgradePath>& paths)
-{
-    std::string names;
-    for (const auto& path : paths) {
-        if (!names.empty()) {
-            names += '\n';
-        }
-
-        names += path.sourceName;
-        names += " -> ";
-        names += path.targetName;
-        if (path.level > 0) {
-            names += " [";
-            names += toRoman(path.level);
-            names += ']';
-        }
-    }
-
-    return names;
-}
-
 std::string getTargetNames(const std::vector<UpgradePath>& paths)
 {
     std::string result;
@@ -314,6 +281,24 @@ int getTextWidth(game::CTextBoxInterf* textBox, const std::string& text)
                                                                 formatted.c_str());
     SmartPointerApi::get().createOrFree(reinterpret_cast<SmartPointer*>(&formattedText), nullptr);
     return width;
+}
+
+int getTextHeight(game::CTextBoxInterf* textBox, const std::string& text, int width)
+{
+    using namespace game;
+
+    FormattedTextPtr formattedText{};
+    IFormattedTextApi::get().getFormattedText(&formattedText);
+    if (!formattedText.data) {
+        return 0;
+    }
+
+    std::string formatted = textBox->data->format.string;
+    formatted += text;
+    const int height = formattedText.data->vftable->getTextHeight(formattedText.data,
+                                                                 formatted.c_str(), width);
+    SmartPointerApi::get().createOrFree(reinterpret_cast<SmartPointer*>(&formattedText), nullptr);
+    return height;
 }
 
 std::string fitSingleLineText(game::CTextBoxInterf* textBox,
@@ -465,6 +450,151 @@ FacesImage createFacesImage(const std::vector<UpgradePath>& paths)
     return FacesImage{image, image->data->size, std::move(portraits)};
 }
 
+game::CMultiLayerImg* createCompositeImage()
+{
+    auto image = static_cast<game::CMultiLayerImg*>(
+        game::Memory::get().allocate(sizeof(game::CMultiLayerImg)));
+    return game::CMultiLayerImgApi::get().constructor(image);
+}
+
+void showPopupUpgradePaths(game::CDialogInterf* dialog, const std::vector<UpgradePath>& paths)
+{
+    using namespace game;
+
+    const auto& dialogApi = CDialogInterfApi::get();
+    auto from = dialogApi.findPicture(dialog, "IMG_FROM");
+    auto to = dialogApi.findPicture(dialog, "IMG_TO");
+    auto arrow = dialogApi.findPicture(dialog, "IMG_ARROW");
+    auto building = dialogApi.findPicture(dialog, "IMG_BUILDING");
+    auto name = dialogApi.findTextBox(dialog, "TXT_BUILDING_NAME");
+    auto info = dialogApi.findTextBox(dialog, "TXT_BUILDING_INFO");
+    if (!from || !to || !arrow || !building || !name || !info) {
+        return;
+    }
+
+    const auto content = dialog->data->area;
+    constexpr int margin = 4;
+    constexpr int gap = 6;
+    const int left = content.left + 24;
+    const int right = content.right - 24;
+    const int width = right - left;
+    const int bottom = content.bottom - margin;
+    if (width <= 0) {
+        return;
+    }
+
+    auto rows = createCompositeImage();
+    int rowsHeight = 0;
+    int rowsWidth = 0;
+    for (const auto& path : paths) {
+        auto source = createFramedFace(path.sourceId, path.sourceCanonicalId, true);
+        auto target = createFramedFace(path.unitId, path.unitCanonicalId, false);
+        auto arrowImage = AutoDialogApi::get().loadImage("DLG_R_C_BUILDING_BIGARROW");
+        if (!source.image || !target.image || !arrowImage) {
+            if (source.image) {
+                source.image->vftable->destructor(source.image, 1);
+            }
+            if (target.image) {
+                target.image->vftable->destructor(target.image, 1);
+            }
+            if (arrowImage) {
+                arrowImage->vftable->destructor(arrowImage, 1);
+            }
+            rows->vftable->destructor(rows, 1);
+            return;
+        }
+        CMqPoint arrowSize{};
+        arrowImage->vftable->getSize(arrowImage, &arrowSize);
+        const int rowHeight = std::max({source.size.y, target.size.y, arrowSize.y});
+        const int rowWidth = source.size.x + target.size.x + arrowSize.x + 2 * gap;
+        const int x = (width - rowWidth) / 2;
+        const auto& multilayerApi = CMultiLayerImgApi::get();
+        multilayerApi.addImage(rows, source.image, x,
+                               rowsHeight + (rowHeight - source.size.y) / 2);
+        multilayerApi.addImage(rows, arrowImage, x + source.size.x + gap,
+                               rowsHeight + (rowHeight - arrowSize.y) / 2);
+        multilayerApi.addImage(rows, target.image, x + source.size.x + 2 * gap + arrowSize.x,
+                               rowsHeight + (rowHeight - target.size.y) / 2);
+        rowsHeight += rowHeight + gap;
+        rowsWidth = std::max(rowsWidth, rowWidth);
+    }
+    rowsHeight -= gap;
+    rows->data->size = CMqPoint{width, rowsHeight};
+
+    CMqRect nameArea{left, content.top + margin, right, content.top + margin + 28};
+    const int headerBottom = nameArea.bottom + margin;
+    const int buildingWidth = building->vftable->getArea(building)->right
+                              - building->vftable->getArea(building)->left;
+    const int buildingHeight = building->vftable->getArea(building)->bottom
+                               - building->vftable->getArea(building)->top;
+    CMqRect buildingArea{left, headerBottom, left + buildingWidth, headerBottom + buildingHeight};
+    CMqRect infoArea{buildingArea.right + 10, headerBottom, right,
+                     headerBottom + std::max(80, buildingHeight)};
+    std::string infoText = info->data->text.string;
+    const int infoWidth = infoArea.right - infoArea.left;
+    const int infoHeight = bottom - headerBottom - rowsHeight - margin;
+    if (infoWidth > 0) {
+        auto textHeight = getTextHeight(info, infoText, infoWidth);
+        if (textHeight > infoHeight) {
+            infoText = "\\fSmall;" + infoText;
+            textHeight = getTextHeight(info, infoText, infoWidth);
+        }
+        infoArea.bottom = headerBottom + std::max(buildingHeight, textHeight);
+    }
+    int rowsTop = infoArea.bottom + margin;
+
+    const bool compact = rowsTop + rowsHeight > bottom;
+    if (compact) {
+        rowsTop = headerBottom;
+    }
+
+    IMqImage2* image = rows;
+    const bool namesOnly = rowsTop + rowsHeight > bottom || rowsWidth > width;
+    if (namesOnly) {
+        rows->vftable->destructor(rows, 1);
+        rowsTop = headerBottom;
+        rowsHeight = bottom - rowsTop;
+        if (rowsHeight <= 0) {
+            return;
+        }
+        auto textImage = static_cast<CImage2Text*>(Memory::get().allocate(sizeof(CImage2Text)));
+        CImage2TextApi::get().constructor(textImage, width, rowsHeight);
+        std::string text = "\\fSmall;\\hL;";
+        for (const auto& path : paths) {
+            text += path.sourceName + "\n\\hR;" + path.targetName + "\n\\hL;\n";
+        }
+        CImage2TextApi::get().setText(textImage, text.c_str());
+        image = textImage;
+    }
+
+    name->vftable->setArea(name, &nameArea);
+    building->vftable->setArea(building, &buildingArea);
+    info->vftable->setArea(info, &infoArea);
+    const auto nameText = fitSingleLineText(name, name->data->text.string, width);
+    CTextBoxInterfApi::get().setString(name, nameText.c_str());
+    CTextBoxInterfApi::get().setString(info, infoText.c_str());
+
+    CMqRect imageArea{left, rowsTop, right, rowsTop + rowsHeight};
+    from->vftable->setArea(from, &imageArea);
+    const CMqPoint offset{};
+    const auto& pictureApi = CPictureInterfApi::get();
+    pictureApi.setImage(from, image, &offset);
+    pictureApi.setImage(to, nullptr, &offset);
+    pictureApi.setImage(arrow, nullptr, &offset);
+    if (compact || namesOnly) {
+        pictureApi.setImage(building, nullptr, &offset);
+        CTextBoxInterfApi::get().setString(info, "");
+    }
+}
+
+void restorePopupControls(game::CDialogInterf* dialog)
+{
+    for (const auto control : {"IMG_FROM", "IMG_TO", "IMG_ARROW", "IMG_BUILDING",
+                                "TXT_BUILDING_NAME", "TXT_BUILDING_INFO"}) {
+        game::CDialogInterfApi::get().showControl(dialog, dialog->data->dialogName, control);
+    }
+}
+
 void showUpgradePaths(game::CBuildStructInterf* interf,
                       const std::vector<UpgradePath>& paths,
                       const std::vector<UpgradePath>& hiddenPaths)
@@ -484,19 +614,17 @@ void showUpgradePaths(game::CBuildStructInterf* interf,
         return;
     }
 
+    auto unitInfo = dialogApi.findTextBox(interf->dialog, "TXT_UNIT_INFO");
+    if (unitInfo) {
+        CTextBoxInterfApi::get().setString(unitInfo, "");
+    }
+
     layoutState.owner = interf;
     layoutState.dialog = interf->dialog;
     layoutState.faceArea = *face->vftable->getArea(face);
     layoutState.upgradedArea = *upgraded->vftable->getArea(upgraded);
     layoutState.portraits.clear();
     layoutState.active = true;
-
-    std::string infoText = info->data->text.string;
-    if (!infoText.empty()) {
-        infoText += '\n';
-    }
-    infoText += getPathsText(hiddenPaths);
-    CTextBoxInterfApi::get().setString(info, infoText.c_str());
 
     std::string upgradedText = upgraded->data->text.string;
     if (!upgradedText.empty()) {
@@ -536,6 +664,27 @@ void showUpgradePaths(game::CBuildStructInterf* interf,
 
 } // namespace
 
+void __stdcall buildStructInterfUpdateBuildingPopupHooked(const game::IMidgardObjectMap* objectMap,
+                                                          const game::CMidgardID* playerId,
+                                                          const game::TBuildingType* building,
+                                                          game::CDialogInterf* dialog)
+{
+    if (dialog && dialog->data) {
+        restorePopupControls(dialog);
+    }
+    getOriginalFunctions().buildStructInterfUpdateBuildingPopup(objectMap, playerId, building,
+                                                                dialog);
+    if (!building || !dialog || !dialog->data) {
+        return;
+    }
+
+    const auto paths = getUpgradePaths(building->id);
+    if (paths.size() > 1) {
+        restorePopupControls(dialog);
+        showPopupUpgradePaths(dialog, paths);
+    }
+}
+
 void __fastcall buildStructInterfUpdateBuildingInfoHooked(game::CBuildStructInterf* thisptr,
                                                           int /*%edx*/)
 {
@@ -549,7 +698,7 @@ void __fastcall buildStructInterfUpdateBuildingInfoHooked(game::CBuildStructInte
     installBuildStructMouseHandler(thisptr);
 
     auto unitInfo = game::CDialogInterfApi::get().findTextBox(thisptr->dialog, "TXT_UNIT_INFO");
-    if (unitInfo) {
+    if (unitInfo && userSettings().hideBuildingPopup) {
         game::CTextBoxInterfApi::get().setString(unitInfo, "");
     }
 

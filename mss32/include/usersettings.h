@@ -99,6 +99,7 @@ struct UserSettings
     bool showBanners;
     bool showResources;
     bool showLandConverted;
+    bool hideBuildingPopup;
 
     int carryOverItemsMax;
 
