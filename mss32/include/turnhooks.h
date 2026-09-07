@@ -17,12 +17,6 @@ void* getBeginTurnHooked();
 
 void** getBeginTurnOrig();
 
-void armRestoredGameDailyIncomeSuppression();
-
-void clearRestoredGameDailyIncomeSuppression();
-
-bool isRestoredGameDailyIncomeSuppressed();
-
 } // namespace hooks
 
 #endif

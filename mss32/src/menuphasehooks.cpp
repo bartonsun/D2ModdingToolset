@@ -30,7 +30,6 @@
 #include "netcustomservice.h"
 #include "originalfunctions.h"
 #include "scenariotemplates.h"
-#include "turnhooks.h"
 #include <spdlog/spdlog.h>
 
 namespace hooks {
@@ -155,7 +154,6 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
         }
         case MenuPhase::Main2CustomLobby:
         case MenuPhase::Back2CustomLobby: {
-            clearRestoredGameDailyIncomeSuppression();
             spdlog::debug("Show CustomLobby");
             data->networkGame = true;
             CMenuPhaseApi::Api::CreateMenuCallback tmp = createMenuCustomLobbyCallback;
@@ -166,7 +164,6 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             break;
         }
         case MenuPhase::CustomLobby: {
-            clearRestoredGameDailyIncomeSuppression();
             spdlog::debug("Current is CustomLobby");
             if (transition == MenuTransition::CustomLobby2NewSkirmish) {
                 menuPhase.showFullScreenAnimation(thisptr, &data->currentPhase,
@@ -412,8 +409,6 @@ void __fastcall menuPhaseTransitionToMainOrCloseGameHooked(game::CMenuPhase* thi
                                                            bool showIntroTransition)
 {
     using namespace game;
-
-    clearRestoredGameDailyIncomeSuppression();
 
     // Back to main if a lobby user is not logged in
     auto service = CNetCustomService::get();

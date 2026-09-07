@@ -27,6 +27,7 @@
 #include "midstart.h"
 #include "netcustomservice.h"
 #include "originalfunctions.h"
+#include "playerincomehooks.h"
 #include <spdlog/spdlog.h>
 
 namespace hooks {
@@ -111,6 +112,7 @@ void __fastcall midgardClearNetworkStateHooked(game::CMidgard* thisptr, int /*%e
     spdlog::debug(__FUNCTION__);
 
     getOriginalFunctions().midgardClearNetworkState(thisptr);
+    resetDailyIncomeTracking();
 
     // Make sure that there are no peer messages remain to process.
     // Though it does not guarantee that a new ones will not arrive shortly after.
@@ -127,6 +129,7 @@ void __fastcall midgardClearNetworkStateAndServiceHooked(game::CMidgard* thisptr
     spdlog::debug(__FUNCTION__);
 
     getOriginalFunctions().midgardClearNetworkStateAndService(thisptr);
+    resetDailyIncomeTracking();
 
     resetCommandSequenceGlobalCounters();
 }

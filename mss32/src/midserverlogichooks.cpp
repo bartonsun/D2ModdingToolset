@@ -34,6 +34,7 @@
 #include "netmsgmapentryexchangeresourcesmsg.h"
 #include "netplayerinfo.h"
 #include "originalfunctions.h"
+#include "playerincomehooks.h"
 #include "racetype.h"
 #include "refreshinfo.h"
 #include "scenarioinfo.h"
@@ -585,6 +586,8 @@ game::CMidServerLogic* __fastcall midServerLogicCtorHooked(game::CMidServerLogic
     getOriginalFunctions().midServerLogicCtor(thisptr, server, multiplayerGame, hotseatGame, a5,
                                               gameVersion);
 
+    resetDailyIncomeTracking();
+
     auto netMsgEntryData{thisptr->coreData->netMsgEntryData};
 
     auto callback = (CNetMsgMapEntry_member::Callback)exchangeResourcesMsgHandler;
@@ -605,8 +608,13 @@ void __fastcall processZeroTurnHooked(game::CMidServerLogic* thisptr,
     auto scenarioInfo = getScenarioInfo(objectMap);
     bool isTurnZero = (scenarioInfo->currentTurn == 0);
 
-    getOriginalFunctions().processZeroTurn(thisptr, playerNetId, a3);
-
+    {
+        const bool restoredNetworkGame = a3 && !isTurnZero
+                                         && thisptr->coreData->multiplayerGame
+                                         && !thisptr->coreData->hotseatGame;
+        RestoredGameIncomeScope incomeScope{restoredNetworkGame ? thisptr : nullptr};
+        getOriginalFunctions().processZeroTurn(thisptr, playerNetId, a3);
+    }
 
     if (!isTurnZero) {
         return;

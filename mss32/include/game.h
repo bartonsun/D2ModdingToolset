@@ -814,7 +814,7 @@ using StratInterfOpenSelectedObject = void(__thiscall*)(void* thisPtr);
  * @param thisptr Pointer to server logic data instance.
  * @param playerId Identifier of the player whose turn is starting.
  */
-using MidServerLogicDataBeginTurn = void(__thiscall*)(CMidServerLogicData* thisptr,
+using MidServerLogicDataBeginTurn = bool(__thiscall*)(CMidServerLogicData* thisptr,
                                                       CMidgardID* playerId);
 
 

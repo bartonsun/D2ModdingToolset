@@ -25,31 +25,115 @@
 #include "game.h"
 #include "gameutils.h"
 #include "lordtype.h"
+#include "midgard.h"
 #include "midgardid.h"
 #include "midgardobjectmap.h"
 #include "midplayer.h"
 #include "midscenvariables.h"
+#include "midserverlogic.h"
 #include "midvillage.h"
+#include "netplayerinfo.h"
 #include "originalfunctions.h"
 #include "playerview.h"
 #include "racecategory.h"
 #include "racetype.h"
+#include "scenarioinfo.h"
 #include "scripts.h"
 #include "settings.h"
-#include "turnhooks.h"
 #include "utils.h"
 #include "version.h"
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <intrin.h>
+#include <map>
+#include <mutex>
 #include <spdlog/spdlog.h>
 
 extern std::thread::id mainThreadId;
 
 namespace hooks {
 
-static bool isDailyIncomeCreditCall(std::uintptr_t returnAddress)
+namespace {
+
+const game::IMidgardObjectMap* incomeScenario{};
+std::map<int, int> creditedTurns;
+std::mutex incomeMutex;
+thread_local game::CMidServerLogic* restoringServer{};
+thread_local const game::IMidgardObjectMap* restoredScenario{};
+thread_local int restoredTurn{-1};
+
+bool isNetworkGame()
+{
+    const auto* midgard = game::CMidgardApi::get().instance();
+    return midgard && midgard->data && midgard->data->multiplayerGame
+           && !midgard->data->hotseatGame;
+}
+
+void selectIncomeScenario(const game::IMidgardObjectMap* objectMap)
+{
+    if (incomeScenario != objectMap) {
+        incomeScenario = objectMap;
+        creditedTurns.clear();
+    }
+}
+
+void markRestoredCurrentPlayer()
+{
+    const auto* server = restoringServer;
+    if (!server || !server->coreData) {
+        return;
+    }
+
+    const auto* core = server->coreData;
+    const auto* players = core->players;
+    const int index = server->currentPlayerIndex;
+    if (!core->multiplayerGame || core->hotseatGame || !core->objectMap
+        || core->objectMap != restoredScenario || !players || !players->bgn || !players->end
+        || index < 0 || static_cast<std::size_t>(index) >= players->size()) {
+        return;
+    }
+
+    const auto* info = getScenarioInfo(core->objectMap);
+    if (!info || info->currentTurn <= 0 || info->currentTurn != restoredTurn) {
+        return;
+    }
+
+    const auto& playerId = players->bgn[index].playerId;
+    const std::lock_guard<std::mutex> lock{incomeMutex};
+    selectIncomeScenario(core->objectMap);
+    const auto it = creditedTurns.find(playerId.value);
+    if (it != creditedTurns.end() && it->second == restoredTurn) {
+        return;
+    }
+    creditedTurns[playerId.value] = info->currentTurn;
+    spdlog::info("Preserve restored daily income for {} on turn {}",
+                 idToString(&playerId), restoredTurn);
+}
+
+bool claimDailyIncome(const game::IMidgardObjectMap* objectMap,
+                      const game::CMidgardID* playerId)
+{
+    const auto* info = getScenarioInfo(objectMap);
+    if (!info) {
+        return true;
+    }
+
+    markRestoredCurrentPlayer();
+    const std::lock_guard<std::mutex> lock{incomeMutex};
+    selectIncomeScenario(objectMap);
+    const auto it = creditedTurns.find(playerId->value);
+    if (it != creditedTurns.end() && it->second == info->currentTurn) {
+        spdlog::info("Skip repeated daily income for {} on turn {}",
+                     idToString(playerId), info->currentTurn);
+        return false;
+    }
+
+    creditedTurns[playerId->value] = info->currentTurn;
+    return true;
+}
+
+bool isDailyIncomeCreditCall(std::uintptr_t returnAddress)
 {
     switch (gameVersion()) {
     case GameVersion::Akella:
@@ -62,14 +146,67 @@ static bool isDailyIncomeCreditCall(std::uintptr_t returnAddress)
     }
 }
 
+} // namespace
+
+void resetDailyIncomeTracking()
+{
+    const std::lock_guard<std::mutex> lock{incomeMutex};
+    incomeScenario = nullptr;
+    creditedTurns.clear();
+}
+
+RestoredGameIncomeScope::RestoredGameIncomeScope(game::CMidServerLogic* serverLogic)
+    : previous{restoringServer}
+    , previousScenario{restoredScenario}
+    , previousTurn{restoredTurn}
+{
+    restoringServer = serverLogic;
+    restoredScenario = serverLogic && serverLogic->coreData
+                           ? serverLogic->coreData->objectMap : nullptr;
+    const auto* info = restoredScenario ? getScenarioInfo(restoredScenario) : nullptr;
+    restoredTurn = info ? info->currentTurn : -1;
+}
+
+RestoredGameIncomeScope::~RestoredGameIncomeScope()
+{
+    // The native loader sets currentPlayerIndex before sending BeginTurn. Record the
+    // saved player's income before a queued acknowledgement can start their turn again.
+    markRestoredCurrentPlayer();
+    restoringServer = previous;
+    restoredScenario = previousScenario;
+    restoredTurn = previousTurn;
+}
+
+bool wasPlayerIncomeCredited(const game::IMidgardObjectMap* objectMap,
+                            const game::CMidgardID* playerId)
+{
+    if (!objectMap || !playerId || !isNetworkGame()) {
+        return false;
+    }
+
+    const auto* info = getScenarioInfo(objectMap);
+    if (!info) {
+        return false;
+    }
+
+    markRestoredCurrentPlayer();
+    const std::lock_guard<std::mutex> lock{incomeMutex};
+    if (incomeScenario != objectMap) {
+        return false;
+    }
+
+    const auto it = creditedTurns.find(playerId->value);
+    return it != creditedTurns.end() && it->second == info->currentTurn;
+}
+
 game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
                                                      game::IMidgardObjectMap* objectMap,
                                                      const game::CMidgardID* playerId)
 {
     using namespace game;
 
-    if (isRestoredGameDailyIncomeSuppressed() &&
-        isDailyIncomeCreditCall(reinterpret_cast<std::uintptr_t>(_ReturnAddress()))) {
+    if (isDailyIncomeCreditCall(reinterpret_cast<std::uintptr_t>(_ReturnAddress()))
+        && isNetworkGame() && objectMap && playerId && !claimDailyIncome(objectMap, playerId)) {
         BankApi::get().setZero(income);
         return income;
     }

@@ -10,66 +10,38 @@
 #include "midplayer.h"
 #include "phasegame.h"
 #include "playerview.h"
+#include "playerincomehooks.h"
 #include "scripts.h"
 #include "midserverlogic.h"
 
-#include <atomic>
 #include <sol/sol.hpp>
 #include <spdlog/spdlog.h>
 
 namespace hooks {
 
-using BeginTurnFunc = void(__thiscall*)(game::CMidServerLogicData* thisptr,
-                                        game::CMidgardID* playerId);
-
-static BeginTurnFunc beginTurnOrig;
+static game::MidServerLogicDataBeginTurn beginTurnOrig;
 
 static std::optional<sol::environment> env;
 static std::optional<sol::function> processTurnStart;
-static std::atomic_bool restoredGameDailyIncomePending{false};
-static thread_local bool restoredGameDailyIncomeSuppressed;
 
-class ScopedRestoredGameDailyIncomeSuppression
-{
-public:
-    ScopedRestoredGameDailyIncomeSuppression()
-        : previous{restoredGameDailyIncomeSuppressed}
-    {
-        restoredGameDailyIncomeSuppressed = true;
-    }
-
-    ~ScopedRestoredGameDailyIncomeSuppression()
-    {
-        restoredGameDailyIncomeSuppressed = previous;
-    }
-
-private:
-    bool previous;
-};
-
-void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
+bool __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
                                 int /*%edx*/,
                                 game::CMidgardID* playerId)
 {
     using namespace game;
 
-    if (restoredGameDailyIncomePending.exchange(false)) {
-        ScopedRestoredGameDailyIncomeSuppression suppression;
-        beginTurnOrig(thisptr, playerId);
-        return;
-    }
+    const bool alreadyCredited = wasPlayerIncomeCredited(getServerObjectMap(), playerId);
+    const bool result = beginTurnOrig(thisptr, playerId);
 
-    beginTurnOrig(thisptr, playerId);
-
-    if (!thisptr || !playerId) {
-        return;
+    if (!result || !thisptr || !playerId || alreadyCredited) {
+        return result;
     }
 
     auto objectMap = getServerObjectMap();
 
     if (!objectMap) {
         spdlog::error("[TURN] objectMap == nullptr");
-        return;
+        return result;
     }
 
     if (!processTurnStart) {
@@ -82,7 +54,7 @@ void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
 
             spdlog::error("[TURN] failed to load processTurnStart");
 
-            return;
+            return result;
         }
     }
 
@@ -92,7 +64,7 @@ void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
 
         spdlog::error("[TURN] could not find player {}", idToString(playerId));
 
-        return;
+        return result;
     }
 
     auto player = static_cast<const CMidPlayer*>(playerObj);
@@ -109,6 +81,8 @@ void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
 
         showErrorMessageBox(fmt::format("Failed to run turn.lua\nReason: {}", e.what()));
     }
+
+    return result;
 }
 
 void* getBeginTurnHooked()
@@ -119,21 +93,6 @@ void* getBeginTurnHooked()
 void** getBeginTurnOrig()
 {
     return (void**)&beginTurnOrig;
-}
-
-void armRestoredGameDailyIncomeSuppression()
-{
-    restoredGameDailyIncomePending = true;
-}
-
-void clearRestoredGameDailyIncomeSuppression()
-{
-    restoredGameDailyIncomePending = false;
-}
-
-bool isRestoredGameDailyIncomeSuppressed()
-{
-    return restoredGameDailyIncomeSuppressed;
 }
 
 } // namespace hooks

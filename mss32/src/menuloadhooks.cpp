@@ -20,7 +20,6 @@
 #include "menuloadhooks.h"
 #include "menucustomloadskirmishmulti.h"
 #include "originalfunctions.h"
-#include "turnhooks.h"
 #include "uievent.h"
 
 namespace hooks {
@@ -28,8 +27,6 @@ namespace hooks {
 void __fastcall menuLoadCreateServerHooked(game::CMenuLoad* thisptr)
 {
     using namespace game;
-
-    clearRestoredGameDailyIncomeSuppression();
 
     auto custom = CMenuCustomLoadSkirmishMulti::cast(thisptr);
     if (custom) {
