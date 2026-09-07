@@ -220,5 +220,5 @@ settings = {
 		boostdamageCanAffectHealer = false,
 	},
 
-	trainerCampLowerCost = true,
+	trainerCampLowerCost = false,
 }
