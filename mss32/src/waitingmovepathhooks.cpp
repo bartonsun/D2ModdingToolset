@@ -1153,7 +1153,8 @@ void stopWaitingMovementPathPreview()
 
 bool isWaitingMovementPathPreviewActive()
 {
-    return waitingPath.phase != nullptr;
+    return waitingPath.phase && isWaitingPathPhaseCurrent() && waitingPath.phaseGame
+           && waitingPath.phaseGame->data && !waitingPath.phaseGame->data->clientTakesTurn;
 }
 
 bool isWaitingMovementPathPreview()

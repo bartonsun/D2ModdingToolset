@@ -576,6 +576,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\smartptr.cpp" />
     <ClCompile Include="src\movepathhooks.cpp" />
     <ClCompile Include="src\waitingmovepath.cpp" />
+    <ClCompile Include="src\waitingmovepathflag.cpp" />
     <ClCompile Include="src\waitingmovepathhooks.cpp" />
     <ClCompile Include="src\waitingmovepathplanner.cpp" />
     <ClCompile Include="src\capitalraceset.cpp" />
@@ -1359,6 +1360,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\d2set.h" />
     <ClInclude Include="include\movepathhooks.h" />
     <ClInclude Include="include\waitingmovepath.h" />
+    <ClInclude Include="include\waitingmovepathflag.h" />
     <ClInclude Include="include\waitingmovepathhooks.h" />
     <ClInclude Include="include\waitingmovepathplanner.h" />
     <ClInclude Include="include\pointset.h" />

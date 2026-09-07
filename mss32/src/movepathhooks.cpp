@@ -54,6 +54,7 @@
 #include <optional>
 #include <sol/sol.hpp>
 #include <usersettings.h>
+#include <waitingmovepathflag.h>
 #include <waitingmovepathhooks.h>
 #include <waitingmovepathplanner.h>
 
@@ -452,12 +453,15 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
                                             && nodeCost < waitingBudget;
 
         const char* imageName = "MOVENORMAL";
+        bool useGrayWaitingFlag{};
         if (terrainOnlyPreview) {
             if (!waitingNodeReachable
                 || (endOfPath && pathLeadsToAction && !waitingActionReachable)) {
                 imageName = "MOVEACTION";
             } else if (waitingActionReachable) {
                 imageName = noble ? "MOVENEGO" : "MOVEBATTLE";
+            } else {
+                useGrayWaitingFlag = true;
             }
         } else if (!v61) {
             imageName = pathLeadsToAction ? "MOVEOUT" : "MOVEACTION";
@@ -479,9 +483,16 @@ void __stdcall showMovementPathHooked(const game::IMidgardObjectMap* objectMap,
         if (!pathAllowed) {
             // Crossed out white flag, when path of water only stack leads to the land
             imageName = "MOVEINCMP";
+            useGrayWaitingFlag = false;
         }
 
-        auto* flagImage = imagesApi.getImage(images->isoCmon, imageName, 0, true, images->log);
+        game::IMqImage2* flagImage{};
+        if (useGrayWaitingFlag) {
+            flagImage = createWaitingMovementPathGrayFlag();
+        }
+        if (!flagImage) {
+            flagImage = imagesApi.getImage(images->isoCmon, imageName, 0, true, images->log);
+        }
         if (!flagImage) {
             continue;
         }
@@ -753,18 +764,9 @@ int __stdcall computeMovementCostHooked(const game::CMqPoint* mapPosition,
     }
 
     const bool pred1 = !a6 || !((1 << (x & 7)) & a6[18 * y + (x >> 3)]);
-    if (!pred1) {
+    if (terrainOnlyPreview) {
         const IdType bagType = IdType::Bag;
         const IdType stackType = IdType::Stack;
-        static const std::array<IdType, 7> blockingObjectTypes{{
-            IdType::Fortification,
-            IdType::Landmark,
-            IdType::Site,
-            IdType::Ruin,
-            IdType::Tomb,
-            IdType::Rod,
-            IdType::Crystal,
-        }};
         const auto* stackAtPosition = planApi.getObjectId(plan, mapPosition, &stackType);
         const auto* blockingStack = stackAtPosition ? getStack(objectMap, stackAtPosition)
                                                     : nullptr;
@@ -773,15 +775,17 @@ int __stdcall computeMovementCostHooked(const game::CMqPoint* mapPosition,
         const bool hiddenForeignStack = blockingStack && previewStack && blockingStack->invisible
                                         && blockingStack->ownerId != previewStack->ownerId;
         const bool stackPassable = !stackAtPosition || sameStack || hiddenForeignStack;
-        const bool bypassReason = planApi.getObjectId(plan, mapPosition, &bagType) || sameStack
-                                  || hiddenForeignStack;
-        const bool passablePreviewTile = terrainOnlyPreview && stackPassable && bypassReason
-                                         && !planApi.isPositionContainsObjects(
-                                             plan, mapPosition, blockingObjectTypes.data(),
-                                             std::size(blockingObjectTypes));
-        if (!passablePreviewTile) {
+        if (!stackPassable) {
             return movementForbidden;
         }
+
+        const bool bypassReason = planApi.getObjectId(plan, mapPosition, &bagType) || sameStack
+                                  || hiddenForeignStack;
+        if (!pred1 && !bypassReason) {
+            return movementForbidden;
+        }
+    } else if (!pred1) {
+        return movementForbidden;
     }
 
     bool road{};
