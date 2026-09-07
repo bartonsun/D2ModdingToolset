@@ -24,9 +24,30 @@ namespace game {
 struct Bank;
 struct IMidgardObjectMap;
 struct CMidgardID;
+struct CMidServerLogic;
 } // namespace game
 
 namespace hooks {
+
+void resetDailyIncomeTracking();
+
+class RestoredGameIncomeScope
+{
+public:
+    explicit RestoredGameIncomeScope(game::CMidServerLogic* serverLogic);
+    ~RestoredGameIncomeScope();
+
+    RestoredGameIncomeScope(const RestoredGameIncomeScope&) = delete;
+    RestoredGameIncomeScope& operator=(const RestoredGameIncomeScope&) = delete;
+
+private:
+    game::CMidServerLogic* previous;
+    const game::IMidgardObjectMap* previousScenario;
+    int previousTurn;
+};
+
+bool wasPlayerIncomeCredited(const game::IMidgardObjectMap* objectMap,
+                            const game::CMidgardID* playerId);
 
 game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
                                                      game::IMidgardObjectMap* objectMap,

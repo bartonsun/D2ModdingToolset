@@ -10,6 +10,7 @@
 #include "midplayer.h"
 #include "phasegame.h"
 #include "playerview.h"
+#include "playerincomehooks.h"
 #include "scripts.h"
 #include "midserverlogic.h"
 
@@ -18,31 +19,29 @@
 
 namespace hooks {
 
-using BeginTurnFunc = void(__thiscall*)(game::CMidServerLogicData* thisptr,
-                                        game::CMidgardID* playerId);
-
-static BeginTurnFunc beginTurnOrig;
+static game::MidServerLogicDataBeginTurn beginTurnOrig;
 
 static std::optional<sol::environment> env;
 static std::optional<sol::function> processTurnStart;
 
-void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
+bool __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
                                 int /*%edx*/,
                                 game::CMidgardID* playerId)
 {
     using namespace game;
 
-    beginTurnOrig(thisptr, playerId);
+    const bool alreadyCredited = wasPlayerIncomeCredited(getServerObjectMap(), playerId);
+    const bool result = beginTurnOrig(thisptr, playerId);
 
-    if (!thisptr || !playerId) {
-        return;
+    if (!result || !thisptr || !playerId || alreadyCredited) {
+        return result;
     }
 
     auto objectMap = getServerObjectMap();
 
     if (!objectMap) {
         spdlog::error("[TURN] objectMap == nullptr");
-        return;
+        return result;
     }
 
     if (!processTurnStart) {
@@ -55,7 +54,7 @@ void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
 
             spdlog::error("[TURN] failed to load processTurnStart");
 
-            return;
+            return result;
         }
     }
 
@@ -65,7 +64,7 @@ void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
 
         spdlog::error("[TURN] could not find player {}", idToString(playerId));
 
-        return;
+        return result;
     }
 
     auto player = static_cast<const CMidPlayer*>(playerObj);
@@ -82,6 +81,8 @@ void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
 
         showErrorMessageBox(fmt::format("Failed to run turn.lua\nReason: {}", e.what()));
     }
+
+    return result;
 }
 
 void* getBeginTurnHooked()
