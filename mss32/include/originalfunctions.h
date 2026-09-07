@@ -158,6 +158,7 @@ struct OriginalFunctions
     game::CEncLayoutRuinApi::Api::Update encLayoutRuinUpdate;
 
     game::CBuildStructInterfApi::Api::UpdateBuildingInfo buildStructInterfUpdateBuildingInfo;
+    game::CBuildStructInterfApi::Api::UpdateBuildingPopup buildStructInterfUpdateBuildingPopup;
 
     game::IMidMsgSenderVftable::SendObjectsChanges midServerLogicSendObjectsChanges;
 

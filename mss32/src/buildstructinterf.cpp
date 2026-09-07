@@ -5,9 +5,12 @@
 namespace game::CBuildStructInterfApi {
 
 static std::array<Api, 3> functions = {{
-    Api{(Api::UpdateBuildingInfo)0x4abf2e, (Api::UnitFaceMouseButtonCallback)0x4ace8f},
-    Api{(Api::UpdateBuildingInfo)0x4abf2e, (Api::UnitFaceMouseButtonCallback)0x4ace8f},
-    Api{(Api::UpdateBuildingInfo)0x4ab5cc, (Api::UnitFaceMouseButtonCallback)0x4ac52d},
+    Api{(Api::UpdateBuildingInfo)0x4abf2e, (Api::UnitFaceMouseButtonCallback)0x4ace8f,
+        (Api::UpdateBuildingPopup)0x57e25f},
+    Api{(Api::UpdateBuildingInfo)0x4abf2e, (Api::UnitFaceMouseButtonCallback)0x4ace8f,
+        (Api::UpdateBuildingPopup)0x57e25f},
+    Api{(Api::UpdateBuildingInfo)0x4ab5cc, (Api::UnitFaceMouseButtonCallback)0x4ac52d,
+        (Api::UpdateBuildingPopup)0x57d91a},
 }};
 
 Api& get()

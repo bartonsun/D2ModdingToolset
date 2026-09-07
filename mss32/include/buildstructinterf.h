@@ -12,6 +12,8 @@ namespace game {
 struct CDialogInterf;
 struct CBuildingBranch;
 struct CMqPoint;
+struct IMidgardObjectMap;
+struct TBuildingType;
 struct TUsUnitImpl;
 
 struct CBuildStructInterfData
@@ -53,6 +55,12 @@ struct Api
                                                           std::uint32_t mouseButton,
                                                           const CMqPoint* mousePosition);
     UnitFaceMouseButtonCallback unitFaceMouseButtonCallback;
+
+    using UpdateBuildingPopup = void(__stdcall*)(const IMidgardObjectMap* objectMap,
+                                                  const CMidgardID* playerId,
+                                                  const TBuildingType* building,
+                                                  CDialogInterf* dialog);
+    UpdateBuildingPopup updateBuildingPopup;
 };
 
 Api& get();
