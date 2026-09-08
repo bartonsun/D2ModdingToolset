@@ -19,13 +19,17 @@
 
 #include "midserverlogichooks.h"
 #include "cmdmovestackendmsg.h"
+#include "d2list.h"
 #include "dynamiccast.h"
 #include "exchangeresourcesmsg.h"
+#include "game.h"
 #include "gameutils.h"
 #include "idset.h"
 #include "logutils.h"
+#include "midgardplan.h"
 #include "midgardscenariomap.h"
 #include "midplayer.h"
+#include "midruin.h"
 #include "midserver.h"
 #include "midserverlogic.h"
 #include "midsiteresourcemarket.h"
@@ -36,8 +40,10 @@
 #include "originalfunctions.h"
 #include "racetype.h"
 #include "refreshinfo.h"
+#include "ruinmovement.h"
 #include "scenarioinfo.h"
 #include "settings.h"
+#include <cstdlib>
 #include "timer.h"
 #include "unitstovalidate.h"
 #include "unitutils.h"
@@ -231,19 +237,43 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
     const ScopedTimer timer{std::string_view{message, result.size}, eventsPerformanceLog};
 #endif
 
-    auto result = getOriginalFunctions().stackMove(thisptr, playerId, movementPath, stackId,
-                                                   startingPoint, endPoint);
+    auto objectMap = CMidServerLogicApi::get().getObjectMap(*thisptr);
+    const CMidStack* stackBefore = getStack(objectMap, stackId);
 
-    // We can actually fall into battle message loop while processing stack move. This means that we
-    // will be holding player's CMidObjectLock until battle ends. Should not be a problem since the
-    // player will be switched to the battlefield and won't be able to interract with mid objects
-    // anyway (but if turned out that this is a problem, we can send CCmdMoveStackEndMsg right after
-    // CCmdBattleStartMsg and alike).
-    // The same applies to other effects like event triggers.
-    IMidMsgSender* sender = *thisptr;
-    CCmdMoveStackEndMsg message;
-    if (!sender->vftable->sendMessage(sender, &message, true)) {
-        spdlog::error(__FUNCTION__ ": failed to send CCmdMoveStackEndMsg");
+    const CMidPlayer* mover = playerId ? getPlayer(objectMap, playerId) : nullptr;
+    const bool humanMover = mover && mover->isHuman;
+
+    bool lootedRuinBeforeMove = false;
+    if (stackBefore && humanMover) {
+        if (auto plan = getMidgardPlan(objectMap)) {
+            lootedRuinBeforeMove = isLootedRuinInteraction(objectMap, plan, stackBefore, endPoint,
+                                                           startingPoint);
+        }
+    }
+
+    const bool skipLootedRuinEntry = shouldSkipLootedRuinEntry(
+        stackBefore != nullptr, humanMover, lootedRuinBeforeMove);
+
+    bool result = false;
+    if (skipLootedRuinEntry) {
+        const int mp = stackBefore ? static_cast<int>(stackBefore->movement) : -1;
+        const int sx = startingPoint ? startingPoint->x : -1;
+        const int sy = startingPoint ? startingPoint->y : -1;
+        const int ex = endPoint ? endPoint->x : -1;
+        const int ey = endPoint ? endPoint->y : -1;
+        spdlog::info("looted ruin skip entry mp={} from=({},{}) to=({},{})", mp, sx, sy, ex, ey);
+        result = true;
+    } else {
+        result = getOriginalFunctions().stackMove(thisptr, playerId, movementPath, stackId,
+                                                  startingPoint, endPoint);
+    }
+
+    IMidMsgSender* sender = thisptr ? *thisptr : nullptr;
+    if (sender && sender->vftable && sender->vftable->sendMessage) {
+        CCmdMoveStackEndMsg message;
+        if (!sender->vftable->sendMessage(sender, &message, false)) {
+            spdlog::error(__FUNCTION__ ": failed to send CCmdMoveStackEndMsg");
+        }
     }
 
     return result;
@@ -630,4 +660,18 @@ void __fastcall processZeroTurnHooked(game::CMidServerLogic* thisptr,
     }
 }
 
+void __fastcall createImportedLeaderHooked(game::CMidServerLogic* thisptr,
+                                           int /*%edx*/,
+                                           std::uint32_t playerNetId)
+{
+    using namespace game;
+
+    auto objectMap{thisptr->coreData->objectMap};
+    auto scenarioInfo = getScenarioInfo(objectMap);
+    int turn = scenarioInfo->currentTurn;
+
+    if (turn == 0 || turn == 1 && thisptr->currentPlayerIndex != -1) {
+        getOriginalFunctions().createImportedLeader(thisptr, playerNetId);
+    }
+}
 } // namespace hooks

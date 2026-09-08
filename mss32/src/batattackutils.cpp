@@ -23,6 +23,11 @@
 #include "batattackusetalisman.h"
 #include "dynamiccast.h"
 #include "visitors.h"
+#include "ussoldier.h"
+#include "immunecat.h"
+#include "game.h"
+#include "battleattackinfo.h"
+#include "usunit.h"
 
 #include <attackutils.h>
 #include <restrictions.h>
@@ -143,6 +148,66 @@ const game::CMidgardID* getItemId(const game::IBatAttack* batAttack)
     }
 
     return &emptyId;
+}
+
+bool IsImmuneToAttack(game::BattleMsgData* battleMsgData,
+                      game::IMidgardObjectMap* objectMap,
+                      game::CMidgardID* targetId,
+                      game::IAttack* attack)
+{
+    using namespace game;
+
+    static const auto& battleApi = BattleMsgDataApi::get();
+    static const auto& immuneCategories = ImmuneCategories::get();
+    static const auto& fn = gameFunctions();
+
+    if (*targetId == emptyId || *targetId == invalidId) {
+        return false;
+    }
+
+    if (!attack) {
+        return false;
+    }
+
+    const CMidUnit* targetUnit = fn.findUnitById(objectMap, targetId);
+    if (!targetUnit) {
+        return false;
+    }
+
+    const IUsSoldier* targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
+    const LAttackClass* attackClass = attack->vftable->getAttackClass(attack);
+    const LImmuneCat* immuneCat = targetSoldier->vftable->getImmuneByAttackClass(targetSoldier,
+                                                                                 attackClass);
+    if (immuneCat->id == immuneCategories.once->id) {
+        bool hasWard = battleApi.isUnitAttackClassWardRemoved(battleMsgData, targetId, attackClass);
+        if (!hasWard) {
+            battleApi.removeUnitAttackClassWard(battleMsgData, targetId, attackClass);
+            return true;
+        }
+        return false;
+    }
+
+    return immuneCat->id == immuneCategories.always->id;
+}
+
+void addToBattleAttackInfo(game::BattleAttackInfo* attackInfo,
+                           const game::CMidUnit* unit,
+                           int damage,
+                           int criticalHitDamage,
+                           bool attackMissed,
+                           bool defend)
+{
+    using namespace game;
+
+    BattleAttackUnitInfo info{};
+    info.unitId = unit->id;
+    info.unitImplId = unit->unitImpl->id;
+    info.damage = damage;
+    info.criticalDamage = criticalHitDamage;
+    info.attackMissed = attackMissed;
+    info.defend = defend;
+
+    BattleAttackInfoApi::get().addUnitInfo(&attackInfo->unitsInfo, &info);
 }
 
 } // namespace hooks

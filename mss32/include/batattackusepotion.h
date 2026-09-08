@@ -25,13 +25,21 @@
 
 namespace game {
 
-struct CBatAttackUsePotion : CBatAttackBase
+struct IAttack;
+
+struct CBatAttackUsePotion : public CBatAttackBase
 {
     CMidgardID unitId;
     CMidgardID itemId;
 };
 
 assert_size(CBatAttackUsePotion, 12);
+
+namespace CBatAttackUsePotionApi {
+
+IBatAttackVftable* vftable();
+
+} // namespace CBatAttackFearApi
 
 } // namespace game
 

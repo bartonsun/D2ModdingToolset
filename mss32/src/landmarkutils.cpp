@@ -44,10 +44,8 @@ bool isLandmarkMountain(const game::CMidgardID* landmarkTypeId)
         return false;
     }
 
-    // Получаем доступ к данным landmarks аналогично spells
     const auto& landmarks = (*global->landmarks)->data;
 
-    // Перебираем все landmarks в поисках нужного ID
     for (const auto* i = landmarks.bgn; i != landmarks.end; ++i) {
         const TLandmark* landmark = i->second;
 

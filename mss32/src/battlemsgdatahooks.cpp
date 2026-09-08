@@ -452,43 +452,36 @@ void __fastcall beforeBattleRoundHooked(game::BattleMsgData* thisptr, int /*%edx
 {
     using namespace game;
 
-    getOriginalFunctions().beforeBattleRound(thisptr);
+    const auto& battleApi = BattleMsgDataApi::get();
+    const auto& unitInfoApi = UnitInfoListApi::get();
+    IMidgardObjectMap* objectMap = const_cast<IMidgardObjectMap*>(hooks::getObjectMap());
 
-    auto* objectMap = const_cast<IMidgardObjectMap*>(hooks::getObjectMap());
-    if (thisptr && objectMap) {
-        auto& battleApi = BattleMsgDataApi::get();
+    thisptr->currentRound++;
 
-        auto cleanupDeadUnits = [&](const CMidgardID& groupId) {
-            auto* group = hooks::getGroup(objectMap, &groupId, false);
-            if (!group)
-                return;
+    UnitInfoList unitList;
+    unitInfoApi.constructor(&unitList);
+    battleApi.getUnitInfos(thisptr, &unitList, true);
 
-            std::vector<CMidgardID> unitIds;
-            for (auto* idPtr = group->units.bgn; idPtr != group->units.end; ++idPtr) {
-                if (idPtr)
-                    unitIds.push_back(*idPtr);
-            }
-
-            for (const auto& unitId : unitIds) {
-                if (battleApi.getUnitStatus(thisptr, &unitId, BattleStatus::Dead)) {
-                    auto* unitInfo = battleApi.getUnitInfoById(thisptr, &unitId);
-
-                    if (unitInfo && (uintptr_t)unitInfo > 0x10000) {
-                        auto modifiedIds = getModifiedUnitIds(unitInfo);
-                        if (!modifiedIds.empty()) {
-                            for (auto& targetId : modifiedIds) {
-                                removeModifiers(thisptr, objectMap, unitInfo, &targetId);
-                            }
-                            resetModifiedUnitsInfo(unitInfo);
-                        }
+    for (const auto& unitInfo : unitList) {
+        UnitInfo* info = battleApi.getUnitInfoById(thisptr, &unitInfo.unitId1);
+        if (info) {
+            if (battleApi.getUnitStatus(thisptr, &info->unitId1, BattleStatus::Dead))
+            {
+                auto modifiedIds = getModifiedUnitIds(info);
+                if (!modifiedIds.empty())
+                {
+                    for (auto& targetId : modifiedIds)
+                    {
+                        removeModifiers(thisptr, objectMap, info, &targetId);
                     }
+                    resetModifiedUnitsInfo(info);
                 }
             }
-        };
-
-        cleanupDeadUnits(thisptr->attackerGroupId);
-        cleanupDeadUnits(thisptr->defenderGroupId);
+            info->unitFlags.parts.waited = false;
+            info->unitFlags.parts.attackedOnceOfTwice = false;
+        }
     }
+    unitInfoApi.destructor(&unitList);
 
     auto& ftSelf = getCustomAttacks().freeTransformSelf;
     ftSelf.unitId = emptyId;
@@ -589,6 +582,18 @@ void __stdcall aiChooseBattleActionHooked(const game::IMidgardObjectMap* objectM
 
         const CMidUnit* unit = static_cast<const CMidUnit*>(
             objectMap->vftable->findScenarioObjectById(objectMap, unitId));
+        if (!unit) {
+            const auto message = fmt::format("Could not find unit {:s} in objectMap",
+                                             idToString(unitId));
+            if (gameSettings().battle.debugAi) {
+                showErrorMessageBox(message);
+            } else {
+                spdlog::error(message);
+            }
+            chooseBattleAction(objectMap, battleMsgData, unitId, possibleActions, possibleTargets,
+                               battleAction, targetUnitId, attackerUnitId);
+            return;
+        }
         const bindings::UnitView activeUnitView{unit};
 
         std::vector<BattleAction> actions;
@@ -659,6 +664,223 @@ void __stdcall aiChooseBattleActionHooked(const game::IMidgardObjectMap* objectM
         *attackerUnitId = *unitId;
         *battleAction = gameSettings().battle.fallbackAction;
     }
+}
+
+void __fastcall setUnitFlag5Hooked(game::BattleMsgData* battleMsgData,
+                                   int /*%edx*/,
+                                   game::CMidgardID* unitId,
+                                   bool enabled)
+{
+    using namespace game;
+
+    static const auto& battleApi = BattleMsgDataApi::get();
+
+    if (!enabled) {
+        for (int i = 0; i < 13; i++) {
+            if (battleMsgData->turnsOrder[i].unitId == *unitId) {
+                if (battleMsgData->turnsOrder[i].attackCount > 1)
+                    return;
+                break;
+            }
+        }
+    }
+
+    UnitInfo* info = battleApi.getUnitInfoById(battleMsgData, unitId);
+    if (info)
+        info->unitFlags.parts.attackedOnceOfTwice = enabled;
+}
+
+game::UpdateDisableResult* __stdcall updateParalyzePetrifyEffectsHooked(
+    game::UpdateDisableResult* value,
+    game::BattleMsgData* battleMsgData,
+    game::UnitInfo* unitInfo,
+    game::CMidgardID* unitId)
+{
+    using namespace game;
+
+    static const auto& battleApi = BattleMsgDataApi::get();
+
+    CMidgardID id = unitInfo->unitId1;
+
+    bool isBroken = false;
+    bool isLong = battleApi.getUnitStatus(battleMsgData, &id, BattleStatus::DisableLong);
+
+    if (!battleApi.getUnitStatus(battleMsgData, &id, BattleStatus::Paralyze)
+        && !battleApi.getUnitStatus(battleMsgData, &id, BattleStatus::Petrify)) {
+        value->isBroken = isBroken;
+        value->isLong = isLong;
+        return value;
+    }
+
+    if (battleApi.getUnitStatus(battleMsgData, &id, BattleStatus::Dead)) {
+        value->isBroken = true;
+        value->isLong = isLong;
+        return value;
+    }
+
+    bool isUnit1 = unitInfo->unitId1 == *unitId;
+    bool isUnit2 = unitInfo->unitId2 == *unitId;
+
+    if (isUnit1 || isUnit2) {
+        if (isLong) {
+            if (isUnit2) {
+                isBroken = false;
+            } else {
+                if (gameSettings().extendedBattle.longEffectsUsesPower
+                    != baseGameSettings().extendedBattle.longEffectsUsesPower) {
+                    UnitInfo* info = battleApi.getUnitInfoById(battleMsgData, unitId);
+                    int remainingDuration = unitInfo->disableAppliedRound;
+                    remainingDuration -= 1;
+
+                    if (remainingDuration <= 0) {
+                        isBroken = true;
+                        info->disableAppliedRound = 0;
+                    } else {
+                        isBroken = false;
+                        info->disableAppliedRound = remainingDuration;
+                    }
+                } else {
+                    int curRound = battleMsgData->currentRound;
+                    int disableRound = unitInfo->disableAppliedRound;
+                    isBroken = battleApi.checkLongEffectDuration(curRound - disableRound);
+                }
+            }
+        } else {
+            isBroken = true;
+        }
+    }
+
+    value->isBroken = isBroken;
+    value->isLong = isLong;
+    return value;
+}
+
+bool __stdcall shouldDisablePoisonHooked(game::BattleMsgData* battleMsgData, game::CMidgardID* unitId)
+{
+    using namespace game;
+
+    const auto& battleApi = BattleMsgDataApi::get();
+    const auto& gSettings = gameSettings();
+    const auto& bSettings = baseGameSettings();
+
+    if (!battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::Poison))
+        return false;
+    if (!battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::PoisonLong))
+        return true;
+
+    UnitInfo* unitInfo = battleApi.getUnitInfoById(battleMsgData, unitId);
+
+    int curRound = battleMsgData->currentRound;
+    int disableRound = unitInfo->poisonAppliedRound;
+
+    bool isDisabled = battleApi.checkLongEffectDuration(curRound - disableRound);
+
+    if (gSettings.extendedBattle.longEffectsUsesPower != bSettings.extendedBattle.longEffectsUsesPower)
+    {
+        isDisabled = disableRound - 1 <= 0;
+        if (isDisabled)
+            unitInfo->poisonAppliedRound = 0;
+        else
+            unitInfo->poisonAppliedRound -= 1;
+    }
+
+    return isDisabled;
+}
+
+bool __stdcall shouldDisableFrostbiteHooked(game::BattleMsgData* battleMsgData, game::CMidgardID* unitId)
+{
+    using namespace game;
+
+    auto& battleApi = BattleMsgDataApi::get();
+    const auto& gSettings = gameSettings();
+    const auto& bSettings = baseGameSettings();
+
+    if (!battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::Frostbite))
+        return false;
+    if (!battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::FrostbiteLong))
+        return true;
+
+    UnitInfo* unitInfo = battleApi.getUnitInfoById(battleMsgData, unitId);
+
+    int curRound = battleMsgData->currentRound;
+    int disableRound = unitInfo->frostbiteAppliedRound;
+
+    bool isDisabled = battleApi.checkLongEffectDuration(curRound - disableRound);
+
+    if (gSettings.extendedBattle.longEffectsUsesPower
+        != bSettings.extendedBattle.longEffectsUsesPower) {
+        isDisabled = disableRound - 1 <= 0;
+        if (isDisabled)
+            unitInfo->frostbiteAppliedRound = 0;
+        else
+            unitInfo->frostbiteAppliedRound -= 1;
+    }
+
+    return isDisabled;
+}
+
+bool __stdcall shouldDisableBlisterHooked(game::BattleMsgData* battleMsgData,
+                                          game::CMidgardID* unitId)
+{
+    using namespace game;
+
+    auto& battleApi = BattleMsgDataApi::get();
+    const auto& gSettings = gameSettings();
+    const auto& bSettings = baseGameSettings();
+
+    if (!battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::Blister))
+        return false;
+    if (!battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::BlisterLong))
+        return true;
+
+    UnitInfo* unitInfo = battleApi.getUnitInfoById(battleMsgData, unitId);
+
+    int curRound = battleMsgData->currentRound;
+    int disableRound = unitInfo->blisterAppliedRound;
+
+    bool isDisabled = battleApi.checkLongEffectDuration(curRound - disableRound);
+
+    if (gSettings.extendedBattle.longEffectsUsesPower
+        != bSettings.extendedBattle.longEffectsUsesPower) {
+        isDisabled = disableRound - 1 <= 0;
+        if (isDisabled)
+            unitInfo->blisterAppliedRound = 0;
+        else
+            unitInfo->blisterAppliedRound -= 1;
+    }
+
+    return isDisabled;
+}
+
+bool __stdcall shouldDisableTransformOtherHooked(game::BattleMsgData* battleMsgData,
+                                                game::CMidgardID* unitId)
+{
+    using namespace game;
+
+    auto& battleApi = BattleMsgDataApi::get();
+    const auto& gSettings = gameSettings();
+    const auto& bSettings = baseGameSettings();
+
+    if (!battleApi.getUnitStatus(battleMsgData, unitId, BattleStatus::TransformLong))
+        return false;
+
+    UnitInfo* unitInfo = battleApi.getUnitInfoById(battleMsgData, unitId);
+
+    int curRound = battleMsgData->currentRound;
+    int disableRound = unitInfo->transformAppliedRound;
+
+    bool isDisabled = battleApi.checkLongEffectDuration(curRound - disableRound);
+
+    if (gSettings.extendedBattle.longEffectsUsesPower
+        != bSettings.extendedBattle.longEffectsUsesPower) {
+        isDisabled = disableRound - 1 <= 0;
+        if (isDisabled)
+            unitInfo->transformAppliedRound = 0;
+        else
+            unitInfo->transformAppliedRound -= 1;
+    }
+
+    return isDisabled;
 }
 
 } // namespace hooks

@@ -42,6 +42,7 @@ struct LAttackSource;
 struct LAttackSourceTable;
 struct LAttackReach;
 struct LAttackReachTable;
+struct Bank;
 
 /** One of the classes in game that wraps dbf access logic. */
 struct CDBTable;
@@ -224,6 +225,9 @@ struct Api
 
     using Next = bool(__thiscall*)(CDBTable* thisptr);
     Next next;
+
+    using ReadBank = void(__stdcall*)(Bank* value, const CDBTable* dbTable, const char* fieldName);
+    ReadBank readBank;
 };
 
 Api& get();

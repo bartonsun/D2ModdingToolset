@@ -1,6 +1,6 @@
 --[[
   Args:
-	player			: playerView
+	player			  : playerView
 	currentLeader	: unitView - current stack leader in capital
 
   Returns:
@@ -14,7 +14,7 @@ end
 --[[
   Args:
 	hireList    	: table of Id objects – the default list of leaders for hire
-	player			: playerView
+	player			  : playerView
 
   Returns:
     A table of Id objects representing the modified list of leaders for hire.
@@ -27,12 +27,12 @@ end
 --[[
   Args:
 	hireList    	: table of Id objects – the default list of units for hire
-	player			: playerView
+	fort			    : fortView
 
   Returns:
     A table of Id objects representing the modified list of units for hire.
     If the returned table is empty or nil, the original default list will be used.
 ]]--
-function getUnitsHireList(hireList, player)
+function getUnitsHireList(hireList, fort)
     return hireList
 end

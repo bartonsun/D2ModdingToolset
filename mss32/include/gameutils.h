@@ -198,6 +198,18 @@ game::CMidRuin* getRuin(const game::IMidgardObjectMap* objectMap,
 const game::CMidRuin* getRuinByUnitId(const game::IMidgardObjectMap* objectMap,
                                       const game::CMidgardID* unitId);
 
+const game::CMidRuin* getRuinAtOrAdjacent(const game::IMidgardObjectMap* objectMap,
+                                          const game::CMidgardPlan* plan,
+                                          const game::CMqPoint* point,
+                                          const game::CMidStack* stack = nullptr,
+                                          bool allowEnumerate = false);
+
+bool isLootedRuinInteraction(const game::IMidgardObjectMap* objectMap,
+                             const game::CMidgardPlan* plan,
+                             const game::CMidStack* stack,
+                             const game::CMqPoint* endPoint,
+                             const game::CMqPoint* startPoint);
+
 game::CMidRod* getRod(const game::IMidgardObjectMap* objectMap, const game::CMidgardID* rodId);
 
 int getGroupXpKilled(const game::IMidgardObjectMap* objectMap, const game::CMidUnitGroup* group);

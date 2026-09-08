@@ -41,6 +41,10 @@
 #include "visitors.h"
 #include <spdlog/spdlog.h>
 
+#include <batattackutils.h>
+#include <attackparams.h>
+#include <hooks.h>
+
 namespace hooks {
 
 static sol::table idListToTable(lua_State* L, const game::IdList* list)
@@ -359,6 +363,15 @@ void __fastcall summonAttackOnHitHooked(game::CBatAttackSummon* thisptr,
     battle.setSummonOwner(battleMsgData, &newUnitId, &thisptr->unitId);
 
     visitors.forceUnitMax(&targetGroupId, -1, objectMap, 1);
+
+    auto summonUnit = fn.findUnitById(objectMap, &newUnitId);
+    bindings::AttackHitParamsView params;
+    params.attacker = summoner;
+    params.target = summonUnit;
+    params.attack = thisptr->attack;
+    params.attackClass = "Summon";
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
 }
 
 } // namespace hooks

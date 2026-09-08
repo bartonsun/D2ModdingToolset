@@ -86,6 +86,8 @@ struct LSiteCategory;
 struct CMidSite;
 struct CTextBoxInterf;
 struct CCmdNobleResultMsg;
+struct UpdateDisableResult;
+struct UnitInfo;
 struct CMidServerLogicData;
 
 enum class ModifierElementTypeFlag : int;
@@ -776,14 +778,22 @@ using GetSideshowUnitImpl = game::CMidgardID*(__thiscall*)(TRaceType* thisptr,
 using FindCapitalByPlayerId = game::CFortification*(__stdcall*)(game::CMidgardID* playerId,
                                                                 game::IMidgardObjectMap* objectMap);
 
-using CheckLongEffectDuration = bool(__stdcall*)(int roundsPassed);
-
 
 /**
  * Handles keyboard input in strategy map interface.
  * @returns 1 if key was processed, 0 otherwise.
  */
 using StratInterfKeyHandler = int(__thiscall*)(void* thisPtr, int key, int a3);
+
+/**
+ * Returns phase game associated with the strategic interface.
+ */
+using StratInterfGetPhaseGame = CPhaseGame*(__thiscall*)(void* thisPtr);
+
+/**
+ * Returns true if it is currently the client's turn.
+ */
+using CPhaseGameIsClientsTurn = bool(__thiscall*)(CPhaseGame* thisPtr);
 
 
 /**
@@ -958,8 +968,9 @@ struct Functions
     AddSideshowUnitToUI addSideshowUnitToUI;
     GetSideshowUnitImpl getSideshowUnitImpl;
     FindCapitalByPlayerId findCapitalByPlayerId;
-    CheckLongEffectDuration checkLongEffectDuration;
     StratInterfKeyHandler stratInterfKeyHandler;
+    StratInterfGetPhaseGame stratInterfGetPhaseGame;
+    CPhaseGameIsClientsTurn phaseGameIsClientsTurn;
     StratInterfSendSaveGameMsgToServer sendSaveGameMsgToServer;
     StratInterfOpenSelectedObject stratInterfOpenSelectedObject;
     MidServerLogicDataBeginTurn midServerLogicDataBeginTurn;

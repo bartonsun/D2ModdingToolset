@@ -85,6 +85,13 @@ settings = {
 			shift = false,
 			alt = false,
 		},
+		-- Special hotkey used with a strategic map click to build a movement path.
+		-- Unlike other hotkeys, it uses only the specified key and does not support
+		-- the ctrl, shift, or alt modifier fields.
+		-- The generated movement path is drawn above all game objects.
+		customPathLayer = {
+			key = "SHIFT"
+		},
 	},
 
 	-- Strategic map movement cost display settings.

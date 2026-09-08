@@ -28,6 +28,8 @@ struct CMidgardID;
 struct BattleMsgData;
 struct IMidgardObjectMap;
 struct PossibleTargets;
+struct UpdateDisableResult;
+struct UnitInfo;
 
 using TargetSet = Set<int>;
 using GroupIdTargetsPair = Pair<CMidgardID, TargetSet>;
@@ -88,6 +90,32 @@ void tryFirePreTurnHookOnce(game::IMidgardObjectMap* objectMap,
 void resetPreTurnHookState();
 
 bool getFiredBattleKeys();
+
+void __fastcall setUnitFlag5Hooked(game::BattleMsgData* battleMsgData,
+                                   int /*%edx*/,
+                                   game::CMidgardID* unitId,
+                                   bool enabled);
+
+game::UpdateDisableResult* __stdcall updateParalyzePetrifyEffectsHooked(
+    game::UpdateDisableResult* value,
+    game::BattleMsgData* battleMsgData,
+    game::UnitInfo* unitInfo,
+    game::CMidgardID* unitId);
+
+bool __stdcall shouldDisablePoisonHooked(game::BattleMsgData* battleMsgData,
+                                         game::CMidgardID* unitId);
+
+bool __stdcall shouldDisableFrostbiteHooked(game::BattleMsgData* battleMsgData,
+                                            game::CMidgardID* unitId);
+
+bool __stdcall shouldDisableBlisterHooked(game::BattleMsgData* battleMsgData,
+                                          game::CMidgardID* unitId);
+
+bool __stdcall shouldDisableTransformOtherHooked(game::BattleMsgData* battleMsgData,
+                                                 game::CMidgardID* unitId);
+
+
+
 } // namespace hooks
 
 #endif // BATTLEMSGDATAHOOKS_H

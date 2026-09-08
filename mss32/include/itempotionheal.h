@@ -39,6 +39,20 @@ assert_offset(CItemPotionHeal, CItemPotionHeal::IItemExPotionHeal::vftable, 0);
 assert_offset(CItemPotionHeal, CItemPotionHeal::CItemBase::vftable, 4);
 assert_offset(CItemPotionHeal, quantityHp, 16);
 
+namespace CItemPotionHealApi {
+
+struct Api
+{
+    using Constructor = CItemPotionHeal*(__thiscall*)(CItemPotionHeal* thisptr,
+                                                      CDBTable* dbTable,
+                                                      const game::GlobalData** globalData);
+    Constructor constructor;
+};
+
+Api& get();
+
+} // namespace CItemPotionHealApi
+
 } // namespace game
 
 #endif // ITEMPOTIONHEAL_H

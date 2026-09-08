@@ -44,6 +44,9 @@
 #include "visitors.h"
 #include <spdlog/spdlog.h>
 
+#include <attackparams.h>
+#include <hooks.h>
+
 namespace hooks {
 
 static int getDrainLevel(const game::CMidUnit* unit,
@@ -111,6 +114,27 @@ void __fastcall drainLevelAttackOnHitHooked(game::CBatAttackDrainLevel* thisptr,
         drainLevel = getDrainLevel(unit, targetUnit, objectMap, &thisptr->unitOrItemId,
                                    battleMsgData);
     }
+
+    //////////////////////////////////
+    CMidUnit* unitAttacker = game::gameFunctions().findUnitById(objectMap, &thisptr->unitId);
+
+    bindings::AttackHitParamsView params;
+    params.attacker = unitAttacker;
+    params.target = const_cast<CMidUnit*>(targetUnit);
+    params.attack = thisptr->attack;
+    params.attackClass = "DrainLevel";
+    params.attackLevel = drainLevel;
+    params.miss = false;
+
+    callLuaAttackHook(objectMap, battleMsgData, params);
+
+    if (params.miss) {
+        addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+        return;
+    }
+    
+    drainLevel = params.attackLevel;
+    //////////////////////////////////
 
     const auto& global = GlobalDataApi::get();
     auto globalData = *global.getGlobalData();

@@ -227,6 +227,11 @@ struct Api
                                               std::uint32_t playerNetId,
                                               int a3);
     ProcessZeroTurn processZeroTurn;
+
+    /** Create imported leader for player on game start */
+    using CreateImportedLeader = void(__thiscall*)(game::CMidServerLogic* thisptr,
+                                                   std::uint32_t playerNetId);
+    CreateImportedLeader createImportedLeader;
 };
 
 Api& get();

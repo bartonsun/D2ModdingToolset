@@ -21,6 +21,7 @@
 #define ITEMBASE_H
 
 #include "currency.h"
+#include "dbtable.h"
 #include "item.h"
 #include "midgardid.h"
 #include "textandid.h"
@@ -45,6 +46,32 @@ struct CItemBase : public IItem
 };
 
 assert_size(CItemBase, 12);
+
+namespace CItemBaseApi {
+
+struct Api
+{
+    using Constructor = CItemBase*(__thiscall*)(CItemBase* thisptr,
+                                                CDBTable** dbTable,
+                                                const GlobalData** globalData);
+    Constructor constructor;
+};
+
+Api& get();
+
+} // namespace CItemBaseApi
+
+namespace CItemBaseDataApi {
+
+struct Api
+{
+    using Constructor = CItemBaseData*(__thiscall*)(CItemBaseData* thisptr);
+    Constructor constructor;
+};
+
+Api& get();
+
+} // namespace CItemBaseDataApi
 
 } // namespace game
 

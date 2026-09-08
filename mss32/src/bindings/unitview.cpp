@@ -89,7 +89,9 @@ std::vector<ModifierView> UnitView::getOriginalModifiers() const
 
 game::CMidgardID UnitView::getIdInternal() const
 {
-    return unit->id;
+    if (unit)
+        return unit->id;
+    return game::emptyId;
 }
 
 const game::IUsUnit* UnitView::getImplInternal() const

@@ -341,6 +341,12 @@ struct PossibleTargets
 
 assert_size(PossibleTargets, 24);
 
+struct UpdateDisableResult
+{
+    bool isBroken;
+    bool isLong;
+};
+
 namespace BattleMsgDataApi {
 
 struct Api
@@ -765,6 +771,32 @@ struct Api
     /** Returns true if battle is over but healers can make one more turn. */
     using IsAfterBattle = bool(__thiscall*)(const BattleMsgData* thisptr);
     IsAfterBattle isAfterBattle;
+
+    using SetUnitFlag5 = void(__thiscall*)(BattleMsgData*, CMidgardID*, bool);
+    SetUnitFlag5 setUnitFlag5;
+
+    /** Long Efffects checker */
+    using UpdateParalyzePetrifyEffects = UpdateDisableResult*(__stdcall*)(UpdateDisableResult* value,
+                                                                          BattleMsgData* battleMsgData,
+                                                                          UnitInfo* unitInfo,
+                                                                          CMidgardID* unitId);
+    UpdateParalyzePetrifyEffects updateParalyzePetrifyEffects;
+
+    using UpdatePoisonLongEffect = bool(__stdcall**)(BattleMsgData* battleMsgData, CMidgardID* unitId);
+    UpdatePoisonLongEffect updatePoisonLongEffect;
+
+    using UpdateFrostbiteLongEffect = bool(__stdcall**)(BattleMsgData* battleMsgData, CMidgardID* unitId);
+    UpdateFrostbiteLongEffect updateFrostbiteLongEffect;
+
+    using UpdateBlisterLongEffect = bool(__stdcall**)(BattleMsgData* battleMsgData, CMidgardID* unitId);
+    UpdateBlisterLongEffect updateBlisterLongEffect;
+
+    using UpdateTransformLongEffect = bool(__stdcall**)(BattleMsgData* battleMsgData, CMidgardID* unitId);
+    UpdateTransformLongEffect updateTransformLongEffect;
+
+    using CheckLongEffectDuration = bool(__stdcall*)(int roundsPassed);
+    CheckLongEffectDuration checkLongEffectDuration;
+
 };
 
 Api& get();

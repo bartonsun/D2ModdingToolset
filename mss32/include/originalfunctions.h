@@ -56,6 +56,7 @@
 #include "mideveffect.h"
 #include "midevent.h"
 #include "midgard.h"
+#include "midgardplan.h"
 #include "midgardscenariomap.h"
 #include "midmsgsender.h"
 #include "midobjectlock.h"
@@ -77,11 +78,18 @@
 #include "batviewer.h"
 #include "battleattackinfo.h"
 
+#include "itempotionheal.h"
+#include "itempotionrevive.h"
+#include "itempotionboosttemp.h"
+#include "itempotionboostperm.h"
+#include "itembase.h"
+
 namespace hooks {
 
 struct OriginalFunctions
 {
     game::ComputePlayerDailyIncome computePlayerDailyIncome;
+    game::CMidgardPlanApi::Api::GetObjectsAtPoint getObjectsAtPoint;
     game::CreateBatAttack createBatAttack;
     game::GetAttackClassWardFlagPosition getAttackClassWardFlagPosition;
     game::AttackClassToString attackClassToString;
@@ -181,6 +189,7 @@ struct OriginalFunctions
     game::CMidServerLogicApi::Api::CheckEventConditions checkEventConditions;
     game::CMidServerLogicApi::Api::ExecuteEventEffects executeEventEffects;
     game::CMidServerLogicApi::Api::ProcessZeroTurn processZeroTurn;
+    game::CMidServerLogicApi::Api::CreateImportedLeader createImportedLeader;
 
     game::ITestConditionVftable::Test testFrequency;
     game::ITestConditionVftable::Test testLocation;
@@ -241,12 +250,19 @@ struct OriginalFunctions
 
     game::EnrollUnitInterfApi::Api::Constructor enrollUnitInterfCtor;
 
-    game::CheckLongEffectDuration checkLongEffectDuration;
+    game::BattleMsgDataApi::Api::CheckLongEffectDuration checkLongEffectDuration;
     
     game::VisitorApi::Api::RunKillStack runKillStack;
     game::VisitorApi::Api::CreateStackDestroyed createStackDestroyed;
 
     game::BattleMsgDataApi::Api::CanPerformAttackOnUnitWithStatusCheck canPerformAttackOnUnitWithStatusCheck;
+
+    game::CItemPotionHealApi::Api::Constructor itemPotionHealCtor;
+    game::CItemPotionBoostPermApi::Api::Constructor itemPotionBoostPermCtor;
+    game::CItemPotionBoostTempApi::Api::Constructor itemPotionBoostTempCtor;
+    game::CItemPotionReviveApi::Api::Constructor itemPotionReviveCtor;
+
+    //game::CItemBaseApi::Api::Constructor itemBaseCtor;
 };
 
 OriginalFunctions& getOriginalFunctions();

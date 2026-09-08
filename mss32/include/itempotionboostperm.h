@@ -20,6 +20,7 @@
 #ifndef ITEMPOTIONBOOSTPERM_H
 #define ITEMPOTIONBOOSTPERM_H
 
+#include "dbtable.h"
 #include "itempotionboost.h"
 
 namespace game {
@@ -29,6 +30,20 @@ struct CItemPotionBoostPerm : public CItemPotionBoost
 { };
 
 assert_size(CItemPotionBoostPerm, 20);
+
+namespace CItemPotionBoostPermApi {
+    
+    struct Api
+    {
+        using Constructor = CItemPotionBoostPerm*(__thiscall*)(CItemPotionBoostPerm* thisptr,
+                                                               CDBTable* dbTable,
+                                                               const game::GlobalData** globalData);
+        Constructor constructor;
+    };
+    
+    Api& get();
+
+} // namespace CItemPotionBoostPermApi
 
 } // namespace game
 

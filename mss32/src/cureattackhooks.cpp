@@ -17,17 +17,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "cureattackhooks.h"
 #include "batattackcure.h"
 #include "attack.h"
 #include "battleattackinfo.h"
 #include "battlemsgdata.h"
 #include "game.h"
-#include "giveattackhooks.h"
 #include "immunecat.h"
 #include "midunit.h"
 #include "ussoldier.h"
 #include "usunit.h"
 #include "settings.h"
+#include <batattackutils.h>
+#include <attackparams.h>
+#include <hooks.h>
 
 namespace hooks {
 
@@ -38,7 +41,9 @@ namespace hooks {
                                                game::CMidgardID* targetUnitId)
     {
         using namespace game;
-    
+        
+        static const auto& battleApi = BattleMsgDataApi::get();
+
         if (*targetUnitId == emptyId || *targetUnitId == invalidId) {
             return false;
         }
@@ -51,10 +56,15 @@ namespace hooks {
         fn.getAllyOrEnemyGroupId(&unitGroupId, battleMsgData, targetUnitId, true);
     
         if (targetGroupId != unitGroupId) {
-            // Do not allow to give additional attacks to enemies
+            // Do not allow to cure enemies
             return false;
         }
-    
+        
+        UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
+
+        if (targetInfo->unitHp <= 0)
+            return false;
+
         return true;
     }
 
@@ -75,7 +85,26 @@ namespace hooks {
             return;
     
         UnitInfo* targetInfo = battleApi.getUnitInfoById(battleMsgData, targetUnitId);
-    
+        
+        auto* unitAttacker = fn.findUnitById(objectMap, &thisptr->unitId);
+
+        IAttack* attack = fn.getAttackById(objectMap, &thisptr->attackImplUnitId,
+                                                    thisptr->attackNumber, false);
+
+        bindings::AttackHitParamsView params;
+        params.attacker = unitAttacker;
+        params.target = targetUnit;
+        params.attack = attack;
+        params.attackClass = "Cure";
+        params.miss = false;
+
+        callLuaAttackHook(objectMap, battleMsgData, params);
+
+        if (params.miss) {
+            addToBattleAttackInfo(*attackInfo, targetUnit, 0, 0, true);
+            return;
+        }
+
         BattleMsgDataApi::get().setUnitStatus(battleMsgData, targetUnitId, BattleStatus::Poison, false);
         BattleMsgDataApi::get().setUnitStatus(battleMsgData, targetUnitId, BattleStatus::PoisonLong,
                                               false);
@@ -134,26 +163,7 @@ namespace hooks {
             return false;
         }
 
-        const CMidUnit* targetUnit = fn.findUnitById(objectMap, unitId);
-        if (!targetUnit) {
-            return false;
-        }
-
-        const IUsSoldier* targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
-        const LAttackClass* attackClass = attack->vftable->getAttackClass(attack);
-        const LImmuneCat* immuneCat = targetSoldier->vftable->getImmuneByAttackClass(targetSoldier,
-                                                                                     attackClass);
-        if (immuneCat->id == immuneCategories.once->id) {
-            bool hasWard = battleApi.isUnitAttackClassWardRemoved(battleMsgData, unitId,
-                                                                  attackClass);
-            if (!hasWard) {
-                battleApi.removeUnitAttackClassWard(battleMsgData, unitId, attackClass);
-                return true;
-            }
-            return false;
-        }
-
-        return immuneCat->id == immuneCategories.always->id;
+        return IsImmuneToAttack(battleMsgData, objectMap, unitId, attack);
     }
 
     bool __fastcall cureAttackMethod15Hooked(game::CBatAttackCure* thisptr,

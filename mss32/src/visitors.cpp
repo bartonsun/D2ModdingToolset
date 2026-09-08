@@ -51,6 +51,9 @@ std::array<Api, 4> functions = {{
         (Api::RunKillStack)0x5e8e5c,
         (Api::CreateStackDestroyed)0x5e8264,
         (Api::OverlayUnit)0x5E8A21,
+        (Api::EquipItem)0x5E871D,
+        (Api::UnEquipItem)0x5E876E,
+        (Api::AddSpellEffect)0x5E90DB,
         (Api::PlayerSetAttitude)nullptr,
         (Api::SetStackSrcTemplate)0x5e9ef8,
         (Api::MerchantAddBuyCategory)nullptr,
@@ -87,6 +90,9 @@ std::array<Api, 4> functions = {{
         (Api::RunKillStack)0x5e8e5c,
         (Api::CreateStackDestroyed)0x5e8264,
         (Api::OverlayUnit)0x5E8A21,
+        (Api::EquipItem)0x5E871D,
+        (Api::UnEquipItem)0x5E876E,
+        (Api::AddSpellEffect)0x5E90DB,
         (Api::PlayerSetAttitude)nullptr,
         (Api::SetStackSrcTemplate)0x5e9ef8,
         (Api::MerchantAddBuyCategory)nullptr,
@@ -123,6 +129,9 @@ std::array<Api, 4> functions = {{
         (Api::RunKillStack)0x5e7b5b,
         (Api::CreateStackDestroyed)0x5e6f63,
         (Api::OverlayUnit)0x5e7720,
+        (Api::EquipItem)0x5E741C,
+        (Api::UnEquipItem)0x5E746D,
+        (Api::AddSpellEffect)0x5E7DDA,
         (Api::PlayerSetAttitude)nullptr,
         (Api::SetStackSrcTemplate)0x5e8bf7,
         (Api::MerchantAddBuyCategory)nullptr,
@@ -157,8 +166,11 @@ std::array<Api, 4> functions = {{
         (Api::ChangeStackMoveAllowance)0, //TODO
         (Api::ChangeMapTerrain)0x4e9d30, //?
         (Api::RunKillStack)0, //TODO
-        (Api::CreateStackDestroyed)0, //TODO
+        (Api::CreateStackDestroyed)0, //?
         (Api::OverlayUnit)0, //?
+        (Api::EquipItem)0, //?
+        (Api::UnEquipItem)0x5DBCF4,
+        (Api::AddSpellEffect)0,
         (Api::PlayerSetAttitude)0x4e9baa,
         (Api::SetStackSrcTemplate)0,
         (Api::MerchantAddBuyCategory)0x4eb0df,

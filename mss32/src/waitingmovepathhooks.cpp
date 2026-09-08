@@ -26,6 +26,7 @@
 #include "midgardmapfog.h"
 #include "midgardplan.h"
 #include "midplayer.h"
+#include "midruin.h"
 #include "midstack.h"
 #include "movepathhooks.h"
 #include "mqpoint.h"
@@ -207,11 +208,14 @@ void clearMovementPathImages()
     alternateLayer.value *= 3;
     CIsoLayer secondSegmentLayer{*isoLayers().symMovePath};
     secondSegmentLayer.value *= 4;
+    CIsoLayer manualLayer{*isoLayers().symMovePath};
+    manualLayer.value = 1790;
 
     const auto& mapGraphics = MapGraphicsApi::get();
     mapGraphics.hideLayerImages(isoLayers().symMovePath);
     mapGraphics.hideLayerImages(&alternateLayer);
     mapGraphics.hideLayerImages(&secondSegmentLayer);
+    mapGraphics.hideLayerImages(&manualLayer);
 }
 
 void clearSecondSegmentImages()
@@ -759,7 +763,8 @@ bool updateWaitingPathPreview(const game::CMqPoint* screenPosition)
         const auto* ruinId = plan ? game::CMidgardPlanApi::get().getObjectId(
                                        plan, &mapPosition, &ruinType)
                                   : nullptr;
-        if (ruinId && getRuin(objectMap, ruinId)
+        const auto* ruin = ruinId ? getRuin(objectMap, ruinId) : nullptr;
+        if (ruin && ruin->looterId == game::emptyId
             && isWaitingMovementPathPreviewTileVisible(objectMap, &mapPosition)) {
             pathMode = 0;
         }
@@ -821,7 +826,8 @@ bool updateSecondSegmentPreview(const game::CMqPoint* screenPosition)
         const auto* ruinId = CMidgardPlanApi::get().getObjectId(
             plan, &battlePreviewContext.targetPosition, &ruinType);
         CMqPoint entrance{};
-        if (!ruin || !ruinId || *ruinId != battlePreviewContext.targetId
+        if (!ruin || ruin->looterId != emptyId || !ruinId
+            || *ruinId != battlePreviewContext.targetId
             || !isWaitingMovementPathPreviewTileVisible(objectMap,
                                                         &battlePreviewContext.targetPosition)
             || !fn.getFortOrRuinEntrance(objectMap, plan, stack,

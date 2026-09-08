@@ -763,6 +763,8 @@ bool BattleMsgDataView::removeStatus(const IdView& unitId, int status)
 {
     using namespace game;
     const auto& battleApi = BattleMsgDataApi::get();
+    const auto& visitors = VisitorApi::get();
+    const auto& fn = gameFunctions();
 
     auto* info = battleApi.getUnitInfoById(battleMsgData, &unitId.id);
     if (!info)
@@ -820,6 +822,27 @@ bool BattleMsgDataView::removeStatus(const IdView& unitId, int status)
     case BattleStatus::Defend:
         battleApi.setUnitStatus(battleMsgData, &unitId.id, BattleStatus::Defend, false);
         return true;
+
+    case BattleStatus::Transform: {
+        auto objMap = const_cast<game::IMidgardObjectMap*>(hooks::getObjectMap());
+        auto battle = const_cast<game::BattleMsgData*>(battleMsgData);
+        CMidUnit* targetUnit = fn.findUnitById(objMap, &unitId.id);
+        CMidgardID targetUnitImplId{targetUnit->unitImpl->id};
+        int currHp = targetUnit->currentHp;
+        const auto targetSoldier = fn.castUnitImplToSoldier(targetUnit->unitImpl);
+        bool prevAttackTwice = targetSoldier
+                               && targetSoldier->vftable->getAttackTwice(targetSoldier);
+        visitors.undoTransformUnit(&targetUnit->id, objMap, 1);
+        hooks::updateAttackCountAfterTransformation(battle, targetUnit, prevAttackTwice);
+        battleApi.removeTransformStatuses(&unitId.id, battle);
+        if (targetUnit->keepHp) {
+            visitors.changeUnitHp(&unitId.id, (currHp - targetUnit->currentHp), objMap, true);
+            battleApi.setUnitHp(battle, &unitId.id, currHp);
+        } else
+            battleApi.setUnitHp(battle, &unitId.id, targetUnit->currentHp);
+        hooks::requestUnitVisualUpdate(unitId.id);
+        return true;
+    }
 
     default:
         return false;

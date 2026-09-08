@@ -47,10 +47,12 @@ std::string CustomUnitEncyclopedia::getTxtStatsText(
     int fortificationArmor,
     int shatteredArmor,
     const std::vector<game::AttackSourceId>& removedSourceWards,
-    const std::vector<game::AttackClassId>& removedClassWards) const
+    const std::vector<game::AttackClassId>& removedClassWards,
+    int unitRegen) const
 {
     return getValue(getFunctions().getTxtStatsText, unit, unitImpl, isMaxLevel, isInBattle,
-                    fortificationArmor, shatteredArmor, removedSourceWards, removedClassWards);
+                    fortificationArmor, shatteredArmor, removedSourceWards, removedClassWards,
+                    unitRegen);
 }
 
 std::string CustomUnitEncyclopedia::getTxtStats2Text(const game::CMidUnit* unit,

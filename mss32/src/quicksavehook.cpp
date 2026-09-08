@@ -18,11 +18,13 @@
  */
 
 #include "quicksavehook.h"
-// TODO: If more strategic interface hotkeys are added, rename this file to better reflect its broader purpose.
+// TODO: If more strategic interface hotkeys are added, rename this file to better reflect its
+// broader purpose.
 #include "game.h"
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <settings.h>
+#include <spdlog/spdlog.h>
 #include <usersettings.h>
 using namespace game;
 
@@ -60,12 +62,17 @@ int __fastcall hookedKeyHandler(void* thisPtr, void*, int key, int a3)
         return 1;
     }
 
-
     if (isHotkeyPressed(userSettings().hotkeys.openSelectedObject, key)) {
+        auto phaseGame = gameFunctions().stratInterfGetPhaseGame(thisPtr);
+        const bool clientsTurn = gameFunctions().phaseGameIsClientsTurn(phaseGame);
+
+        if (!clientsTurn)
+            return 1;
+
         gameFunctions().stratInterfOpenSelectedObject(realThis);
         return 1;
     }
 
     return originalKeyHandler(thisPtr, key, a3);
 }
-} // namespace
+} // namespace hooks

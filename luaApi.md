@@ -6,7 +6,6 @@ Scripts folder itself should be placed in the game folder.
 
 ### Currently used scripts and their meanings:
 - settings.lua - mss32 proxy dll settings that changes game rules
-- userSettings.lua - user-specific mss32 proxy dll settings that are excluded from multiplayer lobby hash verification and affect only the local user
 - doppelganger.lua - logic that computes level of doppelganger transform (category L\_DOPPELGANGER)
 - transformSelf.lua - computes unit level and determines free attacks to give for transform-self attacks (category L\_TRANSFORM\_SELF)
 - transformOther.lua - computes unit level for transform-other attacks (category L\_TRANSFORM\_OTHER)
@@ -25,75 +24,6 @@ Scripts folder itself should be placed in the game folder.
 - getWoundedFemaleGreenskinTargets.lua - contains targeting logic that only allows to reach wounded female greenskins
 - [Scripts/Modifiers](Scripts/Modifiers) - contains custom modifier script examples
 - unitEncyclopedia.lua - contains custom display functions for unit encyclopedia
-- theft.lua - Contains filtering logic for spells that can be stolen from Mage Towers and items that can be stolen from Merchants
-
-
-
-### theft.lua (Stealing filters)
-
-Contains filtering logic for spells that can be stolen from Mage Towers
-and items that can be stolen from Merchants.
-
-The script is optional.
-If it is absent or a function is not defined, the default game logic is used.
-
-Supported functions:
-
-```lua
--- Called for every spell available in Mage Tower.
-function theftFilterMageTower(context)
-    return true
-end
-
--- Called for every item available from Merchant.
-function theftFilterItemsMerchant(context)
-    return true
-end
-```
-
-
-Both functions must return:
-
-- `true` — object is shown in the steal dialog.
-- `false` — object is hidden.
- 
-Both functions are called once for every available spell or item.
- 
-#### theftFilterMageTower(context)
-
-Context fields:
-
-```lua
-context.player    -- PlayerView
-context.mage      -- MageTowerView
-context.spell     -- SpellView
-```
-
-Example:
-
-```lua
-function theftFilterMageTower(context)
-    return context.spell.level <= 3
-end
-```
-
-#### theftFilterItemsMerchant(context)
-
-Context fields:
-
-```lua
-context.player     -- PlayerView
-context.merchant   -- MerchantView
-context.item       -- ItemBaseView
-```
-
-Example:
-
-```lua
-function theftFilterItemsMerchant(context)
-    return context.item.value.gold <= 1000
-end
-```
 
 ### API reference
 
@@ -1218,21 +1148,6 @@ spell.modifier
 Returns arrray of modifiers' [id](luaApi.md#id) for spell that gives wards.
 ```lua
 spell.wards
----
-
-#### Mercenary unit
-Represents unit for hire in mercenary camp.
-
-Methods:
-##### impl
-Returns [unit implementation](luaApi.md#unit-implementation).
-```lua
-mercenary.impl
-```
-##### unique
-Returns true is unit can be hired only once.
-```lua
-mercenaryUnit.unique
 ```
 ---
 
@@ -1248,17 +1163,33 @@ mage.id
 ##### position
 Returns mage tower position as a [point](luaApi.md#point).
 ```lua
-mercenary.position
+mage.position
 ```
 ##### visitors
 Returns list of [players](luaApi.md#player) that have visited the mage tower.
 ```lua
-mercenary.visitors
+mage.visitors
 ```
 ##### spells
 Returns list of spells [id](luaApi.md#id). To get information about [spell](luaApi.md#spell-1) use getGlobal().spells:get("g000ss0000").
 ```lua
 mage.spells
+```
+---
+
+#### Mercenary unit
+Represents unit for hire in mercenary camp.
+
+Methods:
+##### impl
+Returns [unit implementation](luaApi.md#unit-implementation).
+```lua
+mercenary.impl
+```
+##### unique
+Returns true is unit can be hired only once.
+```lua
+mercenaryUnit.unique
 ```
 ---
 
@@ -1346,6 +1277,32 @@ Returns [cash](luaApi.md#currency) reward for looting the ruin.
 ruin.cash
 ```
 
+---
+
+#### Bag
+Represents bag object in scenario. Bags contain loot.
+
+Methods:
+##### id
+Returns bag [id](luaApi.md#id). The value is unique for every bag on scenario map.
+```lua
+bag.id
+```
+##### position
+Returns bag position as a [point](luaApi.md#point).
+```lua
+bag.position
+```
+##### image
+Returns bag image id (integer number).
+```lua
+bag.image
+```
+##### image
+Returns array of [items](luaApi.md#item-2) inside bag.
+```lua
+bag.inventory
+```
 ---
 
 #### Rod
@@ -1827,6 +1784,20 @@ if not trainer then
   return
 end
 ```
+##### getBag
+Searches for [bag](luaApi.md#bag) by:
+- id string
+- [id](luaApi.md#id)
+- pair of coordinates
+- [point](luaApi.md#point)
+
+Returns `nil` if not found.
+```lua
+local bag = scenario:getBag('S143BG0005')
+if not bag then
+  return
+end
+```
 ##### findStackByUnit
 Searches for [stack](luaApi.md#stack) that has specified [unit](luaApi.md#unit-1) among all the stacks in the whole [scenario](luaApi.md#scenario).
 You can also use unit id string or [id](luaApi.md#id).
@@ -1989,6 +1960,13 @@ Searches for every [trainer](luaApi.md#trainer) on a map and calls specified fun
 ```lua
 scenario:forEachTrainer(function (trainer)
   log('Visit trainer ' .. tostring(trainer.id))
+end)
+```
+##### forEachBag
+Searches for every [bag](luaApi.md#bag) on a map and calls specified function on it.
+```lua
+scenario:forEachTrainer(function (bag)
+  log('Visit bag ' .. tostring(bag.id))
 end)
 ```
 
@@ -2163,13 +2141,13 @@ Represents item object in the current scenario.
 
 Methods:
 ##### id
-Returns item [id](luaApi.md#id). This is different to id of [Item base](luaApi.md#itembase).
+Returns item [id](luaApi.md#id). This is different to id of [Item base](luaApi.md#item-base).
 The value is unique for every item on scenario map.
 ```lua
 item.id
 ```
 ##### base
-Returns [Item base](luaApi.md#itembase).
+Returns [Item base](luaApi.md#item-base).
 ```lua
 item.base
 ```

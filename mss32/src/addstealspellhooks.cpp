@@ -293,8 +293,6 @@ bool __stdcall buildSpellListHooked(const game::IMidgardObjectMap* objectMap,
     // activate context
     //
 
-    g_stealSpellCtx.active = true;
-
     g_stealSpellCtx.insertedCount = 0;
 
     g_stealSpellCtx.objectMap = objectMap;
@@ -309,8 +307,6 @@ bool __stdcall buildSpellListHooked(const game::IMidgardObjectMap* objectMap,
 
     } catch (...) {
 
-        g_stealSpellCtx.active = false;
-
         throw;
     }
 
@@ -321,12 +317,6 @@ bool __stdcall buildSpellListHooked(const game::IMidgardObjectMap* objectMap,
     g_stealSpellCtx.lastBuildHadVisibleSpells = g_stealSpellCtx.insertedCount > 0;
 
     bool result = g_stealSpellCtx.lastBuildHadVisibleSpells;
-
-    //
-    // cleanup
-    //
-
-    g_stealSpellCtx.active = false;
 
     return result;
 }
@@ -380,7 +370,11 @@ game::CMidDragDropInterf* __fastcall stealSpellInterfCtorHooked(void* thisptr,
                                                                 int a4,
                                                                 void* a5)
 {
+    g_stealSpellCtx.active = true;
+
     auto result = stealSpellCtorOrig(thisptr, a2, functor, a4, a5);
+
+    g_stealSpellCtx.active = false;
 
     //
     // no visible spells
