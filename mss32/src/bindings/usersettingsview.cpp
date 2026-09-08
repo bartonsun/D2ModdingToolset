@@ -34,7 +34,8 @@ void UserSettingsView::bind(sol::state& lua)
     lua.new_usertype<MovementDisplay>("MovementDisplay", "textColor", &MovementDisplay::textColor,
                                       "outlineColor", &MovementDisplay::outlineColor, "show",
                                       &MovementDisplay::show, "showMovementAfterAction",
-                                      &MovementDisplay::showMovementAfterAction);
+                                      &MovementDisplay::showMovementAfterAction,
+                                      "previewWhileWaiting", &MovementDisplay::previewWhileWaiting);
 
     lua.new_usertype<Lobby::Server>("LobbyServer", "ip", &Lobby::Server::ip, "port",
                                     &Lobby::Server::port);

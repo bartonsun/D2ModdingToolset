@@ -248,6 +248,7 @@
 #include "visitorcreatesite.h"
 #include "visitorcreatesitehooks.h"
 #include "visitors.h"
+#include "waitingmovepathhooks.h"
 #include "reviveattackhooks.h"
 #include <algorithm>
 #include <cstring>
@@ -748,6 +749,10 @@ static Hooks getGameHooks()
     if (userSettings().movementDisplay.show) {
         // Show movement cost
         hooks.emplace_back(HookInfo{fn.showMovementPath, showMovementPathHooked});
+
+        if (userSettings().movementDisplay.previewWhileWaiting) {
+            addWaitingMovementPathHooks(hooks);
+        }
     }
 
     bool hookSendObjectsChanges = false;
@@ -3282,7 +3287,6 @@ void __fastcall defendOnHitHooked(game::CBatAttackDefend* thisptr,
         newAttackInfo->effect = AttackEffect::Effect18;
         return;
     }
-    
     IUsSoldier* soldier = gameFunctions().castUnitImplToSoldier(unit->unitImpl);
     bool hasDoubleAttack = soldier->vftable->getAttackTwice(soldier);
 
@@ -3373,7 +3377,7 @@ void __fastcall waitAttackOnHitHooked(game::CBatAttackWait* thisptr,
     using namespace game;
 
     static const BattleMsgDataApi::Api& battleApi = BattleMsgDataApi::get();
-    
+
     int curAttackCount = battleMsgData->turnsOrder[0].attackCount;
 
     CMidUnit* unitAttacker = game::gameFunctions().findUnitById(objectMap, &thisptr->unitId);

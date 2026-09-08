@@ -74,6 +74,8 @@ struct MovementDisplay
 
     bool show{};
     bool showMovementAfterAction{};
+
+    bool previewWhileWaiting{};
 };
 
 struct Lobby
