@@ -274,11 +274,11 @@ struct OriginalFunctions
 
     game::BankApi::Api::Copy bankCopy;
     game::BankApi::Api::CopyCtor bankCopyCtor;
-    game::BankApi::Api::Multiply bankMultiply;
     game::TrainingCostApi::Api::TrainUnitAtTrainer trainUnitAtTrainer;
     game::TrainingCostApi::Api::TrainUiAction trainUiAction;
     game::TrainingCostApi::Api::CanAffordTrainCheck canAffordTrainCheck;
     game::TrainingCostApi::Api::ApplyTrainAction applyTrainAction;
+    game::TrainingCostApi::Api::AddExperience addExperience;
     game::TrainCampTextApi::Api::SetPartyTrainingText setPartyTrainingText;
     game::CTextBoxInterfApi::Api::SetString textBoxSetString;
     game::CMidDragDropInterfApi::Api::Destructor midDragDropInterfDtor;

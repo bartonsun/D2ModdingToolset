@@ -654,16 +654,18 @@ static Hooks getGameHooks()
     // clang-format on
 
     if (gameSettings().trainerCampLowerCost) {
-        hooks.emplace_back(
-            HookInfo{(void*)BankApi::get().copy, bankCopyHooked, (void**)&orig.bankCopy});
+        if (BankApi::get().copy) {
+            hooks.emplace_back(
+                HookInfo{(void*)BankApi::get().copy, bankCopyHooked, (void**)&orig.bankCopy});
+        }
         const auto& trainApi = TrainingCostApi::get();
         if (BankApi::get().copyCtor && trainApi.costCopyReturnTrainUnit) {
             hooks.emplace_back(HookInfo{(void*)BankApi::get().copyCtor, bankCopyCtorHooked,
                                         (void**)&orig.bankCopyCtor});
         }
-        if (BankApi::get().multiply && trainApi.multiplyReturnTrainUnit) {
-            hooks.emplace_back(HookInfo{(void*)BankApi::get().multiply, bankMultiplyHooked,
-                                        (void**)&orig.bankMultiply});
+        if (trainApi.addExperience && trainApi.expReturnTrainUnit) {
+            hooks.emplace_back(HookInfo{(void*)trainApi.addExperience, addExperienceHooked,
+                                        (void**)&orig.addExperience});
         }
         if (trainApi.trainUnitAtTrainer) {
             hooks.emplace_back(HookInfo{(void*)trainApi.trainUnitAtTrainer, trainUnitAtTrainerHooked,
@@ -698,10 +700,8 @@ static Hooks getGameHooks()
                                         (void**)&orig.midDragDropInterfDtor});
         }
 
-        // A missing address skips its hook silently, and the camp then reads exactly
-        // like a build that was never installed.
         spdlog::info("trainer hooks version={} train={:#x} ui={:#x} afford={:#x} apply={:#x} "
-                     "text={:#x} textbox={:#x} mult={:#x}",
+                     "text={:#x} textbox={:#x} exp={:#x} expret={:#x}",
                      static_cast<int>(hooks::gameVersion()),
                      reinterpret_cast<std::uintptr_t>(trainApi.trainUnitAtTrainer),
                      reinterpret_cast<std::uintptr_t>(trainApi.trainUiAction),
@@ -709,7 +709,8 @@ static Hooks getGameHooks()
                      reinterpret_cast<std::uintptr_t>(trainApi.applyTrainAction),
                      reinterpret_cast<std::uintptr_t>(textApi.setPartyTrainingText),
                      reinterpret_cast<std::uintptr_t>(textBoxApi.setString),
-                     reinterpret_cast<std::uintptr_t>(trainApi.multiplyReturnTrainUnit));
+                     reinterpret_cast<std::uintptr_t>(trainApi.addExperience),
+                     reinterpret_cast<std::uintptr_t>(trainApi.expReturnTrainUnit));
         if (!trainApi.trainUiAction && !textApi.setPartyTrainingText) {
             spdlog::error("trainer camp discount has no addresses for game version {}",
                           static_cast<int>(hooks::gameVersion()));

@@ -16,7 +16,7 @@ struct CTextBoxInterf;
 
 namespace hooks {
 
-void applyLeaderLowerCostToBank(game::Bank* bank, int lowerCostPercent);
+int boostedExperience(int experience, int lowerCostPercent);
 
 int lowerCostPercentForStack(const game::IMidgardObjectMap* objectMap,
                              const game::CMidgardID* stackId);
@@ -24,11 +24,6 @@ int lowerCostPercentForStack(const game::IMidgardObjectMap* objectMap,
 int lowerCostPercentForUnit(const game::IMidgardObjectMap* objectMap,
                             const game::CMidgardID* unitId);
 
-/**
- * Routes an id to the lookup its own type allows. The camp hooks get arguments
- * the game does not describe, and both game lookups behind these functions
- * trust the id they are given.
- */
 int lowerCostPercentForId(const game::IMidgardObjectMap* objectMap, const game::CMidgardID* id);
 
 struct TrainingDiscountScope
@@ -40,12 +35,15 @@ struct TrainingDiscountScope
     TrainingDiscountScope& operator=(const TrainingDiscountScope&) = delete;
 };
 
-game::Bank* __fastcall bankCopyHooked(game::Bank* thisptr, int /*%edx*/, const game::Bank* other);
+game::Bank* __fastcall bankCopyHooked(game::Bank* thisptr, int , const game::Bank* other);
 
-game::Bank* __fastcall bankCopyCtorHooked(game::Bank* thisptr, int /*%edx*/,
+game::Bank* __fastcall bankCopyCtorHooked(game::Bank* thisptr, int ,
                                           const game::Bank* other);
 
-game::Bank* __fastcall bankMultiplyHooked(game::Bank* thisptr, int /*%edx*/, std::int16_t value);
+bool __stdcall addExperienceHooked(game::CMidgardID* unitId,
+                                   int experience,
+                                   game::IMidgardObjectMap* objectMap,
+                                   int a4);
 
 bool __stdcall trainUnitAtTrainerHooked(game::IMidgardObjectMap* objectMap,
                                         const game::CMidgardID* playerId,
@@ -53,14 +51,14 @@ bool __stdcall trainUnitAtTrainerHooked(game::IMidgardObjectMap* objectMap,
                                         int apply);
 
 void __fastcall trainUiActionHooked(game::CDDStackGroup* thisptr,
-                                    int /*%edx*/,
+                                    int ,
                                     int a1,
                                     int a2);
 
-void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int /*%edx*/);
+void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int );
 
 void __fastcall textBoxSetStringHooked(game::CTextBoxInterf* thisptr,
-                                       int /*%edx*/,
+                                       int ,
                                        const char* value);
 
 bool trainerCampUiRecentlyActive();
@@ -71,7 +69,7 @@ void clearCampPriceWindow();
 
 bool trainerCampSessionOpen();
 
-void __fastcall midDragDropInterfDtorHooked(game::CMidDragDropInterf* thisptr, int /*%edx*/);
+void __fastcall midDragDropInterfDtorHooked(game::CMidDragDropInterf* thisptr, int );
 
 bool __stdcall canAffordTrainCheckHooked(game::IMidgardObjectMap* objectMap,
                                          const game::CMidgardID* a2,
