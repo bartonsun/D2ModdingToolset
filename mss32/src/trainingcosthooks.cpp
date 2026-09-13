@@ -198,12 +198,6 @@ bool __stdcall addExperienceHooked(game::CMidgardID* unitId,
         return getOriginalFunctions().addExperience(unitId, experience, objectMap, a4);
     }
 
-    const auto& trainApi = game::TrainingCostApi::get();
-    const void* const ret = *static_cast<void**>(_AddressOfReturnAddress());
-    if (!trainApi.expReturnTrainUnit || ret != trainApi.expReturnTrainUnit) {
-        return getOriginalFunctions().addExperience(unitId, experience, objectMap, a4);
-    }
-
     const int boosted = boostedExperience(experience, g_lowerCostPercent);
     spdlog::info("trainer expBoost {} -> {} percent={}", experience, boosted,
                  g_lowerCostPercent);
@@ -297,12 +291,12 @@ void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int )
     }
     TrainingDiscountScope scope{percent};
     g_campPercent = percent;
-    getOriginalFunctions().setPartyTrainingText(thisptr);
     if (thisptr && thisptr->trainingCampData) {
         g_campStackGroup = thisptr->trainingCampData->stackGroup;
         g_campStackId = thisptr->trainingCampData->stackId;
         g_campDragDrop = thisptr;
     }
+    getOriginalFunctions().setPartyTrainingText(thisptr);
 }
 
 bool __stdcall canAffordTrainCheckHooked(game::IMidgardObjectMap* objectMap,
