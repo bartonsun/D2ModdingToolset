@@ -354,6 +354,14 @@ void __fastcall textBoxSetStringHooked(game::CTextBoxInterf* thisptr,
         return getOriginalFunctions().textBoxSetString(thisptr, value);
     }
 
+    static thread_local int g_textDiag = 0;
+    if (g_textDiag < 40) {
+        ++g_textDiag;
+        const size_t len = std::strlen(value);
+        spdlog::info("trainer text[{}] {}", g_textDiag,
+                     std::string{value, value + std::min<size_t>(len, 160)});
+    }
+
     const char* ruGold = std::strstr(value, "\xE7\xEE\xEB\xEE\xF2");
     if (!ruGold) {
         return getOriginalFunctions().textBoxSetString(thisptr, value);
