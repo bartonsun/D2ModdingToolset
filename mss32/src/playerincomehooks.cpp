@@ -53,6 +53,13 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
 
     getOriginalFunctions().computePlayerDailyIncome(income, objectMap, playerId);
 
+    // The day-2 crash from T-32 walked in through here: the hook runs on turn
+    // boundaries, when the object map can be mid-swap, and a vcall on a null
+    // map is indistinguishable from the game's own fault in the dump.
+    if (!objectMap || !objectMap->vftable || !objectMap->vftable->findScenarioObjectById || !playerId) {
+        return income;
+    }
+
     auto playerObj = objectMap->vftable->findScenarioObjectById(objectMap, playerId);
     if (!playerObj) {
         spdlog::error("Could not find player {:s}", idToString(playerId));
@@ -61,6 +68,9 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
 
     const auto& races = RaceCategories::get();
     auto player = static_cast<const CMidPlayer*>(playerObj);
+    if (!player || !player->raceType || !player->raceType->data) {
+        return income;
+    }
     const auto raceId = player->raceType->data->raceType.id;
     const char* racePrefix{};
     const char* lordPrefix{};
@@ -102,25 +112,28 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
     const auto& globalApi = GlobalDataApi::get();
     const auto lords = (*globalApi.getGlobalData())->lords;
     const auto lordType = (TLordType*)globalApi.findById(lords, &player->lordId);
-    const auto lordId = lordType->data->lordCategory.id;
     int additionalGoldIncome{};
     int additionalManaIncome{};
-    switch (lordId) {
-    case LordId::Warrior:
-        lordPrefix = "WARRIOR";
-        additionalGoldIncome = gameSettings().additionalLordIncome.gold.warrior;
-        additionalManaIncome = gameSettings().additionalLordIncome.mana.warrior;
-        break;
-    case LordId::Mage:
-        lordPrefix = "MAGE";
-        additionalGoldIncome = gameSettings().additionalLordIncome.gold.mage;
-        additionalManaIncome = gameSettings().additionalLordIncome.mana.mage;
-        break;
-    case LordId::Diplomat:
-        lordPrefix = "GUILDMASTER";
-        additionalGoldIncome = gameSettings().additionalLordIncome.gold.guildmaster;
-        additionalManaIncome = gameSettings().additionalLordIncome.mana.guildmaster;
-        break;
+    // findById returns null for a lord the scenario does not carry; the switch
+    // below then read through it.
+    if (lordType && lordType->data) {
+        switch (lordType->data->lordCategory.id) {
+        case LordId::Warrior:
+            lordPrefix = "WARRIOR";
+            additionalGoldIncome = gameSettings().additionalLordIncome.gold.warrior;
+            additionalManaIncome = gameSettings().additionalLordIncome.mana.warrior;
+            break;
+        case LordId::Mage:
+            lordPrefix = "MAGE";
+            additionalGoldIncome = gameSettings().additionalLordIncome.gold.mage;
+            additionalManaIncome = gameSettings().additionalLordIncome.mana.mage;
+            break;
+        case LordId::Diplomat:
+            lordPrefix = "GUILDMASTER";
+            additionalGoldIncome = gameSettings().additionalLordIncome.gold.guildmaster;
+            additionalManaIncome = gameSettings().additionalLordIncome.mana.guildmaster;
+            break;
+        }
     }
 
     std::array<int, 6> cityGoldIncome = {gameSettings().additionalCityIncome.gold.capital,
@@ -146,7 +159,7 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
             const auto& name = variable.second.name;
 
             // Additional income for specific lord
-            if (!strncmp(name, lordPrefix, std::strlen(lordPrefix))) {
+            if (lordPrefix && !strncmp(name, lordPrefix, std::strlen(lordPrefix))) {
                 const auto expectedNameGold{fmt::format("{:s}_GOLD_INCOME", lordPrefix)};
                 const auto expectedNameMana{fmt::format("{:s}_MANA_INCOME", lordPrefix)};
                 if (!strncmp(name, expectedNameGold.c_str(), sizeof(name))) {
@@ -159,7 +172,7 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
             }
 
             // Additional city income for specific race
-            if (!strncmp(name, racePrefix, std::strlen(racePrefix))) {
+            if (racePrefix && !strncmp(name, racePrefix, std::strlen(racePrefix))) {
                 for (int i = 0; i < 6; ++i) {
                     const auto expectedName{
                         fmt::format("{:s}TIER_{:d}_CITY_INCOME", racePrefix, i)};
@@ -235,11 +248,17 @@ game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
     BankApi::get().set(income, CurrencyType::Gold, std::clamp(totalGoldIncome, 0, 9999));
     BankApi::get().set(income, manaType, std::clamp(totalManaIncome, 0, 9999));
 
+    // A protected_function, not sol::function: under NDEBUG the latter is
+    // sol::unsafe_function, and an error inside it leaves the Lua stack
+    // unwound past the try/catch -- the Release-only crash T-32 traced.
     static std::optional<sol::environment> env;
-    static std::optional<sol::function> getIncome;
+    static std::optional<sol::protected_function> getIncome;
     const auto path{scriptsFolder() / "income.lua"};
     if (!env && !getIncome) {
-        getIncome = getScriptFunction(path, "getTurnIncome", env, false, true);
+        env = executeScriptFile(path, false, true);
+        if (env) {
+            getIncome = getProtectedScriptFunction(env.value(), "getTurnIncome", false);
+        }
     }
     if (getIncome) {
         bindings::PlayerView playerView{player, objectMap};

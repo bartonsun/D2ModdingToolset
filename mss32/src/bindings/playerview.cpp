@@ -50,13 +50,15 @@ void PlayerView::bind(sol::state& lua)
 
 IdView PlayerView::getId() const
 {
-    return player->id;
+    // The view is handed to Lua, which can outlive the player it was built
+    // from; a null read here is the day-3 crash from T-32.
+    return player ? IdView{player->id} : IdView::getEmptyId();
 }
 
 int PlayerView::getRaceCategoryId() const
 {
-    const auto raceType = player->raceType;
-    if (!raceType)
+    const auto raceType = player ? player->raceType : nullptr;
+    if (!raceType || !raceType->data)
         return game::emptyCategoryId;
 
     return (int)raceType->data->raceType.id;
@@ -69,8 +71,11 @@ int PlayerView::getLordCategoryId() const
     const auto& globalApi = GlobalDataApi::get();
 
     const auto lords = (*globalApi.getGlobalData())->lords;
+    if (!player)
+        return game::emptyCategoryId;
+
     const auto lordType = (TLordType*)globalApi.findById(lords, &player->lordId);
-    if (!lordType)
+    if (!lordType || !lordType->data)
         return game::emptyCategoryId;
 
     return (int)lordType->data->lordCategory.id;
@@ -78,7 +83,8 @@ int PlayerView::getLordCategoryId() const
 
 CurrencyView PlayerView::getBank() const
 {
-    return {player->bank};
+    static const game::Bank emptyBank{};
+    return player ? CurrencyView{player->bank} : CurrencyView{emptyBank};
 }
 
 bool PlayerView::isHuman() const
