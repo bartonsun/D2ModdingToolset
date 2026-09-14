@@ -16,7 +16,7 @@ struct CTextBoxInterf;
 
 namespace hooks {
 
-int boostedExperience(int experience, int lowerCostPercent);
+int discountedGold(int gold, int lowerCostPercent);
 
 int lowerCostPercentForStack(const game::IMidgardObjectMap* objectMap,
                              const game::CMidgardID* stackId);
@@ -39,6 +39,9 @@ game::Bank* __fastcall bankCopyHooked(game::Bank* thisptr, int , const game::Ban
 
 game::Bank* __fastcall bankCopyCtorHooked(game::Bank* thisptr, int ,
                                           const game::Bank* other);
+
+game::Bank* __fastcall bankSubtractHooked(game::Bank* thisptr, int ,
+                                         const game::Bank* other);
 
 bool __stdcall addExperienceHooked(game::CMidgardID* unitId,
                                    int experience,

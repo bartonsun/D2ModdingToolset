@@ -322,6 +322,8 @@ static Hooks getGameHooks()
 
     // clang-format off
     Hooks hooks{
+        // Quick save and open-selected-object hotkeys on the strategic map
+        {(void*)fn.stratInterfKeyHandler, hookedKeyHandler, (void**)&originalKeyHandler},
         // Fix game crash in battles with summoners
         {CMidUnitApi::get().removeModifier, removeModifierHooked},
         // Fix unit transformation to include hp mods into current hp recalculation
@@ -662,6 +664,10 @@ static Hooks getGameHooks()
         if (BankApi::get().copyCtor && trainApi.costCopyReturnTrainUnit) {
             hooks.emplace_back(HookInfo{(void*)BankApi::get().copyCtor, bankCopyCtorHooked,
                                         (void**)&orig.bankCopyCtor});
+        }
+        if (BankApi::get().subtract) {
+            hooks.emplace_back(HookInfo{(void*)BankApi::get().subtract, bankSubtractHooked,
+                                        (void**)&orig.bankSubtract});
         }
         if (trainApi.addExperience && trainApi.expReturnTrainUnit) {
             hooks.emplace_back(HookInfo{(void*)trainApi.addExperience, addExperienceHooked,

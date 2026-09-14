@@ -274,6 +274,7 @@ struct OriginalFunctions
 
     game::BankApi::Api::Copy bankCopy;
     game::BankApi::Api::CopyCtor bankCopyCtor;
+    game::BankApi::Api::Subtract bankSubtract;
     game::TrainingCostApi::Api::TrainUnitAtTrainer trainUnitAtTrainer;
     game::TrainingCostApi::Api::TrainUiAction trainUiAction;
     game::TrainingCostApi::Api::CanAffordTrainCheck canAffordTrainCheck;

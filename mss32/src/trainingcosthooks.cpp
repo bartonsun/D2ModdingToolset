@@ -1,4 +1,5 @@
 #include "trainingcosthooks.h"
+#include "trainerlabeltext.h"
 #include "currency.h"
 #include "ddstackgroup.h"
 #include "game.h"
@@ -48,8 +49,15 @@ long trainerCampUiAgeMs()
     return g_campUiAtMs ? static_cast<long>(GetTickCount() - g_campUiAtMs) : -1;
 }
 
+void resetDiscountScope()
+{
+    g_scopeDepth = 0;
+    g_lowerCostPercent = 0;
+}
+
 void clearCampPriceWindow()
 {
+    resetDiscountScope();
     g_campUiAtMs = 0;
     g_campPercent = 0;
     g_campStackId = game::invalidId;
@@ -62,11 +70,11 @@ bool trainerCampSessionOpen()
     return g_campStackId != game::invalidId;
 }
 
-int boostedExperience(int experience, int lowerCostPercent)
+int discountedGold(int gold, int lowerCostPercent)
 {
     const int clamped = std::clamp(lowerCostPercent, 1, 99);
-    const long long boosted = (static_cast<long long>(experience) * 100) / (100 - clamped);
-    return static_cast<int>(std::min<long long>(boosted, 2000000000ll));
+    const long long discounted = (static_cast<long long>(gold) * (100 - clamped)) / 100;
+    return static_cast<int>(std::max<long long>(discounted, 1));
 }
 
 int lowerCostPercentForStack(const game::IMidgardObjectMap* objectMap,
@@ -160,8 +168,9 @@ game::Bank* __fastcall bankCopyHooked(game::Bank* thisptr, int , const game::Ban
         return result;
     }
 
-    spdlog::info("trainer bankCopy depth={} percent={} gold={}", g_scopeDepth,
-                 g_lowerCostPercent, thisptr ? thisptr->gold : -1);
+    spdlog::info("trainer bankCopy depth={} percent={} gold={} ret={:#x}", g_scopeDepth,
+                 g_lowerCostPercent, thisptr ? thisptr->gold : -1,
+                 reinterpret_cast<std::uintptr_t>(*static_cast<void**>(_AddressOfReturnAddress())));
     return result;
 }
 
@@ -189,6 +198,49 @@ game::Bank* __fastcall bankCopyCtorHooked(game::Bank* thisptr, int ,
     return result;
 }
 
+game::Bank* __fastcall bankSubtractHooked(game::Bank* thisptr, int ,
+                                         const game::Bank* other)
+{
+    if (!gameSettings().trainerCampLowerCost || !thisptr || g_scopeDepth <= 0
+        || g_lowerCostPercent <= 0) {
+        return getOriginalFunctions().bankSubtract(thisptr, other);
+    }
+
+    game::Bank before = *thisptr;
+
+    game::Bank* result = getOriginalFunctions().bankSubtract(thisptr, other);
+
+    const int percent = std::clamp(g_lowerCostPercent, 1, 99);
+    const auto& bankApi = game::BankApi::get();
+    int paidGold = 0;
+    int refundedGold = 0;
+    int refundedTotal = 0;
+    for (int t = 0; t < 6; ++t) {
+        const auto type = static_cast<game::CurrencyType>(t);
+        const int paid = bankApi.get(&before, type) - bankApi.get(thisptr, type);
+        if (paid <= 0) {
+            continue;
+        }
+        const int keep = std::max(paid * (100 - percent) / 100, 1);
+        const int refund = paid - keep;
+        if (refund <= 0) {
+            continue;
+        }
+        const int refunded = std::min(bankApi.get(thisptr, type) + refund, 9999);
+        bankApi.set(thisptr, type, static_cast<std::int16_t>(refunded));
+        refundedTotal += refund;
+        if (type == game::CurrencyType::Gold) {
+            paidGold = paid;
+            refundedGold = refund;
+        }
+    }
+    if (refundedTotal > 0) {
+        spdlog::info("trainer priceRefund paid={} refund={} percent={}", paidGold,
+                     refundedGold, percent);
+    }
+    return result;
+}
+
 bool __stdcall addExperienceHooked(game::CMidgardID* unitId,
                                    int experience,
                                    game::IMidgardObjectMap* objectMap,
@@ -198,10 +250,8 @@ bool __stdcall addExperienceHooked(game::CMidgardID* unitId,
         return getOriginalFunctions().addExperience(unitId, experience, objectMap, a4);
     }
 
-    const int boosted = boostedExperience(experience, g_lowerCostPercent);
-    spdlog::info("trainer expBoost {} -> {} percent={}", experience, boosted,
-                 g_lowerCostPercent);
-    return getOriginalFunctions().addExperience(unitId, boosted, objectMap, a4);
+    spdlog::info("trainer exp vanilla {} percent={}", experience, g_lowerCostPercent);
+    return getOriginalFunctions().addExperience(unitId, experience, objectMap, a4);
 }
 
 bool __stdcall trainUnitAtTrainerHooked(game::IMidgardObjectMap* objectMap,
@@ -274,6 +324,7 @@ void __fastcall trainUiTextHooked(game::CSiteTrainingCampInterf* thisptr, int )
 
     spdlog::info("trainer uiText enter");
 
+    resetDiscountScope();
     g_campUiAtMs = GetTickCount();
 
     g_campStackGroup = nullptr;
@@ -362,67 +413,30 @@ void __fastcall textBoxSetStringHooked(game::CTextBoxInterf* thisptr,
                      std::string{value, value + std::min<size_t>(len, 160)});
     }
 
-    const char* ruGold = std::strstr(value, "\xE7\xEE\xEB\xEE\xF2");
+    const char* ruGold = std::strstr(value, "\xE7\xEE\xEB\xEE\xF2\xFB\xF5");
     if (!ruGold) {
         return getOriginalFunctions().textBoxSetString(thisptr, value);
     }
-    const char* ruExp = std::strstr(ruGold, "\xEE\xEF\xFB\xF2");
-    if (!ruExp) {
-        return getOriginalFunctions().textBoxSetString(thisptr, value);
-    }
 
-    struct Run
-    {
-        const char* begin = nullptr;
-        size_t len = 0;
-    };
-    const auto digitRunEndingBefore = [](const char* begin, const char* end) -> Run {
-        const char* p = end;
-        while (p > begin && (p[-1] == ' ' || static_cast<unsigned char>(p[-1]) == 0xA0)) {
-            --p;
-        }
-        const char* const runEnd = p;
-        while (p > begin && p[-1] >= '0' && p[-1] <= '9') {
-            --p;
-        }
-        if (p == runEnd) {
-            return {};
-        }
-        for (const char* q = p; q < runEnd; ++q) {
-            if (*q != '0') {
-                return Run{p, static_cast<size_t>(runEnd - p)};
-            }
-        }
-        return {};
-    };
-
-    const Run goldRun = digitRunEndingBefore(value, ruGold);
+    const auto goldRun = TrainerLabelText::goldRunBefore(value, ruGold);
     if (goldRun.len == 0) {
-        return getOriginalFunctions().textBoxSetString(thisptr, value);
-    }
-    const Run expRun = digitRunEndingBefore(ruGold + 5, ruExp);
-    if (expRun.len == 0 || expRun.len > 6) {
         return getOriginalFunctions().textBoxSetString(thisptr, value);
     }
 
     int gold = 0;
-    for (size_t i = 0; i < goldRun.len && gold <= 999999; ++i) {
+    for (size_t i = 0; i < goldRun.len; ++i) {
         gold = gold * 10 + (goldRun.begin[i] - '0');
     }
-    int exp = 0;
-    for (size_t i = 0; i < expRun.len; ++i) {
-        exp = exp * 10 + (expRun.begin[i] - '0');
-    }
 
-    const int boosted = boostedExperience(gold, g_campPercent);
-    if (gold <= 0 || boosted <= 0 || boosted == exp) {
+    const int discounted = discountedGold(gold, g_campPercent);
+    if (discounted >= gold) {
         return getOriginalFunctions().textBoxSetString(thisptr, value);
     }
 
-    std::string text{value, static_cast<size_t>(expRun.begin - value)};
-    text += std::to_string(boosted);
-    text += expRun.begin + expRun.len;
-    spdlog::info("trainer result exp {} -> {} (gold {})", exp, boosted, gold);
+    std::string text{value, static_cast<size_t>(goldRun.begin - value)};
+    text += std::to_string(discounted);
+    text += goldRun.begin + goldRun.len;
+    spdlog::info("trainer dialog price {} -> {} percent={}", gold, discounted, g_campPercent);
     return getOriginalFunctions().textBoxSetString(thisptr, text.c_str());
 }
 
