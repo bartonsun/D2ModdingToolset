@@ -48,6 +48,9 @@ struct Api
     const void* costCopyReturnCanAfford;
 
         const void* expReturnTrainUnit;
+
+    const void* countCopyReturnTrainable;
+    const void* countStepReturnTrainable;
 };
 
 Api& get();

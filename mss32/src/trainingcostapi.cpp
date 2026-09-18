@@ -15,6 +15,8 @@ static std::array<Api, 4> functions = {{
         (const void*)0x5d9009,
         (const void*)0x46d554,
         (const void*)0x5d9084,
+        (const void*)0x5e16ce,
+        (const void*)0x5e173f,
     },
     Api{
         (Api::TrainUnitAtTrainer)0x5d8f5d,
@@ -25,6 +27,8 @@ static std::array<Api, 4> functions = {{
         (const void*)0x5d9009,
         (const void*)0x46d554,
         (const void*)0x5d9084,
+        (const void*)0x5e16ce,
+        (const void*)0x5e173f,
     },
     Api{
         (Api::TrainUnitAtTrainer)0x5d7c6b,
@@ -35,6 +39,8 @@ static std::array<Api, 4> functions = {{
         (const void*)0x5d7d17,
         (const void*)0x46ce54,
         (const void*)0x5d7d92,
+        (const void*)0,
+        (const void*)0,
     },
     Api{
         (Api::TrainUnitAtTrainer)0,
@@ -42,6 +48,8 @@ static std::array<Api, 4> functions = {{
         (Api::CanAffordTrainCheck)0,
         (Api::ApplyTrainAction)0,
         (Api::AddExperience)0,
+        (const void*)0,
+        (const void*)0,
         (const void*)0,
         (const void*)0,
         (const void*)0,

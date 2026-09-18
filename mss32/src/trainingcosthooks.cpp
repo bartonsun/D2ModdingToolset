@@ -1,4 +1,5 @@
 #include "trainingcosthooks.h"
+#include "trainerdiscountmath.h"
 #include "trainerlabeltext.h"
 #include "currency.h"
 #include "ddstackgroup.h"
@@ -185,6 +186,21 @@ game::Bank* __fastcall bankCopyCtorHooked(game::Bank* thisptr, int ,
 
     const auto& trainApi = game::TrainingCostApi::get();
     const void* const ret = *static_cast<void**>(_AddressOfReturnAddress());
+    if (trainApi.countCopyReturnTrainable && ret == trainApi.countCopyReturnTrainable) {
+        if (g_lowerCostPercent <= 0) {
+            return result;
+        }
+        const auto& bankApi = game::BankApi::get();
+        const int gold = bankApi.get(thisptr, game::CurrencyType::Gold);
+        const int counting = TrainerDiscountMath::countingGold(gold, g_lowerCostPercent);
+        if (counting > gold) {
+            bankApi.set(thisptr, game::CurrencyType::Gold, static_cast<std::int16_t>(counting));
+            spdlog::info("trainer countBank {} -> {} percent={}", gold, counting,
+                         g_lowerCostPercent);
+        }
+        return result;
+    }
+
     const char* site = nullptr;
     if (trainApi.costCopyReturnTrainUnit && ret == trainApi.costCopyReturnTrainUnit) {
         site = "train";
@@ -201,8 +217,14 @@ game::Bank* __fastcall bankCopyCtorHooked(game::Bank* thisptr, int ,
 game::Bank* __fastcall bankSubtractHooked(game::Bank* thisptr, int ,
                                          const game::Bank* other)
 {
-    if (!gameSettings().trainerCampLowerCost || !thisptr || g_scopeDepth <= 0
+    if (!gameSettings().trainerCampLowerCost || !thisptr || !other || g_scopeDepth <= 0
         || g_lowerCostPercent <= 0) {
+        return getOriginalFunctions().bankSubtract(thisptr, other);
+    }
+
+    const auto& trainApi = game::TrainingCostApi::get();
+    const void* const ret = *static_cast<void**>(_AddressOfReturnAddress());
+    if (trainApi.countStepReturnTrainable && ret == trainApi.countStepReturnTrainable) {
         return getOriginalFunctions().bankSubtract(thisptr, other);
     }
 
@@ -217,20 +239,22 @@ game::Bank* __fastcall bankSubtractHooked(game::Bank* thisptr, int ,
     int refundedTotal = 0;
     for (int t = 0; t < 6; ++t) {
         const auto type = static_cast<game::CurrencyType>(t);
-        const int paid = bankApi.get(&before, type) - bankApi.get(thisptr, type);
+        const int had = bankApi.get(&before, type);
+        const int paid = had - bankApi.get(thisptr, type);
         if (paid <= 0) {
             continue;
         }
-        const int keep = std::max(paid * (100 - percent) / 100, 1);
+        const int keep = TrainerDiscountMath::keptGold(bankApi.get(other, type), had, percent);
         const int refund = paid - keep;
+        if (type == game::CurrencyType::Gold) {
+            paidGold = paid;
+        }
         if (refund <= 0) {
             continue;
         }
-        const int refunded = std::min(bankApi.get(thisptr, type) + refund, 9999);
-        bankApi.set(thisptr, type, static_cast<std::int16_t>(refunded));
+        bankApi.set(thisptr, type, static_cast<std::int16_t>(had - keep));
         refundedTotal += refund;
         if (type == game::CurrencyType::Gold) {
-            paidGold = paid;
             refundedGold = refund;
         }
     }
