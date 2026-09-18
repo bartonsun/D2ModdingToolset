@@ -173,6 +173,8 @@
 #include "midscenvariables.h"
 #include "midserverlogic.h"
 #include "midserverlogichooks.h"
+#include "minimapimpassablehooks.h"
+#include "minimapimpassableapi.h"
 #include "midsite.h"
 #include "midstack.h"
 #include "midunitdescriptor.h"
@@ -650,6 +652,15 @@ static Hooks getGameHooks()
         {CBatLogicApi::get().applyCBatAttackUntransformEffect, applyCBatAttackUntransformEffectHooked, (void**)&orig.applyCBatAttackUntransformEffect},
     };
     // clang-format on
+
+    {
+        const auto& minimapApi = minimapImpassableApi();
+        if (minimapApi.landmarkTypeIsMountain) {
+            hooks.emplace_back(HookInfo{(void*)minimapApi.landmarkTypeIsMountain,
+                                        landmarkTypeIsMountainHooked,
+                                        (void**)&originalLandmarkTypeIsMountain});
+        }
+    }
 
     if (gameSettings().extendedBattle.boostdamageCanAffectHealer
         != baseGameSettings().extendedBattle.boostdamageCanAffectHealer) {

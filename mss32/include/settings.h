@@ -208,6 +208,7 @@ struct Settings
 
     bool cacheLeaderDataOnTransform{false};
     bool fogSpellHideEnemyVision{false};
+    bool minimapShowImpassableObjects{true};
 };
 
 const Settings& baseGameSettings();
