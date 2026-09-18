@@ -38,6 +38,18 @@ thread_local const game::CMidDragDropInterf* g_campDragDrop = nullptr;
 static volatile unsigned long g_campUiAtMs = 0;
 static thread_local int g_campPercent = 0;
 
+struct CampCount
+{
+    bool valid = false;
+    bool capped = false;
+    int realGold = 0;
+    int spent = 0;
+    int left = 0;
+    int step = 0;
+};
+
+thread_local CampCount g_count;
+
 } // namespace
 
 bool trainerCampUiRecentlyActive()
@@ -64,12 +76,31 @@ void clearCampPriceWindow()
     g_campStackId = game::invalidId;
     g_campStackGroup = nullptr;
     g_campDragDrop = nullptr;
+    g_count = CampCount{};
 }
 
 bool trainerCampSessionOpen()
 {
     return g_campStackId != game::invalidId;
 }
+
+namespace {
+
+int countPercent()
+{
+    if (g_scopeDepth > 0) {
+        return g_lowerCostPercent;
+    }
+    return trainerCampSessionOpen() ? g_campPercent : 0;
+}
+
+bool countRanOut(int cost)
+{
+    return g_count.valid && cost > 0 && g_count.spent == cost && !g_count.capped
+           && TrainerDiscountMath::bankRanOut(g_count.left, g_count.step);
+}
+
+} // namespace
 
 int discountedGold(int gold, int lowerCostPercent)
 {
@@ -180,24 +211,34 @@ game::Bank* __fastcall bankCopyCtorHooked(game::Bank* thisptr, int ,
 {
     game::Bank* result = getOriginalFunctions().bankCopyCtor(thisptr, other);
 
-    if (!gameSettings().trainerCampLowerCost || g_scopeDepth <= 0 || !thisptr) {
+    if (!gameSettings().trainerCampLowerCost || !thisptr) {
         return result;
     }
 
     const auto& trainApi = game::TrainingCostApi::get();
     const void* const ret = *static_cast<void**>(_AddressOfReturnAddress());
     if (trainApi.countCopyReturnTrainable && ret == trainApi.countCopyReturnTrainable) {
-        if (g_lowerCostPercent <= 0) {
+        g_count = CampCount{};
+        const int percent = countPercent();
+        if (percent <= 0) {
             return result;
         }
         const auto& bankApi = game::BankApi::get();
         const int gold = bankApi.get(thisptr, game::CurrencyType::Gold);
-        const int counting = TrainerDiscountMath::countingGold(gold, g_lowerCostPercent);
+        const int counting = TrainerDiscountMath::countingGold(gold, percent);
+        g_count.valid = true;
+        g_count.capped = TrainerDiscountMath::countingCapped(gold, percent);
+        g_count.realGold = gold;
+        g_count.left = counting;
         if (counting > gold) {
             bankApi.set(thisptr, game::CurrencyType::Gold, static_cast<std::int16_t>(counting));
-            spdlog::info("trainer countBank {} -> {} percent={}", gold, counting,
-                         g_lowerCostPercent);
+            spdlog::info("trainer countBank {} -> {} percent={} scope={}", gold, counting,
+                         percent, g_scopeDepth);
         }
+        return result;
+    }
+
+    if (g_scopeDepth <= 0) {
         return result;
     }
 
@@ -217,14 +258,25 @@ game::Bank* __fastcall bankCopyCtorHooked(game::Bank* thisptr, int ,
 game::Bank* __fastcall bankSubtractHooked(game::Bank* thisptr, int ,
                                          const game::Bank* other)
 {
-    if (!gameSettings().trainerCampLowerCost || !thisptr || !other || g_scopeDepth <= 0
-        || g_lowerCostPercent <= 0) {
+    if (!gameSettings().trainerCampLowerCost || !thisptr || !other) {
         return getOriginalFunctions().bankSubtract(thisptr, other);
     }
 
     const auto& trainApi = game::TrainingCostApi::get();
+    const auto& bankApi = game::BankApi::get();
     const void* const ret = *static_cast<void**>(_AddressOfReturnAddress());
     if (trainApi.countStepReturnTrainable && ret == trainApi.countStepReturnTrainable) {
+        game::Bank* stepped = getOriginalFunctions().bankSubtract(thisptr, other);
+        if (g_count.valid) {
+            const int step = bankApi.get(other, game::CurrencyType::Gold);
+            g_count.step = step;
+            g_count.spent += step;
+            g_count.left = bankApi.get(thisptr, game::CurrencyType::Gold);
+        }
+        return stepped;
+    }
+
+    if (g_scopeDepth <= 0 || g_lowerCostPercent <= 0) {
         return getOriginalFunctions().bankSubtract(thisptr, other);
     }
 
@@ -233,7 +285,7 @@ game::Bank* __fastcall bankSubtractHooked(game::Bank* thisptr, int ,
     game::Bank* result = getOriginalFunctions().bankSubtract(thisptr, other);
 
     const int percent = std::clamp(g_lowerCostPercent, 1, 99);
-    const auto& bankApi = game::BankApi::get();
+    const bool ranOut = countRanOut(bankApi.get(other, game::CurrencyType::Gold));
     int paidGold = 0;
     int refundedGold = 0;
     int refundedTotal = 0;
@@ -244,9 +296,11 @@ game::Bank* __fastcall bankSubtractHooked(game::Bank* thisptr, int ,
         if (paid <= 0) {
             continue;
         }
-        const int keep = TrainerDiscountMath::keptGold(bankApi.get(other, type), had, percent);
+        const bool isGold = type == game::CurrencyType::Gold;
+        const int keep = TrainerDiscountMath::chargedGold(bankApi.get(other, type), had, percent,
+                                                          isGold && ranOut);
         const int refund = paid - keep;
-        if (type == game::CurrencyType::Gold) {
+        if (isGold) {
             paidGold = paid;
         }
         if (refund <= 0) {
@@ -262,6 +316,11 @@ game::Bank* __fastcall bankSubtractHooked(game::Bank* thisptr, int ,
         spdlog::info("trainer priceRefund paid={} refund={} percent={}", paidGold,
                      refundedGold, percent);
     }
+    if (ranOut) {
+        spdlog::info("trainer wholeTreasury paid={} left={} percent={}", paidGold - refundedGold,
+                     bankApi.get(thisptr, game::CurrencyType::Gold), percent);
+    }
+    g_count = CampCount{};
     return result;
 }
 
@@ -452,7 +511,11 @@ void __fastcall textBoxSetStringHooked(game::CTextBoxInterf* thisptr,
         gold = gold * 10 + (goldRun.begin[i] - '0');
     }
 
-    const int discounted = discountedGold(gold, g_campPercent);
+    const bool counted = g_count.valid && g_count.spent == gold;
+    const int discounted = counted ? TrainerDiscountMath::chargedGold(gold, g_count.realGold,
+                                                                      g_campPercent,
+                                                                      countRanOut(gold))
+                                   : discountedGold(gold, g_campPercent);
     if (discounted >= gold) {
         return getOriginalFunctions().textBoxSetString(thisptr, value);
     }
