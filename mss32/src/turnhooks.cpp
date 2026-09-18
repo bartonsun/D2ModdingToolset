@@ -24,7 +24,10 @@ using BeginTurnFunc = void(__thiscall*)(game::CMidServerLogicData* thisptr,
 static BeginTurnFunc beginTurnOrig;
 
 static std::optional<sol::environment> env;
-static std::optional<sol::function> processTurnStart;
+// protected_function, not sol::function: under NDEBUG sol::function is
+// unsafe_function, and a Lua error inside one leaves the stack unwound past
+// this try/catch -- the day-2 crash T-32 traced to exactly this shape.
+static std::optional<sol::protected_function> processTurnStart;
 
 void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
                                 int /*%edx*/,
@@ -49,7 +52,12 @@ void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
 
         static const auto path = scriptsFolder() / "turn.lua";
 
-        processTurnStart = getScriptFunction(path, "processTurnStart", env, false, true);
+        if (!env) {
+            env = executeScriptFile(path, false, true);
+        }
+        if (env) {
+            processTurnStart = getProtectedScriptFunction(env.value(), "processTurnStart", false);
+        }
 
         if (!processTurnStart) {
 

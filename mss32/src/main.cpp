@@ -19,6 +19,7 @@
 
 #pragma comment(lib, "Lib/detours.lib")
 
+#include "buildstamp.h"
 #include "customaibattle.h"
 #include "customattacks.h"
 #include "custommodifiers.h"
@@ -31,6 +32,7 @@
 #include <spdlog/sinks/msvc_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/spdlog.h>
+#include <cstdint>
 #include <string>
 #include <thread>
 #define WIN32_LEAN_AND_MEAN
@@ -184,6 +186,128 @@ static void setupVftableHooks()
     spdlog::debug("All vftable hooks are set");
 }
 
+static LPTOP_LEVEL_EXCEPTION_FILTER previousExceptionFilter = nullptr;
+// A vectored handler sees *every* exception the process raises, including the
+// ones the game handles and survives -- SmartHeap raises a read fault on a
+// guard page and keeps going. Measured 2026-08-28: one such fault at 14:11:41
+// spent the single crash slot, and the fault that actually killed the game 70
+// seconds later wrote nothing. First-chance records are bounded on their own
+// counter; the terminal filter always gets to write.
+static LONG firstChanceLogged = 0;
+static LONG terminalLogged = 0;
+static const LONG maxFirstChanceRecords = 3;
+
+static bool isFatalExceptionCode(DWORD code)
+{
+    switch (code) {
+    case EXCEPTION_ACCESS_VIOLATION:
+    case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
+    case EXCEPTION_DATATYPE_MISALIGNMENT:
+    case EXCEPTION_ILLEGAL_INSTRUCTION:
+    case EXCEPTION_INT_DIVIDE_BY_ZERO:
+    case EXCEPTION_PRIV_INSTRUCTION:
+    case EXCEPTION_STACK_OVERFLOW:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/**
+ * A crash leaves the log looking exactly like a game that was closed by hand:
+ * the last line written is simply the last line. This writes the faulting
+ * address as module + offset, which is the only form comparable between runs,
+ * plus the operation and address for an access violation.
+ */
+static void logCrash(EXCEPTION_POINTERS* info, bool firstChance)
+{
+    if (!info || !info->ExceptionRecord) {
+        return;
+    }
+    if (firstChance) {
+        if (InterlockedIncrement(&firstChanceLogged) > maxFirstChanceRecords) {
+            return;
+        }
+    } else if (InterlockedCompareExchange(&terminalLogged, 1, 0) != 0) {
+        return;
+    }
+    const char* const kind = firstChance ? "first-chance" : "fatal";
+
+    const EXCEPTION_RECORD* record = info->ExceptionRecord;
+    const void* address = record->ExceptionAddress;
+
+    std::string module = "unknown";
+    std::uintptr_t offset = reinterpret_cast<std::uintptr_t>(address);
+    HMODULE handle = nullptr;
+    if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+                               | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           static_cast<LPCSTR>(address), &handle)
+        && handle) {
+        char path[MAX_PATH]{};
+        if (GetModuleFileNameA(handle, path, MAX_PATH)) {
+            const std::string full{path};
+            const auto slash = full.find_last_of("\\/");
+            module = slash == std::string::npos ? full : full.substr(slash + 1);
+        }
+        offset -= reinterpret_cast<std::uintptr_t>(handle);
+    }
+
+    // Both lines are spelled out instead of interpolating `kind`: the log audit
+    // greps for these prefixes, and a marker that only exists after a runtime
+    // substitution cannot be checked against the source that writes it.
+    if (firstChance) {
+        spdlog::error("crash first-chance code={:#x} at {}+{:#x} thread={}",
+                      record->ExceptionCode, module, offset, GetCurrentThreadId());
+    } else {
+        spdlog::error("crash fatal code={:#x} at {}+{:#x} thread={}", record->ExceptionCode,
+                      module, offset, GetCurrentThreadId());
+    }
+
+    if (record->ExceptionCode == EXCEPTION_ACCESS_VIOLATION
+        && record->NumberParameters >= 2) {
+        const ULONG_PTR operation = record->ExceptionInformation[0];
+        const char* access = operation == 0 ? "read" : (operation == 1 ? "write" : "execute");
+        spdlog::error("crash {} access {} at {:#x}", kind, access,
+                      static_cast<std::uintptr_t>(record->ExceptionInformation[1]));
+    }
+
+    if (info->ContextRecord) {
+        const CONTEXT* context = info->ContextRecord;
+        spdlog::error("crash {} eip={:#x} esp={:#x} ebp={:#x}", kind,
+                      static_cast<std::uintptr_t>(context->Eip),
+                      static_cast<std::uintptr_t>(context->Esp),
+                      static_cast<std::uintptr_t>(context->Ebp));
+    }
+
+    spdlog::default_logger()->flush();
+}
+
+static LONG WINAPI unhandledExceptionHooked(EXCEPTION_POINTERS* info)
+{
+    // This one runs when nothing else claimed the exception, i.e. the game is
+    // going down. It writes regardless of how many first-chance records the
+    // vectored handler already produced.
+    logCrash(info, false);
+    return previousExceptionFilter ? previousExceptionFilter(info) : EXCEPTION_CONTINUE_SEARCH;
+}
+
+static LONG CALLBACK vectoredExceptionHooked(EXCEPTION_POINTERS* info)
+{
+    // The game installs its own top-level filter, so a fatal fault can reach a
+    // handler that never writes anything. Vectored handlers run first, and this
+    // one only reads: the exception keeps travelling untouched.
+    if (info && info->ExceptionRecord && isFatalExceptionCode(info->ExceptionRecord->ExceptionCode)) {
+        logCrash(info, true);
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+static void setupCrashLogging()
+{
+    AddVectoredExceptionHandler(1, vectoredExceptionHooked);
+    previousExceptionFilter = SetUnhandledExceptionFilter(unhandledExceptionHooked);
+}
+
 static void setupDefaultLogger()
 {
     auto logger = spdlog::default_logger();
@@ -211,6 +335,12 @@ static void setupDefaultLogger()
     // Using UTC helps to match logs from different users (with different timezones).
     // It also helps to match client logs with lobby server logs.
     logger->set_pattern("%D %H:%M:%S.%e %5t [%=8!n] [%L] %v", spdlog::pattern_time_type::utc);
+
+    // First line of every run, before any game code: a log from an old dll and a
+    // log from a new one are otherwise structurally identical, so a client
+    // report of "the fix does not work" cannot be told apart from a file that
+    // was never replaced.
+    spdlog::info("mss32 build={} logger=ready", hooks::buildStamp);
 }
 
 BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
@@ -233,6 +363,7 @@ BOOL APIENTRY DllMain(HMODULE hDll, DWORD reason, LPVOID reserved)
     // DisableThreadLibraryCalls(hDll);
 
     setupDefaultLogger();
+    setupCrashLogging();
 
     library = hDll;
     mainThreadId = std::this_thread::get_id();

@@ -28,6 +28,8 @@
 #include "citystackinterf.h"
 #include "commandmsg.h"
 #include "condinterf.h"
+#include "currency.h"
+#include "trainingcostapi.h"
 #include "d2osexception.h"
 #include "ddcarryoveritems.h"
 #include "editboxinterf.h"
@@ -58,6 +60,8 @@
 #include "midevent.h"
 #include "midgard.h"
 #include "midgardplan.h"
+#include "textboxinterf.h"
+#include "middragdropinterf.h"
 #include "midgardscenariomap.h"
 #include "midmsgsender.h"
 #include "midobjectlock.h"
@@ -267,6 +271,18 @@ struct OriginalFunctions
     game::CItemPotionReviveApi::Api::Constructor itemPotionReviveCtor;
 
     //game::CItemBaseApi::Api::Constructor itemBaseCtor;
+
+    game::BankApi::Api::Copy bankCopy;
+    game::BankApi::Api::CopyCtor bankCopyCtor;
+    game::BankApi::Api::Subtract bankSubtract;
+    game::TrainingCostApi::Api::TrainUnitAtTrainer trainUnitAtTrainer;
+    game::TrainingCostApi::Api::TrainUiAction trainUiAction;
+    game::TrainingCostApi::Api::CanAffordTrainCheck canAffordTrainCheck;
+    game::TrainingCostApi::Api::ApplyTrainAction applyTrainAction;
+    game::TrainingCostApi::Api::AddExperience addExperience;
+    game::TrainCampTextApi::Api::SetPartyTrainingText setPartyTrainingText;
+    game::CTextBoxInterfApi::Api::SetString textBoxSetString;
+    game::CMidDragDropInterfApi::Api::Destructor midDragDropInterfDtor;
 };
 
 OriginalFunctions& getOriginalFunctions();

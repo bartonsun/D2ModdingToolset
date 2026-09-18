@@ -147,6 +147,16 @@ struct Api
     using Copy = Bank*(__thiscall*)(Bank* bank, const Bank* other);
     Copy copy;
 
+    /**
+     * Bank copy constructor: calls Copy from a one-push frame, so a hook on
+     * Copy fired through it sees the constructor's own return address and the
+     * real call site sits a fixed 0xC bytes deeper in the stack. Hooked
+     * directly, its return address is the construction site itself -- that is
+     * how the training cost copy is told apart from every other Bank copy.
+     */
+    using CopyCtor = Bank*(__thiscall*)(Bank* bank, const Bank* other);
+    CopyCtor copyCtor;
+
     /** Sets all currencies to invalid value of 10000. */
     using SetInvalid = Bank*(__thiscall*)(Bank* bank);
     SetInvalid setInvalid;

@@ -466,4 +466,6 @@ game::IMqImage2* __stdcall getSpellAreaFogImageHooked(bool spellAllowed);
 
 } // namespace hooks
 
+#include "trainingcosthooks.h"
+
 #endif // HOOKS_H

@@ -219,4 +219,6 @@ settings = {
 		lowerdamageCanAffectHealer = false,
 		boostdamageCanAffectHealer = false,
 	},
+
+	trainerCampLowerCost = false,
 }
