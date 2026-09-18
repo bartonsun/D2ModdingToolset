@@ -6,6 +6,43 @@
 - Can be used on vanilla version or with other mods installed;
 - Allows players to search and create PvP matches without external software using custom lobby server. Currently only for [Motlin's mod](https://dis2modding.fandom.com/ru/wiki/Мод_Мотлина);
 - <details>
+    <summary>Adds ranked-match lifecycle support to the custom lobby;</summary>
+
+    - Ranked host saves are enabled only for the verified Russobit executable (`4,187,648` bytes with the matching native-save entry signature); other builds remain casual;
+    - Lobby-requested saves always use the original host's native save builder. `Upload` deletes the exact local file only after durable-storage acknowledgement; `LocalOnly` retains it in the host's save folder;
+    - Save-transfer COMMIT carries no client digest. The server computes the stored artifact SHA-256 while receiving the chunks;
+    - Loaded games are always casual. This prevents a ranked setting from a previous room being reused for an unrelated save;
+    - Custom protocol ids are append-only: the existing lobby/game ids `+1` through `+7` and relay id `255` are unchanged. Rooms created by older clients have no `Ranked` column and remain casual;
+    - Ranked lifecycle uses the append-only `+8` through `+14` range:
+
+      | Id | Direction | Purpose |
+      | --- | --- | --- |
+      | `+8 SAVE_REQUEST` | core → host | Requests one `Upload` or `LocalOnly` native host save with a bounded ASCII stem; only letters, digits, `_`, and `-` are accepted. |
+      | `+9 SAVE_UPLOAD` | host → core | Carries the ordered `BEGIN`, `CHUNK`, header-only `COMMIT`, or `FAIL` operations. |
+      | `+10 MATCH_ENDED` | core → participant | Returns a finalized ranked participant from the game UI to the custom lobby. |
+      | `+11 PLAYER_SETUP` | participant → core | Advertises ranked-lifecycle support after login or reports the authenticated host lord choice. |
+      | `+12 SYSTEM_NOTICE` | core → participant | Carries current-client modal notices only; ordinary system chat stays on legacy chat/game packets. |
+      | `+13 SAVE_STORED_ACK` | core → host | Confirms durable server storage so the exact generated local save may be deleted; it is not a RakNet ACK. |
+      | `+14 SAVE_NATIVE_RESULT` | host → core | For `LocalOnly`, reports success plus the collision-safe filename or a failure with no filename and ends the request. For `Upload`, it reports only native-save success plus the filename; upload failures and completion use `+9 SAVE_UPLOAD` (`FAIL`/`COMMIT`). |
+
+    - System chat uses the existing lobby chat or native in-game chat packet. The server sends the optional modal packet only to current clients;
+    - A current client advertises support with an authenticated `PLAYER_SETUP` capability message after login. Current servers send ranked-lifecycle packets only to clients that advertised it; older clients keep using the unchanged `+1..+7` lobby flow and therefore remain casual. Older servers safely ignore the capability message;
+    - The capability value `1` selects the sole ranked-lifecycle schema. Packets `+8..+10` and `+12..+14` therefore carry no redundant per-message version field. Their payloads after the one-byte message id are:
+
+      | Id | Payload |
+      | --- | --- |
+      | `+8 SAVE_REQUEST` | `u64 saveId`, `u8 mode`, then the ASCII save stem to the packet end. |
+      | `+9 SAVE_UPLOAD` | `u64 saveId`, `u8 operation`; `BEGIN` adds `u32 totalSize`, `CHUNK` adds raw bytes to the packet end, `COMMIT` adds nothing, and `FAIL` adds `u8 result`. |
+      | `+10 MATCH_ENDED` | Empty. |
+      | `+11 PLAYER_SETUP` | `u8 kind`, `u32 value`: capability kind `0` announces value `1`; host-lord kind `1` carries the selected lord category. |
+      | `+12 SYSTEM_NOTICE` | UTF-8 text to the packet end. |
+      | `+13 SAVE_STORED_ACK` | `u64 saveId`. |
+      | `+14 SAVE_NATIVE_RESULT` | `u64 saveId`, `u8 result`, then the successful save filename to the packet end; failures have no filename. |
+
+      Modes are `Upload=0` and `LocalOnly=1`; operations are `BEGIN=0`, `CHUNK=1`, `COMMIT=2`, and `FAIL=3`; results are `Success=0`, `Failed=1`, and `TimedOut=2`. Save requests use fixed client limits of 32 MiB and 30 seconds. Each chunk is at most 16 KiB;
+    - The client gives each native request a process-unique collision-safe filename, opens the completed file after `GameSaved`, and keeps that exact file open until the durable-storage acknowledgement removes it. Failures retain the file.
+  </details>
+- <details>
     <summary>Adds random scenario map generator;</summary>
     
     - Add `generatorSettings.lua` into `Scripts` forlder;

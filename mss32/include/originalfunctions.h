@@ -161,6 +161,7 @@ struct OriginalFunctions
     game::CBuildStructInterfApi::Api::UpdateBuildingPopup buildStructInterfUpdateBuildingPopup;
 
     game::IMidMsgSenderVftable::SendObjectsChanges midServerLogicSendObjectsChanges;
+    game::IMidMsgSenderVftable::SendPlayerMessage midServerLogicSendPlayerMessage;
 
     game::CMenuNewSkirmishSingleApi::Api::Constructor menuNewSkirmishSingleCtor;
     game::CMenuNewSkirmishHotseatApi::Api::Constructor menuNewSkirmishHotseatCtor;

@@ -18,6 +18,7 @@
  */
 
 #include "hooks.h"
+#include "lobbysaveresume.h"
 #include "stealitemhooks.h"
 #include "stealmerchantiteminterf.h"
 #include "aigiveitemsaction.h"
@@ -582,6 +583,7 @@ static Hooks getGameHooks()
         {EnrollUnitInterfApi::get().constructor, enrollUnitInterfCtorHooked, (void**)&orig.enrollUnitInterfCtor},
         // Modify map before game starts
         {CMidServerLogicApi::get().processZeroTurn, processZeroTurnHooked, (void**)&orig.processZeroTurn},
+        {CMidServerLogicApi::vftable().midMsgSender->sendPlayerMessage, midServerLogicSendPlayerMessageHooked, (void**)&orig.midServerLogicSendPlayerMessage},
         {CMidServerLogicApi::get().createImportedLeader, createImportedLeaderHooked, (void**)&orig.createImportedLeader},
         // SHOWATTACKEFFFECT, requestBattleEffect doen't work correctly. Don't use.
         {BattleViewerInterfApi::vftable()->showAttackEffect, showAttackEffectHooked, (void**)&orig.showAttackEffect},
@@ -2240,6 +2242,7 @@ int __stdcall loadScenarioMapHooked(int a1,
     const int result = getOriginalFunctions().loadScenarioMap(a1, streamEnv, scenarioMap);
     // Write-mode validation is done in midUnitStreamHooked
     validateUnits(scenarioMap);
+    captureLobbySaveTurnBase(scenarioMap, streamEnv);
 
     using namespace game;
 

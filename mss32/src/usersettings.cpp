@@ -303,6 +303,7 @@ static void readLobbySettings(const sol::table& table, Lobby& value)
     value.server.ip = def.server.ip;
     value.server.port = def.server.port;
     value.client.port = def.client.port;
+    value.controls = def.controls;
 
     auto lobby = table.get<sol::optional<sol::table>>("lobby");
     if (!lobby.has_value())
@@ -320,6 +321,15 @@ static void readLobbySettings(const sol::table& table, Lobby& value)
 
     if (client.has_value()) {
         value.client.port = readSetting(client.value(), "port", def.client.port);
+    }
+
+    auto controls = lobby.value().get<sol::optional<sol::table>>("controls");
+
+    if (controls.has_value()) {
+        value.controls.ranked = readSetting(controls.value(), "ranked", def.controls.ranked);
+        value.controls.simultaneousTurns = readSetting(controls.value(), "simultaneousTurns",
+                                                       def.controls.simultaneousTurns);
+        value.controls.unlockGui = readSetting(controls.value(), "unlockGui", def.controls.unlockGui);
     }
 }
 static void readUserSettings(const sol::table& table, UserSettings& settings)
