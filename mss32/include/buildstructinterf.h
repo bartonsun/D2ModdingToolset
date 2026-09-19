@@ -27,6 +27,7 @@ struct CBuildStructInterfData
 };
 
 assert_size(CBuildStructInterfData, 36);
+assert_offset(CBuildStructInterfData, frameArea, 12);
 assert_offset(CBuildStructInterfData, displayedUnit, 28);
 
 struct CBuildStructInterf

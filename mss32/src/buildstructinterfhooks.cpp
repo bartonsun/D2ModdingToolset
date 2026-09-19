@@ -9,6 +9,7 @@
 #include "globaldata.h"
 #include "interfaceutils.h"
 #include "image2text.h"
+#include "image2scaled.h"
 #include "mempool.h"
 #include "midgardid.h"
 #include "mqrect.h"
@@ -17,6 +18,7 @@
 #include "pictureinterf.h"
 #include "smartptr.h"
 #include "textboxinterf.h"
+#include "upgradeportraitlayout.h"
 #include "usracialsoldier.h"
 #include "ussoldier.h"
 #include "usunitimpl.h"
@@ -28,6 +30,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <spdlog/spdlog.h>
 
 namespace hooks {
 namespace {
@@ -396,58 +399,76 @@ FramedFace createFramedFace(const game::CMidgardID& unitId,
 struct FacesImage
 {
     game::CMultiLayerImg* image{};
-    game::CMqPoint size{};
     std::vector<LayoutState::Portrait> portraits;
+    upgradePortraitLayout::Row layout;
 };
 
-FacesImage createFacesImage(const std::vector<UpgradePath>& paths)
+FacesImage createFacesImage(const std::vector<UpgradePath>& paths, int width, int height)
 {
     using namespace game;
 
     struct Face
     {
         IMqImage2* image;
-        CMqPoint size;
         const TUsUnitImpl* unit;
     };
 
     std::vector<Face> faces;
-    int totalWidth = 0;
-    int maxHeight = 0;
+    std::vector<CMqPoint> sizes;
     for (const auto& path : paths) {
         const auto framedFace = createFramedFace(path.unitId, path.unitCanonicalId, false);
         if (!framedFace.image) {
             continue;
         }
-        totalWidth += framedFace.size.x;
-        maxHeight = std::max(maxHeight, framedFace.size.y);
-        faces.push_back(Face{framedFace.image, framedFace.size, framedFace.unit});
+        sizes.push_back(framedFace.size);
+        faces.push_back(Face{framedFace.image, framedFace.unit});
     }
 
     if (faces.empty()) {
         return {};
     }
 
+    auto layout = upgradePortraitLayout::makeFittedRow(sizes, width, height, 8);
+    if (!layout.fits) {
+        for (const auto& face : faces) {
+            face.image->vftable->destructor(face.image, 1);
+        }
+        return {};
+    }
+
+    for (std::size_t i = 0; i < faces.size(); ++i) {
+        const auto& area = layout.portraits[i];
+        const CMqPoint targetSize{area.right - area.left, area.bottom - area.top};
+        if (targetSize.x == sizes[i].x && targetSize.y == sizes[i].y) {
+            continue;
+        }
+        auto scaled = createScaledImage(faces[i].image, targetSize);
+        if (!scaled) {
+            for (const auto& face : faces) {
+                face.image->vftable->destructor(face.image, 1);
+            }
+            spdlog::warn("[Portrait layout v2] Could not scale portrait; keeping native layout");
+            return {};
+        }
+        faces[i].image->vftable->destructor(faces[i].image, 1);
+        faces[i].image = scaled;
+    }
+
     auto image = static_cast<CMultiLayerImg*>(Memory::get().allocate(sizeof(CMultiLayerImg)));
     const auto& multilayerApi = CMultiLayerImgApi::get();
     multilayerApi.constructor(image);
 
-    constexpr int gap = 4;
-    totalWidth += gap * (static_cast<int>(faces.size()) - 1);
-    int offset = 0;
     std::vector<LayoutState::Portrait> portraits;
     portraits.reserve(faces.size());
     for (std::size_t i = 0; i < faces.size(); ++i) {
         const auto& face = faces[i];
-        const int top = (maxHeight - face.size.y) / 2;
-        multilayerApi.addImage(image, face.image, offset, top);
-        portraits.push_back(LayoutState::Portrait{
-            CMqRect{offset, top, offset + face.size.x, top + face.size.y}, face.unit});
-        offset += face.size.x + gap;
+        const auto& area = layout.portraits[i];
+        multilayerApi.addImage(image, face.image, area.left, area.top);
+        portraits.push_back(LayoutState::Portrait{area, face.unit});
     }
-    image->data->size = CMqPoint{totalWidth, maxHeight};
+    image->data->size = layout.size;
 
-    return FacesImage{image, image->data->size, std::move(portraits)};
+    return FacesImage{image, std::move(portraits), std::move(layout)};
 }
 
 game::CMultiLayerImg* createCompositeImage()
@@ -505,16 +526,28 @@ void showPopupUpgradePaths(game::CDialogInterf* dialog, const std::vector<Upgrad
         }
         CMqPoint arrowSize{};
         arrowImage->vftable->getSize(arrowImage, &arrowSize);
-        const int rowHeight = std::max({source.size.y, target.size.y, arrowSize.y});
-        const int rowWidth = source.size.x + target.size.x + arrowSize.x + 2 * gap;
-        const int x = (width - rowWidth) / 2;
+        const auto layout = upgradePortraitLayout::makeRow({source.size, arrowSize, target.size},
+                                                           width, gap);
+        if (layout.portraits.size() != 3) {
+            source.image->vftable->destructor(source.image, 1);
+            target.image->vftable->destructor(target.image, 1);
+            arrowImage->vftable->destructor(arrowImage, 1);
+            rows->vftable->destructor(rows, 1);
+            return;
+        }
+        const int rowHeight = layout.size.y;
+        const int rowWidth = layout.size.x;
+        const int x = std::max(0, (width - rowWidth) / 2);
         const auto& multilayerApi = CMultiLayerImgApi::get();
-        multilayerApi.addImage(rows, source.image, x,
-                               rowsHeight + (rowHeight - source.size.y) / 2);
-        multilayerApi.addImage(rows, arrowImage, x + source.size.x + gap,
-                               rowsHeight + (rowHeight - arrowSize.y) / 2);
-        multilayerApi.addImage(rows, target.image, x + source.size.x + 2 * gap + arrowSize.x,
-                               rowsHeight + (rowHeight - target.size.y) / 2);
+        const auto& sourceArea = layout.portraits[0];
+        const auto& arrowArea = layout.portraits[1];
+        const auto& targetArea = layout.portraits[2];
+        multilayerApi.addImage(rows, source.image, x + sourceArea.left,
+                               rowsHeight + sourceArea.top);
+        multilayerApi.addImage(rows, arrowImage, x + arrowArea.left,
+                               rowsHeight + arrowArea.top);
+        multilayerApi.addImage(rows, target.image, x + targetArea.left,
+                               rowsHeight + targetArea.top);
         rowsHeight += rowHeight + gap;
         rowsWidth = std::max(rowsWidth, rowWidth);
     }
@@ -609,8 +642,27 @@ void showUpgradePaths(game::CBuildStructInterf* interf,
         return;
     }
 
-    auto facesImage = createFacesImage(paths);
+    const auto originalFaceArea = *face->vftable->getArea(face);
+    const auto infoArea = *info->vftable->getArea(info);
+    const auto availableFaceArea = upgradePortraitLayout::parchmentArea(
+        originalFaceArea, infoArea, interf->dialog->data->area);
+
+    auto facesImage = createFacesImage(paths, availableFaceArea.right - availableFaceArea.left,
+                                       availableFaceArea.bottom - availableFaceArea.top);
     if (!facesImage.image) {
+        return;
+    }
+
+    spdlog::debug("[Portrait layout v2] source=({},{},{},{}) paper=({},{},{},{}) row={}x{}",
+                  originalFaceArea.left, originalFaceArea.top, originalFaceArea.right,
+                  originalFaceArea.bottom, availableFaceArea.left, availableFaceArea.top,
+                  availableFaceArea.right, availableFaceArea.bottom,
+                  facesImage.layout.size.x, facesImage.layout.size.y);
+
+    CMqRect faceArea{};
+    if (!upgradePortraitLayout::placeRow(facesImage.layout, originalFaceArea, availableFaceArea,
+                                          faceArea)) {
+        facesImage.image->vftable->destructor(facesImage.image, 1);
         return;
     }
 
@@ -621,7 +673,7 @@ void showUpgradePaths(game::CBuildStructInterf* interf,
 
     layoutState.owner = interf;
     layoutState.dialog = interf->dialog;
-    layoutState.faceArea = *face->vftable->getArea(face);
+    layoutState.faceArea = originalFaceArea;
     layoutState.upgradedArea = *upgraded->vftable->getArea(upgraded);
     layoutState.portraits.clear();
     layoutState.active = true;
@@ -631,7 +683,6 @@ void showUpgradePaths(game::CBuildStructInterf* interf,
         upgradedText += ", ";
     }
     upgradedText += getTargetNames(hiddenPaths);
-    const auto infoArea = *info->vftable->getArea(info);
     auto upgradedArea = layoutState.upgradedArea;
     upgradedArea.right = infoArea.right;
     upgraded->vftable->setArea(upgraded, &upgradedArea);
@@ -639,16 +690,9 @@ void showUpgradePaths(game::CBuildStructInterf* interf,
                                                       upgradedArea.right - upgradedArea.left);
     CTextBoxInterfApi::get().setString(upgraded, fittedUpgradedText.c_str());
 
-    auto faceArea = layoutState.faceArea;
-    faceArea.right = infoArea.right;
     face->vftable->setArea(face, &faceArea);
 
-    const auto& firstPortrait = facesImage.portraits.front().area;
-    const int firstPortraitWidth = firstPortrait.right - firstPortrait.left;
-    const game::CMqPoint imageOffset{
-        (layoutState.faceArea.right - layoutState.faceArea.left - firstPortraitWidth) / 2,
-        (layoutState.faceArea.bottom - layoutState.faceArea.top - facesImage.size.y) / 2,
-    };
+    const game::CMqPoint imageOffset{};
     game::CPictureInterfApi::get().setImage(face, facesImage.image, &imageOffset);
 
     const int imageLeft = faceArea.left + imageOffset.x;
