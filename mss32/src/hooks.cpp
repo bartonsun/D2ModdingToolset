@@ -50,7 +50,6 @@
 #include "batattackusepotion.h"
 #include "batattackwait.h"
 #include "batattackutils.h"
-#include "bagdroptombhooks.h"
 #include "batbigface.h"
 #include "batlogic.h"
 #include "batlogichooks.h"
@@ -206,6 +205,9 @@
 #include "scenedithooks.h"
 #include "scenpropinterfhooks.h"
 #include "settings.h"
+#include "currency.h"
+#include "trainingcostapi.h"
+#include "trainingcosthooks.h"
 #include "usersettings.h"
 #include "sitecategoryhooks.h"
 #include "sitemerchantinterf.h"
@@ -252,6 +254,7 @@
 #include "visitors.h"
 #include "reviveattackhooks.h"
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <iterator>
@@ -319,6 +322,8 @@ static Hooks getGameHooks()
 
     // clang-format off
     Hooks hooks{
+        // Quick save and open-selected-object hotkeys on the strategic map
+        {(void*)fn.stratInterfKeyHandler, hookedKeyHandler, (void**)&originalKeyHandler},
         // Fix game crash in battles with summoners
         {CMidUnitApi::get().removeModifier, removeModifierHooked},
         // Fix unit transformation to include hp mods into current hp recalculation
@@ -358,7 +363,6 @@ static Hooks getGameHooks()
         {CSiteMerchantInterfApi::get().constructor, siteMerchantInterfCtorHooked, (void**)&orig.siteMerchantInterfCtor},
         // Cities can generate daily income depending on scenario variable settings
         {fn.computePlayerDailyIncome, computePlayerDailyIncomeHooked, (void**)&orig.computePlayerDailyIncome},
-        {CMidgardPlanApi::get().getObjectsAtPoint, getObjectsAtPointHooked, (void**)&orig.getObjectsAtPoint},
         // Vampiric attacks can deal critical damage
         {CBatAttackDrainApi::vftable()->onHit, drainAttackOnHitHooked},
         {CBatAttackDrainOverflowApi::vftable()->onHit, drainOverflowAttackOnHitHooked},
@@ -650,6 +654,74 @@ static Hooks getGameHooks()
         {CBatLogicApi::get().applyCBatAttackUntransformEffect, applyCBatAttackUntransformEffectHooked, (void**)&orig.applyCBatAttackUntransformEffect},
     };
     // clang-format on
+
+    if (gameSettings().trainerCampLowerCost) {
+        if (BankApi::get().copy) {
+            hooks.emplace_back(
+                HookInfo{(void*)BankApi::get().copy, bankCopyHooked, (void**)&orig.bankCopy});
+        }
+        const auto& trainApi = TrainingCostApi::get();
+        if (BankApi::get().copyCtor && trainApi.costCopyReturnTrainUnit) {
+            hooks.emplace_back(HookInfo{(void*)BankApi::get().copyCtor, bankCopyCtorHooked,
+                                        (void**)&orig.bankCopyCtor});
+        }
+        if (BankApi::get().subtract) {
+            hooks.emplace_back(HookInfo{(void*)BankApi::get().subtract, bankSubtractHooked,
+                                        (void**)&orig.bankSubtract});
+        }
+        if (trainApi.addExperience && trainApi.expReturnTrainUnit) {
+            hooks.emplace_back(HookInfo{(void*)trainApi.addExperience, addExperienceHooked,
+                                        (void**)&orig.addExperience});
+        }
+        if (trainApi.trainUnitAtTrainer) {
+            hooks.emplace_back(HookInfo{(void*)trainApi.trainUnitAtTrainer, trainUnitAtTrainerHooked,
+                                        (void**)&orig.trainUnitAtTrainer});
+        }
+        if (trainApi.trainUiAction) {
+            hooks.emplace_back(HookInfo{(void*)trainApi.trainUiAction, trainUiActionHooked,
+                                        (void**)&orig.trainUiAction});
+        }
+        if (trainApi.canAffordTrainCheck) {
+            hooks.emplace_back(HookInfo{(void*)trainApi.canAffordTrainCheck,
+                                        canAffordTrainCheckHooked,
+                                        (void**)&orig.canAffordTrainCheck});
+        }
+        if (trainApi.applyTrainAction) {
+            hooks.emplace_back(HookInfo{(void*)trainApi.applyTrainAction, applyTrainActionHooked,
+                                        (void**)&orig.applyTrainAction});
+        }
+        const auto& textApi = TrainCampTextApi::get();
+        if (textApi.setPartyTrainingText) {
+            hooks.emplace_back(HookInfo{(void*)textApi.setPartyTrainingText, trainUiTextHooked,
+                                        (void**)&orig.setPartyTrainingText});
+        }
+        const auto& textBoxApi = CTextBoxInterfApi::get();
+        if (textBoxApi.setString) {
+            hooks.emplace_back(HookInfo{(void*)textBoxApi.setString, textBoxSetStringHooked,
+                                        (void**)&orig.textBoxSetString});
+        }
+        const auto& dragDropApi = CMidDragDropInterfApi::get();
+        if (dragDropApi.destructor) {
+            hooks.emplace_back(HookInfo{(void*)dragDropApi.destructor, midDragDropInterfDtorHooked,
+                                        (void**)&orig.midDragDropInterfDtor});
+        }
+
+        spdlog::info("trainer hooks version={} train={:#x} ui={:#x} afford={:#x} apply={:#x} "
+                     "text={:#x} textbox={:#x} exp={:#x} expret={:#x}",
+                     static_cast<int>(hooks::gameVersion()),
+                     reinterpret_cast<std::uintptr_t>(trainApi.trainUnitAtTrainer),
+                     reinterpret_cast<std::uintptr_t>(trainApi.trainUiAction),
+                     reinterpret_cast<std::uintptr_t>(trainApi.canAffordTrainCheck),
+                     reinterpret_cast<std::uintptr_t>(trainApi.applyTrainAction),
+                     reinterpret_cast<std::uintptr_t>(textApi.setPartyTrainingText),
+                     reinterpret_cast<std::uintptr_t>(textBoxApi.setString),
+                     reinterpret_cast<std::uintptr_t>(trainApi.addExperience),
+                     reinterpret_cast<std::uintptr_t>(trainApi.expReturnTrainUnit));
+        if (!trainApi.trainUiAction && !textApi.setPartyTrainingText) {
+            spdlog::error("trainer camp discount has no addresses for game version {}",
+                          static_cast<int>(hooks::gameVersion()));
+        }
+    }
 
     if (gameSettings().extendedBattle.boostdamageCanAffectHealer
         != baseGameSettings().extendedBattle.boostdamageCanAffectHealer) {
