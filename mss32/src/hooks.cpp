@@ -217,6 +217,8 @@
 #include "stacktemplatecache.h"
 #include "summonhooks.h"
 #include "taskobjaddsite.h"
+#include "midgardmapblock.h"
+#include "territorycoveragehooks.h"
 #include "taskobjaddsitehooks.h"
 #include "taskobjprop.h"
 #include "taskobjprophooks.h"
@@ -652,6 +654,7 @@ static Hooks getGameHooks()
         {BattleViewerInterfApi::vftable()->battleEnd, battleEndHooked, (void**)&orig.battleEnd},
         {battle.decreaseUnitAttacks, decreaseUnitAttacksHooked, (void**)&orig.decreaseUnitAttacks},
         {CBatLogicApi::get().applyCBatAttackUntransformEffect, applyCBatAttackUntransformEffectHooked, (void**)&orig.applyCBatAttackUntransformEffect},
+        {CMidgardMapBlockApi::get().countTerrainCoverage, countTerrainCoverageHooked},
     };
     // clang-format on
 
