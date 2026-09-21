@@ -329,6 +329,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\batattackhealhooks.cpp" />
     <ClCompile Include="src\bagdroptombhooks.cpp" />
     <ClCompile Include="src\image2memory.cpp" />
+    <ClCompile Include="src\image2scaled.cpp" />
     <ClCompile Include="src\intintmap.cpp" />
     <ClCompile Include="src\intvector.cpp" />
     <ClCompile Include="src\button.cpp" />
@@ -954,6 +955,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\groupareamanagement.h" />
     <ClInclude Include="include\groupupgradehooks.h" />
     <ClInclude Include="include\image2memory.h" />
+    <ClInclude Include="include\image2scaled.h" />
     <ClInclude Include="include\imagedatadescriptor.h" />
     <ClInclude Include="include\imgpacker.h" />
     <ClInclude Include="include\imgpackerloader.h" />
@@ -1503,6 +1505,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\usunitextension.h" />
     <ClInclude Include="include\usunitimpl.h" />
     <ClInclude Include="include\utils.h" />
+    <ClInclude Include="include\upgradeportraitlayout.h" />
     <ClInclude Include="include\version.h" />
     <ClInclude Include="include\viewexportedleaderinterf.h" />
     <ClInclude Include="include\visitors.h" />
