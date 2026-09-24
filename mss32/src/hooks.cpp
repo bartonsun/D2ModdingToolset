@@ -594,9 +594,9 @@ static Hooks getGameHooks()
         {CBatAttackReviveApi::vftable()->onHit, reviveAttackOnHitHooked},
 
         //onHit dot effects
-        {CBatAttackBlisterEffectApi::vftable()->onHit, blisterEffectOnHitHooked},
-        {CBatAttackFrostbiteEffectApi::vftable()->onHit, frostbiteEffectOnHitHooked},
-        {CBatAttackPoisonEffectApi::vftable()->onHit, poisonEffectOnHitHooked},
+        //{CBatAttackBlisterEffectApi::vftable()->onHit, blisterEffectOnHitHooked},
+        //{CBatAttackFrostbiteEffectApi::vftable()->onHit, frostbiteEffectOnHitHooked},
+        //{CBatAttackPoisonEffectApi::vftable()->onHit, poisonEffectOnHitHooked},
 
         // Controlable random for long effects
         {battle.checkLongEffectDuration, checkLongEffectDurationHooked, (void**)&orig.checkLongEffectDuration},
@@ -614,18 +614,18 @@ static Hooks getGameHooks()
 
         {CBatAttackFearApi::vftable()->onHit, fearAttackOnHitHooked},
 
-        {CBatAttackWaitApi::vftable()->onHit, waitAttackOnHitHooked},
-        {CBatAttackRetreatApi::vftable()->onHit, retreatAttackOnHitHooked},
+        //{CBatAttackWaitApi::vftable()->onHit, waitAttackOnHitHooked},
+        //{CBatAttackRetreatApi::vftable()->onHit, retreatAttackOnHitHooked},
 
-        {battle.setUnitFlag5, setUnitFlag5Hooked},
+        //{battle.setUnitFlag5, setUnitFlag5Hooked},
 
         // DOT-damages
-        {CBatAttackBlisterApi::vftable()->canPerform, blisterAttackCanPerformHooked},
-        {CBatAttackBlisterApi::vftable()->onHit, blisterAttackOnHitHooked},
-        {CBatAttackFrostbiteApi::vftable()->canPerform, frostbiteAttackCanPerformHooked},
-        {CBatAttackFrostbiteApi::vftable()->onHit, frostbiteAttackOnHitHooked},
-        {CBatAttackPoisonApi::vftable()->canPerform, poisonAttackCanPerformHooked},
-        {CBatAttackPoisonApi::vftable()->onHit, poisonAttackOnHitHooked},
+        //{CBatAttackBlisterApi::vftable()->canPerform, blisterAttackCanPerformHooked},
+        //{CBatAttackBlisterApi::vftable()->onHit, blisterAttackOnHitHooked},
+        //{CBatAttackFrostbiteApi::vftable()->canPerform, frostbiteAttackCanPerformHooked},
+        //{CBatAttackFrostbiteApi::vftable()->onHit, frostbiteAttackOnHitHooked},
+        //{CBatAttackPoisonApi::vftable()->canPerform, poisonAttackCanPerformHooked},
+        //{CBatAttackPoisonApi::vftable()->onHit, poisonAttackOnHitHooked},
 
         // WIP
         {battle.updateParalyzePetrifyEffects, updateParalyzePetrifyEffectsHooked},
@@ -635,15 +635,15 @@ static Hooks getGameHooks()
         {battle.updateTransformLongEffect, shouldDisableTransformOtherHooked},
 
         // WIP
-        {CItemPotionReviveApi::get().constructor, itemPotionReviveCtorHooked, (void**)&orig.itemPotionReviveCtor},
-        {CItemPotionBoostPermApi::get().constructor, itemPotionBoostPermCtorHooked, (void**)&orig.itemPotionBoostPermCtor},
-        {CItemPotionBoostTempApi::get().constructor, itemPotionBoostTempCtorHooked, (void**)&orig.itemPotionBoostTempCtor},
-        {CItemPotionHealApi::get().constructor, itemPotionHealCtorHooked, (void**)&orig.itemPotionHealCtor},
+        //{CItemPotionReviveApi::get().constructor, itemPotionReviveCtorHooked, (void**)&orig.itemPotionReviveCtor},
+        //{CItemPotionBoostPermApi::get().constructor, itemPotionBoostPermCtorHooked, (void**)&orig.itemPotionBoostPermCtor},
+        //{CItemPotionBoostTempApi::get().constructor, itemPotionBoostTempCtorHooked, (void**)&orig.itemPotionBoostTempCtor},
+        //{CItemPotionHealApi::get().constructor, itemPotionHealCtorHooked, (void**)&orig.itemPotionHealCtor},
         //{CItemBaseApi::get().constructor, itemBaseCtorHooked, (void**)&orig.itemBaseCtor},
 
-        {CBatAttackUsePotionApi::vftable()->onHit, usePotionAttackOnHitHooked},
-        {CBatAttackUseTalismanApi::vftable()->onHit, useTalismanAttackOnHitHooked},
-        {CBatAttackUseOrbApi::vftable()->onHit, useOrbAttackOnHitHooked},
+        //{CBatAttackUsePotionApi::vftable()->onHit, usePotionAttackOnHitHooked},
+        //{CBatAttackUseTalismanApi::vftable()->onHit, useTalismanAttackOnHitHooked},
+        //{CBatAttackUseOrbApi::vftable()->onHit, useOrbAttackOnHitHooked},
 
         // Get fog spell area image
         {GameImagesApi::get().getSpellAreaFogImage, getSpellAreaFogImageHooked, (void**)&orig.getSpellAreaFogImage},
@@ -652,6 +652,9 @@ static Hooks getGameHooks()
         {BattleViewerInterfApi::vftable()->battleEnd, battleEndHooked, (void**)&orig.battleEnd},
         {battle.decreaseUnitAttacks, decreaseUnitAttacksHooked, (void**)&orig.decreaseUnitAttacks},
         {CBatLogicApi::get().applyCBatAttackUntransformEffect, applyCBatAttackUntransformEffectHooked, (void**)&orig.applyCBatAttackUntransformEffect},
+
+        // Quick save hotkey for host in multiplayer 
+         {(void*)fn.stratInterfKeyHandler, hookedKeyHandler, (void**)&originalKeyHandler},
     };
     // clang-format on
 
