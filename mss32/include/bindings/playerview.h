@@ -57,6 +57,7 @@ public:
     std::vector<BuildingView> getBuildings() const;
     bool hasBuilding(const std::string& id) const;
     bool hasBuildingById(const IdView& id) const;
+    bool isCurrent() const;
 
 private:
     const game::CMidPlayer* player;

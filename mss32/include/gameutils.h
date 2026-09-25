@@ -266,6 +266,8 @@ bool isInventoryContainsItem(const game::IMidgardObjectMap* objectMap,
 
 const game::CMqPoint getObjectEntrance(const game::CMqPoint& position, int sizeX, int sizeY);
 
+bool isCurrentPlayer(const game::CMidgardID* playerId);
+
 } // namespace hooks
 
 #endif // GAMEUTILS_H

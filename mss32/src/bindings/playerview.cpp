@@ -46,6 +46,7 @@ void PlayerView::bind(sol::state& lua)
     view["fog"] = sol::property(&PlayerView::getFog);
     view["buildings"] = sol::property(&PlayerView::getBuildings);
     view["hasBuilding"] = sol::overload<>(&PlayerView::hasBuilding, &PlayerView::hasBuildingById);
+    view["current"] = sol::property(&PlayerView::isCurrent);
 }
 
 IdView PlayerView::getId() const
@@ -157,6 +158,11 @@ bool PlayerView::hasBuildingById(const IdView& id) const
     }
 
     return false;
+}
+
+bool PlayerView::isCurrent() const
+{
+    return player && hooks::isCurrentPlayer(&player->id);
 }
 
 } // namespace bindings

@@ -1103,4 +1103,43 @@ const game::CMqPoint getObjectEntrance(const game::CMqPoint& position, int sizeX
     return entrance;
 }
 
+game::CMidServerLogic* getServerLogic()
+{
+    using namespace game;
+
+    auto midgard = CMidgardApi::get().instance();
+    if (!midgard || !midgard->data || !midgard->data->server) {
+        return nullptr;
+    }
+
+    auto server = midgard->data->server;
+    if (!server->data || !server->data->serverLogic) {
+        return nullptr;
+    }
+
+    return server->data->serverLogic;
+}
+
+bool isCurrentPlayer(const game::CMidgardID* playerId)
+{
+    using namespace game;
+
+    auto serverLogic = getServerLogic();
+    if (!serverLogic || !playerId) {
+        return false;
+    }
+
+    return CMidServerLogicApi::get().isCurrentPlayer(serverLogic, playerId);
+}
+
+const game::CMidPlayer* getCurrentPlayer(const game::IMidgardObjectMap* objectMap,
+                                         const game::CMidgardID* playerId)
+{
+    if (!isCurrentPlayer(playerId)) {
+        return nullptr;
+    }
+
+    return getPlayer(objectMap, playerId);
+}
+
 } // namespace hooks
