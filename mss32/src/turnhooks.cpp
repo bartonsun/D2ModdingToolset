@@ -52,6 +52,11 @@ void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
 
         static const auto path = scriptsFolder() / "turn.lua";
 
+        // Per-turn mod logic is optional. Still report failures for an existing script.
+        if (!std::filesystem::exists(path)) {
+            return;
+        }
+
         if (!env) {
             env = executeScriptFile(path, false, true);
         }
