@@ -71,6 +71,9 @@ void CMenuCustomLoadSkirmishMulti::createRoomAndServer()
 
     auto vftable = (CMenuLoadVftable*)((CMenuBase*)this)->vftable;
     auto phaseData = this->menuBaseData->menuPhase->data;
+    // The load screen exposes no room-option controls. Do not inherit invisible settings from a
+    // previously opened new-game host dialog.
+    CNetCustomService::get()->getRoomOptions() = {};
     createRoom(vftable->getGameName(this), phaseData->scenarioName, phaseData->scenarioDescription,
                vftable->getPassword(this));
 }

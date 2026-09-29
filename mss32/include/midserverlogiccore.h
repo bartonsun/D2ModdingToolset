@@ -52,7 +52,8 @@ struct CMidServerLogicCoreData
     int unknown4;
     std::uint32_t playerNetId;
     Vector<NetPlayerInfo>* players;
-    int unknown6;
+    /** Saved round offset; a new day begins when currentPlayerIndex + 1 == players->size() - offset. */
+    int loadedTurnOffset;
     Map<std::uint32_t /* netId */, String /* playerName */>* sessionPlayers;
     int startingGold;
     int startingMana;
@@ -73,6 +74,7 @@ struct CMidServerLogicCoreData
 assert_size(CMidServerLogicCoreData, 72);
 assert_offset(CMidServerLogicCoreData, eventObjectsList, 24);
 assert_offset(CMidServerLogicCoreData, players, 48);
+assert_offset(CMidServerLogicCoreData, loadedTurnOffset, 52);
 
 struct CMidServerLogicCore : public IMqNetTraffic
 {
