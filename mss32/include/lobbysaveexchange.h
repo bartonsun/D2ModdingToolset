@@ -24,36 +24,26 @@
 
 namespace hooks {
 
-/** Lobby-server driven native host-save exchange.
- * The capability-negotiated request carries saveId, mode, and a bounded ASCII save stem. Upload
- * responses start with saveId and operation, followed by one of:
- * BEGIN(totalSize), CHUNK(bytes), COMMIT, or FAIL(result).
- * All fields are written individually through SLNet::BitStream; this is not a packed ABI. */
-
-/** Handles a validated request on the main/UI thread. Only the native host path is valid. */
+/** UI-thread capture by the native host; requests are validated by CNetCustomService. */
 void handleLobbySaveRequest(const LobbyProtocol::SaveRequest& request);
 
-/** Sends a FAIL operation when a request can be correlated but cannot be accepted. */
 void sendLobbySaveFailure(std::uint64_t saveId, LobbyProtocol::SaveResult result);
 
-/** Sends the failure on the response channel selected by the request mode. */
+/** Selects the response channel by request mode. */
 void sendLobbySaveFailure(const LobbyProtocol::SaveRequest& request,
                           LobbyProtocol::SaveResult result);
 
-/** Deletes the exact lobby-owned local save only after a matching authenticated server ACK. */
+/** Deletes only the captured file after a matching server ACK. */
 void handleLobbySaveStoredAck(std::uint64_t saveId);
 
-/** Handles a copied CommandMsgId::GameSaved result. Only the exact lobby-owned host path can
- * complete the active transfer; unrelated quicksave/autosave results are ignored. */
+/** Ignores GameSaved results from unrelated quicksaves/autosaves. */
 void handleGameSavedForLobby(bool success, const std::string& savePath);
 
-/** Returns true only while a validated Russobit native host-save request is pending. */
+/** True on the UI thread while a supported native save is pending. */
 bool hasActiveLobbyHostSaveTransfer();
 
-/** Expires pending transfers from the existing 250-ms main-thread lobby watchdog. */
 void expireLobbySaveTransfers();
 
-/** Terminates every pending transfer after the lobby's authoritative match deadline. */
 void terminateLobbySaveTransfers();
 
 /** Clears all in-memory transfer state without touching any save files. */

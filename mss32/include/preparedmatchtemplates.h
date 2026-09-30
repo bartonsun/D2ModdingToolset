@@ -31,8 +31,7 @@ inline int compareTemplateVersions(const TemplateVersion& a, const TemplateVersi
     return 0;
 }
 
-// Recognize only explicit versions. Unknown suffixes (e.g. 3.3K(2))
-// are NOT discarded: they can identify a fork rather than a newer release.
+// Preserve unknown suffixes (e.g. 3.3K(2)): they may identify a fork.
 inline std::optional<TemplateVersion> parseTemplateVersion(const std::string& value)
 {
     if (value.empty()) return {};
@@ -84,9 +83,6 @@ inline std::string trimTemplateWhitespace(const std::string& value)
 
 inline TemplateFamily templateFamily(const std::string& value)
 {
-    // Same suffix grammar for title and filename stem (each number <= 9 digits):
-    // [ _-]+v?(digits(.digits){0,5})([a-z]?)([ _-]+(alpha|beta|rc)(digits*))?$
-    // Preserve variant words/punctuation and internal whitespace. Only ASCII trim/casefold.
     const auto name = trimTemplateWhitespace(value);
     for (std::size_t i = 1; i + 1 < name.size(); ++i) {
         if (name[i] != ' ' && name[i] != '_' && name[i] != '-') continue;
@@ -105,8 +101,7 @@ struct LocalTemplateSelection {
     rsg::MapTemplateSettings settings;
 };
 
-// Only cached metadata is inspected. No Lua execution, disk read, native UI or
-// catalog mutation. localTitle/localFilename have already been converted to CP1251.
+// Cached metadata only; localTitle/localFilename are already CP1251.
 inline LocalTemplateSelection selectLocalTemplate(const Offer& offer, const ScenarioTemplates& catalog,
                                                  const std::string& localTitle,
                                                  const std::string& localFilename)
@@ -135,8 +130,7 @@ inline LocalTemplateSelection selectLocalTemplate(const Offer& offer, const Scen
     }
     if (!selected) throw std::runtime_error("missing-template");
     if (ambiguous) throw std::runtime_error("ambiguous-template");
-    // Validate the chosen latest version without silently falling back, clamping
-    // agreed values, or comparing uploaded Lua hashes/positional spin labels.
+    // Reject incompatible settings instead of silently choosing an older version.
     return {selected, std::move(selectedFilename), applySettings(offer, selected->settings)};
 }
 

@@ -60,16 +60,13 @@ public:
     NativeFileHandle(const NativeFileHandle&) = delete;
     NativeFileHandle& operator=(const NativeFileHandle&) = delete;
     NativeFileHandle(NativeFileHandle&& other) noexcept
-        : handle{other.handle}
-    {
-        other.handle = INVALID_HANDLE_VALUE;
-    }
+        : handle{std::exchange(other.handle, INVALID_HANDLE_VALUE)}
+    { }
     NativeFileHandle& operator=(NativeFileHandle&& other) noexcept
     {
         if (this != &other) {
             reset();
-            handle = other.handle;
-            other.handle = INVALID_HANDLE_VALUE;
+            handle = std::exchange(other.handle, INVALID_HANDLE_VALUE);
         }
         return *this;
     }
@@ -153,24 +150,20 @@ std::filesystem::path getSaveFolder(const game::CMidgard* midgard)
 bool sameWindowsPath(const std::filesystem::path& first,
                      const std::filesystem::path& second)
 {
-    try {
-        auto firstNormalized{first.lexically_normal()};
-        auto secondNormalized{second.lexically_normal()};
-        firstNormalized.make_preferred();
-        secondNormalized.make_preferred();
-        const auto firstNative{firstNormalized.native()};
-        const auto secondNative{secondNormalized.native()};
-        if (firstNative.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())
-            || secondNative.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-            return false;
-        }
-
-        return CompareStringOrdinal(firstNative.data(), static_cast<int>(firstNative.size()),
-                                    secondNative.data(), static_cast<int>(secondNative.size()), TRUE)
-            == CSTR_EQUAL;
-    } catch (...) {
+    auto firstNormalized{first.lexically_normal()};
+    auto secondNormalized{second.lexically_normal()};
+    firstNormalized.make_preferred();
+    secondNormalized.make_preferred();
+    const auto firstNative{firstNormalized.native()};
+    const auto secondNative{secondNormalized.native()};
+    if (firstNative.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())
+        || secondNative.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
         return false;
     }
+
+    return CompareStringOrdinal(firstNative.data(), static_cast<int>(firstNative.size()),
+                                secondNative.data(), static_cast<int>(secondNative.size()), TRUE)
+        == CSTR_EQUAL;
 }
 
 bool chooseUnusedSavePath(const game::CMidgard* midgard, SaveTransferSession& transfer)
@@ -293,8 +286,7 @@ bool captureSave(SaveTransferSession& transfer,
         return false;
     }
     const auto fileSize64{static_cast<std::uint64_t>(fileSize.QuadPart)};
-    if (fileSize64 > saveFileHardLimit
-        || fileSize64 > std::numeric_limits<std::uint32_t>::max()) {
+    if (fileSize64 > saveFileHardLimit) {
         failure = SaveResult::Failed;
         return false;
     }
@@ -389,8 +381,7 @@ game::CPhaseGame* getHostPhaseGame(const game::CMidgard* midgard)
         return nullptr;
     }
 
-    // CPhase has multiple concrete owners. Ask the game's own MSVC RTTI helper for the exact
-    // dynamic type before deriving the enclosing CPhaseGame object.
+    // Only CPhaseGame owns the host-save entry point; other CPhase owners share this pointer.
     static constexpr char phaseGameTypeName[]{".?AVCPhaseGame@@"};
     const game::TypeDescriptor* phaseType{};
     try {
@@ -451,10 +442,6 @@ bool clientIsNativeHost(const CNetCustomSession* session, const game::CMidgard* 
 
 void awaitStoredAck()
 {
-    if (!activeTransfer) {
-        return;
-    }
-
     PendingStoredAck pending{};
     pending.saveId = activeTransfer->request.saveId;
     pending.savePath = std::move(activeTransfer->savePath);
@@ -553,10 +540,6 @@ void handleLobbySaveRequest(const LobbyProtocol::SaveRequest& request)
     }
 
     const auto sendSaveGameMsg{game::CPhaseGameApi::get().sendSaveGameMsg};
-    if (!sendSaveGameMsg) {
-        sendLobbySaveFailure(request, SaveResult::Failed);
-        return;
-    }
     const auto phaseGame{getHostPhaseGame(midgard)};
     if (!phaseGame) {
         sendLobbySaveFailure(request, SaveResult::Failed);
@@ -575,8 +558,7 @@ void handleLobbySaveRequest(const LobbyProtocol::SaveRequest& request)
     spdlog::info(__FUNCTION__ ": requesting native host save '{:s}', id {:016x}, mode {:d}",
                  activeTransfer->saveName, request.saveId, static_cast<int>(request.mode));
     try {
-        // false is the native non-UI/autosave form. The wrapper's true form owns an additional
-        // UI-lock increment which a direct CPhaseGame call must not request.
+        // The direct call must not request the wrapper's additional UI lock.
         sendSaveGameMsg(phaseGame, activeTransfer->saveName.c_str(), false);
     } catch (...) {
         spdlog::warn(__FUNCTION__ ": native host save builder raised a C++ exception");

@@ -30,8 +30,7 @@ int main()
         require(returning == Stage::Returning && stageAfterCanceledAck(returning) == Stage::Returning,
                 "late or repeated cancel dropped deferred generator cleanup");
 
-        // Actual coordinator decisions: Cancel crosses an already-sent CreateRoom,
-        // then its successful response must still allow native race/lord setup.
+        // Cancel crosses an already-sent CreateRoom.
         auto stage = Stage::Creating;
         bool canceled = false;
         require(requestCancellation(stage, false, canceled) == CancelAction::AwaitSafePoint && canceled,
@@ -63,26 +62,29 @@ int main()
         require(stage == Stage::Returning && canceled,
                 "failed creation crossing started setup or discarded pending cancellation");
 
-        for (auto joinStage : {JoinStage::Waiting, JoinStage::CheckingRoom, JoinStage::Prompt,
-                              JoinStage::Accepted, JoinStage::CheckingJoinRoom, JoinStage::Terminal})
-            require(joinAction(joinStage, false, true, true) == JoinAction::Wait,
-                    "join prompt/transition interrupted a busy game, modal or menu transition");
-        require(joinAction(JoinStage::Waiting, true, false, false) == JoinAction::RefreshRooms,
+        for (bool pendingCancel : {false, true}) {
+            require(stageAfterRoomCreationResult(true, pendingCancel) == Stage::Setup && !pendingCancel,
+                    "successful creation entered Setup with cancellation latched");
+            for (bool roomCreated : {false, true})
+                require(requestCancellation(Stage::Setup, roomCreated, pendingCancel) == CancelAction::PreserveRoom
+                    && !pendingCancel, "Setup cancellation invariant broken");
+        }
+        require(joinAction(JoinStage::Waiting, false, false) == JoinAction::RefreshRooms,
                 "first idle lobby did not request its fresh room list");
-        require(joinAction(JoinStage::CheckingRoom, true, false, false) == JoinAction::Wait,
+        require(joinAction(JoinStage::CheckingRoom, false, false) == JoinAction::Wait,
                 "not-yet-loaded room list rejected a valid queued invitation");
-        require(joinAction(JoinStage::CheckingRoom, true, true, true) == JoinAction::ShowPrompt,
+        require(joinAction(JoinStage::CheckingRoom, true, true) == JoinAction::ShowPrompt,
                 "fresh available room did not request explicit Yes/No");
-        require(joinAction(JoinStage::Accepted, true, true, true) == JoinAction::RefreshRooms,
+        require(joinAction(JoinStage::Accepted, true, true) == JoinAction::RefreshRooms,
                 "Yes joined using the stale pre-modal room list");
-        require(joinAction(JoinStage::CheckingJoinRoom, true, false, true) == JoinAction::Wait,
+        require(joinAction(JoinStage::CheckingJoinRoom, false, true) == JoinAction::Wait,
                 "Yes joined before refreshing the current room");
-        require(joinAction(JoinStage::CheckingJoinRoom, true, true, true) == JoinAction::Join,
+        require(joinAction(JoinStage::CheckingJoinRoom, true, true) == JoinAction::Join,
                 "explicit Yes and fresh room did not use ordinary joining");
         for (auto joinStage : {JoinStage::CheckingRoom, JoinStage::CheckingJoinRoom})
-            require(joinAction(joinStage, true, true, false) == JoinAction::Unavailable,
+            require(joinAction(joinStage, true, false) == JoinAction::Unavailable,
                     "missing/replaced/full room was not rejected");
-        require(joinAction(JoinStage::Terminal, true, true, true) == JoinAction::Wait,
+        require(joinAction(JoinStage::Terminal, true, true) == JoinAction::Wait,
                 "terminal answer retriggered the join");
         require(joinStageAfterBusy(JoinStage::CheckingRoom) == JoinStage::Waiting
             && joinStageAfterBusy(JoinStage::CheckingJoinRoom) == JoinStage::Accepted,

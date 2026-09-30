@@ -32,7 +32,6 @@
 #include <cstring>
 #include <deque>
 #include <optional>
-#include <set>
 #include <stdexcept>
 #include <windows.h>
 
@@ -255,8 +254,7 @@ bool processPreparedJoin() {
     }
     if (!activeJoin) return false;
     if (!idleLobby()) {
-        // A game or an unrelated dialog can last indefinitely. Refresh again on
-        // return; neither its elapsed time nor a replaced lobby menu expires the invite.
+        // Refresh on return; time spent in a game/modal does not expire the invite.
         activeJoin->stage = joinStageAfterBusy(activeJoin->stage);
         return false;
     }
@@ -264,7 +262,7 @@ bool processPreparedJoin() {
     auto& join = *activeJoin;
     try {
         const auto hostName = gameText(join.offer.host);
-        const auto action = joinAction(join.stage, true, menu->preparedRoomsRevision() > join.roomsRevision,
+        const auto action = joinAction(join.stage, menu->preparedRoomsRevision() > join.roomsRevision,
                                        menu->hasPreparedJoinRoom(join.offer.target.roomId, hostName));
         if (action == JoinAction::RefreshRooms) {
             join.roomsRevision = menu->preparedRoomsRevision();
@@ -275,15 +273,13 @@ bool processPreparedJoin() {
         if (action == JoinAction::Wait
             && (join.stage == JoinStage::CheckingRoom || join.stage == JoinStage::CheckingJoinRoom)
             && Clock::now() > join.refreshDeadline) {
-            // No room-search response is not evidence that the room disappeared.
-            // Keep consent/queue state and retry; a fresh result or JoinCancel settles it.
+            // A search timeout does not prove the room disappeared.
             join.stage = joinStageAfterBusy(join.stage); return false;
         }
         if (action == JoinAction::Unavailable) {
             finishJoin(JoinState::Unavailable, "join-room-unavailable"); return false;
         }
         if (action == JoinAction::Join) {
-            // No race/lord/portrait overrides: ordinary native joining owns every choice.
             const auto started = menu->joinPreparedRoom(join.offer.target.roomId, hostName);
             finishJoin(started ? JoinState::Accepted : JoinState::Unavailable,
                        started ? "join-requested" : "join-validation-failed");
@@ -384,9 +380,7 @@ void receivePreparedMatch(const unsigned char* bytes, std::size_t size) {
         if (prior != seen.end()) sendStatus(cancel, prior->second == State::RoomCreated ? State::RoomCreated : State::Canceled);
         return;
     }
-    // The outgoing RoomsPlugin request and Status use RELIABLE_ORDERED channel 0.
-    // Once CreateRoom was sent, wait for its actual result; do not falsely ACK
-    // cancellation or unbind a room that already exists on the server.
+    // An in-flight CreateRoom must settle before we acknowledge cancellation.
     const auto action = requestCancellation(active->stage, active->status == State::RoomCreated,
                                              active->canceled);
     if (action == CancelAction::AwaitSafePoint) return;
@@ -409,9 +403,7 @@ bool processPreparedMatch() {
     if (active->canceled && active->stage == Stage::Generating && p && p->data
         && p->data->currentPhase == game::MenuPhase::RandomScenarioMulti && p->data->currentMenu) {
         cancelPreparedMatchScenarioGeneration(reinterpret_cast<CMenuRandomScenario*>(p->data->currentMenu));
-        // Cancellation is already a local creation barrier: neither preview Accept
-        // nor the queued generator completion can issue CreateRoom now. Acknowledge
-        // without waiting for the expensive worker to finish its current geometry.
+        // Accept is blocked; ACK without waiting for the generation worker to stop.
         if (active->status != State::Canceled) status(State::Canceled, "generation-cancel-latched");
         return true;
     }
@@ -451,8 +443,7 @@ bool processPreparedMatch() {
             p->data->host = true;
             status(State::Accepted); active->stage = Stage::Generating; status(State::Generating);
             showMenu(p, game::MenuPhase::RandomScenarioMulti, createPreparedMenu);
-            // showMenu installs its own interface after invoking the factory. Show
-            // the wait/preview above that menu, never from inside its constructor.
+            // Show the preview after showMenu installs the new interface.
             auto* menu = reinterpret_cast<CMenuRandomScenario*>(p->data->currentMenu);
             if (!startPreparedMatchScenarioGeneration(menu, active->recipe, active->localFilename))
                 preparedMatchGenerationEnded(RestartScenarioGenerationResult::Error);
@@ -477,7 +468,7 @@ bool processPreparedMatch() {
         active->stage = Stage::Terminal; showMenu(p, game::MenuPhase::CustomLobby, createLobby); return true;
     }
     if (active->stage == Stage::Setup) {
-        if (active->canceled || host().lord < 0 || Clock::now() > active->setupDeadline) {
+        if (host().lord < 0 || Clock::now() > active->setupDeadline) {
             active->stage = Stage::Terminal; return false;
         }
         if (!p || !p->data || p->data->currentPhase != game::MenuPhase::LobbyHost) return false;
@@ -512,8 +503,7 @@ bool canAcceptPreparedMatch(CMenuRandomScenario* menu) {
 }
 bool preparePreparedMatchRoom(CMenuRandomScenario* menu) {
     if (!menu->preparedMatchGeneration) return true;
-    if (!active || active->stage != Stage::Generating) return false;
-    if (active->canceled) { preparedMatchGenerationEnded(RestartScenarioGenerationResult::Canceled); return false; }
+    if (!canAcceptPreparedMatch(menu)) return false;
     // Fresh Russobit CMenuLobby takes the first menu-phase race and emits native ReqRace.
     // getContents may reorder races: move the resolved host race first only in native setup.
     auto& races = menu->scenarioTemplate.settings.races;

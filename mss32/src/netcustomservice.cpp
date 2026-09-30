@@ -228,8 +228,7 @@ void __fastcall systemNoticeMsgBoxButtonHandler(
     game::CMidgardMsgBox* msgBox,
     bool /*okPressed*/)
 {
-    // The handler itself deliberately owns no service or UI pointers. Both are resolved on the
-    // main thread at dismissal time, so service/session teardown cannot leave a dangling capture.
+    // The service can be destroyed while this notice is open.
     if (msgBox) {
         hideInterface(msgBox);
         msgBox->vftable->destructor(msgBox, 1);
@@ -337,8 +336,7 @@ CNetCustomService::CNetCustomService()
 {
     spdlog::debug(__FUNCTION__);
 
-    // Seed once per lobby session; reopening the host dialog preserves the player's choices.
-    // Visibility/absent-control and native-save checks still apply when the dialog is read.
+    // Reopening the host dialog preserves the player's choices.
     const auto& defaults = userSettings().lobby.defaults;
     m_roomOptions.ranked = defaults.ranked;
     m_roomOptions.unlockGui = defaults.unlockGui;
@@ -355,8 +353,6 @@ CNetCustomService::CNetCustomService()
     // createTimerEvent(&m_peerProcessEvent, this, peerProcessEventCallback, peerProcessInterval);
     addPeerCallback(&m_peerCallback);
     createMessageEvent(&m_peerProcessEvent, this, peerProcessEventCallback, peerProcessMessageName);
-    // Expires save transfers, waits for a safe pending-match UI transition and recovers a peer
-    // notification nested inside native UI. Also polls FilesHash and its bounded local send retry.
     createTimerEvent(&m_lobbyMaintenanceTimerEvent, this,
                      lobbyMaintenanceTimerEventCallback, lobbyMaintenanceIntervalMs);
 
@@ -384,8 +380,7 @@ CNetCustomService::~CNetCustomService()
     const auto& eventApi{game::UiEventApi::get()};
     eventApi.destructor(&m_lobbyMaintenanceTimerEvent);
     eventApi.destructor(&m_peerProcessEvent);
-    // The FilesHash future joins during member destruction, after callbacks are removed.
-    // Its worker owns only file paths and never accesses this service or native UI.
+    // Member destruction joins the FilesHash worker after removing callbacks.
 }
 
 bool CNetCustomService::connect()
@@ -1014,8 +1009,7 @@ void __fastcall CNetCustomService::peerProcessEventCallback(const CNetCustomServ
     }
 
     if (mainThreadCallbackActive) {
-        // Native callbacks can pump messages and timers.  Local maintenance will drain deferred
-        // UI state after the outer callback returns; no packet is resent here.
+        // Native callbacks can pump messages; the maintenance timer resumes deferred work.
         return;
     }
 
@@ -1032,8 +1026,7 @@ void __fastcall CNetCustomService::peerProcessEventCallback(const CNetCustomServ
             }
         }
 
-        // MATCH_ENDED itself is deferred below. Other native observers can still replace the
-        // service, so acknowledge only through the peer that is still installed.
+        // Acknowledge only through the currently installed service.
         auto currentService = get();
         if (currentService != service || currentService->m_peer != peer) {
             return;
@@ -1054,9 +1047,7 @@ std::vector<NetPeerCallback*> CNetCustomService::getPeerCallbacks() const
 
 const std::string& CNetCustomService::getGameFilesHash()
 {
-    // Preserve the old explicit host/join retry after a transient read failure.
-    // A pending computation or a valid cache is never reset; background login/poll
-    // stays one-shot and cannot create an automatic file-read retry loop.
+    // Only an explicit host/join retries a failed calculation.
     if (m_gameFilesHash.retryUnavailable() && loggedIn()) {
         const auto lobbyGuid = getLobbyGuid();
         if (lobbyGuid != SLNet::UNASSIGNED_RAKNET_GUID) {
@@ -1065,8 +1056,7 @@ const std::string& CNetCustomService::getGameFilesHash()
         }
     }
     startGameFilesHash();
-    // Host/join already display their native wait dialog. Consume exactly the worker
-    // started at login; never race it with another computation or read a partial result.
+    // Host/join already display a wait dialog; reuse the login worker.
     return m_gameFilesHash.value(true);
 }
 
@@ -1074,7 +1064,7 @@ void CNetCustomService::startGameFilesHash()
 {
     if (m_gameFilesHash.started()) return;
     try {
-        // Resolve game paths only on the main thread; preserve the existing file set and hash.
+        // Resolve native game paths before starting the worker.
         auto files = getGameFilesToHash();
         m_gameFilesHash.start([files = std::move(files)]() mutable {
             return computeHash(std::move(files));
@@ -1222,8 +1212,6 @@ bool CNetCustomService::readSaveRequest(const SLNet::Packet* packet,
 bool CNetCustomService::readSaveStoredAck(const SLNet::Packet* packet,
                                           std::uint64_t& saveId) const
 {
-    using namespace LobbyProtocol;
-
     constexpr std::size_t packetSize{sizeof(SLNet::MessageID) + sizeof(std::uint64_t)};
     if (!packet || !packet->data || packet->length != packetSize
         || !isAuthenticatedLobbyPacket(this, packet)) {
@@ -1294,7 +1282,6 @@ void CNetCustomService::processDeferredLobbyState()
     }
 
     MainThreadCallbackGuard callbackGuard{mainThreadCallbackActive};
-    // Pure network/cache maintenance does not need an idle menu or a dismissed modal.
     processClientCompatibility();
     if (m_systemNoticeModalActive) return;
     if (processLobbyRestart()) {
@@ -1310,10 +1297,6 @@ void CNetCustomService::processDeferredLobbyState()
 
 void CNetCustomService::processPendingMatchEnd()
 {
-    if (!m_matchEndPending) {
-        return;
-    }
-
     auto midgard = game::CMidgardApi::get().instance();
     if (!midgard || !midgard->data) {
         return;
@@ -1321,8 +1304,7 @@ void CNetCustomService::processPendingMatchEnd()
 
     auto data = midgard->data;
     if (!loggedIn() || !getSession() || !data->multiplayerGame || !data->client) {
-        // A detached terminal packet can arrive after the old native session has already gone.
-        // It must not block later global notices while waiting for state that will never return.
+        // The old session may already have ended; do not block global notices.
         m_matchEndPending = false;
         return;
     }
@@ -1336,9 +1318,7 @@ void CNetCustomService::processPendingMatchEnd()
         return;
     }
 
-    // Native player reception also uses posted window messages. The tracker keeps this transition
-    // pending until both client and server queues are dequeued; posting MID_STARTMENU then lets an
-    // already-running client notification return before native network teardown starts.
+    // Posting lets the current native notification return before network teardown.
     if (!game::CUIManagerApi::get().postMessage(uiManager, data->startMenuMessageId, 0, 0)) {
         spdlog::warn(__FUNCTION__ ": failed to post MID_STARTMENU, error = {:d}", GetLastError());
         return;
@@ -1350,7 +1330,7 @@ void CNetCustomService::processPendingMatchEnd()
 
 void CNetCustomService::processPendingSystemNotices()
 {
-    if (m_systemNoticeModalActive || m_pendingSystemNotices.empty()) {
+    if (m_pendingSystemNotices.empty()) {
         return;
     }
 
@@ -1396,8 +1376,7 @@ void __fastcall CNetCustomService::lobbyMaintenanceTimerEventCallback(
 {
     auto service = get();
     if (!service || mainThreadCallbackActive) {
-        // A timer notification may already be queued when native service teardown removes the
-        // event. Resolve the current instance instead of trusting the callback's raw userdata.
+        // A queued timer can outlive its service; do not use raw callback userdata.
         return;
     }
 
@@ -1476,9 +1455,7 @@ void CNetCustomService::PeerCallback::onPacketReceived(DefaultMessageIDTypes typ
     case ID_LOBBY_SAVE_STORED_ACK: {
         std::uint64_t saveId{};
         if (m_service->readSaveStoredAck(packet, saveId)) {
-            // Peer packets are drained only by the UI-event callback (or the same main-thread
-            // teardown/watchdog path). Apply the ACK synchronously before a later RELIABLE_ORDERED
-            // MATCH_ENDED packet can reset the transfer state.
+            // Apply before a subsequent MATCH_ENDED can clear the transfer.
             handleLobbySaveStoredAck(saveId);
         }
         break;
@@ -1543,8 +1520,7 @@ void CNetCustomService::LobbyCallback::MessageResult(SLNet::Client_Login* messag
         m_service->m_compatibilityPublication.begin();
         m_service->startGameFilesHash();
 
-        // Pre-ranked lobby servers ignore this authenticated extension. Current servers use its
-        // fixed schema both for the ranked capability gate and optional anti-abuse signals.
+        // Old lobby servers ignore this capability/anti-abuse extension.
         const auto environment{clientEnvironment().value_or(ClientEnvironment{})};
         SLNet::BitStream stream;
         stream.Write(static_cast<SLNet::MessageID>(ID_LOBBY_PLAYER_SETUP));

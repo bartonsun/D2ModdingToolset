@@ -99,8 +99,7 @@ void captureLobbySaveTurnBase(game::CMidgardScenarioMap* scenarioMap,
         return;
     }
 
-    // This is a native scenario variable, not an extra field in the .sg format. Keep the
-    // original origin when another race hosts the next session and creates another save.
+    // Preserve the original turn order when another race hosts and saves the loaded game.
     int id = 1;
     for (const auto& variable : variables->variables) {
         if (variable.first == std::numeric_limits<int>::max()) {
@@ -154,7 +153,7 @@ bool prepareLobbySaveResume(game::CMidServerLogic* logic)
         return false;
     }
 
-    // Rebuild the original base, then rotate ALL players, not just the non-host races.
+    // Rotate the original order including the host and AI.
     std::sort(players->bgn, players->end, [origin](const auto& left, const auto& right) {
         const auto rank = [origin](RaceId race) {
             return race == origin ? -1 : static_cast<int>(
@@ -163,8 +162,7 @@ bool prepareLobbySaveResume(game::CMidServerLogic* logic)
         return rank(left.raceCategory.id) < rank(right.raceCategory.id);
     });
     std::rotate(players->bgn, players->bgn + offset, players->end);
-    // Native initialization now starts at index 0; keeping offset preserves the day boundary
-    // and the next save's (currentPlayerIndex + loadedTurnOffset) % count calculation.
+    // Keep loadedTurnOffset for the day boundary and the next save's active-player index.
     spdlog::info("Lobby resume: active race={}, origin={}, offset={}, queue={}",
                  static_cast<int>(players->bgn->raceCategory.id), base->value, offset, count);
     return true;
@@ -218,10 +216,8 @@ void prepareLobbySaveResumeUi(game::CMidObjectLock* objectLock)
         return;
     }
 
-    // Load initially marks the not-yet-started joiner as AI (0x422d3d, 0x42bc1a).
-    // The constructor already took one full input lock. Leaving mode=Initial would make
-    // the first remote-AI BeginTurn take another, which the host's TurnInfo cannot release.
-    // Describe the existing lock; let native transitions manage all locks and the cursor.
+    // Load marks the unstarted joiner as AI (0x422d3d, 0x42bc1a). Initial mode would
+    // take a second input lock on BeginTurn; Full reflects the constructor's existing lock.
     ui->waitMode = StratWaitMode::Full;
     spdlog::info("Lobby resume: initialized host UI wait (input locks={}, cursor locks={})",
                  ui->inputLocks, ui->cursorLocks);

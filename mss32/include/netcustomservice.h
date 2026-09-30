@@ -75,10 +75,7 @@ private:
     std::atomic_size_t m_pending{};
 };
 
-// Keep the numeric values in sync with the lobby server.  Values +1 through +7 are the
-// established custom-lobby protocol; ranked-match messages are append-only so older clients keep
-// interpreting every legacy byte exactly as before.  Every value must fit in SLNet::MessageID and
-// remain below the stock game-message relay byte (255).
+// Append-only wire IDs shared with the lobby server; 255 is the native game relay.
 enum LobbyMessageId
 {
     ID_LOBBY_CHAT_MESSAGE = ID_USER_PACKET_ENUM + 1,
@@ -113,9 +110,7 @@ enum LobbyMessageId
 static_assert(ID_GAME_MESSAGE == 255);
 static_assert(ID_LOBBY_CLIENT_COMPATIBILITY < ID_GAME_MESSAGE);
 
-/** Lobby-specific wire protocol. Values are serialized field-by-field with SLNet::BitStream;
- * these structures are logical payloads, not packed wire images. Keep in sync with the lobby
- * server. */
+/** Logical payloads serialized field-by-field with SLNet::BitStream, not packed structs. */
 namespace LobbyProtocol {
 
 static constexpr std::size_t systemNoticeTextMax{1024};
@@ -204,7 +199,6 @@ public:
     struct RoomOptions
     {
         bool ranked{false};
-        /** Whether the simultaneous-turns room option is enabled. */
         bool simultaneousTurnsEnabled{false};
         /** Spinner selection retained while simultaneous turns are disabled. */
         int simultaneousTurnsDays{7};

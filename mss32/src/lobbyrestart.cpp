@@ -299,7 +299,7 @@ void handleLobbyRestart(Operation operation, std::uint64_t token)
     if (operation == Operation::Abort) {
         fail("lobby canceled restart", false);
     } else if (operation == Operation::Start && restart.stage == Stage::Waiting) {
-        // The host can inspect, copy and retry the preview without a decision timeout.
+        // The host's preview has no decision timeout.
         restart.deadline = Clock::time_point::max();
         if (restart.host) {
             restart.stage = Stage::BeginGeneration;
@@ -351,8 +351,7 @@ void enterLobbyRestartMenu(game::CMenuPhase* phase)
     replaySetup = true;
     showWait(restart.host ? L"\u0420\u0435\u0441\u0442\u0430\u0440\u0442: \u043e\u0436\u0438\u0434\u0430\u0435\u043c \u0433\u043e\u0442\u043e\u0432\u043d\u043e\u0441\u0442\u0438 \u0443\u0447\u0430\u0441\u0442\u043d\u0438\u043a\u043e\u0432..."
                           : L"\u0425\u043e\u0441\u0442 \u043f\u0435\u0440\u0435\u0433\u0435\u043d\u0435\u0440\u0438\u0440\u0443\u0435\u0442 \u043a\u0430\u0440\u0442\u0443.\n\u041e\u0436\u0438\u0434\u0430\u0439\u0442\u0435, \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e.");
-    // Native clear joins the old server worker. A self-packet queued after it is the fence
-    // for any old loopback messages still inside RakNet, beyond the native receive queues.
+    // Native clear joins the worker; a self-packet also drains its queued RakNet loopback.
     auto service = CNetCustomService::get();
     SLNet::BitStream fence;
     fence.Write(static_cast<SLNet::MessageID>(ID_LOBBY_RESTART));
@@ -388,8 +387,7 @@ bool processLobbyRestart()
         fail("connection lost or restart deadline expired");
     }
     if (restart.stage == Stage::Failed) {
-        // The old world may already be destroyed on another participant: do not resume half a match.
-        // Return through native teardown, which now performs the real LeaveRoom operation.
+        // Other players may have cleared their world; abort through native teardown/LeaveRoom.
         closeWait();
         restart.stage = Stage::Returning;
         if (postStartMenu()) {
@@ -434,8 +432,7 @@ bool processLobbyRestart()
             fail("native server creation failed");
             return true;
         }
-        // Publish the new receive endpoint before adding remote players can make the
-        // native worker send setup packets. Both paths use the same ordered lobby channel.
+        // Publish the receive endpoint before addClient starts sending native setup packets.
         if (!send(Operation::HostCreated)) {
             fail("cannot notify lobby about new native server");
             return true;
@@ -517,8 +514,7 @@ void publishLobbyRestartFailureNotice()
     if (auto service = CNetCustomService::get()) {
         service->enqueueSystemNotice(std::move(notice));
     } else {
-        // A disconnected lobby service has already been destroyed. The main menu is
-        // ready now; the standard message-box handler retains no old menu pointer.
+        // The replacement main menu is ready; this handler retains no old menu pointer.
         showMessageBox(notice);
     }
 }
@@ -616,10 +612,8 @@ LobbyRestartMessageAction checkLobbyRestartClientMessage(const game::NetMessageH
     auto client = midgard && midgard->data ? midgard->data->client : nullptr;
     auto cache = client && client->core.data ? client->core.data->dataCache : nullptr;
     if (objectDelta && !restart.newScenarioReceived) {
-        // Host startup broadcasts object changes while joiners are still in setup.
-        // Each joiner gets its own NewScenario and a full object snapshot afterwards
-        // (Russobit 0x421d3a -> 0x4218ca). Discard only deltas preceding that boundary,
-        // including queued ones that survive the transition into the game client.
+        // NewScenario precedes each joiner's full snapshot (0x421d3a -> 0x4218ca).
+        // Earlier deltas are superseded, even if queued across game-client creation.
         ++restart.preScenarioDeltaCount;
         if (restart.preScenarioDeltaCount == 1) {
             spdlog::info("Lobby restart {} pid {}: discard pre-scenario {} stage {} client {:p}",
@@ -641,8 +635,7 @@ LobbyRestartMessageAction checkLobbyRestartClientMessage(const game::NetMessageH
     }
     if (objectDelta) {
         restart.refreshSeen = true;
-        // Russobit CRefreshInfo applies objects directly to dataCache (0x41799e).
-        // After NewScenario no object changes may be lost or applied to an absent map.
+        // After NewScenario, CRefreshInfo requires dataCache (0x41799e); no more dropping deltas.
         if (!cache) {
             fail("received object changes after NewScenario without a native map");
             return Action::Stop;

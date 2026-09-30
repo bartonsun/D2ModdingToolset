@@ -36,10 +36,10 @@ public:
     }
 };
 
-inline JoinAction joinAction(JoinStage stage, bool idleLobby, bool freshRooms, bool roomAvailable)
+// Called only after the native idle-lobby check.
+inline JoinAction joinAction(JoinStage stage, bool freshRooms, bool roomAvailable)
 {
-    // Never let a network callback, an unrelated modal or a running session own a transition.
-    if (!idleLobby || stage == JoinStage::Terminal) return JoinAction::Wait;
+    if (stage == JoinStage::Terminal) return JoinAction::Wait;
     if (stage == JoinStage::Waiting || stage == JoinStage::Accepted) return JoinAction::RefreshRooms;
     if (stage == JoinStage::Prompt) return JoinAction::ShowPrompt;
     if (!freshRooms) return JoinAction::Wait;
@@ -58,8 +58,7 @@ inline CancelAction cancelAction(Stage stage, bool roomCreated)
 inline CancelAction requestCancellation(Stage stage, bool roomCreated, bool& canceled)
 {
     const auto action = cancelAction(stage, roomCreated);
-    // A created room keeps its agreed native setup. Only a pending creation can
-    // still be canceled; do not latch a new cancellation during Setup or play.
+    // A late Cancel must not suppress the created room's native setup.
     if (action != CancelAction::PreserveRoom) canceled = true;
     return action;
 }
@@ -67,8 +66,7 @@ inline CancelAction requestCancellation(Stage stage, bool roomCreated, bool& can
 inline Stage stageAfterRoomCreationResult(bool success, bool& canceled)
 {
     if (!success) return Stage::Returning;
-    // CreateRoom won the crossing with Cancel. Its successful result settles the
-    // creation barrier, so the earlier request must not suppress the host's lord.
+    // CreateRoom won the race with Cancel.
     canceled = false;
     return Stage::Setup;
 }

@@ -318,7 +318,7 @@ game::ReceiveMessageResult __fastcall CNetCustomPlayer::receiveMessage(
 {
     std::lock_guard<std::mutex> messageGuard(thisptr->m_messagesMutex);
 
-    if (lobbyRestartBlocksGameMessages() || thisptr->m_messages.empty()) {
+    if (lobbyRestartBlocksGameMessages()) {
         return game::ReceiveMessageResult::NoMessages;
     }
 
@@ -331,22 +331,8 @@ game::ReceiveMessageResult __fastcall CNetCustomPlayer::receiveMessage(
 
     while (!thisptr->m_messages.empty()) {
         const auto& pair = thisptr->m_messages.front();
+        // Only postMessageToReceive inserts here, after validating and copying the packet.
         auto message = reinterpret_cast<const game::NetMessageHeader*>(pair.second.get());
-        if (message->messageType != game::netMessageNormalType) {
-            thisptr->getLogger()
-                ->debug(__FUNCTION__ ": message from 0x{:x} with unexpected type 0x{:x}", pair.first,
-                         message->messageType);
-            consumeFront();
-            return game::ReceiveMessageResult::Failure;
-        }
-
-        if (message->length >= game::netMessageMaxLength) {
-            thisptr->getLogger()->debug(
-                __FUNCTION__ ": message from 0x{:x} with length {:d} that exeeds maximum of {:d}",
-                pair.first, message->length, game::netMessageMaxLength);
-            consumeFront();
-            return game::ReceiveMessageResult::Failure;
-        }
 
         if (thisptr->m_id != game::serverNetPlayerId) {
             const auto action = checkLobbyRestartClientMessage(message);

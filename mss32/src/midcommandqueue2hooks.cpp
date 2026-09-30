@@ -24,7 +24,6 @@
 #include "netmsgcallbacks.h"
 #include "netmsgmapentrycmdmovestackendmsg.h"
 #include "originalfunctions.h"
-#include "phasegame.h"
 #include <cstddef>
 #include <cstring>
 #include <new>
@@ -34,8 +33,7 @@
 namespace hooks {
 namespace {
 
-/** Russobit CCmdGameSavedMsg layout recovered from constructor 0x4786aa
- * (vtable 0x6d4b44). Keep this view local to the verified build. */
+// Russobit CCmdGameSavedMsg: constructor 0x4786aa, vtable 0x6d4b44.
 struct CCmdGameSavedMsgView
 {
     game::CCommandMsg command;
@@ -51,7 +49,7 @@ static_assert(offsetof(CCmdGameSavedMsgView, success) == 0x10);
 static_assert(offsetof(CCmdGameSavedMsgView, savePath) == 0x14);
 static_assert(offsetof(CCmdGameSavedMsgView, uiLockRequest) == 0x18);
 
-/** Copies the native owned path before the original queue push can release/copy the message. */
+// Copy before the original queue push can release the native message.
 bool copyNativeSavePath(const char* source, std::string& result)
 {
     static constexpr std::size_t maxNativeSavePath{4096};
@@ -114,8 +112,7 @@ void __fastcall midCommandQueue2PushHooked(game::CMidCommandQueue2* thisptr,
     bool gameSavedSuccessfully{};
     std::string gameSavedPath;
     if (hasActiveLobbyHostSaveTransfer()
-        && commandMsg->vftable->getId(commandMsg) == CommandMsgId::GameSaved
-        && CPhaseGameApi::nativeSaveSupported()) {
+        && commandMsg->vftable->getId(commandMsg) == CommandMsgId::GameSaved) {
         const auto result{reinterpret_cast<const CCmdGameSavedMsgView*>(commandMsg)};
         gameSavedSuccessfully = result->success;
         gameSavedResultAvailable = copyNativeSavePath(result->savePath, gameSavedPath);

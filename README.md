@@ -5,54 +5,9 @@
 #### General
 - Can be used on vanilla version or with other mods installed;
 - Allows players to search and create PvP matches without external software using custom lobby server. Currently only for [Motlin's mod](https://dis2modding.fandom.com/ru/wiki/Мод_Мотлина);
-- <details>
-    <summary>Adds ranked-match lifecycle support to the custom lobby;</summary>
-
-    - Ranked host saves are enabled only for the verified Russobit executable (`4,187,648` bytes with the matching native-save entry signature); other builds remain casual;
-    - Lobby-requested saves always use the original host's native save builder. `Upload` deletes the exact local file only after durable-storage acknowledgement; `LocalOnly` retains it in the host's save folder;
-    - Save-transfer COMMIT carries no client digest. The server computes the stored artifact SHA-256 while receiving the chunks;
-    - Loaded games are always casual. This prevents a ranked setting from a previous room being reused for an unrelated save;
-    - Custom protocol ids are append-only: the existing lobby/game ids `+1` through `+7` and relay id `255` are unchanged. Rooms created by older clients have no `Ranked` column and remain casual;
-    - Ranked lifecycle uses the append-only `+8` through `+14` range:
-
-      | Id | Direction | Purpose |
-      | --- | --- | --- |
-      | `+8 SAVE_REQUEST` | core → host | Requests one `Upload` or `LocalOnly` native host save with a bounded ASCII stem; only letters, digits, `_`, and `-` are accepted. |
-      | `+9 SAVE_UPLOAD` | host → core | Carries the ordered `BEGIN`, `CHUNK`, header-only `COMMIT`, or `FAIL` operations. |
-      | `+10 MATCH_ENDED` | core → participant | Returns a finalized ranked participant from the game UI to the custom lobby. |
-      | `+11 PLAYER_SETUP` | participant → core | Advertises ranked-lifecycle support after login or reports the authenticated host lord choice. |
-      | `+12 SYSTEM_NOTICE` | core → participant | Carries current-client modal notices only; ordinary system chat stays on legacy chat/game packets. |
-      | `+13 SAVE_STORED_ACK` | core → host | Confirms durable server storage so the exact generated local save may be deleted; it is not a RakNet ACK. |
-      | `+14 SAVE_NATIVE_RESULT` | host → core | For `LocalOnly`, reports success plus the collision-safe filename or a failure with no filename and ends the request. For `Upload`, it reports only native-save success plus the filename; upload failures and completion use `+9 SAVE_UPLOAD` (`FAIL`/`COMMIT`). |
-
-    - System chat uses the existing lobby chat or native in-game chat packet. The server sends the optional modal packet only to current clients;
-    - A current client advertises support with an authenticated `PLAYER_SETUP` capability message after login. Current servers send ranked-lifecycle packets only to clients that advertised it; older clients keep using the unchanged `+1..+7` lobby flow and therefore remain casual. Older servers safely ignore the capability message;
-    - The capability value `1` selects the sole ranked-lifecycle schema. Packets `+8..+10` and `+12..+14` therefore carry no redundant per-message version field. Their payloads after the one-byte message id are:
-
-      | Id | Payload |
-      | --- | --- |
-      | `+8 SAVE_REQUEST` | `u64 saveId`, `u8 mode`, then the ASCII save stem to the packet end. |
-      | `+9 SAVE_UPLOAD` | `u64 saveId`, `u8 operation`; `BEGIN` adds `u32 totalSize`, `CHUNK` adds raw bytes to the packet end, `COMMIT` adds nothing, and `FAIL` adds `u8 result`. |
-      | `+10 MATCH_ENDED` | Empty. |
-      | `+11 PLAYER_SETUP` | Capability kind `0`: `u32 value=1`, 16-byte random install id, `u16 windowsMajor`, `u16 windowsMinor`, `u32 windowsBuild`, `u32 featureBits`. Host-lord kind `1`: `i32 lordCategory`. |
-      | `+12 SYSTEM_NOTICE` | UTF-8 text to the packet end. |
-      | `+13 SAVE_STORED_ACK` | `u64 saveId`. |
-      | `+14 SAVE_NATIVE_RESULT` | `u64 saveId`, `u8 result`, then the successful save filename to the packet end; failures have no filename. |
-
-      Modes are `Upload=0` and `LocalOnly=1`; operations are `BEGIN=0`, `CHUNK=1`, `COMMIT=2`, and `FAIL=3`; results are `Success=0`, `Failed=1`, and `TimedOut=2`. Save requests use fixed client limits of 32 MiB and 30 seconds. Each chunk is at most 16 KiB;
-    - The client gives each native request a process-unique collision-safe filename, opens the completed file after `GameSaved`, and keeps that exact file open until the durable-storage acknowledgement removes it. Failures retain the file.
-  </details>
-- <details>
-    <summary>Автоматический рестарт карты по команде 111;</summary>
-
-    - В игровом чате один из участников пишет `111`. У хоста открывается штатный экран перегенерации; остальные видят окно ожидания. Комната, её участники и соединение с лобби остаются прежними; меню настройки не показываются.
-    - Повторяется принятая генерация: тот же шаблон, размер, все спины и разрешённые случайные расы, имя/пароль комнаты. Участникам возвращаются их раса, лорд и портрет; сохраняются сложность и стартовые ресурсы. Меняется seed и создаётся новый мир с начального дня.
-    - Каждый `111` и Retry заново исполняет Lua-шаблон в чистом состоянии: случайные охраны, найм и связи зон не замораживаются на первой карте. Сохраняются выбранные настройки до `getContents` и текст исполнявшегося Lua-файла; изменения этого файла на диске не подменяют принятую генерацию. Внешние ресурсы, которые сам шаблон читает через `require`/`dofile`/`io`, отдельно не архивируются.
-    - Нужны новый lobby server и поддерживающая рестарт MSS у всех участников. Нативный запуск пока проверен дизассемблированием для Russobit; только этот build объявляет `featureBits & 1`. Сервер принимает прежний HELLO без featureBits как отсутствие поддержки рестарта. Обычная игра старых клиентов не меняется.
-    - Пакет `+15 RESTART`: `u8 operation`, `u64 token` после message id, всего 10 байт. Очистка старого мира и подтверждение восстановленных выборов имеют отдельные барьеры. Нативную готовность первым подтверждает хост, затем джойнеры. Это техническая синхронизация, не голосование за рестарт.
-    - `111` не записывает победу/поражение и не требует финального сейва. При отмене генерации, потере участника или ошибке запуска все возвращаются в лобби; частично пересозданная игра не продолжается.
-    - Рестарт доступен для карты, сгенерированной в этой игровой сессии: в загруженном `.sg` нет снимка всех пользовательских спинов. Восстановление снимка из сейва, плата 300 монет, лимиты рестартов и проверка номера/времени хода в этот этап не входят. Для игровой приёмки нужен прогон на двух клиентах; сборка сама по себе его не заменяет.
-  </details>
+- Supports ranked host saves, save/resume and `111` regeneration in the custom lobby; [protocol and behaviour](docs/LOBBY_PROTOCOL.md).
+- Starts prepared matches and offers entry to invited players through native confirmation dialogs; [client contract](docs/PREPARED_MATCHES.md).
+- [Native integration notes](docs/NATIVE_LOBBY.md) and [two-client acceptance checklist](docs/PREPARED_MATCHES_ACCEPTANCE_RU.md).
 - <details>
     <summary>Adds random scenario map generator;</summary>
     

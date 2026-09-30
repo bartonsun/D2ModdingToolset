@@ -42,8 +42,7 @@ inline std::string promptSimultaneous(const Offer& offer) {
         : "ОХ: объединение на день " + std::to_string(offer.simultaneousUntil);
 }
 inline std::string promptExtraTerms(const Offer& offer) {
-    // Remove only the exact generated duplicate, never arbitrary text beginning
-    // with a familiar label. Unknown/older summaries and all bets remain intact.
+    // Remove only the exact generated duplicate; preserve bets and other text.
     std::string duplicate = "Расы: ";
     for (std::size_t i = 0; i < offer.participants.size(); ++i) {
         const auto& p = offer.participants[i];
@@ -92,8 +91,7 @@ inline std::string promptFooter(std::size_t page, std::size_t count,
     return "\n(" + std::to_string(page + 1) + "/" + std::to_string(count) + ") "
         + (page + 1 == count ? question : next);
 }
-// Text and footers use the renderer's single-byte encoding. The native caller
-// supplies actual textbox/font measurement; tests inject only the fit policy.
+// Text is single-byte; fits uses the native textbox/font metrics.
 template<class Fits>
 std::vector<std::string> promptPages(std::string text, const std::string& question,
     const std::string& next, Fits fits) {

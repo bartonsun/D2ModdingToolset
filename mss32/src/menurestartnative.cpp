@@ -39,8 +39,7 @@ bool pressRestartNativeStartButton(game::CMenuPhase* phase)
         return false;
     }
 
-    // LobbyHost, LobbyJoin and the subsequent wait screen share phase 16.
-    // Check the concrete native menu before accessing CMenuBase or its controls.
+    // Host, join and wait menus share phase 16; only the first two expose these controls.
     const auto* type = (*RttiApi::get().typeIdOperator)(phase->data->currentMenu);
     if (!type || (std::strcmp(type->name, ".?AVCMenuLobbyHost@@") != 0
                   && std::strcmp(type->name, ".?AVCMenuLobbyJoin@@") != 0)) {
@@ -61,8 +60,7 @@ bool pressRestartNativeStartButton(game::CMenuPhase* phase)
         return false;
     }
 
-    // Joiners' native button becomes enabled only after the host starts.
-    // Its existing callback sends ReqStartGame and enters the native wait screen.
+    // Join becomes enabled after host start; its callback sends ReqStartGame and waits.
     action->vftable->runCallback(action);
     return true;
 }

@@ -30,7 +30,7 @@ namespace game::CPhaseGameApi {
 
 // clang-format off
 static std::array<Api, 4> functions = {{
-    // Akella -- ranked host capture is intentionally unsupported for this build.
+    // Akella
     Api{
         (Api::CheckObjectLock)0x4078b7,
         (Api::SendStackMoveMsg)0x40650f,
@@ -42,7 +42,7 @@ static std::array<Api, 4> functions = {{
         (Api::SendStackMoveMsg)0x40650f,
         (Api::SendSaveGameMsg)0x40639b,
     },
-    // GOG -- ranked host capture is intentionally unsupported for this build.
+    // GOG
     Api{
         (Api::CheckObjectLock)0x40753e,
         (Api::SendStackMoveMsg)0x40619b,
@@ -64,10 +64,7 @@ Api& get()
 
 bool nativeSaveSupported()
 {
-    // Reference executable: Discipl2.exe, 4,187,648 bytes,
-    // SHA-256 1375CDEF09EC470EE64FE5693FB734D7C69FB215212311D997F792B258A642EB.
-    // At 0x40639b the audited disassembly consumes ECX as this and returns with retn 8. Checking
-    // all recorded entry bytes below deliberately rejects size-only Russobit lookalikes.
+    // Version detection uses EXE size; also verify the audited native-save entry.
     static constexpr std::array<std::uint8_t, 16> expectedPrologue{
         0xb8, 0xbc, 0x71, 0x68, 0x00, 0xe8, 0x2b, 0x70,
         0x26, 0x00, 0x83, 0xec, 0x14, 0x56, 0x57, 0x8b,
@@ -102,7 +99,6 @@ bool nativeSaveSupported()
 
     const auto codeAddress{reinterpret_cast<std::uintptr_t>(code)};
     const auto regionAddress{reinterpret_cast<std::uintptr_t>(memory.BaseAddress)};
-    // These are runtime bounds returned by VirtualQuery, not version-specific API addresses.
     if (codeAddress < regionAddress || expectedPrologue.size() > memory.RegionSize
         || codeAddress - regionAddress > memory.RegionSize - expectedPrologue.size()) {
         return false;

@@ -120,9 +120,7 @@ bool __fastcall CNetCustomPlayerClient::sendMessage(CNetCustomPlayerClient* this
 
 void CNetCustomPlayerClient::forwardPlayerSetupToLobby(const game::NetMessageHeader* message) const
 {
-    // The stock player-list message already exposes the host race to the relay, but the host's
-    // lord request stays in the local loopback. Its first field is the lord category; the second
-    // one is only the selected portrait.
+    // Host lord selection stays in loopback; forward its category, not the portrait.
     static constexpr char lordMessageClass[]{".?AVCMenusReqLordMsg@@"};
     static constexpr auto lordCategoryOffset{sizeof(game::NetMessageHeader)};
     if (!message || message->length < lordCategoryOffset + sizeof(std::int32_t)
@@ -229,8 +227,7 @@ void CNetCustomPlayerClient::RoomsCallback::RoomDestroyedOnModeratorLeft_Callbac
     // TODO: make sure that the notification only arrives for our room, otherwise check roomId
     m_player->getLogger()->debug(__FUNCTION__);
     auto system = m_player->getSystem();
-    // Room destruction may arrive before the lobby's restart Abort. Do not let native
-    // connection UI start a competing transition; the coordinator owns cancellation.
+    // Restart Abort owns teardown, even if room destruction arrives first.
     if (system && !isLobbyRestartActive()) {
         system->vftable->onPlayerDisconnected(system, game::serverNetPlayerId);
     }

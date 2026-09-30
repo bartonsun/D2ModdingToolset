@@ -48,10 +48,7 @@ using RestartJoinCompletion = void (*)(bool success);
 /** Creates a message-only lobby menu used while reconnecting to a restarted match. */
 game::CMenuBase* __stdcall createRestartJoinMenu(game::CMenuPhase* menuPhase);
 
-/**
- * Starts the native session handshake without joining a RoomsPlugin room.
- * The completion callback is invoked exactly once after a started handshake succeeds or fails.
- */
+/** Native handshake in the existing room; completion is called once on success or failure. */
 bool beginRestartJoin(CMenuCustomLobby* menu,
                       const SLNet::RakNetGUID& hostGuid,
                       const char* roomName,
@@ -78,7 +75,7 @@ public:
     CMenuCustomLobby(game::CMenuPhase* menuPhase);
     ~CMenuCustomLobby();
     bool isPreparedMatchIdle() const {
-        return !m_restartJoin && !m_restartJoinPending && !m_helpDialog
+        return !m_restartJoin && !m_helpDialog
             && !m_roomPasswordDialog && !hasWaitDialog();
     }
     std::uint64_t preparedRoomsRevision() const { return m_preparedRoomsRevision; }
