@@ -764,6 +764,18 @@
     <ClCompile Include="src\menucustomlobby.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
+    <ClCompile Include="src\lobbysaveexchange.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lobbyrestart.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menurestartnative.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lobbysaveresume.cpp">
+      <Filter>features\lobby</Filter>
+    </ClCompile>
     <ClCompile Include="src\netcustomservice.cpp">
       <Filter>features\lobby</Filter>
     </ClCompile>
@@ -1110,6 +1122,9 @@
       <Filter>game</Filter>
     </ClCompile>
     <ClCompile Include="src\scenariotemplates.cpp">
+      <Filter>features\random scenario generator</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scenariotemplaterecipe.cpp">
       <Filter>features\random scenario generator</Filter>
     </ClCompile>
     <ClCompile Include="src\encparambase.cpp">
@@ -2819,6 +2834,18 @@
     <ClInclude Include="include\menucustomlobby.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
+    <ClInclude Include="include\lobbysaveexchange.h">
+      <Filter>features\lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="include\lobbyrestart.h">
+      <Filter>features\lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="include\menurestartnative.h">
+      <Filter>features\lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="include\lobbysaveresume.h">
+      <Filter>features\lobby</Filter>
+    </ClInclude>
     <ClInclude Include="include\netcustomservice.h">
       <Filter>features\lobby</Filter>
     </ClInclude>
@@ -3531,6 +3558,9 @@
       <Filter>hooks</Filter>
     </ClInclude>
     <ClInclude Include="include\scenariotemplates.h">
+      <Filter>features\random scenario generator</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenariotemplaterecipe.h">
       <Filter>features\random scenario generator</Filter>
     </ClInclude>
     <ClInclude Include="include\nativegameinfo.h">

@@ -5,6 +5,9 @@
 #### General
 - Can be used on vanilla version or with other mods installed;
 - Allows players to search and create PvP matches without external software using custom lobby server. Currently only for [Motlin's mod](https://dis2modding.fandom.com/ru/wiki/Мод_Мотлина);
+- Supports ranked host saves, save/resume and `111` regeneration in the custom lobby; [protocol and behaviour](docs/LOBBY_PROTOCOL.md).
+- Starts prepared matches and offers entry to invited players through native confirmation dialogs; [client contract](docs/PREPARED_MATCHES.md).
+- [Native integration notes](docs/NATIVE_LOBBY.md) and [two-client acceptance checklist](docs/PREPARED_MATCHES_ACCEPTANCE_RU.md).
 - <details>
     <summary>Adds random scenario map generator;</summary>
     

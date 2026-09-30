@@ -446,6 +446,11 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\resultsender.cpp" />
     <ClCompile Include="src\scenarioobjectstreams.cpp" />
     <ClCompile Include="src\scenariotemplates.cpp" />
+    <ClCompile Include="src\scenariotemplaterecipe.cpp" />
+    <ClCompile Include="src\preparedmatchprotocol.cpp" />
+    <ClCompile Include="src\preparedmatch.cpp">
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
     <ClCompile Include="src\refreshinfo.cpp" />
     <ClCompile Include="src\scenedit.cpp" />
     <ClCompile Include="src\effectinterf.cpp" />
@@ -488,6 +493,10 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\itemutils.cpp" />
     <ClCompile Include="src\leaderabilitycat.cpp" />
     <ClCompile Include="src\listbox.cpp" />
+    <ClCompile Include="src\lobbysaveexchange.cpp" />
+    <ClCompile Include="src\lobbyrestart.cpp" />
+    <ClCompile Include="src\menurestartnative.cpp" />
+    <ClCompile Include="src\lobbysaveresume.cpp" />
     <ClCompile Include="src\idlistutils.cpp" />
     <ClCompile Include="src\lordcat.cpp" />
     <ClCompile Include="src\main.cpp" />
@@ -1079,6 +1088,14 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\resultsender.h" />
     <ClInclude Include="include\scenarioobjectstreams.h" />
     <ClInclude Include="include\scenariotemplates.h" />
+    <ClInclude Include="include\scenariotemplaterecipe.h" />
+    <ClInclude Include="include\preparedmatchprotocol.h" />
+    <ClInclude Include="include\preparedmatch.h" />
+    <ClInclude Include="include\preparedmatchsettings.h" />
+    <ClInclude Include="include\preparedmatchtemplates.h" />
+    <ClInclude Include="include\preparedmatchlifecycle.h" />
+    <ClInclude Include="include\preparedmatchtext.h" />
+    <ClInclude Include="include\clientcompatibility.h" />
     <ClInclude Include="include\scenedit.h" />
     <ClInclude Include="include\isoborder.h" />
     <ClInclude Include="include\isoenginegroundhooks.h" />
@@ -1208,6 +1225,10 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\leadercategory.h" />
     <ClInclude Include="include\d2list.h" />
     <ClInclude Include="include\listbox.h" />
+    <ClInclude Include="include\lobbysaveexchange.h" />
+    <ClInclude Include="include\lobbyrestart.h" />
+    <ClInclude Include="include\menurestartnative.h" />
+    <ClInclude Include="include\lobbysaveresume.h" />
     <ClInclude Include="include\idlistutils.h" />
     <ClInclude Include="include\lordcat.h" />
     <ClInclude Include="include\lordtype.h" />

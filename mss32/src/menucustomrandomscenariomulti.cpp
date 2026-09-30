@@ -21,6 +21,7 @@
 #include "interfaceutils.h"
 #include "mempool.h"
 #include "originalfunctions.h"
+#include "preparedmatch.h"
 #include "textids.h"
 #include "utils.h"
 #include <spdlog/spdlog.h>
@@ -30,6 +31,11 @@ namespace hooks {
 game::RttiInfo<game::CMenuBaseVftable> CMenuCustomRandomScenarioMulti::rttiInfo = {};
 
 CMenuCustomRandomScenarioMulti::CMenuCustomRandomScenarioMulti(game::CMenuPhase* menuPhase)
+    : CMenuCustomRandomScenarioMulti{menuPhase, false}
+{ }
+
+CMenuCustomRandomScenarioMulti::CMenuCustomRandomScenarioMulti(game::CMenuPhase* menuPhase,
+                                                               bool restartGeneration)
     : CMenuRandomScenarioMulti{menuPhase}
     , CMenuCustomBase{this}
     , m_roomsCallback{this}
@@ -42,10 +48,13 @@ CMenuCustomRandomScenarioMulti::CMenuCustomRandomScenarioMulti(game::CMenuPhase*
     }
     this->vftable = &rttiInfo.vftable;
 
-    startScenario = (StartScenario)createRoomAndServer;
+    startScenario = restartGeneration ? nullptr : (StartScenario)createRoomAndServer;
     setUserNameToEditName();
 
-    CNetCustomService::get()->addRoomsCallback(&m_roomsCallback);
+    if (!restartGeneration) {
+        CNetCustomService::get()->addRoomsCallback(&m_roomsCallback);
+        m_roomsCallbackRegistered = true;
+    }
 }
 
 CMenuCustomRandomScenarioMulti::~CMenuCustomRandomScenarioMulti()
@@ -53,7 +62,7 @@ CMenuCustomRandomScenarioMulti::~CMenuCustomRandomScenarioMulti()
     using namespace game;
 
     auto service = CNetCustomService::get();
-    if (service) {
+    if (service && m_roomsCallbackRegistered) {
         service->removeRoomsCallback(&m_roomsCallback);
     }
 }
@@ -62,12 +71,24 @@ void CMenuCustomRandomScenarioMulti::createRoomAndServer(CMenuCustomRandomScenar
 {
     using namespace game;
 
-    prepareToStartRandomScenario(menu, true);
+    if (!canAcceptPreparedMatch(menu)) return;
+    try {
+        prepareToStartRandomScenario(menu, true);
+    } catch (const std::exception& error) {
+        if (menu->preparedMatchGeneration)
+            preparedMatchGenerationEnded(RestartScenarioGenerationResult::Error);
+        showMessageBox(error.what());
+        return;
+    }
+    if (!preparePreparedMatchRoom(menu)) return;
+    // Publish the accepted map, not transient state from the generation button.
+    CNetCustomService::get()->setTemplateInfo(menu->scenarioTemplateName);
 
     auto dialog = CMenuBaseApi::get().getDialogInterface(menu);
     auto phaseData = menu->menuBaseData->menuPhase->data;
-    menu->createRoom(getEditBoxText(dialog, "EDIT_GAME"), phaseData->scenarioName,
-                     phaseData->scenarioDescription, getEditBoxText(dialog, "EDIT_PASSWORD"));
+    if (!menu->createRoom(getEditBoxText(dialog, "EDIT_GAME"), phaseData->scenarioName,
+                          phaseData->scenarioDescription, getEditBoxText(dialog, "EDIT_PASSWORD"))
+        && menu->preparedMatchGeneration) preparedMatchRoomCreated(false);
 }
 
 void __fastcall CMenuCustomRandomScenarioMulti::destructor(CMenuCustomRandomScenarioMulti* thisptr,
@@ -94,13 +115,20 @@ void CMenuCustomRandomScenarioMulti::RoomsCallback::CreateRoom_Callback(
     case SLNet::REC_SUCCESS: {
         // Setup game host: reuse original game logic that creates player server and client
         if (CMenuNewSkirmishMultiApi::get().createServer(m_menu)) {
+            if (m_menu->preparedMatchGeneration) preparedMatchRoomCreated(true);
             CMenuPhaseApi::get().switchPhase(m_menu->menuBaseData->menuPhase,
                                              MenuTransition::RandomScenarioMulti2LobbyHost);
+        } else if (m_menu->preparedMatchGeneration) {
+            // Same failure cleanup as CMenuCustomNewSkirmishMulti: the lobby
+            // room exists, but native hosting did not start. This is not Cancel.
+            CNetCustomService::get()->leaveRoom();
+            preparedMatchRoomCreated(false);
         }
         break;
     }
 
     default: {
+        if (m_menu->preparedMatchGeneration) preparedMatchRoomCreated(false);
         auto msg{getInterfaceText(textIds().lobby.createRoomFailed.c_str())};
         if (msg.empty()) {
             msg = "Could not create a room.\n%ERROR%";
@@ -110,6 +138,19 @@ void CMenuCustomRandomScenarioMulti::RoomsCallback::CreateRoom_Callback(
         break;
     }
     }
+}
+
+game::CMenuBase* __stdcall createRestartScenarioMenu(game::CMenuPhase* menuPhase)
+{
+    auto menu = static_cast<CMenuCustomRandomScenarioMulti*>(
+        game::Memory::get().allocate(sizeof(CMenuCustomRandomScenarioMulti)));
+    new (menu) CMenuCustomRandomScenarioMulti(menuPhase, true);
+
+    if (!startPreparedRestartScenarioGeneration(menu)) {
+        spdlog::error(__FUNCTION__ ": no prepared random scenario restart");
+    }
+
+    return menu;
 }
 
 } // namespace hooks

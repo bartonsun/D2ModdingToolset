@@ -24,7 +24,11 @@
 #include "mapgenerator.h"
 #include "maptemplate.h"
 #include "menubase.h"
+#include "scenariotemplaterecipe.h"
 #include <array>
+#include <atomic>
+#include <ctime>
+#include <string>
 #include <thread>
 #include <utility>
 
@@ -45,6 +49,19 @@ enum class GenerationStatus : int
     Error,         /**< Generation was aborted with an error. */
 };
 
+struct CMenuRandomScenario;
+
+enum class RestartScenarioGenerationResult : int
+{
+    Success,
+    Canceled,
+    LimitExceeded,
+    Error,
+};
+
+using RestartScenarioCompletion = void (*)(CMenuRandomScenario* menu,
+                                           RestartScenarioGenerationResult result);
+
 /** Base menu for random scenario generation. */
 struct CMenuRandomScenario : public game::CMenuBase
 {
@@ -58,6 +75,8 @@ struct CMenuRandomScenario : public game::CMenuBase
     game::UiEvent uiEvent{};
     std::thread generatorThread;
     rsg::MapTemplate scenarioTemplate;
+    ScenarioTemplateRecipe scenarioRecipe;
+    std::string scenarioTemplateName;
     rsg::MapPtr scenario;
     std::unique_ptr<rsg::MapGenerator> generator;
 
@@ -66,12 +85,38 @@ struct CMenuRandomScenario : public game::CMenuBase
     RaceIndices raceIndices;
 
     game::CPopupDialogInterf* popup{};
-    GenerationStatus generationStatus{GenerationStatus::NotStarted};
+    // Atomically shared by the generator worker and UI cancellation safe points.
+    std::atomic<GenerationStatus> generationStatus{GenerationStatus::NotStarted};
     StartScenario startScenario{};
-    bool cancelGeneration{false};
+    RestartScenarioCompletion restartCompletion{};
+    std::time_t generatedSeed{};
+    std::atomic<bool> cancelGeneration{false};
+    bool restartGeneration{false};
+    bool preparedMatchGeneration{false};
 };
 
 void prepareToStartRandomScenario(CMenuRandomScenario* menu, bool networkGame = false);
+
+/** Returns true when an accepted custom-lobby random scenario can be regenerated. */
+bool hasRestartScenario();
+
+/** Exact file identity retained with the accepted recipe; never inferred from map text. */
+const std::string& restartScenarioTemplateName();
+
+/** Drops the retained scenario template after the real lobby room is left. */
+void clearRestartScenario();
+
+/** Arms the next restart-menu factory call with its completion callback. */
+bool prepareRestartScenarioGeneration(RestartScenarioCompletion completion);
+
+/** Starts regeneration with preview/retry; completion is sent only on accept or failure/cancel. */
+bool startPreparedRestartScenarioGeneration(CMenuRandomScenario* menu);
+/** Ordinary first generation with agreed inputs and the native preview/Retry/Accept UI. */
+bool startPreparedMatchScenarioGeneration(CMenuRandomScenario* menu,
+                                          const ScenarioTemplateRecipe& recipe,
+                                          const std::string& templateName);
+/** Safe-point cancellation: wait for a running worker, or dismiss a completed preview. */
+void cancelPreparedMatchScenarioGeneration(CMenuRandomScenario* menu);
 
 } // namespace hooks
 

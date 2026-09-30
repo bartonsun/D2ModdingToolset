@@ -18,6 +18,7 @@
  */
 
 #include "menuphasehooks.h"
+#include "lobbyrestart.h"
 #include "mempool.h"
 #include "menucustomloadskirmishmulti.h"
 #include "menucustomlobby.h"
@@ -75,7 +76,8 @@ game::CMenuPhase* __fastcall menuPhaseCtorHooked(game::CMenuPhase* thisptr,
 
 void __fastcall menuPhaseDtorHooked(game::CMenuPhase* thisptr, int /*%edx*/, char flags)
 {
-    freeScenarioTemplates();
+    // Templates are a process-lifetime startup snapshot. Returning from a match
+    // must not refresh Lua bytes/hash behind an already accepted preparation.
 
     getOriginalFunctions().menuPhaseDtor(thisptr, flags);
 }
@@ -122,10 +124,12 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             spdlog::debug("Current is Credits2Main");
             data->currentPhase = MenuPhase::Back2Main;
             menuPhase.switchToMain(thisptr);
+            publishLobbyRestartFailureNotice();
             break;
         case MenuPhase::Back2Main:
             spdlog::debug("Current is Back2Main");
             menuPhase.switchToMain(thisptr);
+            publishLobbyRestartFailureNotice();
             break;
         case MenuPhase::Main:
             spdlog::debug("Current is Main");
@@ -161,6 +165,7 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             menuPhase.showMenu(thisptr, &data->currentPhase, &data->interfManager,
                                &data->currentMenu, &data->transitionAnimation,
                                MenuPhase::CustomLobby, nullptr, &callback);
+            publishLobbyRestartFailureNotice();
             break;
         }
         case MenuPhase::CustomLobby: {

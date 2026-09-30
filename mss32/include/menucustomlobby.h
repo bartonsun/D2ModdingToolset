@@ -41,6 +41,20 @@ struct CGameVersionMsg;
 
 namespace hooks {
 
+class CMenuCustomLobby;
+
+using RestartJoinCompletion = void (*)(bool success);
+
+/** Creates a message-only lobby menu used while reconnecting to a restarted match. */
+game::CMenuBase* __stdcall createRestartJoinMenu(game::CMenuPhase* menuPhase);
+
+/** Native handshake in the existing room; completion is called once on success or failure. */
+bool beginRestartJoin(CMenuCustomLobby* menu,
+                      const SLNet::RakNetGUID& hostGuid,
+                      const char* roomName,
+                      int maxPlayers,
+                      RestartJoinCompletion completion);
+
 class CMenuCustomLobby
     : public game::CMenuBase
     , public CMenuCustomBase
@@ -60,6 +74,13 @@ public:
 
     CMenuCustomLobby(game::CMenuPhase* menuPhase);
     ~CMenuCustomLobby();
+    bool isPreparedMatchIdle() const {
+        return !m_restartJoin && !m_helpDialog
+            && !m_roomPasswordDialog && !hasWaitDialog();
+    }
+    std::uint64_t preparedRoomsRevision() const { return m_preparedRoomsRevision; }
+    bool hasPreparedJoinRoom(std::uint32_t roomId, const std::string& host) const;
+    bool joinPreparedRoom(std::uint32_t roomId, const std::string& host);
 
 protected:
     // CInterface
@@ -77,6 +98,7 @@ protected:
     void hideRoomPasswordDialog();
     void updateRooms(DataStructures::List<SLNet::RoomDescriptor*>& roomDescriptors);
     const RoomInfo* getSelectedRoom();
+    bool joinRoomInfo(const RoomInfo& room);
     void updateTxtRoomInfo(int roomIndex);
     void updateListBoxRoomsRow(int rowIndex,
                                bool selected,
@@ -114,6 +136,9 @@ protected:
                                            const char* shortenedMark,
                                            int textAreaWidth);
     void joinServer(SLNet::RoomDescriptor* roomDescriptor);
+    bool joinServer(const SLNet::RakNetGUID& hostGuid, const char* roomName, int maxPlayers);
+    RestartJoinCompletion takeRestartJoinCompletion();
+    void completeRestartJoin(bool success);
     void addChatMessage(CNetCustomService::ChatMessage message);
     void sendChatMessage();
     void updateUsers(std::vector<CNetCustomService::UserInfo> users);
@@ -275,11 +300,21 @@ protected:
     assert_offset(CHelpInterf, vftable, 0);
 
 private:
+    CMenuCustomLobby(game::CMenuPhase* menuPhase, bool restartJoin);
+
+    friend game::CMenuBase* __stdcall createRestartJoinMenu(game::CMenuPhase* menuPhase);
+    friend bool beginRestartJoin(CMenuCustomLobby* menu,
+                                 const SLNet::RakNetGUID& hostGuid,
+                                 const char* roomName,
+                                 int maxPlayers,
+                                 RestartJoinCompletion completion);
+
     CHelpInterf* m_helpDialog{};
     PeerCallback m_peerCallback;
     RoomsCallback m_roomsCallback;
     game::UiEvent m_roomsUpdateEvent;
     std::vector<RoomInfo> m_rooms;
+    std::uint64_t m_preparedRoomsRevision{};
     game::UiEvent m_usersUpdateEvent;
     std::vector<CNetCustomService::UserInfo> m_users;
     game::Vector<game::SmartPtr<game::IMqImage2>> m_userIcons;
@@ -291,6 +326,9 @@ private:
     std::deque<CNetCustomService::ChatMessage> m_chatMessages;
     std::uint32_t m_chatMessageStock;
     game::UiEvent m_chatMessageRegenEvent;
+    bool m_restartJoin;
+    bool m_restartJoinPending;
+    RestartJoinCompletion m_restartJoinCompletion;
 };
 
 assert_offset(CMenuCustomLobby, vftable, 0);

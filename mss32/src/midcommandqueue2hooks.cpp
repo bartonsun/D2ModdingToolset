@@ -18,14 +18,54 @@
  */
 
 #include "midcommandqueue2hooks.h"
+#include "commandmsg.h"
+#include "lobbysaveexchange.h"
 #include "mempool.h"
 #include "netmsgcallbacks.h"
 #include "netmsgmapentrycmdmovestackendmsg.h"
 #include "originalfunctions.h"
+#include <cstddef>
+#include <cstring>
 #include <new>
 #include <spdlog/spdlog.h>
+#include <string>
 
 namespace hooks {
+namespace {
+
+// Russobit CCmdGameSavedMsg: constructor 0x4786aa, vtable 0x6d4b44.
+struct CCmdGameSavedMsgView
+{
+    game::CCommandMsg command;
+    bool success;
+    char padding1[3];
+    const char* savePath;
+    bool uiLockRequest;
+    char padding2[3];
+};
+
+static_assert(sizeof(CCmdGameSavedMsgView) == 0x1c);
+static_assert(offsetof(CCmdGameSavedMsgView, success) == 0x10);
+static_assert(offsetof(CCmdGameSavedMsgView, savePath) == 0x14);
+static_assert(offsetof(CCmdGameSavedMsgView, uiLockRequest) == 0x18);
+
+// Copy before the original queue push can release the native message.
+bool copyNativeSavePath(const char* source, std::string& result)
+{
+    static constexpr std::size_t maxNativeSavePath{4096};
+    if (!source) {
+        return false;
+    }
+
+    const auto length{strnlen(source, maxNativeSavePath)};
+    if (length == maxNativeSavePath) {
+        return false;
+    }
+    result.assign(source, length);
+    return true;
+}
+
+} // namespace
 
 game::CMidCommandQueue2::CNMMap* __fastcall netMsgMapConstructorHooked(
     game::CMidCommandQueue2::CNMMap* thisptr,
@@ -68,7 +108,24 @@ void __fastcall midCommandQueue2PushHooked(game::CMidCommandQueue2* thisptr,
         }
     }
 
+    bool gameSavedResultAvailable{};
+    bool gameSavedSuccessfully{};
+    std::string gameSavedPath;
+    if (hasActiveLobbyHostSaveTransfer()
+        && commandMsg->vftable->getId(commandMsg) == CommandMsgId::GameSaved) {
+        const auto result{reinterpret_cast<const CCmdGameSavedMsgView*>(commandMsg)};
+        gameSavedSuccessfully = result->success;
+        gameSavedResultAvailable = copyNativeSavePath(result->savePath, gameSavedPath);
+        if (!gameSavedResultAvailable) {
+            spdlog::warn(__FUNCTION__ ": ignored GameSaved with an invalid native path");
+        }
+    }
+
     getOriginalFunctions().midCommandQueue2Push(thisptr, commandMsg);
+
+    if (gameSavedResultAvailable) {
+        handleGameSavedForLobby(gameSavedSuccessfully, gameSavedPath);
+    }
 }
 
 } // namespace hooks

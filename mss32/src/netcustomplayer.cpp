@@ -19,6 +19,7 @@
 
 #include "netcustomplayer.h"
 #include "d2string.h"
+#include "lobbyrestart.h"
 #include "mempool.h"
 #include "mqnetplayer.h"
 #include "mqnetreception.h"
@@ -26,9 +27,11 @@
 #include "netcustomservice.h"
 #include "netcustomsession.h"
 #include "netmsg.h"
+#include <cstring>
 #include <mutex>
 #include <slikenet/types.h>
 #include <spdlog/spdlog.h>
+#include <utility>
 
 namespace hooks {
 
@@ -38,11 +41,14 @@ CNetCustomPlayer::CNetCustomPlayer(CNetCustomSession* session,
                                    const char* name,
                                    std::uint32_t id,
                                    std::shared_ptr<spdlog::logger> logger)
-    : m_name{name}
-    , m_session{session}
+    : m_session{session}
     , m_system{system}
     , m_reception{reception}
+    , m_name{name}
     , m_id{id}
+    , m_messageTracker{session && session->getService()
+                           ? session->getService()->getNativeGameMessageTracker()
+                           : nullptr}
     , m_logger{std::move(logger)}
 {
     vftable = nullptr;
@@ -61,6 +67,14 @@ CNetCustomPlayer::~CNetCustomPlayer()
         getLogger()->debug(__FUNCTION__ ": destroying net reception");
         m_reception->vftable->destructor(m_reception, 1);
     }
+
+    std::lock_guard<std::mutex> lock(m_messagesMutex);
+    if (m_messageTracker) {
+        m_messageTracker->consumed(m_messages.size());
+    }
+    while (!m_messages.empty()) {
+        m_messages.pop();
+    }
 }
 
 uint32_t CNetCustomPlayer::getClientId(const SLNet::RakNetGUID& guid)
@@ -68,9 +82,36 @@ uint32_t CNetCustomPlayer::getClientId(const SLNet::RakNetGUID& guid)
     return guid.ToUint32(guid);
 }
 
-const game::NetMessageHeader* CNetCustomPlayer::getMessageAndSender(const SLNet::Packet* packet,
-                                                                    SLNet::RakNetGUID* sender)
+bool CNetCustomPlayer::isValidMessage(const game::NetMessageHeader* message,
+                                      std::size_t availableBytes,
+                                      std::uint32_t expectedMessageType)
 {
+    if (!message || availableBytes < sizeof(game::NetMessageHeader)
+        || availableBytes >= game::netMessageMaxLength) {
+        return false;
+    }
+
+    if (message->length < sizeof(game::NetMessageHeader) || message->length > availableBytes
+        || message->length >= game::netMessageMaxLength
+        || message->messageType != expectedMessageType) {
+        return false;
+    }
+
+    return std::memchr(message->messageClassName, '\0', sizeof(message->messageClassName)) != nullptr;
+}
+
+const game::NetMessageHeader* CNetCustomPlayer::getMessageAndSender(const SLNet::Packet* packet,
+                                                                    SLNet::RakNetGUID* sender,
+                                                                    std::size_t* availableBytes)
+{
+    if (availableBytes) {
+        *availableBytes = 0;
+    }
+    if (!packet || !packet->data || !sender || !availableBytes
+        || packet->length < sizeof(SLNet::MessageID)) {
+        return nullptr;
+    }
+
     SLNet::BitStream input{packet->data, packet->length, false};
     input.IgnoreBytes(sizeof(SLNet::MessageID));
     if (!input.Read(*sender)) {
@@ -78,8 +119,24 @@ const game::NetMessageHeader* CNetCustomPlayer::getMessageAndSender(const SLNet:
         return nullptr;
     }
 
-    auto messageData = input.GetData() + input.GetReadOffset() / 8;
-    return reinterpret_cast<const game::NetMessageHeader*>(messageData);
+    const auto readBits{input.GetReadOffset()};
+    if ((readBits & 7u) != 0) {
+        return nullptr;
+    }
+
+    const auto readBytes{static_cast<std::size_t>(readBits / 8)};
+    if (readBytes > packet->length) {
+        return nullptr;
+    }
+
+    *availableBytes = static_cast<std::size_t>(packet->length) - readBytes;
+    const auto messageData{input.GetData() + readBytes};
+    const auto message{reinterpret_cast<const game::NetMessageHeader*>(messageData)};
+    if (!isValidMessage(message, *availableBytes, game::netMessageNormalType)) {
+        *availableBytes = 0;
+        return nullptr;
+    }
+    return message;
 }
 
 CNetCustomService* CNetCustomPlayer::getService() const
@@ -118,8 +175,17 @@ uint32_t CNetCustomPlayer::getId() const
 }
 
 void CNetCustomPlayer::postMessageToReceive(const game::NetMessageHeader* message,
+                                            std::size_t availableBytes,
                                             std::uint32_t idFrom)
 {
+    if (lobbyRestartBlocksGameMessages()) {
+        return;
+    }
+    if (!isValidMessage(message, availableBytes, game::netMessageNormalType)) {
+        getLogger()->warn(__FUNCTION__ ": refusing invalid game message from 0x{:x}", idFrom);
+        return;
+    }
+
     getLogger()->debug(__FUNCTION__ ": '{:s}' from 0x{:x}", message->messageClassName, idFrom);
 
     auto msg = std::make_unique<unsigned char[]>(message->length);
@@ -127,6 +193,9 @@ void CNetCustomPlayer::postMessageToReceive(const game::NetMessageHeader* messag
     {
         std::lock_guard<std::mutex> lock(m_messagesMutex);
         m_messages.push(IdMessagePair{idFrom, std::move(msg)});
+        if (m_messageTracker) {
+            m_messageTracker->queued();
+        }
     }
 
     m_reception->vftable->notify(m_reception);
@@ -135,6 +204,9 @@ void CNetCustomPlayer::postMessageToReceive(const game::NetMessageHeader* messag
 bool CNetCustomPlayer::sendRemoteMessage(const game::NetMessageHeader* message,
                                          const SLNet::RakNetGUID& to) const
 {
+    if (lobbyRestartBlocksGameMessages()) {
+        return true;
+    }
     getLogger()->debug(__FUNCTION__ ": '{:s}' to 0x{:x}", message->messageClassName,
                        getClientId(to));
 
@@ -151,6 +223,9 @@ bool CNetCustomPlayer::sendRemoteMessage(const game::NetMessageHeader* message,
 bool CNetCustomPlayer::sendRemoteMessage(const game::NetMessageHeader* message,
                                          const RemoteClients& to) const
 {
+    if (lobbyRestartBlocksGameMessages()) {
+        return true;
+    }
     getLogger()->debug(__FUNCTION__ ": '{:s}' to {:d} recipient(s)", message->messageClassName,
                        to.size());
 
@@ -172,6 +247,9 @@ bool CNetCustomPlayer::sendRemoteMessage(const game::NetMessageHeader* message,
 
 bool CNetCustomPlayer::sendHostMessage(const game::NetMessageHeader* message) const
 {
+    if (lobbyRestartBlocksGameMessages()) {
+        return true;
+    }
     getLogger()->debug(__FUNCTION__ ": '{:s}' to 0x{:x}", message->messageClassName, m_id);
 
     auto msg = const_cast<game::NetMessageHeader*>(message);
@@ -225,6 +303,9 @@ game::IMqNetSession* __fastcall CNetCustomPlayer::getSession(CNetCustomPlayer* t
 
 int __fastcall CNetCustomPlayer::getMessageCount(CNetCustomPlayer* thisptr, int /*%edx*/)
 {
+    if (lobbyRestartBlocksGameMessages()) {
+        return 0;
+    }
     std::lock_guard<std::mutex> messageGuard(thisptr->m_messagesMutex);
     return static_cast<int>(thisptr->m_messages.size());
 }
@@ -237,35 +318,43 @@ game::ReceiveMessageResult __fastcall CNetCustomPlayer::receiveMessage(
 {
     std::lock_guard<std::mutex> messageGuard(thisptr->m_messagesMutex);
 
-    if (thisptr->m_messages.empty()) {
+    if (lobbyRestartBlocksGameMessages()) {
         return game::ReceiveMessageResult::NoMessages;
     }
 
-    const auto& pair = thisptr->m_messages.front();
-    auto message = reinterpret_cast<const game::NetMessageHeader*>(pair.second.get());
+    const auto consumeFront = [thisptr]() {
+        thisptr->m_messages.pop();
+        if (thisptr->m_messageTracker) {
+            thisptr->m_messageTracker->consumed();
+        }
+    };
 
-    if (message->messageType != game::netMessageNormalType) {
-        thisptr->getLogger()
-            ->debug(__FUNCTION__ ": message from 0x{:x} with unexpected type 0x{:x}", *idFrom,
-                    message->messageType);
-        return game::ReceiveMessageResult::Failure;
+    while (!thisptr->m_messages.empty()) {
+        const auto& pair = thisptr->m_messages.front();
+        // Only postMessageToReceive inserts here, after validating and copying the packet.
+        auto message = reinterpret_cast<const game::NetMessageHeader*>(pair.second.get());
+
+        if (thisptr->m_id != game::serverNetPlayerId) {
+            const auto action = checkLobbyRestartClientMessage(message);
+            if (action == LobbyRestartMessageAction::Stop) {
+                return game::ReceiveMessageResult::NoMessages;
+            }
+            if (action == LobbyRestartMessageAction::Discard) {
+                consumeFront();
+                continue;
+            }
+        }
+
+        *idFrom = pair.first;
+        std::memcpy(buffer, message, message->length);
+        consumeFront();
+
+        thisptr->m_logger
+            ->debug(__FUNCTION__ ": '{:s}' from 0x{:x} with length {:d}, messages remain = {:d}",
+                    buffer->messageClassName, *idFrom, buffer->length, thisptr->m_messages.size());
+        return game::ReceiveMessageResult::Success;
     }
-
-    if (message->length >= game::netMessageMaxLength) {
-        thisptr->getLogger()->debug(
-            __FUNCTION__ ": message from 0x{:x} with length {:d} that exeeds maximum of {:d}",
-            *idFrom, message->length, game::netMessageMaxLength);
-        return game::ReceiveMessageResult::Failure;
-    }
-
-    *idFrom = pair.first;
-    std::memcpy(buffer, message, message->length);
-    thisptr->m_messages.pop();
-
-    thisptr->m_logger
-        ->debug(__FUNCTION__ ": '{:s}' from 0x{:x} with length {:d}, messages remain = {:d}",
-                buffer->messageClassName, *idFrom, buffer->length, thisptr->m_messages.size());
-    return game::ReceiveMessageResult::Success;
+    return game::ReceiveMessageResult::NoMessages;
 }
 
 void __fastcall CNetCustomPlayer::setNetSystem(CNetCustomPlayer* thisptr,
@@ -275,6 +364,11 @@ void __fastcall CNetCustomPlayer::setNetSystem(CNetCustomPlayer* thisptr,
     thisptr->getLogger()->debug(__FUNCTION__ ": old system = {:p}, new system = {:p}",
                                 (void*)thisptr->m_system, (void*)netSystem);
     if (thisptr->m_system != netSystem) {
+        if (isLobbyRestartActive() && thisptr->m_id != game::serverNetPlayerId) {
+            thisptr->getLogger()->info("Lobby restart pid {}: client receiver {:p} -> {:p}",
+                                      GetCurrentProcessId(), static_cast<void*>(thisptr->m_system),
+                                      static_cast<void*>(netSystem));
+        }
         if (thisptr->m_system) {
             thisptr->m_system->vftable->destructor(thisptr->m_system, 1);
         }

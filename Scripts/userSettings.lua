@@ -131,6 +131,24 @@ settings = {
 			-- Lobby client port (0 means auto-assign by OS)
 			port = 0,
 		},
+
+		-- Локальная видимость кнопок; не участвует в сетевой сверке.
+		-- Скрытые режимы выключены при создании своей комнаты; вход в чужие не ограничен.
+		-- Изменения применяются после перезапуска игры.
+		controls = {
+			ranked = true, -- Показывать кнопку, а не включать рейтинг автоматически.
+			simultaneousTurns = false,
+			unlockGui = false,
+		},
+
+		-- Начальный выбор при входе в лобби. Повторное открытие окна сохраняет ваш выбор.
+		-- Скрытый или отсутствующий в .dlg режим всегда выключен, независимо от defaults.
+		defaults = {
+			ranked = false,
+			simultaneousTurns = false,
+			unlockGui = false,
+			simultaneousTurnsDays = 7, -- 0..30; число дней само не включает ОХ при наличии кнопки.
+		},
 	},
 
 	unitEncyclopedia = {
