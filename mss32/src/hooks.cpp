@@ -50,6 +50,7 @@
 #include "batattackusepotion.h"
 #include "batattackwait.h"
 #include "batattackutils.h"
+#include "bagdroptombhooks.h"
 #include "batbigface.h"
 #include "batlogic.h"
 #include "batlogichooks.h"
@@ -626,6 +627,9 @@ static Hooks getGameHooks()
 
         // Quick save hotkey for host in multiplayer
         {(void*)fn.stratInterfKeyHandler, hookedKeyHandler, (void**)&originalKeyHandler},
+
+        // Allow drop loot into grave
+        {CMidgardPlanApi::get().getObjectsAtPoint, getObjectsAtPointHooked, (void**)&orig.getObjectsAtPoint},
 
         //Not used
         {BattleViewerInterfApi::vftable()->battleEnd, battleEndHooked, (void**)&orig.battleEnd},
