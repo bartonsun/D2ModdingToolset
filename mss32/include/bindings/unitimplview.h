@@ -70,6 +70,7 @@ public:
 
     std::optional<UnitImplView> getGlobal() const;
     std::optional<UnitImplView> getGenerated() const;
+    std::optional<UnitImplView> getPrevUnit() const;
     std::vector<ModifierView> getModifiers() const;
 
     bool hasModifier(const std::string& id) const;
@@ -115,6 +116,7 @@ public:
     int getImmuneToAttackClass(int attackClassId) const;
     /** Returns immune category id for specified attack source id. */
     int getImmuneToAttackSource(int attackSourceId) const;
+
 
 protected:
     std::optional<DynUpgradeView> getDynUpgrade(int upgradeNumber) const;

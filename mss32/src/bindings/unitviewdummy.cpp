@@ -46,6 +46,7 @@ void UnitViewDummy::bind(sol::state& lua)
     unit["impl"] = sol::property(&UnitViewDummy::getImpl);
     unit["baseImpl"] = sol::property(&UnitViewDummy::getBaseImpl);
     unit["leveledImpl"] = sol::property(&UnitViewDummy::getLeveledImpl);
+    unit["prevUnit"] = sol::property(&UnitViewDummy::getPrevUnit);
 
     // For backward compatibility
     unit["modifiers"] = sol::property(&UnitViewDummy::getModifiers);

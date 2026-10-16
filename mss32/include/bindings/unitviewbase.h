@@ -47,6 +47,8 @@ public:
     /** Returns unit leveled implementation (without modifiers). */
     std::optional<UnitImplView> getLeveledImpl() const;
 
+    std::optional<UnitImplView> getPrevUnit() const;
+
     std::vector<ModifierView> getModifiers() const;
 
     IdView getId() const;

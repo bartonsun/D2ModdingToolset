@@ -39,6 +39,11 @@ std::optional<UnitImplView> UnitViewBase::getLeveledImpl() const
     return getImpl()->getGenerated();
 }
 
+std::optional<UnitImplView> UnitViewBase::getPrevUnit() const
+{
+    return getImpl()->getPrevUnit();
+}
+
 IdView UnitViewBase::getId() const
 {
     return IdView{getIdInternal()};

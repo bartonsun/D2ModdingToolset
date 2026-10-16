@@ -36,6 +36,7 @@
 #include "ummodifier.h"
 #include "unitutils.h"
 #include "usleader.h"
+#include "usracialsoldier.h"
 #include "ussoldier.h"
 #include "usstackleader.h"
 #include "usunitimpl.h"
@@ -74,6 +75,7 @@ void UnitImplView::bind(sol::state& lua)
     impl["altAttack"] = sol::property(&UnitImplView::getAltAttack);
     impl["altAttack2"] = sol::property(&UnitImplView::getAltAttack2);
     impl["base"] = sol::property(&UnitImplView::getBaseUnit);
+    impl["prevUnit"] = sol::property(&UnitImplView::getPrevUnit);
     impl["getImmuneToAttackClass"] = &UnitImplView::getImmuneToAttackClass;
     impl["getImmuneToAttackSource"] = &UnitImplView::getImmuneToAttackSource;
 
@@ -646,6 +648,28 @@ std::optional<DynUpgradeView> UnitImplView::getDynUpgrade(int upgradeNumber) con
 const game::CachedLeaderData* UnitImplView::getCachedData() const
 {
     return hooks::getCachedLeaderData(impl->id);
+}
+
+std::optional<UnitImplView> UnitImplView::getPrevUnit() const
+{
+    using namespace game;
+
+    auto racialSoldier = gameFunctions().castUnitImplToRacialSoldier(impl);
+    if (!racialSoldier) {
+        return std::nullopt;
+    }
+
+    const auto prevId = racialSoldier->vftable->getPrevUnitImplId(racialSoldier);
+    if (!prevId || *prevId == emptyId) {
+        return std::nullopt;
+    }
+
+    auto unitImpl = hooks::getUnitImpl(prevId);
+    if (!unitImpl) {
+        return std::nullopt;
+    }
+
+    return UnitImplView{unitImpl};
 }
 
 } // namespace bindings
