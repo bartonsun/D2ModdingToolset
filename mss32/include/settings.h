@@ -202,6 +202,8 @@ struct Settings
 
         bool itemExtraTurn;
 
+        bool experimental;
+
     } extendedBattle;
 
     std::vector<int> longEffectRemoveChances;

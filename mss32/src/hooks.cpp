@@ -593,11 +593,6 @@ static Hooks getGameHooks()
         {CBatAttackDefendApi::vftable()->onHit, defendOnHitHooked},
         {CBatAttackReviveApi::vftable()->onHit, reviveAttackOnHitHooked},
 
-        //onHit dot effects
-        {CBatAttackBlisterEffectApi::vftable()->onHit, blisterEffectOnHitHooked},
-        {CBatAttackFrostbiteEffectApi::vftable()->onHit, frostbiteEffectOnHitHooked},
-        {CBatAttackPoisonEffectApi::vftable()->onHit, poisonEffectOnHitHooked},
-
         // Controlable random for long effects
         {battle.checkLongEffectDuration, checkLongEffectDurationHooked, (void**)&orig.checkLongEffectDuration},
 
@@ -614,18 +609,7 @@ static Hooks getGameHooks()
 
         {CBatAttackFearApi::vftable()->onHit, fearAttackOnHitHooked},
 
-        {CBatAttackWaitApi::vftable()->onHit, waitAttackOnHitHooked},
-        {CBatAttackRetreatApi::vftable()->onHit, retreatAttackOnHitHooked},
-
         {battle.setUnitFlag5, setUnitFlag5Hooked},
-
-        // DOT-damages
-        {CBatAttackBlisterApi::vftable()->canPerform, blisterAttackCanPerformHooked},
-        {CBatAttackBlisterApi::vftable()->onHit, blisterAttackOnHitHooked},
-        {CBatAttackFrostbiteApi::vftable()->canPerform, frostbiteAttackCanPerformHooked},
-        {CBatAttackFrostbiteApi::vftable()->onHit, frostbiteAttackOnHitHooked},
-        {CBatAttackPoisonApi::vftable()->canPerform, poisonAttackCanPerformHooked},
-        {CBatAttackPoisonApi::vftable()->onHit, poisonAttackOnHitHooked},
 
         // WIP
         {battle.updateParalyzePetrifyEffects, updateParalyzePetrifyEffectsHooked},
@@ -635,18 +619,13 @@ static Hooks getGameHooks()
         {battle.updateTransformLongEffect, shouldDisableTransformOtherHooked},
 
         // WIP
-        {CItemPotionReviveApi::get().constructor, itemPotionReviveCtorHooked, (void**)&orig.itemPotionReviveCtor},
-        {CItemPotionBoostPermApi::get().constructor, itemPotionBoostPermCtorHooked, (void**)&orig.itemPotionBoostPermCtor},
-        {CItemPotionBoostTempApi::get().constructor, itemPotionBoostTempCtorHooked, (void**)&orig.itemPotionBoostTempCtor},
-        {CItemPotionHealApi::get().constructor, itemPotionHealCtorHooked, (void**)&orig.itemPotionHealCtor},
         //{CItemBaseApi::get().constructor, itemBaseCtorHooked, (void**)&orig.itemBaseCtor},
-
-        {CBatAttackUsePotionApi::vftable()->onHit, usePotionAttackOnHitHooked},
-        {CBatAttackUseTalismanApi::vftable()->onHit, useTalismanAttackOnHitHooked},
-        {CBatAttackUseOrbApi::vftable()->onHit, useOrbAttackOnHitHooked},
 
         // Get fog spell area image
         {GameImagesApi::get().getSpellAreaFogImage, getSpellAreaFogImageHooked, (void**)&orig.getSpellAreaFogImage},
+
+        // Quick save hotkey for host in multiplayer
+        {(void*)fn.stratInterfKeyHandler, hookedKeyHandler, (void**)&originalKeyHandler},
 
         //Not used
         {BattleViewerInterfApi::vftable()->battleEnd, battleEndHooked, (void**)&orig.battleEnd},
@@ -733,6 +712,36 @@ static Hooks getGameHooks()
     if (gameSettings().extendedBattle.lowerdamageCanAffectHealer
         != baseGameSettings().extendedBattle.lowerdamageCanAffectHealer) {
         hooks.emplace_back( HookInfo{CBatAttackLowerDamageApi::vftable()->canPerform, lowerDamageCanPerformHooked});
+    }
+
+    if (gameSettings().extendedBattle.experimental
+        != baseGameSettings().extendedBattle.experimental) {
+        // clang-format off
+
+        // onHit dot effects
+        hooks.emplace_back(HookInfo{CBatAttackBlisterEffectApi::vftable()->onHit, blisterEffectOnHitHooked});
+        hooks.emplace_back(HookInfo{CBatAttackFrostbiteEffectApi::vftable()->onHit, frostbiteEffectOnHitHooked});
+        hooks.emplace_back( HookInfo{CBatAttackPoisonEffectApi::vftable()->onHit, poisonEffectOnHitHooked});
+        // DOT-damages
+        hooks.emplace_back(HookInfo{CBatAttackBlisterApi::vftable()->canPerform, blisterAttackCanPerformHooked});
+        hooks.emplace_back(HookInfo{CBatAttackBlisterApi::vftable()->onHit, blisterAttackOnHitHooked});
+        hooks.emplace_back(HookInfo{CBatAttackBlisterApi::vftable()->onHit, blisterAttackOnHitHooked});
+        hooks.emplace_back(HookInfo{CBatAttackFrostbiteApi::vftable()->canPerform, frostbiteAttackCanPerformHooked});
+        hooks.emplace_back(HookInfo{CBatAttackFrostbiteApi::vftable()->onHit, frostbiteAttackOnHitHooked});
+        hooks.emplace_back(HookInfo{CBatAttackPoisonApi::vftable()->canPerform, poisonAttackCanPerformHooked});
+        hooks.emplace_back(HookInfo{CBatAttackPoisonApi::vftable()->onHit, poisonAttackOnHitHooked});
+        //
+        hooks.emplace_back(HookInfo{CBatAttackWaitApi::vftable()->onHit, waitAttackOnHitHooked});
+        hooks.emplace_back(HookInfo{CBatAttackRetreatApi::vftable()->onHit, retreatAttackOnHitHooked});
+        hooks.emplace_back(HookInfo{battle.setUnitFlag5, setUnitFlag5Hooked});
+        hooks.emplace_back(HookInfo{CItemPotionReviveApi::get().constructor, itemPotionReviveCtorHooked, (void**)&orig.itemPotionReviveCtor});
+        hooks.emplace_back(HookInfo{CItemPotionBoostPermApi::get().constructor, itemPotionBoostPermCtorHooked, (void**)&orig.itemPotionBoostPermCtor});
+        hooks.emplace_back(HookInfo{CItemPotionBoostTempApi::get().constructor, itemPotionBoostTempCtorHooked, (void**)&orig.itemPotionBoostTempCtor});
+        hooks.emplace_back(HookInfo{CItemPotionHealApi::get().constructor, itemPotionHealCtorHooked, (void**)&orig.itemPotionHealCtor});
+        hooks.emplace_back(HookInfo{CBatAttackUsePotionApi::vftable()->onHit, usePotionAttackOnHitHooked});
+        hooks.emplace_back(HookInfo{CBatAttackUseTalismanApi::vftable()->onHit, useTalismanAttackOnHitHooked});
+        hooks.emplace_back(HookInfo{CBatAttackUseOrbApi::vftable()->onHit, useOrbAttackOnHitHooked});
+        // clang-format on
     }
     // End extended battle options
 

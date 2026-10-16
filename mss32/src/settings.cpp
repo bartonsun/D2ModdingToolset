@@ -307,6 +307,8 @@ static void readExtandedBattleSettings(const sol::table& table, Settings::Extend
     value.longEffectsUsesPower = readSetting(category.value(), "longEffectsUsesPower", def.longEffectsUsesPower);
 
     value.itemExtraTurn = readSetting(category.value(), "itemExtraTurn", def.itemExtraTurn);
+
+    value.experimental = readSetting(category.value(), "experimental", def.experimental);
 }
 
 static void readSettings(const sol::table& table, Settings& settings)
@@ -468,6 +470,7 @@ const Settings& baseGameSettings()
         settings.extendedBattle.lowerCanAffectDot = false;
         settings.extendedBattle.longEffectsUsesPower = false;
         settings.extendedBattle.itemExtraTurn = false;
+        settings.extendedBattle.experimental = false;
 
         settings.longEffectRemoveChances = {0, 50, 75, 100};
 
