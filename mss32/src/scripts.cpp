@@ -18,6 +18,7 @@
  */
 
 #include "scripts.h"
+#include "attackparams.h"
 #include "attackview.h"
 #include "batlogic.h"
 #include "batlogichooks.h"
@@ -524,6 +525,7 @@ static void bindApi(sol::state& lua)
     bindings::GameView::bind(lua);
     bindings::BuildingView::bind(lua);
     bindings::AttackView::bind(lua);
+    bindings::AttackHitParamsView::bind(lua);
 
     if (std::this_thread::get_id() == mainThreadId) {
         createLogger(true);
