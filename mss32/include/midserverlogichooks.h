@@ -27,6 +27,7 @@
 
 namespace game {
 struct IMidMsgSender;
+struct CCommandMsg;
 struct CMidServerLogic;
 struct IMidgardObjectMap;
 struct CMidEvent;
@@ -38,6 +39,12 @@ struct CMidServer;
 namespace hooks {
 
 bool __fastcall midServerLogicSendObjectsChangesHooked(game::IMidMsgSender* thisptr, int /*%edx*/);
+
+bool __fastcall midServerLogicSendPlayerMessageHooked(game::IMidMsgSender* thisptr,
+                                                       int /*%edx*/,
+                                                       game::CCommandMsg* message,
+                                                       const game::CMidgardID* playerId,
+                                                       bool sendBeforeObjectsChanges);
 
 bool __fastcall midServerLogicSendRefreshInfoHooked(const game::CMidServerLogic* thisptr,
                                                     int /*%edx*/,

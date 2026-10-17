@@ -87,9 +87,18 @@ struct Api
                                                const CMqPoint* startPosition,
                                                const CMqPoint* endPosition);
     SendStackMoveMsg sendStackMoveMsg;
+
+    /** Builds and queues the native save-game message. Unsupported game builds use nullptr. */
+    using SendSaveGameMsg = void(__thiscall*)(CPhaseGame* thisptr,
+                                              const char* saveName,
+                                              bool uiLockRequest);
+    SendSaveGameMsg sendSaveGameMsg;
 };
 
 Api& get();
+
+/** Returns true only when the native save entry point matches the audited x86 implementation. */
+bool nativeSaveSupported();
 
 } // namespace CPhaseGameApi
 

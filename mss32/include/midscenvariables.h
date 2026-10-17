@@ -47,6 +47,8 @@ struct CMidScenVariables : public IMidScenarioObject
 assert_size(CMidScenVariables, 40);
 
 using ScenarioVariable = Pair<int, ScenarioVariableData>;
+using ScenarioVariableInsertResult = Pair<MapIterator<int, ScenarioVariableData>, bool>;
+assert_size(ScenarioVariableInsertResult, 16);
 
 namespace CMidScenVariablesApi {
 
@@ -59,6 +61,13 @@ struct Api
     using FindById = ScenarioVariableData*(__thiscall*)(const CMidScenVariables* thisptr,
                                                         int variableId);
     FindById findById;
+
+    /** Inserts a complete record without replacing an existing id. Null on unverified builds. */
+    using Insert = ScenarioVariableInsertResult*(__thiscall*)(
+        Map<int, ScenarioVariableData>* variables,
+        ScenarioVariableInsertResult* result,
+        const ScenarioVariable* variable);
+    Insert insert;
 
 };
 
