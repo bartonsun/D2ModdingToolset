@@ -591,6 +591,11 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\siteresourcemarketinterf.cpp" />
     <ClCompile Include="src\smartptr.cpp" />
     <ClCompile Include="src\movepathhooks.cpp" />
+    <ClCompile Include="src\waitingmovepath.cpp" />
+    <ClCompile Include="src\waitingmovepathflag.cpp" />
+    <ClCompile Include="src\waitingmovepathstop.cpp" />
+    <ClCompile Include="src\waitingmovepathhooks.cpp" />
+    <ClCompile Include="src\waitingmovepathplanner.cpp" />
     <ClCompile Include="src\capitalraceset.cpp" />
     <ClCompile Include="src\pointset.cpp" />
     <ClCompile Include="src\raceset.cpp" />
@@ -1095,6 +1100,8 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\d2pair.h" />
     <ClInclude Include="include\d2string.h" />
     <ClInclude Include="include\d2vector.h" />
+    <ClInclude Include="include\dailyincometracker.h" />
+    <ClInclude Include="include\reconnectreplay.h" />
     <ClInclude Include="include\dbfaccess.h" />
     <ClInclude Include="include\dbf\dbfcolumn.h" />
     <ClInclude Include="include\dbf\dbffile.h" />
@@ -1383,6 +1390,13 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\capitalraceset.h" />
     <ClInclude Include="include\d2set.h" />
     <ClInclude Include="include\movepathhooks.h" />
+    <ClInclude Include="include\waitingmovepath.h" />
+    <ClInclude Include="include\waitingmovepathflag.h" />
+    <ClInclude Include="include\waitingmovepathstop.h" />
+    <ClInclude Include="include\waitingmovepathhooks.h" />
+    <ClInclude Include="include\waitingmovepathplanner.h" />
+    <ClInclude Include="include\waitingmovepathplan.h" />
+    <ClInclude Include="include\waitingmovepathpolicy.h" />
     <ClInclude Include="include\pointset.h" />
     <ClInclude Include="include\raceset.h" />
     <ClInclude Include="include\sounds.h" />
