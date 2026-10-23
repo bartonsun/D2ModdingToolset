@@ -20,18 +20,62 @@
 #ifndef PLAYERINCOMEHOOKS_H
 #define PLAYERINCOMEHOOKS_H
 
+#include <vector>
+
 namespace game {
 struct Bank;
 struct IMidgardObjectMap;
 struct CMidgardID;
+struct CMidServerLogic;
 } // namespace game
 
 namespace hooks {
+
+struct HookInfo;
 
 game::Bank* __stdcall computePlayerDailyIncomeHooked(game::Bank* income,
                                                      game::IMidgardObjectMap* objectMap,
                                                      const game::CMidgardID* playerId);
 
-}
+/** Starting resources, command replay and computer bonus hooks of network games. */
+void addNetworkIncomeHooks(std::vector<HookInfo>& hooks);
+
+void resetNetworkIncome();
+void rememberHumanPlayers(const game::CMidServerLogic* logic);
+void observeStartingResources(const game::CMidServerLogic* logic, int turn);
+bool isIncomeCredited(const game::CMidServerLogic* logic, const game::CMidgardID* playerId);
+bool claimTurnStart(const game::CMidServerLogic* logic, const game::CMidgardID* playerId);
+
+/** Server that runs BeginTurn, before CMidgard publishes it. */
+class TurnIncomeScope
+{
+public:
+    explicit TurnIncomeScope(const game::CMidServerLogic* logic);
+    ~TurnIncomeScope();
+
+    TurnIncomeScope(const TurnIncomeScope&) = delete;
+    TurnIncomeScope& operator=(const TurnIncomeScope&) = delete;
+
+private:
+    const game::CMidServerLogic* previous;
+};
+
+/** Network game restored after its first day: the day's income is already paid. */
+class RestoredGameScope
+{
+public:
+    RestoredGameScope(game::CMidServerLogic* logic, bool currentPlayerReady);
+    ~RestoredGameScope();
+
+    RestoredGameScope(const RestoredGameScope&) = delete;
+    RestoredGameScope& operator=(const RestoredGameScope&) = delete;
+
+private:
+    game::CMidServerLogic* previous;
+    int previousTurn;
+    bool previousMarked;
+};
+
+} // namespace hooks
 
 #endif // PLAYERINCOMEHOOKS_H

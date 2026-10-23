@@ -26,6 +26,7 @@
 #include "gameutils.h"
 #include "idset.h"
 #include "logutils.h"
+#include "midgardhooks.h"
 #include "midgardplan.h"
 #include "midgardscenariomap.h"
 #include "midplayer.h"
@@ -38,6 +39,7 @@
 #include "netmsgmapentryexchangeresourcesmsg.h"
 #include "netplayerinfo.h"
 #include "originalfunctions.h"
+#include "playerincomehooks.h"
 #include "racetype.h"
 #include "refreshinfo.h"
 #include "ruinmovement.h"
@@ -57,6 +59,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 namespace hooks {
 
@@ -270,10 +273,16 @@ bool __fastcall stackMoveHooked(game::CMidServerLogic** thisptr,
 
     IMidMsgSender* sender = thisptr ? *thisptr : nullptr;
     if (sender && sender->vftable && sender->vftable->sendMessage) {
+        // During a battle the server keeps BattleStart (unknown11) and the last
+        // battle command (unknown12) to resend them to a reconnected player.
+        // MoveStackEnd must not take the place of the pending BattleChooseAction.
+        auto* logic = *thisptr;
+        const auto battleStart = std::exchange(logic->unknown11, 0);
         CCmdMoveStackEndMsg message;
         if (!sender->vftable->sendMessage(sender, &message, false)) {
             spdlog::error(__FUNCTION__ ": failed to send CCmdMoveStackEndMsg");
         }
+        logic->unknown11 = battleStart;
     }
 
     return result;
@@ -634,9 +643,23 @@ void __fastcall processZeroTurnHooked(game::CMidServerLogic* thisptr,
     auto objectMap{thisptr->coreData->objectMap};
     auto scenarioInfo = getScenarioInfo(objectMap);
     bool isTurnZero = (scenarioInfo->currentTurn == 0);
+    observeStartingResources(thisptr, scenarioInfo->currentTurn);
+    rememberHumanPlayers(thisptr);
 
-    getOriginalFunctions().processZeroTurn(thisptr, playerNetId, a3);
-
+    {
+        const auto* core = thisptr->coreData;
+        const bool restored = scenarioInfo->currentTurn > 0 && core->multiplayerGame
+                              && !core->hotseatGame;
+        // Only the low byte of the reused stack argument is the initialization flag.
+        const RestoredGameScope incomeScope{restored ? thisptr : nullptr, !(a3 & 0xff)};
+        if (restored) {
+            clearStaleMovementLock();
+        }
+        getOriginalFunctions().processZeroTurn(thisptr, playerNetId, a3);
+        if (restored) {
+            clearStaleMovementLock();
+        }
+    }
 
     if (!isTurnZero) {
         return;

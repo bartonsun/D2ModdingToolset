@@ -919,6 +919,8 @@ static Hooks getGameHooks()
                                     (void**)&orig.midServerLogicSendObjectsChanges});
     }
 
+    addNetworkIncomeHooks(hooks);
+
     return hooks;
 }
 
