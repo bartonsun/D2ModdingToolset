@@ -27,6 +27,7 @@
 #include "midstart.h"
 #include "netcustomservice.h"
 #include "originalfunctions.h"
+#include "waitingmovepathhooks.h"
 #include <spdlog/spdlog.h>
 
 namespace hooks {
@@ -110,6 +111,7 @@ void __fastcall midgardClearNetworkStateHooked(game::CMidgard* thisptr, int /*%e
 {
     spdlog::debug(__FUNCTION__);
 
+    stopWaitingMovementPathPreview();
     getOriginalFunctions().midgardClearNetworkState(thisptr);
 
     // Make sure that there are no peer messages remain to process.
@@ -126,6 +128,7 @@ void __fastcall midgardClearNetworkStateAndServiceHooked(game::CMidgard* thisptr
 {
     spdlog::debug(__FUNCTION__);
 
+    stopWaitingMovementPathPreview();
     getOriginalFunctions().midgardClearNetworkStateAndService(thisptr);
 
     resetCommandSequenceGlobalCounters();
