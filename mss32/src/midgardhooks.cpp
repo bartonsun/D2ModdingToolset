@@ -23,13 +23,39 @@
 #include "mempool.h"
 #include "menucustomlobby.h"
 #include "menuphase.h"
+#include "midclient.h"
 #include "midgard.h"
 #include "midstart.h"
 #include "netcustomservice.h"
 #include "originalfunctions.h"
+#include "phasegame.h"
+#include "playerincomehooks.h"
+#include <cstddef>
 #include <spdlog/spdlog.h>
 
 namespace hooks {
+
+static void clearMovementLock(game::CMidgard* midgard)
+{
+    using namespace game;
+
+    if (!midgard || !midgard->data || !midgard->data->client || !midgard->data->client->data
+        || !midgard->data->client->data->scenarioStarted || !midgard->data->client->data->phase) {
+        return;
+    }
+
+    auto* phaseGame = reinterpret_cast<CPhaseGame*>(
+        reinterpret_cast<char*>(midgard->data->client->data->phase) - offsetof(CPhaseGame, phase));
+    if (auto* lock = phaseGame->data ? phaseGame->data->midObjectLock : nullptr) {
+        lock->patched.movingStack = false;
+        lock->pendingNetworkUpdates = 0;
+    }
+}
+
+void clearStaleMovementLock()
+{
+    clearMovementLock(game::CMidgardApi::get().instance());
+}
 
 void __fastcall midgardStartMenuMessageCallbackHooked(game::CMidgard* thisptr,
                                                       int /*%edx*/,
@@ -110,6 +136,7 @@ void __fastcall midgardClearNetworkStateHooked(game::CMidgard* thisptr, int /*%e
 {
     spdlog::debug(__FUNCTION__);
 
+    clearMovementLock(thisptr);
     getOriginalFunctions().midgardClearNetworkState(thisptr);
 
     // Make sure that there are no peer messages remain to process.
@@ -126,7 +153,9 @@ void __fastcall midgardClearNetworkStateAndServiceHooked(game::CMidgard* thisptr
 {
     spdlog::debug(__FUNCTION__);
 
+    clearMovementLock(thisptr);
     getOriginalFunctions().midgardClearNetworkStateAndService(thisptr);
+    resetNetworkIncome();
 
     resetCommandSequenceGlobalCounters();
 }
