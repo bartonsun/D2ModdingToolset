@@ -46,7 +46,10 @@ void __fastcall midObjectLockNotify1CallbackHooked(game::CMidObjectLock* thisptr
 
 void __fastcall midObjectLockNotify2CallbackHooked(game::CMidObjectLock* thisptr, int /*%edx*/)
 {
-    --thisptr->pendingLocalUpdates;
+    // A dropped connection can lose the matching notify1
+    if (thisptr->pendingLocalUpdates) {
+        --thisptr->pendingLocalUpdates;
+    }
     spdlog::debug(
         __FUNCTION__ ": pendingLocalUpdates decremented to {:d}, processingCommand = {:d}",
         thisptr->pendingLocalUpdates, thisptr->commandQueue->processingCommand);

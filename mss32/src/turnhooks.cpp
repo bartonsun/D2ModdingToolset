@@ -9,6 +9,7 @@
 #include "gameutils.h"
 #include "midplayer.h"
 #include "phasegame.h"
+#include "playerincomehooks.h"
 #include "playerview.h"
 #include "scripts.h"
 #include "midserverlogic.h"
@@ -18,10 +19,7 @@
 
 namespace hooks {
 
-using BeginTurnFunc = void(__thiscall*)(game::CMidServerLogicData* thisptr,
-                                        game::CMidgardID* playerId);
-
-static BeginTurnFunc beginTurnOrig;
+static game::MidServerLogicDataBeginTurn beginTurnOrig;
 
 static std::optional<sol::environment> env;
 // protected_function, not sol::function: under NDEBUG sol::function is
@@ -29,23 +27,28 @@ static std::optional<sol::environment> env;
 // this try/catch -- the day-2 crash T-32 traced to exactly this shape.
 static std::optional<sol::protected_function> processTurnStart;
 
-void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
+bool __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
                                 int /*%edx*/,
                                 game::CMidgardID* playerId)
 {
     using namespace game;
 
-    beginTurnOrig(thisptr, playerId);
+    const auto* logic = thisptr ? thisptr->logic : nullptr;
+    const TurnIncomeScope incomeScope{logic};
+    rememberHumanPlayers(logic);
+    const bool credited = isIncomeCredited(logic, playerId);
+    const bool result = beginTurnOrig(thisptr, playerId);
 
-    if (!thisptr || !playerId) {
-        return;
+    // A repeated turn start (reconnect, restored game) does not run turn.lua again.
+    if (!result || !logic || !playerId || credited || !claimTurnStart(logic, playerId)) {
+        return result;
     }
 
-    auto objectMap = getServerObjectMap();
+    auto objectMap = logic->coreData ? logic->coreData->objectMap : nullptr;
 
     if (!objectMap) {
         spdlog::error("[TURN] objectMap == nullptr");
-        return;
+        return result;
     }
 
     if (!processTurnStart) {
@@ -63,7 +66,7 @@ void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
 
             spdlog::error("[TURN] failed to load processTurnStart");
 
-            return;
+            return result;
         }
     }
 
@@ -73,7 +76,7 @@ void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
 
         spdlog::error("[TURN] could not find player {}", idToString(playerId));
 
-        return;
+        return result;
     }
 
     auto player = static_cast<const CMidPlayer*>(playerObj);
@@ -90,6 +93,8 @@ void __fastcall beginTurnHooked(game::CMidServerLogicData* thisptr,
 
         showErrorMessageBox(fmt::format("Failed to run turn.lua\nReason: {}", e.what()));
     }
+
+    return result;
 }
 
 void* getBeginTurnHooked()

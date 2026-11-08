@@ -35,6 +35,9 @@ void __fastcall midgardClearNetworkStateHooked(game::CMidgard* thisptr, int /*%e
 
 void __fastcall midgardClearNetworkStateAndServiceHooked(game::CMidgard* thisptr, int /*%edx*/);
 
+/** Unlocks a move whose MoveStackEnd was lost with the connection. */
+void clearStaleMovementLock();
+
 } // namespace hooks
 
 #endif // MIDGARDHOOKS_H
