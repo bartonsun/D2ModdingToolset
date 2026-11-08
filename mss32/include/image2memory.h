@@ -31,12 +31,14 @@ namespace hooks {
 /** Represents image in memory that does not depend on .ff files. */
 struct CImage2Memory : public game::CMqImage2Surface16
 {
-    CImage2Memory(std::uint32_t width, std::uint32_t height);
+    CImage2Memory(std::uint32_t width, std::uint32_t height, bool transparent = false);
 
     std::vector<game::Color> pixels;
+    bool transparent;
 };
 
-CImage2Memory* createImage2Memory(std::uint32_t width, std::uint32_t height);
+CImage2Memory* createImage2Memory(std::uint32_t width, std::uint32_t height,
+                                 bool transparent = false);
 
 void writeImageToMemory(const CImage2Memory* image, std::vector<uint8_t>& out);
 

@@ -61,6 +61,15 @@ static void __stdcall img2MemoryDraw(game::IMqTexture* thisptr,
 
     // Do actual drawing onto decompressData memory
     if (decompressData->noPalette) {
+        if (img2Mem->transparent) {
+            // Like CImage2Outline, register the key as well as writing key pixels.
+            // The native surface unlock installs DDCKEY_SRCBLT from this metadata;
+            // leaving its default sentinel would make magenta pixels opaque.
+            const Color keyRgb(255, 0, 255);
+            const auto& api = SurfaceDecompressDataApi::get();
+            const auto key = api.convertColor(decompressData, &keyRgb);
+            api.setColor(decompressData, Color(static_cast<std::uint32_t>(key)));
+        }
         const int height = img2Mem->size.y;
         const int width = img2Mem->size.x;
 
@@ -68,14 +77,16 @@ static void __stdcall img2MemoryDraw(game::IMqTexture* thisptr,
         // The legacy C4dll-R reports 16-bit masks but exposes a 32-bit backing layout.
         // cnc-ddraw's C4dll-R exports DDReloadConfig and exposes real 16-bit memory,
         // so the masks alone are not enough to select the write format.
-        static const bool cncDdrawSurfaceLayout = []() {
+        static const bool legacyC4SurfaceLayout = []() {
             const HMODULE wrapper = GetModuleHandleA("C4dll-R.dll");
-            return wrapper != nullptr && GetProcAddress(wrapper, "DDReloadConfig") != nullptr;
+            return wrapper != nullptr && GetProcAddress(wrapper, "DDReloadConfig") == nullptr;
         }();
 
         const bool reported16 = decompressData->rBitMask == 0xF800
                                 || decompressData->rBitMask == 0x7C00;
-        const bool dst16 = reported16 && cncDdrawSurfaceLayout;
+        // Without a wrapper the original renderer also has a true 16-bit
+        // surface. Treating that case as legacy C4 would write twice its size.
+        const bool dst16 = reported16 && !legacyC4SurfaceLayout;
 
         if (dst16) {
             const auto& convertColor = SurfaceDecompressDataApi::get().convertColor;
@@ -96,18 +107,19 @@ static void __stdcall img2MemoryDraw(game::IMqTexture* thisptr,
     img2Mem->dirty = false;
 }
 
-CImage2Memory::CImage2Memory(std::uint32_t width, std::uint32_t height)
+CImage2Memory::CImage2Memory(std::uint32_t width, std::uint32_t height, bool transparent)
     : pixels(width * height, game::Color(255, 0, 255, 255))
+    , transparent(transparent)
 {
     game::CMqImage2Surface16Api::get().constructor(this, width, height, 1, 0xff);
 }
 
-CImage2Memory* createImage2Memory(std::uint32_t width, std::uint32_t height)
+CImage2Memory* createImage2Memory(std::uint32_t width, std::uint32_t height, bool transparent)
 {
     using namespace game;
 
     CImage2Memory* img2Memory = (CImage2Memory*)Memory::get().allocate(sizeof(CImage2Memory));
-    new (img2Memory) CImage2Memory(width, height);
+    new (img2Memory) CImage2Memory(width, height, transparent);
 
     static bool firstTime = true;
     if (firstTime) {
