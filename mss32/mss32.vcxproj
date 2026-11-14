@@ -502,6 +502,7 @@ call ..\buildDetours.bat ..\Detours
     <ClCompile Include="src\menuflashwait.cpp" />
     <ClCompile Include="src\menuload.cpp" />
     <ClCompile Include="src\menulord.cpp" />
+    <ClCompile Include="src\menulordhooks.cpp" />
     <ClCompile Include="src\menunewmap.cpp" />
     <ClCompile Include="src\menunewskirmish.cpp" />
     <ClCompile Include="src\menunewskirmishmulti.cpp" />
@@ -1230,6 +1231,7 @@ call ..\buildDetours.bat ..\Detours
     <ClInclude Include="include\menuflashwait.h" />
     <ClInclude Include="include\menuload.h" />
     <ClInclude Include="include\menulord.h" />
+    <ClInclude Include="include\menulordhooks.h" />
     <ClInclude Include="include\menunewmap.h" />
     <ClInclude Include="include\menunewskirmish.h" />
     <ClInclude Include="include\menunewskirmishmulti.h" />
