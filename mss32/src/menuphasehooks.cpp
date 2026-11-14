@@ -18,6 +18,7 @@
  */
 
 #include "menuphasehooks.h"
+#include "menulordhooks.h"
 #include "mempool.h"
 #include "menucustomloadskirmishmulti.h"
 #include "menucustomlobby.h"
@@ -125,6 +126,8 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             break;
         case MenuPhase::Back2Main:
             spdlog::debug("Current is Back2Main");
+            // FIX #22: no loaded-save session survives a return to the main menu.
+            resetLordLockState();
             menuPhase.switchToMain(thisptr);
             break;
         case MenuPhase::Main:
@@ -155,6 +158,8 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
         case MenuPhase::Main2CustomLobby:
         case MenuPhase::Back2CustomLobby: {
             spdlog::debug("Show CustomLobby");
+            // FIX #22: entering / returning to the custom lobby means no game is loaded yet.
+            resetLordLockState();
             data->networkGame = true;
             CMenuPhaseApi::Api::CreateMenuCallback tmp = createMenuCustomLobbyCallback;
             auto* callback = &tmp;
@@ -166,6 +171,8 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
         case MenuPhase::CustomLobby: {
             spdlog::debug("Current is CustomLobby");
             if (transition == MenuTransition::CustomLobby2NewSkirmish) {
+                // Hosting a NEW game: never inherit the lock of a previously loaded save.
+                resetLordLockState();
                 menuPhase.showFullScreenAnimation(thisptr, &data->currentPhase,
                                                   &data->interfManager, &data->currentMenu,
                                                   MenuPhase::Multi2NewSkirmish, "TRANS_MULTI2HOST");
@@ -201,6 +208,12 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             break;
         case MenuPhase::Single2NewSkirmish:
             spdlog::debug("Current is Single2NewSkirmish");
+            // Starting a brand new scenario always means lord/race selection
+            // should be available, regardless of any leftover lock state from a
+            // previous load-save flow. FIX #22: also drops a stale
+            // isLoadingSkirmishMultiSave (set by a load menu that was cancelled),
+            // which would otherwise re-lock this NEW game at NewSkirmish2LobbyHost.
+            resetLordLockState();
             if (data->networkGame && CNetCustomService::get()) {
                 spdlog::debug("Show CMenuCustomNewSkirmishMulti");
                 CMenuPhaseApi::Api::CreateMenuCallback
@@ -248,6 +261,7 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             spdlog::debug("Current is Single2LoadSkirmish");
             if (data->networkGame && CNetCustomService::get()) {
                 spdlog::debug("Show CMenuCustomLoadSkirmishMulti");
+                isLoadingSkirmishMultiSave = true;
                 CMenuPhaseApi::Api::CreateMenuCallback
                     tmp = createMenuCustomLoadSkirmishMultiCallback;
                 auto* callback = &tmp;
@@ -296,10 +310,14 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             break;
         case MenuPhase::Hotseat2NewSkirmishHotseat:
             spdlog::debug("Current is Hotseat2NewSkirmishHotseat");
+            // Brand new hotseat scenario: clear any leftover lock from a previous load.
+            resetLordLockState();
             menuPhase.switchToNewSkirmishHotseat(thisptr);
             break;
         case MenuPhase::Hotseat2LoadSkirmishHotseat:
             spdlog::debug("Current is Hotseat2LoadSkirmishHotseat");
+            // Loaded hotseat save: lock lord/race selection, same as multiplayer.
+            lockLordFaceButton = true;
             menuPhase.switchToLoadSkirmishHotseat(thisptr);
             break;
         case MenuPhase::NewSkirmishHotseat: {
@@ -332,10 +350,26 @@ void __fastcall menuPhaseSwitchPhaseHooked(game::CMenuPhase* thisptr,
             spdlog::debug("Current is Multi2Session");
             menuPhase.switchToSession(thisptr);
             break;
-        case MenuPhase::NewSkirmish2LobbyHost:
+        case MenuPhase::NewSkirmish2LobbyHost: {
+            // MenuPhase::NewSkirmish2LobbyHost and MenuPhase::LoadSkirmishMulti share
+            // the same underlying value, so this case is also entered right after a
+            // saved game finished loading through CMenuCustomLoadSkirmishMulti (see
+            // MenuPhase::Single2LoadSkirmish above). Without this check, a loaded save
+            // falls through into the same interactive lord/race selection screen as a
+            // brand new skirmish, letting the race be changed after the fact.
+            bool loadedGame = isLoadingSkirmishMultiSave;
+            isLoadingSkirmishMultiSave = false;
+            if (loadedGame) {
+                spdlog::debug("Current is LoadSkirmishMulti (loaded game), locking race selection");
+                lockLordFaceButton = true;
+                menuPhase.switchToLobbyHostJoin(thisptr);
+                break;
+            }
+
             spdlog::debug("Current is NewSkirmish2LobbyHost");
             menuPhase.switchToLobbyHostJoin(thisptr);
             break;
+        }
         case MenuPhase::WaitInterf:
             spdlog::debug("Current is WaitInterf");
             menuPhase.switchToWaitAndCreateClient(thisptr);
@@ -409,6 +443,10 @@ void __fastcall menuPhaseTransitionToMainOrCloseGameHooked(game::CMenuPhase* thi
                                                            bool showIntroTransition)
 {
     using namespace game;
+
+    // FIX #22: we are leaving a game / lobby session: drop the lord lock and any
+    // pending "loading a save" marker, whichever screen we end up on.
+    resetLordLockState();
 
     // Back to main if a lobby user is not logged in
     auto service = CNetCustomService::get();

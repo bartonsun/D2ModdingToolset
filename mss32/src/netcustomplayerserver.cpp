@@ -18,6 +18,7 @@
  */
 
 #include "netcustomplayerserver.h"
+#include "menulordhooks.h"
 #include "mempool.h"
 #include "mqnetreception.h"
 #include "mqnetsystem.h"
@@ -226,6 +227,13 @@ SLNet::RakNetGUID CNetCustomPlayerServer::getRemoteClientGuid(std::uint32_t id) 
     return it->first;
 }
 
+// The host loaded a saved game: nobody (remote clients included) may change a lord / race.
+static bool isLordChangeDenied(const game::NetMessageHeader* message)
+{
+    return lockLordFaceButton && message
+           && !strcmp(message->messageClassName, ".?AVCMenusReqLordMsg@@");
+}
+
 void CNetCustomPlayerServer::PeerCallback::onPacketReceived(DefaultMessageIDTypes type,
                                                             SLNet::RakPeerInterface* peer,
                                                             const SLNet::Packet* packet)
@@ -234,6 +242,12 @@ void CNetCustomPlayerServer::PeerCallback::onPacketReceived(DefaultMessageIDType
     case ID_GAME_MESSAGE: {
         SLNet::RakNetGUID sender;
         auto message = getMessageAndSender(packet, &sender);
+        if (isLordChangeDenied(message)) {
+            m_player->getLogger()->debug(__FUNCTION__ ": denying CMenusReqLordMsg from 0x{:x} "
+                                                      "(lord change is locked, save is loaded)",
+                                         getClientId(sender));
+            break;
+        }
         m_player->postMessageToReceive(message, getClientId(sender));
         break;
     }
@@ -241,6 +255,12 @@ void CNetCustomPlayerServer::PeerCallback::onPacketReceived(DefaultMessageIDType
     case ID_GAME_MESSAGE_TO_HOST_SERVER: {
         auto message = reinterpret_cast<game::NetMessageHeader*>(packet->data);
         message->messageType = game::netMessageNormalType; // TODO: any better way to do this?
+        if (isLordChangeDenied(message)) {
+            m_player->getLogger()->debug(__FUNCTION__ ": denying CMenusReqLordMsg from 0x{:x} "
+                                                      "(lord change is locked, save is loaded)",
+                                         getClientId(packet->guid));
+            break;
+        }
         m_player->postMessageToReceive(message, getClientId(packet->guid));
         break;
     }

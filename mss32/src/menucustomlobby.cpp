@@ -18,6 +18,7 @@
  */
 
 #include "menucustomlobby.h"
+#include "menulordhooks.h"
 #include "autodialog.h"
 #include "button.h"
 #include "dialoginterf.h"
@@ -80,6 +81,7 @@ CMenuCustomLobby::CMenuCustomLobby(game::CMenuPhase* menuPhase)
     , m_roomsUpdateEvent{}
     , m_usersUpdateEvent{}
     , m_chatMessageRegenEvent{}
+    , m_joinFailedMsgBoxEvent{} // was left uninitialized: its destructor crashed on lobby close
 {
     using namespace game;
 
@@ -124,6 +126,7 @@ CMenuCustomLobby ::~CMenuCustomLobby()
     uiEventApi.destructor(&m_chatMessageRegenEvent);
     uiEventApi.destructor(&m_usersUpdateEvent);
     uiEventApi.destructor(&m_roomsUpdateEvent);
+    uiEventApi.destructor(&m_joinFailedMsgBoxEvent);
 
     ImagePtrVectorApi::get().destructor(&m_userIcons);
 
@@ -677,6 +680,16 @@ void __fastcall CMenuCustomLobby::joinBtnHandler(CMenuCustomLobby* thisptr, int 
         return;
     }
 
+    // FIX #10: this room hosts a loaded save that was never originally a
+    // network game, so it has no reserved slot for a brand new player. The
+    // original engine crashes deep in its own code if we let the join
+    // handshake proceed anyway. Refuse locally instead, before contacting
+    // the host at all.
+    if (!room->acceptingNewPlayers) {
+        showMessageBox(getInterfaceText("X005TA0886"));
+        return;
+    }
+
     // Show wait dialog right away because game files hashing can be lengthy
     thisptr->showWaitDialog();
 
@@ -761,7 +774,19 @@ void __fastcall CMenuCustomLobby::usersUpdateEventCallback(CMenuCustomLobby* /*t
 {
     CNetCustomService::get()->queryOnlineUsers();
 }
-
+void __fastcall CMenuCustomLobby::joinFailedMsgBoxEventCallback(CMenuCustomLobby* thisptr,
+                                                                int /*%edx*/,
+                                                                unsigned int,
+                                                                long)
+{
+    using namespace game;
+    // FIX #10: do NOT release/destroy m_joinFailedMsgBoxEvent from inside
+    // this very callback - the engine's UiEvent dispatcher is still using
+    // this event's own list node right after calling us, so freeing it here
+    // crashes the dispatcher. It gets cleaned up in the destructor instead,
+    // same as the other UiEvent members of this class.
+    showMessageBox(getInterfaceText("X005TA0886"));
+}
 void __fastcall CMenuCustomLobby::chatMessageRegenEventCallback(CMenuCustomLobby* thisptr,
                                                                 int /*%edx*/)
 {
@@ -870,11 +895,38 @@ bool __fastcall CMenuCustomLobby::ansInfoMsgHandler(CMenuCustomLobby* menu,
 
     spdlog::debug("CMenusAnsInfoMsg received from 0x{:x}", idFrom);
 
+    // FIX #10: gameTurn is already sent to every joining client as part of
+    // this message, so we use it as a network-agnostic signal for whether
+    // lord/race selection should stay locked - a fresh scenario starts at
+    // turn 0 (free choice), a loaded save has gameTurn > 0 (locked for
+    // everyone, host and joining clients alike).
+    // FIX #22: the lock is applied only once the join is known to succeed
+    // (see right before switchPhase below), so a rejected join can no longer
+    // leave a stale lock behind.
+
     menu->hideWaitDialog();
 
+    // FIX #10: an empty race list means the host has no race/slot reserved
+    // for this joining client at all - this can happen for a genuinely new
+    // scenario (no races configured) or when trying to add a brand new
+    // network player to a loaded save that never reserved a slot for them.
+    // Either way there is nothing to select here, so bail out cleanly instead
+    // of falling through into a race-selection screen with zero options
+    // (which was crashing the original engine later on, see FIX #10 notes).
     if (message->raceIds.length == 0) {
-        // Could not join game.  Host did not report any available race.
-        midgardApi.clearNetworkState(midgardApi.instance());
+        // FIX #10: do NOT call the native midgardApi.clearNetworkState() here -
+        // it is documented to (among other things) "finally remove all net
+        // messages from the game window's queue", and this internal message-
+        // queue drain crashes the original engine (0xC0000005, access violation
+        // writing to a tiny offset off a null-ish pointer) when it happens to
+        // dispatch a queued UI event whose associated CMidClient/session data
+        // was just destroyed earlier in that very same function, in this
+        // specific state (a loaded scenario map already in memory). Tear down
+        // only our own custom lobby/session state instead, and leave the
+        // native midgard-level cleanup (and the loaded scenario map) for a
+        // later, safer transition to handle.
+        resetLordLockState();
+        CNetCustomService::get()->leaveRoom();
         showMessageBox(getInterfaceText("X005TA0886"));
         return true;
     }
@@ -904,6 +956,10 @@ bool __fastcall CMenuCustomLobby::ansInfoMsgHandler(CMenuCustomLobby* menu,
     allocateString(&phaseData->scenarioName, message->scenarioName);
     allocateString(&phaseData->scenarioDescription, message->scenarioDescription);
 
+    lockLordFaceButton = message->gameTurn > 0;
+    spdlog::debug("CMenusAnsInfoMsg: gameTurn = {:d}, lockLordFaceButton set to {:s}",
+                  message->gameTurn, lockLordFaceButton ? "true" : "false");
+
     game::CMenuPhaseApi::get().switchPhase(menuPhase, MenuTransition::CustomLobby2LobbyJoin);
     return true;
 }
@@ -922,11 +978,11 @@ CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* 
         }
     }
 
-    auto gameNameProperty = roomDescriptor->GetProperty(CNetCustomService::gameNameColumnName);
+    auto gameNameProperty = getPropertySafe(roomDescriptor, CNetCustomService::gameNameColumnName);
 
-    auto passwordProperty = roomDescriptor->GetProperty(CNetCustomService::passwordColumnName);
+    auto passwordProperty = getPropertySafe(roomDescriptor, CNetCustomService::passwordColumnName);
 
-    auto filesHashProperty = roomDescriptor->GetProperty(CNetCustomService::gameFilesHashColumnName);
+    auto filesHashProperty = getPropertySafe(roomDescriptor, CNetCustomService::gameFilesHashColumnName);
 
     auto templateNameProperty = getPropertySafe(roomDescriptor,
                                                 CNetCustomService::templateNameColumnName);
@@ -934,19 +990,18 @@ CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* 
     auto templateHashProperty = getPropertySafe(roomDescriptor,
                                                 CNetCustomService::templateHashColumnName);
 
-    auto gameVersionProperty = roomDescriptor->GetProperty(
-        CNetCustomService::gameVersionColumnName);
+    auto gameVersionProperty = getPropertySafe(roomDescriptor, CNetCustomService::gameVersionColumnName);
 
-    auto scenarioNameProperty = roomDescriptor->GetProperty(
-        CNetCustomService::scenarioNameColumnName);
+    auto scenarioNameProperty = getPropertySafe(roomDescriptor, CNetCustomService::scenarioNameColumnName);
 
-    auto scenarioDescriptionProperty = roomDescriptor->GetProperty(
-        CNetCustomService::scenarioDescriptionColumnName);
+    auto scenarioDescriptionProperty = getPropertySafe(roomDescriptor, CNetCustomService::scenarioDescriptionColumnName);
 
     auto usedSlotsProperty = roomDescriptor->GetProperty(DefaultRoomColumns::TC_USED_PUBLIC_SLOTS);
 
     auto totalSlotsProperty = roomDescriptor->GetProperty(
         DefaultRoomColumns::TC_TOTAL_PUBLIC_SLOTS);
+
+    auto acceptingNewPlayersProperty = getPropertySafe(roomDescriptor, CNetCustomService::acceptingNewPlayersColumnName);
 
     auto* moderator = getRoomModerator(roomDescriptor->roomMemberList);
 
@@ -969,7 +1024,8 @@ CMenuCustomLobby::RoomInfo CMenuCustomLobby::getRoomInfo(SLNet::RoomDescriptor* 
 
             // Add 1 to used and total slots because they are not counting room moderator
             usedSlotsProperty ? (int)usedSlotsProperty->i + 1 : 0,
-            totalSlotsProperty ? (int)totalSlotsProperty->i + 1 : 0};
+            totalSlotsProperty ? (int)totalSlotsProperty->i + 1 : 0,
+            !acceptingNewPlayersProperty || !acceptingNewPlayersProperty->c || strcmp(acceptingNewPlayersProperty->c, "0") != 0};
 }
 
 SLNet::RoomMemberDescriptor* CMenuCustomLobby::getRoomModerator(
